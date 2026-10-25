@@ -3,13 +3,17 @@ package euf.mageslegacy.test;
 import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.client.ClientRaceState;
 import euf.mageslegacy.client.MagesLegacyClient;
+import euf.mageslegacy.client.screen.BestiaryScreen;
 import euf.mageslegacy.client.screen.LoreScreen;
 import euf.mageslegacy.client.screen.RaceSelectScreen;
 import euf.mageslegacy.client.screen.TalentScreen;
+import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.race.Talents;
+import euf.mageslegacy.shepherd.EchoType;
+import euf.mageslegacy.shepherd.Shepherd;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -25,12 +29,14 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.option.Perspective;
 import net.minecraft.client.util.ScreenshotRecorder;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.ZombieEntity;
+import net.minecraft.entity.passive.WolfEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -40,6 +46,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.Heightmap;
@@ -241,6 +248,105 @@ public class HarnessClient implements ClientModInitializer {
 			check("node_travel", c.player.getBlockPos().isWithinDistance(arena.add(-7, 1, 3), 2));
 			screenshot(c, "node_arrived");
 		});
+
+		// ---- Shepherds: switch race, learn echoes, the bestiary, a real Call, a bond, the Rally ----
+		step(10, false, c -> {
+			commands(c, "race set @a shepherd", "race xp @a 3000", "race resource @a 100", "kill @e[type=!player]");
+			UUID me = c.player.getUuid();
+			onServer(c, s -> {
+				ServerPlayerEntity player = s.getPlayerManager().getPlayer(me);
+				RaceData data = RaceState.get(s).data(me);
+				for (EntityType<?> type : List.of(EntityType.ZOMBIE, EntityType.SKELETON, EntityType.SPIDER)) {
+					EchoType echo = EchoType.of(type).orElseThrow();
+					for (int i = 0; i < echo.kills(); i++) {
+						Shepherd.countKill(player, data, echo);
+					}
+				}
+				for (int i = 0; i < 4; i++) {
+					Shepherd.countKill(player, data, EchoType.of(EntityType.WITHER_SKELETON).orElseThrow());
+				}
+				RacePackets.sync(player, data);
+				return null;
+			});
+		});
+		step(20, false, c -> {
+			check("shepherd_chosen", serverRace(c) == Race.SHEPHERD && ClientRaceState.race == Race.SHEPHERD);
+			check("echoes_learned", ClientRaceState.extra.getString("selected").equals("minecraft:zombie"));
+			c.setScreen(new BestiaryScreen());
+		});
+		step(20, false, c -> screenshot(c, "bestiary"));
+		step(10, false, c -> {
+			c.setScreen(null);
+			tp(c, Vec3d.ofBottomCenter(arena).add(-6, 0, 0), Vec3d.ofBottomCenter(arena).add(-2, 0, 0));
+		});
+		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
+		step(30, false, c -> {
+			check("echo_called", ClientRaceState.extra.getInt("echoes") == 1);
+			MagesLegacyClient.sendSelectEcho("minecraft:skeleton");
+			resetCooldowns(c);
+		});
+		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
+		step(30, false, c -> {
+			check("two_echoes", ClientRaceState.extra.getInt("echoes") == 2 && ClientRaceState.extra.getInt("capUsed") == 3);
+			c.options.hudHidden = true;
+			tp(c, Vec3d.ofBottomCenter(arena).add(-8, 0.5, 3), Vec3d.ofBottomCenter(arena).add(-3, 1, 0));
+		});
+		step(20, true, c -> screenshot(c, "echoes"));
+
+		// A wolf, the Song (sneak + empty hand), three feedings, the last by a campfire
+		step(10, false, c -> {
+			c.options.hudHidden = false;
+			commands(c, "race resource @a 100", "clear @a", "give @a minecraft:beef 8");
+			onServer(c, s -> {
+				ServerWorld world = s.getOverworld();
+				WolfEntity wolf = EntityType.WOLF.create(world);
+				wolf.refreshPositionAndAngles(arena.getX() + 3.5, arena.getY(), arena.getZ() + 2.5, 0, 0);
+				wolf.setAiDisabled(true);
+				world.spawnEntity(wolf);
+				world.setBlockState(arena.add(5, 0, 2), Blocks.CAMPFIRE.getDefaultState());
+				return null;
+			});
+			tp(c, Vec3d.ofBottomCenter(arena).add(1.5, 0, 2.5), Vec3d.ofBottomCenter(arena).add(3.5, 0.5, 2.5));
+			c.player.getInventory().selectedSlot = 8;
+		});
+		step(5, false, c -> c.options.sneakKey.setPressed(true));
+		step(10, false, c -> interactWolf(c));
+		step(10, false, c -> {
+			c.options.sneakKey.setPressed(false);
+			selectItem(c, Items.BEEF);
+		});
+		for (int i = 0; i < 3; i++) {
+			step(10, false, c -> {
+				interactWolf(c);
+				// The ritual wants a minute between feedings; the harness doesn't wait that long
+				UUID me = c.player.getUuid();
+				onServer(c, s -> {
+					RaceState.get(s).data(me).shepherd.rituals.values().forEach(r -> r.lastFeed -= 2400);
+					return null;
+				});
+			});
+		}
+		step(20, false, c -> {
+			check("wolf_bonded", ClientRaceState.extra.getList("bonds", 10).size() == 1);
+			screenshot(c, "bonded");
+			resetCooldowns(c);
+		});
+		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[1].getDefaultKey()));
+		step(20, false, c -> {
+			UUID me = c.player.getUuid();
+			check("rally_strengthens", onServer(c, s -> s.getOverworld().getEntitiesByClass(WolfEntity.class,
+					new Box(arena).expand(12), w -> me.equals(w.getOwnerUuid())).stream().allMatch(w -> w.hasStatusEffect(StatusEffects.STRENGTH))));
+			screenshot(c, "hud_shepherd");
+			c.setScreen(new BestiaryScreen());
+		});
+		step(20, false, c -> {
+			screenshot(c, "bestiary_bonded");
+			c.setScreen(new TalentScreen());
+		});
+		step(20, false, c -> {
+			screenshot(c, "talents_shepherd");
+			c.setScreen(null);
+		});
 		step(20, false, this::finish);
 
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
@@ -266,6 +372,15 @@ public class HarnessClient implements ClientModInitializer {
 		world.setBlockState(top.add(-3, 0, 4), Blocks.RED_MUSHROOM.getDefaultState());
 		world.setBlockState(top.add(4, 0, 5), Blocks.BROWN_MUSHROOM.getDefaultState());
 		return top;
+	}
+
+	/** A real right click on the nearest wolf, the way a player would. */
+	private static void interactWolf(MinecraftClient client) {
+		WolfEntity wolf = client.world.getEntitiesByClass(WolfEntity.class, client.player.getBoundingBox().expand(6), w -> true)
+				.stream().findFirst().orElse(null);
+		if (wolf != null) {
+			client.interactionManager.interactEntity(client.player, wolf, Hand.MAIN_HAND);
+		}
 	}
 
 	private static Race serverRace(MinecraftClient client) {
