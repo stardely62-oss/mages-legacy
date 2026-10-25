@@ -26,6 +26,8 @@ public final class RacePackets {
 	public static final Identifier ABILITY = MagesLegacy.id("ability");
 	public static final Identifier UNLOCK = MagesLegacy.id("unlock");
 	public static final Identifier SELECT_ECHO = MagesLegacy.id("select_echo");
+	/** Server to client: entity ids of the echoes in the player's world, so they are drawn as spirits. */
+	public static final Identifier ECHOES = MagesLegacy.id("echoes");
 	public static final int SLOTS = 3;
 
 	private RacePackets() {

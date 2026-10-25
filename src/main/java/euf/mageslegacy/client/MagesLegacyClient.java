@@ -60,9 +60,16 @@ public class MagesLegacyClient implements ClientModInitializer {
 				}
 			});
 		});
+		ClientPlayNetworking.registerGlobalReceiver(RacePackets.ECHOES, (client, handler, buf, sender) -> {
+			PacketByteBuf copy = PacketByteBufs.copy(buf);
+			client.execute(() -> EchoVisuals.read(copy));
+		});
 		ClientPlayNetworking.registerGlobalReceiver(RacePackets.OPEN_CHOICE, (client, handler, buf, sender) ->
 				client.execute(() -> client.setScreen(new LoreScreen())));
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(ClientRaceState::clear));
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
+			ClientRaceState.clear();
+			EchoVisuals.clear();
+		}));
 		HudRenderCallback.EVENT.register(RaceHud::render);
 		ClientTickEvents.END_CLIENT_TICK.register(MagesLegacyClient::tick);
 	}

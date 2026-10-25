@@ -1,5 +1,6 @@
 package euf.mageslegacy.shepherd;
 
+import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.race.Talents;
@@ -9,6 +10,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.SpawnReason;
@@ -18,6 +21,7 @@ import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.RegistryKey;
@@ -142,6 +146,7 @@ public final class Echoes {
 		ACTIVE.put(mob.getUuid(), new Echo(player.getUuid(), type.id(), world.getRegistryKey(), expires, temporary, voice));
 		Creatures.teach(mob, true);
 		world.spawnEntity(mob);
+		broadcast(world.getServer());
 		rise(world, at);
 		world.playSound(null, mob.getBlockPos(), SoundEvents.PARTICLE_SOUL_ESCAPE, SoundCategory.PLAYERS, 1.5f, 0.7f);
 		world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_ALLAY_AMBIENT_WITHOUT_ITEM, SoundCategory.PLAYERS, 0.6f, 0.5f);
@@ -258,5 +263,28 @@ public final class Echoes {
 					entity.getWidth() * 0.4, entity.getHeight() * 0.3, entity.getWidth() * 0.4, 0);
 		}
 		gone.forEach(ACTIVE::remove);
+		broadcast(server);
+	}
+
+	/** Tells every player which entities in their world are echoes (the client draws them see-through and pale). */
+	public static void broadcast(MinecraftServer server) {
+		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+			if (!ServerPlayNetworking.canSend(player, RacePackets.ECHOES)) {
+				continue;
+			}
+			List<Integer> ids = new ArrayList<>();
+			for (Map.Entry<UUID, Echo> e : ACTIVE.entrySet()) {
+				if (e.getValue().world().equals(player.getWorld().getRegistryKey())) {
+					Entity entity = player.getServerWorld().getEntity(e.getKey());
+					if (entity != null) {
+						ids.add(entity.getId());
+					}
+				}
+			}
+			PacketByteBuf buf = PacketByteBufs.create();
+			buf.writeVarInt(ids.size());
+			ids.forEach(buf::writeVarInt);
+			ServerPlayNetworking.send(player, RacePackets.ECHOES, buf);
+		}
 	}
 }

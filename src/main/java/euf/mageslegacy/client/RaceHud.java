@@ -128,7 +128,7 @@ public final class RaceHud {
 			int used = ClientRaceState.extra.getInt("capUsed");
 			int max = ClientRaceState.extra.getInt("capMax");
 			String cap = used + "/" + max;
-			ctx.drawText(tr, cap, barX - 10 - tr.getWidth(cap) / 2, barTop - 11, used >= max ? LegacyUi.RED : LegacyUi.GOLD, true);
+			ctx.drawText(tr, cap, barX - 20 - tr.getWidth(cap), h - 15, used >= max ? LegacyUi.RED : LegacyUi.GOLD, true);
 		}
 
 		if (!hasAbilities(race)) {

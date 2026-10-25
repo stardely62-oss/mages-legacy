@@ -133,9 +133,11 @@ public class BestiaryScreen extends Screen {
 			}
 			int tx = p[0] + 24;
 			int tw = cardW() - 28;
-			ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(type.type().getName().getString(), tw), tx, p[1] + 4,
-					known ? LegacyUi.TEXT : LegacyUi.MUTED);
 			int kills = Math.min(extra().getCompound("kills").getInt(type.id()), type.killsNeeded(memory()));
+			String count = known ? "" : kills + "/" + type.killsNeeded(memory());
+			int nameW = tw - (count.isEmpty() ? 0 : textRenderer.getWidth(count) + 4);
+			ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(type.type().getName().getString(), nameW), tx, p[1] + 4,
+					known ? LegacyUi.TEXT : LegacyUi.MUTED);
 			if (known) {
 				String cost = type.voiceCost(ClientRaceState.talents.contains(Talents.LEGION_CHEAP)) + "  ◆" + type.capacity();
 				ctx.drawTextWithShadow(textRenderer, cost, tx, p[1] + 15, 0xFF9FE8E0);
@@ -144,7 +146,6 @@ public class BestiaryScreen extends Screen {
 				int need = type.killsNeeded(memory());
 				ctx.fill(tx, p[1] + 17, tx + tw, p[1] + 20, LegacyUi.BLACK);
 				ctx.fill(tx, p[1] + 17, tx + tw * kills / need, p[1] + 20, LegacyUi.mix(color, 0xFF9FE8E0, 0.5f));
-				String count = kills + "/" + need;
 				ctx.drawTextWithShadow(textRenderer, count, tx + tw - textRenderer.getWidth(count), p[1] + 4 + 0, LegacyUi.MUTED);
 			}
 		}
