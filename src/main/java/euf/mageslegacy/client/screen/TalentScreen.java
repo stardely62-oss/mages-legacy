@@ -3,6 +3,7 @@ package euf.mageslegacy.client.screen;
 import euf.mageslegacy.client.ClientRaceState;
 import euf.mageslegacy.client.MagesLegacyClient;
 import euf.mageslegacy.client.RaceHud;
+import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.Talent;
 import euf.mageslegacy.race.Talents;
@@ -25,13 +26,15 @@ import net.minecraft.util.Identifier;
  */
 public class TalentScreen extends Screen {
 	private static final int NODE = 24;
-	private static final int ROW_GAP = 40;
 	private static final int TOP = 80;
+	/** Whether the guide was opened this session; until then its button glows. */
+	private static boolean guideSeen;
 	private static final String[] ROMAN = {"I", "II", "III", "IV"};
 
 	public enum NodeState { OWNED, AVAILABLE, NO_POINTS, NEEDS_TALENT, TIER_CLOSED }
 
 	private final Map<String, int[]> positions = new HashMap<>();
+	private boolean showGuide;
 
 	public TalentScreen() {
 		super(Text.translatable("mages_legacy.screen.talents"));
@@ -50,8 +53,18 @@ public class TalentScreen extends Screen {
 		return (width - 3 * w - 2 * 12) / 2 + 8 + branch * (w + 12);
 	}
 
+	/** Rows spread to fill the room between the branch titles and the ability bar. */
+	private int rowGap() {
+		int tiers = tiers();
+		return tiers <= 1 ? 40 : Math.max(30, Math.min(44, (height - 30 - 14 - TOP - NODE - 10) / (tiers - 1)));
+	}
+
 	private int rowY(int tier) {
-		return TOP + (tier - 1) * ROW_GAP;
+		return TOP + (tier - 1) * rowGap();
+	}
+
+	private int guideButtonX() {
+		return (width + 260) / 2 + 6;
 	}
 
 	private int tiers() {
@@ -73,10 +86,11 @@ public class TalentScreen extends Screen {
 			cells.computeIfAbsent(t.branch() + ":" + t.tier(), k -> new ArrayList<>()).add(t);
 		}
 		cells.forEach((cell, list) -> {
+			int gap = list.size() <= 1 ? 16 : Math.max(4, Math.min(16, (columnWidth() - 8 - list.size() * NODE) / (list.size() - 1)));
 			for (int i = 0; i < list.size(); i++) {
 				Talent t = list.get(i);
 				int center = columnX(t.branch()) + columnWidth() / 2;
-				int x = center - (list.size() * (NODE + 16) - 16) / 2 + i * (NODE + 16);
+				int x = center - (list.size() * (NODE + gap) - gap) / 2 + i * (NODE + gap);
 				positions.put(t.id(), new int[] {x, rowY(t.tier())});
 			}
 		});
@@ -109,8 +123,22 @@ public class TalentScreen extends Screen {
 		return true;
 	}
 
+	public void toggleGuide() {
+		showGuide = !showGuide;
+		guideSeen = true;
+	}
+
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+		int gx = guideButtonX();
+		if (mouseX >= gx && mouseX < gx + 20 && mouseY >= 8 && mouseY < 28) {
+			toggleGuide();
+			return true;
+		}
+		if (showGuide) {
+			showGuide = false;
+			return true;
+		}
 		for (Map.Entry<String, int[]> e : positions.entrySet()) {
 			int[] p = e.getValue();
 			if (mouseX >= p[0] && mouseX < p[0] + NODE && mouseY >= p[1] && mouseY < p[1] + NODE) {
@@ -164,7 +192,12 @@ public class TalentScreen extends Screen {
 		Talent hovered = drawNodes(ctx, race, color, mouseX, mouseY);
 		int abilityHovered = drawAbilities(ctx, race, color, mouseX, mouseY);
 
+		drawGuideButton(ctx, color, mouseX, mouseY);
 		super.render(ctx, mouseX, mouseY, delta);
+		if (showGuide) {
+			drawGuide(ctx, race, color);
+			return;
+		}
 		if (hovered != null) {
 			ctx.drawTooltip(textRenderer, tooltip(hovered), mouseX, mouseY);
 		} else if (abilityHovered >= 0) {
@@ -228,6 +261,85 @@ public class TalentScreen extends Screen {
 					.formatted(any ? Formatting.GREEN : Formatting.GRAY));
 		}
 		return null;
+	}
+
+	/** The "?" next to the header: opens the guide to experience, points and tiers; glows until first opened. */
+	private void drawGuideButton(DrawContext ctx, int color, int mouseX, int mouseY) {
+		int x = guideButtonX();
+		boolean hot = mouseX >= x && mouseX < x + 20 && mouseY >= 8 && mouseY < 28;
+		if (!guideSeen) {
+			LegacyUi.glow(ctx, x + 10, 18, 16, LegacyUi.GOLD, 0.5f + 0.5f * (float) Math.sin(LegacyUi.time() * 3));
+		}
+		LegacyUi.button(ctx, x, 8, 20, 20, true, hot || showGuide, false, color);
+		ctx.drawCenteredTextWithShadow(textRenderer, "?", x + 10, 14, LegacyUi.GOLD);
+	}
+
+	/**
+	 * The guide over the tree: what gives race experience (and how much), how points come with levels, and which
+	 * milestone opens each tier. Texts come from mages_legacy.xp.<race>.N (+ .amount) and mages_legacy.guide.*.
+	 */
+	private void drawGuide(DrawContext ctx, Race race, int color) {
+		ctx.getMatrices().push();
+		ctx.getMatrices().translate(0, 0, 300);
+		ctx.fill(0, 0, width, height, 0xA0000000);
+		int w = Math.min(330, width - 30);
+		List<Text> xp = Lines.of("mages_legacy.xp." + race.id());
+		List<Text> points = Lines.of("mages_legacy.guide.points");
+		int h = 30 + 14 + xp.size() * 11 + 8 + 14;
+		for (Text line : points) {
+			h += textRenderer.wrapLines(line, w - 24).size() * 10 + 2;
+		}
+		h += 8 + 14 + Progression.MAX_TIER * 12 + 6;
+		int x0 = (width - w) / 2;
+		int y0 = Math.max(4, (height - h) / 2);
+		LegacyUi.panel(ctx, x0, y0, x0 + w, y0 + h);
+		int x = x0 + 12;
+		int right = x0 + w - 12;
+		int y = y0 + 8;
+		LegacyUi.heading(ctx, Text.translatable("mages_legacy.guide.title").formatted(Formatting.BOLD), width / 2, y, LegacyUi.GOLD);
+		y += 20;
+
+		ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.guide.xp").formatted(Formatting.BOLD), x, y, color);
+		y += 14;
+		for (int i = 0; i < xp.size(); i++) {
+			LegacyUi.diamond(ctx, x + 3, y + 3, 2, color);
+			String amount = Text.translatable("mages_legacy.xp." + race.id() + "." + (i + 1) + ".amount").getString();
+			int aw = textRenderer.getWidth(amount);
+			ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(xp.get(i).getString(), right - x - 16 - aw), x + 10, y, LegacyUi.TEXT);
+			ctx.drawTextWithShadow(textRenderer, amount, right - aw, y, LegacyUi.GREEN);
+			y += 11;
+		}
+		y += 4;
+		LegacyUi.divider(ctx, x, right, y, color);
+		y += 8;
+
+		ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.guide.points_title").formatted(Formatting.BOLD), x, y, LegacyUi.GREEN);
+		y += 14;
+		for (Text line : points) {
+			LegacyUi.diamond(ctx, x + 3, y + 3, 2, LegacyUi.GREEN);
+			for (OrderedText row : textRenderer.wrapLines(line, right - x - 10)) {
+				ctx.drawText(textRenderer, row, x + 10, y, LegacyUi.PARCHMENT, true);
+				y += 10;
+			}
+			y += 2;
+		}
+		y += 4;
+		LegacyUi.divider(ctx, x, right, y, color);
+		y += 8;
+
+		ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.guide.tiers").formatted(Formatting.BOLD), x, y, LegacyUi.GOLD);
+		y += 14;
+		for (int tier = 1; tier <= Progression.MAX_TIER; tier++) {
+			boolean open = tier <= ClientRaceState.openTiers;
+			ctx.drawTextWithShadow(textRenderer, ROMAN[tier - 1], x + 2, y, open ? LegacyUi.GOLD : 0xFF9A4040);
+			ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.guide.tier." + tier), x + 24, y, open ? LegacyUi.TEXT : LegacyUi.MUTED);
+			if (open) {
+				String done = "✔";
+				ctx.drawTextWithShadow(textRenderer, done, right - textRenderer.getWidth(done), y, LegacyUi.GREEN);
+			}
+			y += 12;
+		}
+		ctx.getMatrices().pop();
 	}
 
 	/** Links from each talent to the one it needs: gold once learned, the race's colour if it can be learned now. */
@@ -331,8 +443,8 @@ public class TalentScreen extends Screen {
 				LegacyUi.icon(ctx, LegacyUi.icon(resourceIcon), cx - 1, y + 13, 9, true);
 				cx += 10;
 			}
-			ctx.drawTextWithShadow(textRenderer, String.valueOf(RaceHud.MYCELID_COSTS[slot]), cx, y + 13, LegacyUi.mix(color, 0xFFFFFFFF, 0.3f));
-			LegacyUi.keyCap(ctx, MagesLegacyClient.ABILITY_KEYS[slot].getBoundKeyLocalizedText().getString(), x + tileW - 4, y + 20, 0xFFFFFFFF);
+			ctx.drawTextWithShadow(textRenderer, String.valueOf(RaceHud.cost(slot)), cx, y + 13, LegacyUi.mix(color, 0xFFFFFFFF, 0.3f));
+			LegacyUi.keyCap(ctx, MagesLegacyClient.keyLabel(MagesLegacyClient.ABILITY_KEYS[slot]), x + tileW - 4, y + 20, 0xFFFFFFFF);
 		}
 		return hovered;
 	}

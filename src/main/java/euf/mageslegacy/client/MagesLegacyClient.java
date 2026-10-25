@@ -18,6 +18,7 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.network.PacketByteBuf;
+import java.util.Locale;
 import org.lwjgl.glfw.GLFW;
 
 public class MagesLegacyClient implements ClientModInitializer {
@@ -25,6 +26,19 @@ public class MagesLegacyClient implements ClientModInitializer {
 	public static final KeyBinding[] ABILITY_KEYS = {
 			key("ability_1", GLFW.GLFW_KEY_R), key("ability_2", GLFW.GLFW_KEY_V), key("ability_3", GLFW.GLFW_KEY_G)};
 	public static final KeyBinding TREE_KEY = key("talents", GLFW.GLFW_KEY_K);
+
+	/**
+	 * The key as printed on an English keyboard (R, V, G), whatever layout the system has switched to: GLFW names
+	 * letter keys by the active layout, which turned R into К. Other keys keep their localized names.
+	 */
+	public static String keyLabel(KeyBinding binding) {
+		String key = binding.getBoundKeyTranslationKey();
+		String prefix = "key.keyboard.";
+		if (key.startsWith(prefix) && key.length() == prefix.length() + 1) {
+			return key.substring(prefix.length()).toUpperCase(Locale.ROOT);
+		}
+		return binding.getBoundKeyLocalizedText().getString();
+	}
 
 	private static KeyBinding key(String name, int code) {
 		return KeyBindingHelper.registerKeyBinding(new KeyBinding("key.mages_legacy." + name, InputUtil.Type.KEYSYM, code, CATEGORY));

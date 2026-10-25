@@ -15,11 +15,13 @@ import java.util.UUID;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.attribute.EntityAttribute;
 import net.minecraft.entity.attribute.EntityAttributeInstance;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.effect.StatusEffect;
+import net.minecraft.entity.effect.StatusEffectCategory;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.Monster;
@@ -58,10 +60,18 @@ public final class Mycelid {
 	public static final int CLOUD_COST = 30;
 	public static final int NODE_COST = 40;
 	public static final int JUMP_DELAY = 8;
+	public static final int CLOUD_KILL_XP = 4;
+	public static final int DARK_KILL_XP = 3;
 	private static final int JUMP_COOLDOWN = 30;
 	private static final int CLOUD_COOLDOWN = 200;
+	private static final int CLOUD_COOLDOWN_QUICK = 140;
+	public static final int JUMP_COST_CHEAP = 10;
+	private static final int REBIRTH_SLOT = 9;
+	private static final int REBIRTH_COOLDOWN = 24000;
+	private static final int MIND_RADIUS = 24;
 	private static final int NODE_COOLDOWN = 100;
 	private static final UUID CAP_ARMOR = UUID.fromString("6d3f8a52-2a7e-4f0e-9a51-3c1b6f0e7c11");
+	private static final UUID HEARTY_HEALTH = UUID.fromString("0b8e4c1d-5f2a-4c7e-8d31-9a6f2e4b7c22");
 
 	/** Mushroom -> the effect it gives as a taste. */
 	public static final Map<Item, StatusEffect> DIET = Map.of(
@@ -72,7 +82,8 @@ public final class Mycelid {
 
 	private record PendingJump(UUID player, Vec3d target, long at, Vec3d from) {}
 
-	private record Cloud(ServerWorld world, Vec3d center, UUID owner, double radius, int potency, long start, long until) {}
+	/** A spore cloud; one that follows sits on its owner while they are in the same world. */
+	private record Cloud(ServerWorld world, Vec3d center, UUID owner, double radius, int potency, long start, long until, boolean follows) {}
 
 	/** Greenish-grey and dark violet spore dust for the cloud. */
 	private static final DustParticleEffect SPORE_DUST = new DustParticleEffect(new Vector3f(0.62f, 0.72f, 0.48f), 1.6f);
@@ -123,13 +134,37 @@ public final class Mycelid {
 			refresh(player, StatusEffects.WEAKNESS, 0, 60, 30);
 			player.addExhaustion(0.1f);
 		}
-		EntityAttributeInstance armor = player.getAttributeInstance(EntityAttributes.GENERIC_ARMOR);
-		boolean wantCap = data.has(Talents.FLESH_CAP) && !sun;
-		if (armor != null && wantCap != (armor.getModifier(CAP_ARMOR) != null)) {
-			if (wantCap) {
-				armor.addTemporaryModifier(new EntityAttributeModifier(CAP_ARMOR, "mycelid_cap", 4, EntityAttributeModifier.Operation.ADDITION));
-			} else {
-				armor.removeModifier(CAP_ARMOR);
+		modifier(player, EntityAttributes.GENERIC_ARMOR, CAP_ARMOR, "mycelid_cap", 4, data.has(Talents.FLESH_CAP) && !sun);
+		modifier(player, EntityAttributes.GENERIC_MAX_HEALTH, HEARTY_HEALTH, "mycelid_hearty", 4, data.has(Talents.FLESH_HEARTY));
+		if (data.has(Talents.NET_MIND)) {
+			forestMind(player);
+		}
+	}
+
+	/** Adds or removes a talent's attribute bonus so it matches whether the talent applies right now. */
+	private static void modifier(ServerPlayerEntity player, EntityAttribute attribute, UUID id, String name, double amount, boolean want) {
+		EntityAttributeInstance instance = player.getAttributeInstance(attribute);
+		if (instance == null || want == (instance.getModifier(id) != null)) {
+			return;
+		}
+		if (want) {
+			instance.addTemporaryModifier(new EntityAttributeModifier(id, name, amount, EntityAttributeModifier.Operation.ADDITION));
+		} else {
+			instance.removeModifier(id);
+			player.setHealth(Math.min(player.getHealth(), player.getMaxHealth()));
+		}
+	}
+
+	/** Forest Mind: monsters near any of your nodes in this world glow, so you see them through walls. */
+	private static void forestMind(ServerPlayerEntity player) {
+		ServerWorld world = player.getServerWorld();
+		for (GlobalPos node : RaceState.get(player.getServer()).nodes(player.getUuid())) {
+			if (!node.getDimension().equals(world.getRegistryKey())) {
+				continue;
+			}
+			for (LivingEntity mob : world.getEntitiesByClass(LivingEntity.class, new Box(node.getPos()).expand(MIND_RADIUS),
+					e -> e instanceof Monster && e.isAlive())) {
+				mob.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 40, 0, true, false));
 			}
 		}
 	}
@@ -142,11 +177,10 @@ public final class Mycelid {
 		}
 	}
 
+	/** Takes off the talents' attribute bonuses (the race was reset or changed). */
 	public static void removeCapArmor(ServerPlayerEntity player) {
-		EntityAttributeInstance armor = player.getAttributeInstance(EntityAttributes.GENERIC_ARMOR);
-		if (armor != null) {
-			armor.removeModifier(CAP_ARMOR);
-		}
+		modifier(player, EntityAttributes.GENERIC_ARMOR, CAP_ARMOR, "mycelid_cap", 4, false);
+		modifier(player, EntityAttributes.GENERIC_MAX_HEALTH, HEARTY_HEALTH, "mycelid_hearty", 4, false);
 	}
 
 	// ---- diet ----
@@ -158,7 +192,11 @@ public final class Mycelid {
 			return false;
 		}
 		player.getHungerManager().add(2, 0.3f);
-		data.addResource(10);
+		boolean feast = data.has(Talents.FLESH_FEAST);
+		data.addResource(feast ? 15 : 10);
+		if (feast) {
+			player.heal(3);
+		}
 		taste(player, data, effect);
 		Progression.addXp(player, data, 5);
 		player.getItemCooldownManager().set(stack.getItem(), 10);
@@ -193,14 +231,59 @@ public final class Mycelid {
 		if (item == Items.MUSHROOM_STEW || item == Items.SUSPICIOUS_STEW) {
 			data.addResource(15);
 			Progression.addXp(player, data, 5);
-		} else if (food.isMeat()) {
+		} else if (food.isMeat() && !data.has(Talents.FLESH_MEAT)) {
 			int lost = food.getHunger() / 2;
 			player.getHungerManager().setFoodLevel(Math.max(0, player.getHungerManager().getFoodLevel() - lost));
 		}
 	}
 
+	/** Fire burns half again as badly (less with Damp Flesh); talents soften falls and poison attackers. */
 	public static float modifyDamage(ServerPlayerEntity player, DamageSource source, float amount) {
-		return source.isIn(DamageTypeTags.IS_FIRE) ? amount * 1.5f : amount;
+		RaceData data = RaceState.of(player);
+		boolean has = data != null;
+		if (source.isIn(DamageTypeTags.IS_FIRE)) {
+			return amount * (has && data.has(Talents.FLESH_FIREPROOF) ? 1.15f : 1.5f);
+		}
+		if (source.isIn(DamageTypeTags.IS_FALL) && has && data.has(Talents.NET_LIGHT_STEP)) {
+			return amount * 0.5f;
+		}
+		if (has && data.has(Talents.FLESH_SPORE_BLOOD) && source.getAttacker() instanceof LivingEntity attacker && attacker instanceof Monster) {
+			attacker.addStatusEffect(new StatusEffectInstance(attacker.isUndead() ? StatusEffects.WITHER : StatusEffects.POISON, 60, 0));
+		}
+		return amount;
+	}
+
+	/**
+	 * Rebirth: a killing blow instead sprouts the Mycelid again at its nearest node in this world, with half health.
+	 * Once in 20 minutes. Returns false to cancel the death.
+	 */
+	public static boolean allowDeath(ServerPlayerEntity player) {
+		RaceData data = RaceState.of(player);
+		if (data == null || data.race != Race.MYCELID || !data.has(Talents.FLESH_REBIRTH) || !ready(player, data, REBIRTH_SLOT)) {
+			return true;
+		}
+		ServerWorld world = player.getServerWorld();
+		GlobalPos nearest = null;
+		for (GlobalPos node : RaceState.get(player.getServer()).nodes(player.getUuid())) {
+			if (node.getDimension().equals(world.getRegistryKey()) && world.getBlockState(node.getPos()).isOf(MagesLegacy.MYCELIUM_NODE)
+					&& (nearest == null || node.getPos().getSquaredDistance(player.getPos()) < nearest.getPos().getSquaredDistance(player.getPos()))) {
+				nearest = node;
+			}
+		}
+		if (nearest == null) {
+			return true;
+		}
+		world.spawnParticles(ParticleTypes.MYCELIUM, player.getX(), player.getY() + 1, player.getZ(), 60, 0.4, 0.8, 0.4, 0.03);
+		Vec3d to = Vec3d.ofBottomCenter(nearest.getPos().up());
+		player.setHealth(player.getMaxHealth() / 2);
+		player.extinguish();
+		player.fallDistance = 0;
+		player.teleport(world, to.x, to.y, to.z, player.getYaw(), player.getPitch());
+		world.spawnParticles(ParticleTypes.SPORE_BLOSSOM_AIR, to.x, to.y + 1, to.z, 60, 0.4, 0.8, 0.4, 0.02);
+		world.playSound(null, nearest.getPos(), SoundEvents.BLOCK_FUNGUS_PLACE, SoundCategory.PLAYERS, 1.2f, 0.5f);
+		player.sendMessage(Text.translatable("mages_legacy.mycelid.reborn").formatted(net.minecraft.util.Formatting.GREEN), false);
+		cooldown(player, data, REBIRTH_SLOT, REBIRTH_COOLDOWN);
+		return false;
 	}
 
 	// ---- abilities ----
@@ -229,6 +312,10 @@ public final class Mycelid {
 		data.dirty = true;
 	}
 
+	public static int jumpCost(RaceData data) {
+		return data.has(Talents.NET_CHEAP) ? JUMP_COST_CHEAP : JUMP_COST;
+	}
+
 	public static double jumpRange(RaceData data) {
 		return data.has(Talents.NET_REACH) ? 12 : 8;
 	}
@@ -239,7 +326,7 @@ public final class Mycelid {
 		if (!chained && !ready(player, data, 0)) {
 			return AbilityResult.COOLDOWN;
 		}
-		int cost = chained ? CHAIN_COST : JUMP_COST;
+		int cost = chained ? CHAIN_COST : jumpCost(data);
 		if (data.resource < cost) {
 			return AbilityResult.NO_RESOURCE;
 		}
@@ -318,17 +405,49 @@ public final class Mycelid {
 			return AbilityResult.NO_RESOURCE;
 		}
 		data.addResource(-CLOUD_COST);
-		cooldown(player, data, 1, CLOUD_COOLDOWN);
-		spawnCloud(player.getServerWorld(), player.getPos(), player.getUuid(), data.has(Talents.SWARM_WIDE) ? 6 : 4,
-				data.has(Talents.SWARM_POTENT) ? 1 : 0, data.has(Talents.SWARM_LINGERING) ? 240 : 120);
+		cooldown(player, data, 1, data.has(Talents.SWARM_QUICK) ? CLOUD_COOLDOWN_QUICK : CLOUD_COOLDOWN);
+		double radius = data.has(Talents.SWARM_WIDE) ? 6 : 4;
+		spawnCloud(player.getServerWorld(), player.getPos(), player.getUuid(), radius,
+				data.has(Talents.SWARM_POTENT) ? 1 : 0, data.has(Talents.SWARM_LINGERING) ? 240 : 120, data.has(Talents.SWARM_FOLLOW));
+		if (data.has(Talents.SWARM_BURST)) {
+			burst(player, radius);
+		}
 		player.getWorld().playSound(null, player.getBlockPos(), SoundEvents.BLOCK_SPORE_BLOSSOM_BREAK, SoundCategory.PLAYERS, 1.2f, 0.6f);
 		Progression.addXp(player, data, 3);
 		return AbilityResult.OK;
 	}
 
 	public static void spawnCloud(ServerWorld world, Vec3d center, UUID owner, double radius, int potency, int ticks) {
+		spawnCloud(world, center, owner, radius, potency, ticks, false);
+	}
+
+	public static void spawnCloud(ServerWorld world, Vec3d center, UUID owner, double radius, int potency, int ticks, boolean follows) {
 		long now = world.getServer().getTicks();
-		CLOUDS.add(new Cloud(world, center, owner, radius, potency, now, now + ticks));
+		CLOUDS.add(new Cloud(world, center, owner, radius, potency, now, now + ticks, follows));
+	}
+
+	/** Spore Burst: the cloud bursts out as it forms, hurting monsters in it and throwing them back. */
+	private static void burst(ServerPlayerEntity player, double radius) {
+		ServerWorld world = player.getServerWorld();
+		for (LivingEntity mob : world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(radius, 2, radius),
+				e -> e instanceof Monster && e.isAlive() && e.getPos().isInRange(player.getPos(), radius + 0.5))) {
+			mob.damage(world.getDamageSources().playerAttack(player), 4);
+			Vec3d away = mob.getPos().subtract(player.getPos());
+			mob.takeKnockback(1.0, -away.x, -away.z);
+		}
+		world.spawnParticles(ParticleTypes.EXPLOSION, player.getX(), player.getY() + 1, player.getZ(), 1, 0, 0, 0, 0);
+		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.PLAYERS, 0.5f, 1.6f);
+	}
+
+	/** Where a cloud is now: on its owner if it follows them, where it formed otherwise. */
+	private static Vec3d centerOf(Cloud cloud) {
+		if (cloud.follows()) {
+			ServerPlayerEntity owner = cloud.world().getServer().getPlayerManager().getPlayer(cloud.owner());
+			if (owner != null && owner.isAlive() && owner.getServerWorld() == cloud.world()) {
+				return owner.getPos();
+			}
+		}
+		return cloud.center();
 	}
 
 	public static int nodeLimit(RaceData data) {
@@ -412,6 +531,13 @@ public final class Mycelid {
 				RaceData travellerData = RaceState.of(player);
 				if (travellerData != null && travellerData.race == Race.MYCELID) {
 					Progression.addXp(player, travellerData, 2);
+					if (travellerData.has(Talents.NET_HASTE)) {
+						player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 200, 1, false, false, true));
+					}
+					if (travellerData.has(Talents.NET_SHARED)) {
+						player.heal(4);
+						travellerData.addResource(10);
+					}
 				}
 				return true;
 			}
@@ -450,6 +576,13 @@ public final class Mycelid {
 						mob.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 40, 4));
 					}
 				}
+				if (data.has(Talents.NET_CLEANSE)) {
+					for (StatusEffectInstance effect : new ArrayList<>(player.getStatusEffects())) {
+						if (effect.getEffectType().getCategory() == StatusEffectCategory.HARMFUL) {
+							player.removeStatusEffect(effect.getEffectType());
+						}
+					}
+				}
 				Progression.addXp(player, data, 2);
 			}
 		}
@@ -461,7 +594,7 @@ public final class Mycelid {
 				continue;
 			}
 			ServerWorld world = cloud.world();
-			Vec3d c = cloud.center();
+			Vec3d c = centerOf(cloud);
 			if (now % 3 == 0) {
 				double r = cloud.radius();
 				world.spawnParticles(SPORE_DUST, c.x, c.y + 0.7, c.z, (int) (r * r * 2), r * 0.55, 0.5, r * 0.55, 0.0);
@@ -478,40 +611,71 @@ public final class Mycelid {
 				Box area = new Box(c, c).expand(cloud.radius(), 2, cloud.radius());
 				for (LivingEntity entity : world.getEntitiesByClass(LivingEntity.class, area,
 						e -> e.isAlive() && e.getPos().isInRange(c, cloud.radius() + 0.5))) {
-					applyCloud(entity, cloud);
+					applyCloud(entity, cloud, owner(cloud));
 				}
 			}
 		}
 	}
 
-	/** Living monsters choke on the spores, the undead (immune to poison) rot; players breathe them in and heal. */
-	private static void applyCloud(LivingEntity entity, Cloud cloud) {
+	/** The owner's race data, if they are online. */
+	private static RaceData owner(Cloud cloud) {
+		ServerPlayerEntity owner = cloud.world().getServer().getPlayerManager().getPlayer(cloud.owner());
+		return owner == null ? null : RaceState.of(owner);
+	}
+
+	/**
+	 * Living monsters choke on the spores, the undead (immune to poison) rot; players breathe them in and heal. The
+	 * owner's talents add weakness to monsters and stronger healing to players.
+	 */
+	private static void applyCloud(LivingEntity entity, Cloud cloud, RaceData owner) {
 		if (entity instanceof Monster) {
 			entity.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 60, 0));
 			entity.addStatusEffect(new StatusEffectInstance(entity.isUndead() ? StatusEffects.WITHER : StatusEffects.POISON, 60, cloud.potency()));
 			if (cloud.potency() > 0) {
 				entity.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 1));
 			}
+			if (owner != null && owner.has(Talents.SWARM_WEAKNESS)) {
+				entity.addStatusEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 60, 1));
+			}
 		} else if (entity instanceof ServerPlayerEntity) {
-			entity.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 60, 0, true, false, true));
+			int level = owner != null && owner.has(Talents.SWARM_MENDING) ? 1 : 0;
+			entity.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 60, level, true, false, true));
 		}
 	}
 
-	/** A monster died: if it was inside a cloud whose owner has Infection, the owner gains spores. */
+	/**
+	 * A monster died: if it was inside a Mycelid's cloud, the owner gains race experience; with Infection also
+	 * spores, and with Bloom the body bursts into a small cloud of its own.
+	 */
 	public static void onDeath(LivingEntity entity) {
 		if (!(entity instanceof Monster) || entity.getServer() == null) {
 			return;
 		}
 		for (Cloud cloud : CLOUDS) {
-			if (cloud.world() == entity.getWorld() && entity.getPos().isInRange(cloud.center(), cloud.radius() + 0.5)) {
+			if (cloud.world() == entity.getWorld() && entity.getPos().isInRange(centerOf(cloud), cloud.radius() + 0.5)) {
 				ServerPlayerEntity owner = entity.getServer().getPlayerManager().getPlayer(cloud.owner());
 				RaceData data = owner == null ? null : RaceState.of(owner);
-				if (data != null && data.has(Talents.SWARM_INFECTION)) {
+				if (data == null || data.race != Race.MYCELID) {
+					return;
+				}
+				Progression.addXp(owner, data, CLOUD_KILL_XP);
+				if (data.has(Talents.SWARM_INFECTION)) {
 					data.addResource(10);
-					Progression.addXp(owner, data, 10);
+					Progression.addXp(owner, data, 6);
+				}
+				if (data.has(Talents.SWARM_BLOOM)) {
+					spawnCloud(cloud.world(), entity.getPos(), cloud.owner(), 3, cloud.potency(), 60);
 				}
 				return;
 			}
+		}
+	}
+
+	/** A Mycelid killed a monster with its own hands in the dark: the hunt the race was made for. */
+	public static void onKill(ServerPlayerEntity player, LivingEntity victim) {
+		RaceData data = RaceState.of(player);
+		if (data != null && data.race == Race.MYCELID && victim instanceof Monster && inDark(player)) {
+			Progression.addXp(player, data, DARK_KILL_XP);
 		}
 	}
 

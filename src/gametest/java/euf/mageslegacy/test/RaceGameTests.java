@@ -8,6 +8,7 @@ import euf.mageslegacy.race.Progression.UnlockResult;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
+import euf.mageslegacy.race.Talent;
 import euf.mageslegacy.race.Talents;
 import java.util.List;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
@@ -15,6 +16,7 @@ import net.minecraft.advancement.Advancement;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.ZombieEntity;
 import net.minecraft.item.ItemStack;
@@ -105,8 +107,109 @@ public class RaceGameTests implements FabricGameTest {
 		check(Progression.unlock(player, data, Talents.SWARM_POTENT) == UnlockResult.OK, "tier 2 after the Nether");
 		check(data.freePoints() == before - 2, "tier 2 talents cost 2");
 		check(Progression.unlock(player, data, Talents.SWARM_LINGERING) == UnlockResult.NEEDS_TALENT, "infection comes before the long bloom");
-		check(Talents.of(Race.MYCELID).size() == 15, "15 Mycelid talents");
 		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE)
+	public void theTreeHasRoomForBuilds(TestContext ctx) {
+		List<Talent> all = Talents.of(Race.MYCELID);
+		check(all.size() == 33, "33 Mycelid talents, got " + all.size());
+		int[] perTier = {0, 3, 4, 3, 1};
+		for (int branch = 0; branch < 3; branch++) {
+			for (int tier = 1; tier <= 4; tier++) {
+				int b = branch;
+				int t = tier;
+				long count = all.stream().filter(x -> x.branch() == b && x.tier() == t).count();
+				check(count == perTier[tier], "branch " + branch + " tier " + tier + " should have " + perTier[tier] + ", has " + count);
+			}
+		}
+		int total = all.stream().mapToInt(Talent::cost).sum();
+		check(total == 75 && total > 60, "the whole tree costs 75, more than the 60 points of level 50: " + total);
+		for (Talent t : all) {
+			if (t.requires() != null) {
+				Talent req = Talents.byId(t.requires()).orElse(null);
+				check(req != null && req.branch() == t.branch() && req.tier() <= t.tier(), t.id() + " needs a talent of its own branch, not higher");
+			}
+		}
+		ctx.complete();
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "cloud_talents", tickLimit = 100)
+	public void cloudTalentsWeakenMonstersAndMendPlayers(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(2, 2, 2));
+		floor(world, at.add(-2, 0, -2), 5, 5);
+		ServerPlayerEntity player = mycelid(ctx, at);
+		ZombieEntity zombie = EntityType.ZOMBIE.create(world);
+		zombie.refreshPositionAndAngles(at.getX() + 2.5, at.getY(), at.getZ() + 0.5, 0, 0);
+		zombie.setAiDisabled(true);
+		world.spawnEntity(zombie);
+		RaceData data = RaceState.of(player);
+		data.talents.add(Talents.SWARM_WEAKNESS);
+		data.talents.add(Talents.SWARM_MENDING);
+		data.addResource(30);
+		check(Mycelid.sporeCloud(player, data) == Mycelid.AbilityResult.OK, "the cloud should rise");
+		ctx.waitAndRun(25, () -> {
+			StatusEffectInstance weakness = zombie.getStatusEffect(StatusEffects.WEAKNESS);
+			check(weakness != null && weakness.getAmplifier() == 1, "Rot of Strength: the zombie gets Weakness II");
+			StatusEffectInstance regen = player.getStatusEffect(StatusEffects.REGENERATION);
+			check(regen != null && regen.getAmplifier() == 1, "Mending Mist: the player gets Regeneration II");
+			zombie.discard();
+			done(ctx, player);
+		});
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "flesh_talents", tickLimit = 120)
+	public void bodyTalentsChangeDamageHealthAndCosts(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(2, 2, 2));
+		floor(world, at.add(-2, 0, -2), 5, 5);
+		ServerPlayerEntity player = mycelid(ctx, at);
+		RaceData data = RaceState.of(player);
+		check(Mycelid.jumpCost(data) == 15, "a plain jump costs 15");
+		data.talents.add(Talents.NET_CHEAP);
+		check(Mycelid.jumpCost(data) == 10, "Light Spore: the jump costs 10");
+		data.talents.add(Talents.FLESH_HEARTY);
+		data.talents.add(Talents.NET_LIGHT_STEP);
+		data.talents.add(Talents.FLESH_FIREPROOF);
+		// Spawn protection of new players lasts 3 seconds
+		ctx.waitAndRun(70, () -> {
+			Mycelid.tickSecond(player, data);
+			check(Math.abs(player.getMaxHealth() - 24) < 0.01f, "Dense Body: 24 max health, got " + player.getMaxHealth());
+			player.setHealth(20);
+			player.timeUntilRegen = 0;
+			player.damage(world.getDamageSources().fall(), 4);
+			check(Math.abs(player.getHealth() - 18) < 0.01f, "Soft Step halves the fall: 20 - 2 = 18, got " + player.getHealth());
+			player.setHealth(20);
+			player.timeUntilRegen = 0;
+			player.damage(world.getDamageSources().inFire(), 4);
+			check(Math.abs(player.getHealth() - 15.4f) < 0.01f, "Damp Flesh: fire 1.15x, 20 - 4.6 = 15.4, got " + player.getHealth());
+			Mycelid.removeCapArmor(player);
+			check(Math.abs(player.getMaxHealth() - 20) < 0.01f, "the bonus health goes with the race");
+			done(ctx, player);
+		});
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "rebirth", tickLimit = 120)
+	public void rebirthSproutsAtTheNearestNode(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(1, 2, 1));
+		floor(world, at.add(-1, 0, -1), 8, 3);
+		ServerPlayerEntity player = mycelid(ctx, at);
+		RaceData data = RaceState.of(player);
+		BlockPos node = at.add(5, 0, 0);
+		Mycelid.placeNodeAt(world, node, player.getUuid(), 3);
+		data.talents.add(Talents.FLESH_REBIRTH);
+		ctx.waitAndRun(70, () -> {
+			player.timeUntilRegen = 0;
+			player.damage(world.getDamageSources().generic(), 1000);
+			check(player.isAlive(), "Rebirth: the killing blow does not kill");
+			check(Math.abs(player.getHealth() - player.getMaxHealth() / 2) < 0.01f, "half health after rebirth, got " + player.getHealth());
+			check(player.getBlockPos().isWithinDistance(node.up(), 1.5), "sprouted at the node, is at " + player.getBlockPos());
+			check(Mycelid.allowDeath(player), "once in 20 minutes: a second killing blow right away is a real death");
+			world.removeBlock(node, false);
+			done(ctx, player);
+		});
 	}
 
 	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "diet")

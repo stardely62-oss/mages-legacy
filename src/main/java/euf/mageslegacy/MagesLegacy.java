@@ -11,6 +11,7 @@ import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.race.Talents;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityCombatEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -84,6 +85,13 @@ public class MagesLegacy implements ModInitializer {
 			return Mycelid.eat((ServerPlayerEntity) player, data, stack) ? TypedActionResult.success(stack) : TypedActionResult.fail(stack);
 		});
 		ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> Mycelid.onDeath(entity));
+		ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
+				!(entity instanceof ServerPlayerEntity player) || Mycelid.allowDeath(player));
+		ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY.register((world, killer, victim) -> {
+			if (killer instanceof ServerPlayerEntity player) {
+				Mycelid.onKill(player, victim);
+			}
+		});
 		LOGGER.info("Mage's Legacy loaded");
 	}
 

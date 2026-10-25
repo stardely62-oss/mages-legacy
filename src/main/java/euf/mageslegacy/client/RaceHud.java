@@ -1,7 +1,9 @@
 package euf.mageslegacy.client;
 
 import euf.mageslegacy.client.screen.LegacyUi;
+import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.race.Race;
+import euf.mageslegacy.race.Talents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -28,6 +30,14 @@ public final class RaceHud {
 	@Nullable
 	public static String abilityIcon(Race race, int slot) {
 		return race == Race.MYCELID ? MYCELID_ABILITY_ICONS[slot] : null;
+	}
+
+	/** What an ability costs this player now (Light Spore makes the jump cheaper). */
+	public static int cost(int slot) {
+		if (slot == 0 && ClientRaceState.talents.contains(Talents.NET_CHEAP)) {
+			return Mycelid.JUMP_COST_CHEAP;
+		}
+		return MYCELID_COSTS[slot];
 	}
 
 	/** The race resource's icon, or null. */
@@ -93,7 +103,7 @@ public final class RaceHud {
 			int cooldown = ClientRaceState.cooldown(slot);
 			boolean chain = slot == 0 && ClientRaceState.chainLeft > 0;
 			boolean cooling = cooldown > 0 && !chain;
-			boolean short_ = ClientRaceState.resource < (chain ? 5 : MYCELID_COSTS[slot]);
+			boolean short_ = ClientRaceState.resource < (chain ? Mycelid.CHAIN_COST : cost(slot));
 			boolean ready = !cooling && !short_;
 			ctx.fill(sx - 2, sy - 2, sx + 20, sy + 20, LegacyUi.BLACK);
 			LegacyUi.outline(ctx, sx - 1, sy - 1, sx + 19, sy + 19, ready ? LegacyUi.mix(LegacyUi.RIM, color, 0.5f) : LegacyUi.RIM_DARK);
@@ -108,7 +118,7 @@ public final class RaceHud {
 			} else if (short_) {
 				ctx.fill(sx, sy, sx + 18, sy + 18, 0x50A01818);
 			}
-			String key = MagesLegacyClient.ABILITY_KEYS[slot].getBoundKeyLocalizedText().getString();
+			String key = MagesLegacyClient.keyLabel(MagesLegacyClient.ABILITY_KEYS[slot]);
 			LegacyUi.keyCap(ctx, key, sx + 21, sy + 22, ready ? 0xFFFFFFFF : 0xFF9A9088);
 			if (chain) {
 				ctx.drawText(tr, "x" + ClientRaceState.chainLeft, sx + 1, sy + 1, LegacyUi.mix(color, 0xFFFFFFFF, 0.4f), true);
