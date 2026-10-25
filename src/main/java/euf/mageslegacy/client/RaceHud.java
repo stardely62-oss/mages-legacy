@@ -1,18 +1,50 @@
 package euf.mageslegacy.client;
 
+import euf.mageslegacy.client.screen.LegacyUi;
 import euf.mageslegacy.race.Race;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.ItemStack;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.Nullable;
 
-/** The race resource as a vertical bar left of the hotbar, and the three abilities with their keys right of it. */
+/**
+ * The race resource as a glowing vial left of the hotbar (its icon beside it), and the three abilities in framed
+ * slots right of it, with key caps, a cooldown veil with the seconds left, and a red tint when the resource is short.
+ */
 public final class RaceHud {
+	/** Item icons, the fallback while the Codex icons are missing. */
 	public static final Item[] MYCELID_ICONS = {Items.RED_MUSHROOM, Items.SPORE_BLOSSOM, Items.MYCELIUM};
+	public static final String[] MYCELID_ABILITY_ICONS = {"ability_spore_jump", "ability_spore_cloud", "ability_network"};
 	public static final int[] MYCELID_COSTS = {15, 30, 40};
 
 	private RaceHud() {
+	}
+
+	/** The Codex icon of an ability slot (0..2), or null if the race has none yet. */
+	@Nullable
+	public static String abilityIcon(Race race, int slot) {
+		return race == Race.MYCELID ? MYCELID_ABILITY_ICONS[slot] : null;
+	}
+
+	/** The race resource's icon, or null. */
+	@Nullable
+	public static String resourceIcon(Race race) {
+		return race == Race.MYCELID ? "res_spores" : null;
+	}
+
+	/** An ability's icon: the Codex texture if it ships, the item otherwise. */
+	public static void drawAbility(DrawContext ctx, Race race, int slot, int x, int y, boolean bright) {
+		String icon = abilityIcon(race, slot);
+		Identifier texture = icon == null ? null : LegacyUi.icon(icon);
+		if (texture != null && LegacyUi.exists(texture)) {
+			LegacyUi.icon(ctx, texture, x, y, 16, bright);
+		} else if (race == Race.MYCELID) {
+			ctx.drawItem(new ItemStack(MYCELID_ICONS[slot]), x, y);
+		}
 	}
 
 	public static void render(DrawContext ctx, float tickDelta) {
@@ -21,44 +53,65 @@ public final class RaceHud {
 		if (race == null || client.options.hudHidden || client.player == null || client.player.isSpectator()) {
 			return;
 		}
+		TextRenderer tr = client.textRenderer;
 		int w = ctx.getScaledWindowWidth();
 		int h = ctx.getScaledWindowHeight();
-		int color = 0xFF000000 | race.color;
+		int color = LegacyUi.argb(race.color);
 
-		// Resource bar, clear of the offhand slot
-		int barX = w / 2 - 91 - 42;
-		int barTop = h - 24;
-		int barH = 22;
-		ctx.fill(barX - 1, barTop - 1, barX + 7, barTop + barH + 1, 0xC0101010);
-		int filled = Math.round(barH * ClientRaceState.resource / 100f);
-		ctx.fill(barX, barTop + barH - filled, barX + 6, barTop + barH, color);
-		ctx.fill(barX, barTop + barH - filled, barX + 1, barTop + barH, 0x40FFFFFF);
+		// The vial, clear of the offhand slot
+		int barX = w / 2 - 91 - 40;
+		int barTop = h - 25;
+		int barH = 23;
+		ctx.fill(barX - 2, barTop - 2, barX + 8, barTop + barH + 2, LegacyUi.BLACK);
+		ctx.fill(barX - 1, barTop - 1, barX + 7, barTop + barH + 1, LegacyUi.RIM);
+		ctx.fill(barX, barTop, barX + 6, barTop + barH, 0xFF0E0B10);
+		float fraction = Math.max(0, Math.min(1, ClientRaceState.resource / 100f));
+		int filled = Math.round(barH * fraction);
+		if (filled > 0) {
+			int top = barTop + barH - filled;
+			ctx.fillGradient(barX, top, barX + 6, barTop + barH, LegacyUi.mix(color, 0xFFFFFFFF, 0.25f), LegacyUi.mix(color, 0xFF000000, 0.35f));
+			ctx.fill(barX + 1, top, barX + 2, barTop + barH, 0x50FFFFFF);
+			// A shimmer rising through the liquid
+			int shimmer = barTop + barH - 1 - (int) ((LegacyUi.time() * 14) % Math.max(1, filled));
+			ctx.fill(barX, shimmer, barX + 6, shimmer + 1, 0x60FFFFFF);
+			ctx.fill(barX, top, barX + 6, top + 1, LegacyUi.mix(color, 0xFFFFFFFF, 0.6f));
+		}
+		String icon = resourceIcon(race);
+		if (icon != null && LegacyUi.exists(LegacyUi.icon(icon))) {
+			LegacyUi.icon(ctx, LegacyUi.icon(icon), barX - 18, h - 19, 16, true);
+		}
 		String amount = String.valueOf((int) ClientRaceState.resource);
-		ctx.drawText(client.textRenderer, amount, barX + 3 - client.textRenderer.getWidth(amount) / 2, barTop - 10, color, true);
+		ctx.drawText(tr, amount, barX + 3 - tr.getWidth(amount) / 2, barTop - 11, color, true);
 
 		if (race != Race.MYCELID) {
 			return;
 		}
-		// Ability slots with key letters; a dark veil shows the cooldown, red marks a lack of spores
-		int x = w / 2 + 91 + 6;
+		int x = w / 2 + 91 + 8;
 		for (int slot = 0; slot < MYCELID_ICONS.length; slot++) {
-			int sx = x + slot * 21;
-			int sy = h - 21;
-			ctx.fill(sx - 1, sy - 1, sx + 19, sy + 19, 0xC0101010);
-			ctx.drawItem(new ItemStack(MYCELID_ICONS[slot]), sx + 1, sy + 1);
+			int sx = x + slot * 23;
+			int sy = h - 22;
 			int cooldown = ClientRaceState.cooldown(slot);
 			boolean chain = slot == 0 && ClientRaceState.chainLeft > 0;
-			if (cooldown > 0 && !chain) {
-				ctx.fill(sx, sy, sx + 18, sy + 18, 0xA0000000);
-			} else if (ClientRaceState.resource < (chain ? 5 : MYCELID_COSTS[slot])) {
-				ctx.fill(sx, sy, sx + 18, sy + 18, 0x60800000);
-			}
-			String key = MagesLegacyClient.ABILITY_KEYS[slot].getBoundKeyLocalizedText().getString();
+			boolean cooling = cooldown > 0 && !chain;
+			boolean short_ = ClientRaceState.resource < (chain ? 5 : MYCELID_COSTS[slot]);
+			boolean ready = !cooling && !short_;
+			ctx.fill(sx - 2, sy - 2, sx + 20, sy + 20, LegacyUi.BLACK);
+			LegacyUi.outline(ctx, sx - 1, sy - 1, sx + 19, sy + 19, ready ? LegacyUi.mix(LegacyUi.RIM, color, 0.5f) : LegacyUi.RIM_DARK);
+			ctx.fill(sx, sy, sx + 18, sy + 18, 0xD0141016);
+			drawAbility(ctx, race, slot, sx + 1, sy + 1, ready);
 			ctx.getMatrices().push();
 			ctx.getMatrices().translate(0, 0, 200);
-			ctx.drawText(client.textRenderer, key, sx + 18 - client.textRenderer.getWidth(key), sy + 10, 0xFFFFFF, true);
+			if (cooling) {
+				ctx.fill(sx, sy, sx + 18, sy + 18, 0x90000000);
+				String secs = String.valueOf((cooldown + 19) / 20);
+				ctx.drawText(tr, secs, sx + 9 - tr.getWidth(secs) / 2, sy + 5, 0xFFFFFFFF, true);
+			} else if (short_) {
+				ctx.fill(sx, sy, sx + 18, sy + 18, 0x50A01818);
+			}
+			String key = MagesLegacyClient.ABILITY_KEYS[slot].getBoundKeyLocalizedText().getString();
+			LegacyUi.keyCap(ctx, key, sx + 21, sy + 22, ready ? 0xFFFFFFFF : 0xFF9A9088);
 			if (chain) {
-				ctx.drawText(client.textRenderer, "x" + ClientRaceState.chainLeft, sx + 1, sy + 1, 0x9CFF8A, true);
+				ctx.drawText(tr, "x" + ClientRaceState.chainLeft, sx + 1, sy + 1, LegacyUi.mix(color, 0xFFFFFFFF, 0.4f), true);
 			}
 			ctx.getMatrices().pop();
 		}

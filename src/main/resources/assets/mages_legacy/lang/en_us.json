@@ -199,5 +199,6 @@
 	"mages_legacy.talent.flesh_cap.desc": "+4 armour while you are out of the sun.",
 	"mages_legacy.talent.flesh_sunproof": "Shade Within",
 	"mages_legacy.talent.flesh_sunproof.lore": "You carry the dark with you, and the sun has no power over you.",
-	"mages_legacy.talent.flesh_sunproof.desc": "The sun no longer causes weakness and hunger."
+	"mages_legacy.talent.flesh_sunproof.desc": "The sun no longer causes weakness and hunger.",
+	"mages_legacy.screen.level": "lv. %s"
 }

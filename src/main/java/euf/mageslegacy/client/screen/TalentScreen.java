@@ -16,11 +16,17 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
 
-/** The race's talent tree: three branches in columns, tiers in rows; the abilities along the bottom. */
+/**
+ * The race's talent tree: a header with the emblem, level, experience and free points; three branches in carved
+ * columns, tiers in rows; the abilities along the bottom. Talents you can learn now breathe in the race's colour,
+ * learned ones are framed in gold and their links glow.
+ */
 public class TalentScreen extends Screen {
-	private static final int NODE = 22;
+	private static final int NODE = 24;
 	private static final int ROW_GAP = 40;
+	private static final int TOP = 80;
 	private static final String[] ROMAN = {"I", "II", "III", "IV"};
 
 	public enum NodeState { OWNED, AVAILABLE, NO_POINTS, NEEDS_TALENT, TIER_CLOSED }
@@ -36,16 +42,24 @@ public class TalentScreen extends Screen {
 	}
 
 	private int columnWidth() {
-		return Math.min(190, (width - 60) / 3);
+		return Math.min(180, (width - 70) / 3);
 	}
 
 	private int columnX(int branch) {
 		int w = columnWidth();
-		return (width - 3 * w - 2 * 10) / 2 + branch * (w + 10);
+		return (width - 3 * w - 2 * 12) / 2 + 8 + branch * (w + 12);
 	}
 
 	private int rowY(int tier) {
-		return 74 + (tier - 1) * ROW_GAP;
+		return TOP + (tier - 1) * ROW_GAP;
+	}
+
+	private int tiers() {
+		int max = 1;
+		for (Talent t : Talents.of(race())) {
+			max = Math.max(max, t.tier());
+		}
+		return max;
 	}
 
 	private void layout() {
@@ -62,7 +76,7 @@ public class TalentScreen extends Screen {
 			for (int i = 0; i < list.size(); i++) {
 				Talent t = list.get(i);
 				int center = columnX(t.branch()) + columnWidth() / 2;
-				int x = center - (list.size() * (NODE + 14) - 14) / 2 + i * (NODE + 14);
+				int x = center - (list.size() * (NODE + 16) - 16) / 2 + i * (NODE + 16);
 				positions.put(t.id(), new int[] {x, rowY(t.tier())});
 			}
 		});
@@ -84,16 +98,6 @@ public class TalentScreen extends Screen {
 			return NodeState.NEEDS_TALENT;
 		}
 		return ClientRaceState.freePoints >= t.cost() ? NodeState.AVAILABLE : NodeState.NO_POINTS;
-	}
-
-	private static int borderColor(NodeState state) {
-		return switch (state) {
-			case OWNED -> 0xFFE8C060;
-			case AVAILABLE -> 0xFF7CD46A;
-			case NO_POINTS -> 0xFF6A8A60;
-			case NEEDS_TALENT -> 0xFF505058;
-			case TIER_CLOSED -> 0xFF6A2A2A;
-		};
 	}
 
 	public boolean click(String talentId) {
@@ -119,8 +123,8 @@ public class TalentScreen extends Screen {
 
 	@Override
 	public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-		ctx.fillGradient(0, 0, width, height, 0xF0100C14, 0xF0060408);
 		Race race = race();
+		LegacyUi.background(ctx, width, height, race);
 		if (race == null) {
 			super.render(ctx, mouseX, mouseY, delta);
 			return;
@@ -128,98 +132,209 @@ public class TalentScreen extends Screen {
 		if (positions.isEmpty()) {
 			layout();
 		}
-		// Header: race, level, experience, free points
-		ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable("mages_legacy.screen.tree_header", Text.translatable(race.key()),
-				ClientRaceState.level, ClientRaceState.xp, ClientRaceState.xpNext), width / 2, 6, race.color);
-		ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable("mages_legacy.screen.points", ClientRaceState.freePoints)
-				.formatted(ClientRaceState.freePoints > 0 ? Formatting.GREEN : Formatting.GRAY), width / 2, 17, 0xFFFFFF);
-		int barW = 160;
-		int barX = width / 2 - barW / 2;
-		ctx.fill(barX, 28, barX + barW, 31, 0xFF2A2430);
-		ctx.fill(barX, 28, barX + barW * ClientRaceState.xp / Math.max(1, ClientRaceState.xpNext), 31, 0xFF000000 | race.color);
+		int color = LegacyUi.argb(race.color);
+		List<Text> headerTooltip = drawHeader(ctx, race, color, mouseX, mouseY);
 
-		// Branch titles and their one-line legends
+		// Branch columns with their titles and one-line legends
+		int columnBottom = rowY(tiers()) + NODE + 10;
 		for (int branch = 0; branch < 3; branch++) {
 			int x = columnX(branch);
 			int w = columnWidth();
 			String key = "mages_legacy.branch." + race.id() + "." + branch;
-			ctx.fill(x, 36, x + w, rowY(3) + NODE + 8, 0x50000000);
-			ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable(key).formatted(Formatting.GOLD, Formatting.BOLD), x + w / 2, 40, 0xFFFFFF);
-			List<OrderedText> lore = textRenderer.wrapLines(Text.translatable(key + ".lore").formatted(Formatting.ITALIC), w - 8);
+			LegacyUi.panel(ctx, x, 40, x + w, columnBottom);
+			LegacyUi.heading(ctx, Text.translatable(key).formatted(Formatting.BOLD), x + w / 2, 45, LegacyUi.GOLD);
+			List<OrderedText> lore = textRenderer.wrapLines(Text.translatable(key + ".lore").formatted(Formatting.ITALIC), w - 10);
 			for (int i = 0; i < Math.min(2, lore.size()); i++) {
-				ctx.drawCenteredTextWithShadow(textRenderer, lore.get(i), x + w / 2, 51 + i * 9, 0x9A9088);
+				ctx.drawCenteredTextWithShadow(textRenderer, lore.get(i), x + w / 2, 57 + i * 9, LegacyUi.MUTED);
 			}
 		}
-		// Tier numerals at the left edge, red while the milestone is still ahead
-		for (int tier = 1; tier <= 3; tier++) {
-			int color = tier <= ClientRaceState.openTiers ? 0xC8C0B0 : 0x9A4040;
-			ctx.drawText(textRenderer, ROMAN[tier - 1], columnX(0) - 16, rowY(tier) + 7, color, true);
+		// Tier numerals at the left edge: gold when open, dark red while the milestone is still ahead
+		for (int tier = 1; tier <= tiers(); tier++) {
+			boolean open = tier <= ClientRaceState.openTiers;
+			int cx = columnX(0) - 12;
+			int cy = rowY(tier) + NODE / 2;
+			LegacyUi.diamond(ctx, cx, cy, 8, LegacyUi.BLACK);
+			LegacyUi.diamond(ctx, cx, cy, 7, open ? LegacyUi.RIM : 0xFF4A2226);
+			LegacyUi.diamond(ctx, cx, cy, 6, 0xFF18131A);
+			String numeral = ROMAN[tier - 1];
+			ctx.drawText(textRenderer, numeral, cx - textRenderer.getWidth(numeral) / 2 + 1, cy - 3, open ? LegacyUi.GOLD : 0xFF9A4040, true);
 		}
 
-		// Links from each talent to the one it needs
+		drawLinks(ctx, race, color);
+		Talent hovered = drawNodes(ctx, race, color, mouseX, mouseY);
+		int abilityHovered = drawAbilities(ctx, race, color, mouseX, mouseY);
+
+		super.render(ctx, mouseX, mouseY, delta);
+		if (hovered != null) {
+			ctx.drawTooltip(textRenderer, tooltip(hovered), mouseX, mouseY);
+		} else if (abilityHovered >= 0) {
+			String key = "mages_legacy.ability." + race.id() + "." + (abilityHovered + 1);
+			List<Text> lines = new ArrayList<>();
+			lines.add(Text.translatable(key + ".name").formatted(Formatting.GOLD, Formatting.BOLD));
+			wrapInto(lines, Text.translatable(key + ".lore").formatted(Formatting.GRAY, Formatting.ITALIC));
+			wrapInto(lines, Text.translatable(key + ".desc").formatted(Formatting.WHITE));
+			ctx.drawTooltip(textRenderer, lines, mouseX, mouseY);
+		} else if (headerTooltip != null) {
+			ctx.drawTooltip(textRenderer, headerTooltip, mouseX, mouseY);
+		}
+	}
+
+	/** Emblem, race name and level, the experience bar and the free points gem. Returns a tooltip if hovered. */
+	private List<Text> drawHeader(DrawContext ctx, Race race, int color, int mouseX, int mouseY) {
+		int w = 260;
+		int x0 = (width - w) / 2;
+		int x1 = x0 + w;
+		LegacyUi.panel(ctx, x0, 4, x1, 32);
+		LegacyUi.glow(ctx, x0 + 16, 18, 16, color, 0.7f);
+		if (LegacyUi.exists(LegacyUi.emblem(race))) {
+			LegacyUi.emblem(ctx, race, x0 + 4, 6, 24, true);
+		}
+		Text name = Text.translatable(race.key()).formatted(Formatting.BOLD);
+		ctx.drawTextWithShadow(textRenderer, name, x0 + 32, 8, color);
+		Text level = Text.translatable("mages_legacy.screen.level", ClientRaceState.level);
+		ctx.drawTextWithShadow(textRenderer, level, x0 + 32 + textRenderer.getWidth(name) + 6, 8, LegacyUi.TEXT);
+
+		// Experience bar with a light running along it
+		int bx0 = x0 + 32;
+		int bx1 = x1 - 40;
+		int by = 21;
+		ctx.fill(bx0 - 1, by - 1, bx1 + 1, by + 5, LegacyUi.BLACK);
+		ctx.fill(bx0, by, bx1, by + 4, 0xFF221C24);
+		int fill = (bx1 - bx0) * Math.min(ClientRaceState.xp, ClientRaceState.xpNext) / Math.max(1, ClientRaceState.xpNext);
+		if (fill > 0) {
+			ctx.fillGradient(bx0, by, bx0 + fill, by + 4, LegacyUi.mix(color, 0xFFFFFFFF, 0.3f), LegacyUi.mix(color, 0xFF000000, 0.3f));
+			int shine = bx0 + (int) ((LegacyUi.time() * 40) % Math.max(1, fill + 20)) - 10;
+			ctx.enableScissor(bx0, by, bx0 + fill, by + 4);
+			ctx.fillGradient(shine, by, shine + 8, by + 4, 0x70FFFFFF, 0x20FFFFFF);
+			ctx.disableScissor();
+		}
+
+		// Free points: a gem with the number, glowing when something can be learned
+		int gx = x1 - 22;
+		int gy = 18;
+		boolean any = ClientRaceState.freePoints > 0;
+		if (any) {
+			LegacyUi.glow(ctx, gx, gy, 12, LegacyUi.GREEN, 0.6f + 0.4f * (float) Math.sin(LegacyUi.time() * 3));
+		}
+		LegacyUi.diamond(ctx, gx, gy, 9, LegacyUi.BLACK);
+		LegacyUi.diamond(ctx, gx, gy, 8, any ? 0xFF3C6A34 : 0xFF2A2328);
+		LegacyUi.diamond(ctx, gx, gy, 6, any ? 0xFF243E20 : 0xFF181418);
+		String points = String.valueOf(ClientRaceState.freePoints);
+		ctx.drawText(textRenderer, points, gx - textRenderer.getWidth(points) / 2 + 1, gy - 3, any ? LegacyUi.GREEN : LegacyUi.MUTED, true);
+
+		if (mouseY >= 4 && mouseY < 32 && mouseX >= x0 && mouseX < x1) {
+			return List.of(Text.translatable("mages_legacy.screen.tree_header", Text.translatable(race.key()), ClientRaceState.level,
+					ClientRaceState.xp, ClientRaceState.xpNext), Text.translatable("mages_legacy.screen.points", ClientRaceState.freePoints)
+					.formatted(any ? Formatting.GREEN : Formatting.GRAY));
+		}
+		return null;
+	}
+
+	/** Links from each talent to the one it needs: gold once learned, the race's colour if it can be learned now. */
+	private void drawLinks(DrawContext ctx, Race race, int color) {
 		for (Talent t : Talents.of(race)) {
 			int[] p = positions.get(t.id());
 			int[] q = t.requires() == null ? null : positions.get(t.requires());
 			if (p == null || q == null) {
 				continue;
 			}
-			int color = ClientRaceState.talents.contains(t.id()) ? 0xFFE8C060 : 0xFF4A4450;
+			NodeState state = state(t);
+			int c = state == NodeState.OWNED ? LegacyUi.GOLD
+					: state == NodeState.AVAILABLE || state == NodeState.NO_POINTS ? LegacyUi.mix(0xFF3A3238, color, 0.6f) : 0xFF3A3238;
 			int fromX = q[0] + NODE / 2;
 			int toX = p[0] + NODE / 2;
 			int midY = q[1] + NODE + (p[1] - q[1] - NODE) / 2;
-			ctx.fill(fromX, q[1] + NODE, fromX + 1, midY + 1, color);
-			ctx.fill(Math.min(fromX, toX), midY, Math.max(fromX, toX) + 1, midY + 1, color);
-			ctx.fill(toX, midY, toX + 1, p[1], color);
+			ctx.fill(fromX - 1, q[1] + NODE, fromX + 1, midY + 1, c);
+			ctx.fill(Math.min(fromX, toX) - 1, midY - 1, Math.max(fromX, toX) + 1, midY + 1, c);
+			ctx.fill(toX - 1, midY, toX + 1, p[1], c);
 		}
+	}
 
+	private Talent drawNodes(DrawContext ctx, Race race, int color, int mouseX, int mouseY) {
 		Talent hovered = null;
+		float pulse = 0.5f + 0.5f * (float) Math.sin(LegacyUi.time() * 3);
 		for (Talent t : Talents.of(race)) {
 			int[] p = positions.get(t.id());
 			NodeState state = state(t);
-			ctx.fill(p[0], p[1], p[0] + NODE, p[1] + NODE, state == NodeState.OWNED ? 0xFF3A3020 : 0xFF18141C);
-			ctx.drawBorder(p[0], p[1], NODE, NODE, borderColor(state));
-			ctx.drawItem(new ItemStack(t.icon()), p[0] + 3, p[1] + 3);
-			if (state == NodeState.TIER_CLOSED || state == NodeState.NEEDS_TALENT) {
-				ctx.getMatrices().push();
-				ctx.getMatrices().translate(0, 0, 200);
-				ctx.fill(p[0] + 1, p[1] + 1, p[0] + NODE - 1, p[1] + NODE - 1, 0x90000000);
-				ctx.getMatrices().pop();
-			}
-			if (mouseX >= p[0] && mouseX < p[0] + NODE && mouseY >= p[1] && mouseY < p[1] + NODE) {
+			boolean hot = mouseX >= p[0] && mouseX < p[0] + NODE && mouseY >= p[1] && mouseY < p[1] + NODE;
+			if (hot) {
 				hovered = t;
 			}
-		}
-
-		// Abilities along the bottom
-		int abilityY = height - 30;
-		int abilityHovered = -1;
-		if (race == Race.MYCELID) {
-			int total = 3 * 150;
-			for (int slot = 0; slot < 3; slot++) {
-				int x = (width - total) / 2 + slot * 150;
-				ctx.fill(x, abilityY, x + 144, abilityY + 24, 0x80000000);
-				ctx.drawItem(new ItemStack(RaceHud.MYCELID_ICONS[slot]), x + 4, abilityY + 4);
-				String key = "mages_legacy.ability.mycelid." + (slot + 1);
-				ctx.drawText(textRenderer, Text.translatable(key + ".name").formatted(Formatting.GOLD), x + 24, abilityY + 3, 0xFFFFFF, true);
-				ctx.drawText(textRenderer, Text.translatable("mages_legacy.screen.ability_line",
-						MagesLegacyClient.ABILITY_KEYS[slot].getBoundKeyLocalizedText(), RaceHud.MYCELID_COSTS[slot]), x + 24, abilityY + 13, 0xA0A0A0, true);
-				if (mouseX >= x && mouseX < x + 144 && mouseY >= abilityY && mouseY < abilityY + 24) {
-					abilityHovered = slot;
+			int cx = p[0] + NODE / 2;
+			int cy = p[1] + NODE / 2;
+			if (state == NodeState.AVAILABLE) {
+				LegacyUi.glow(ctx, cx, cy, 20, color, 0.5f + 0.5f * pulse);
+			} else if (state == NodeState.OWNED) {
+				LegacyUi.glow(ctx, cx, cy, 18, LegacyUi.GOLD, 0.45f);
+			}
+			int rim = switch (state) {
+				case OWNED -> LegacyUi.GOLD;
+				case AVAILABLE -> LegacyUi.mix(color, 0xFFFFFFFF, 0.35f * pulse);
+				case NO_POINTS -> LegacyUi.mix(LegacyUi.RIM_DARK, color, 0.45f);
+				case NEEDS_TALENT -> 0xFF3A3238;
+				case TIER_CLOSED -> 0xFF4A2226;
+			};
+			if (hot) {
+				rim = LegacyUi.mix(rim, 0xFFFFFFFF, 0.4f);
+			}
+			ctx.fill(p[0] - 1, p[1] - 1, p[0] + NODE + 1, p[1] + NODE + 1, LegacyUi.BLACK);
+			LegacyUi.outline(ctx, p[0], p[1], p[0] + NODE, p[1] + NODE, rim);
+			ctx.fillGradient(p[0] + 1, p[1] + 1, p[0] + NODE - 1, p[1] + NODE - 1,
+					state == NodeState.OWNED ? 0xFF3E3220 : 0xFF221C24, state == NodeState.OWNED ? 0xFF241C12 : 0xFF141016);
+			boolean bright = state == NodeState.OWNED || state == NodeState.AVAILABLE || state == NodeState.NO_POINTS;
+			Identifier icon = LegacyUi.icon(t.id());
+			if (LegacyUi.exists(icon)) {
+				LegacyUi.icon(ctx, icon, p[0] + 4, p[1] + 4, 16, bright);
+			} else {
+				ctx.drawItem(new ItemStack(t.icon()), p[0] + 4, p[1] + 4);
+				if (!bright) {
+					ctx.getMatrices().push();
+					ctx.getMatrices().translate(0, 0, 200);
+					ctx.fill(p[0] + 1, p[1] + 1, p[0] + NODE - 1, p[1] + NODE - 1, 0x90000000);
+					ctx.getMatrices().pop();
 				}
 			}
+			if (state == NodeState.OWNED) {
+				ctx.getMatrices().push();
+				ctx.getMatrices().translate(0, 0, 200);
+				LegacyUi.diamond(ctx, p[0] + NODE - 1, p[1] + NODE - 1, 3, LegacyUi.BLACK);
+				LegacyUi.diamond(ctx, p[0] + NODE - 1, p[1] + NODE - 1, 2, LegacyUi.GOLD);
+				ctx.getMatrices().pop();
+			}
 		}
+		return hovered;
+	}
 
-		super.render(ctx, mouseX, mouseY, delta);
-		if (hovered != null) {
-			ctx.drawTooltip(textRenderer, tooltip(hovered), mouseX, mouseY);
-		} else if (abilityHovered >= 0) {
-			String key = "mages_legacy.ability.mycelid." + (abilityHovered + 1);
-			List<Text> lines = new ArrayList<>();
-			lines.add(Text.translatable(key + ".name").formatted(Formatting.GOLD));
-			wrapInto(lines, Text.translatable(key + ".lore").formatted(Formatting.GRAY, Formatting.ITALIC));
-			wrapInto(lines, Text.translatable(key + ".desc").formatted(Formatting.WHITE));
-			ctx.drawTooltip(textRenderer, lines, mouseX, mouseY);
+	/** The three abilities: icon, name, key cap and cost. Returns the hovered slot, or -1. */
+	private int drawAbilities(DrawContext ctx, Race race, int color, int mouseX, int mouseY) {
+		if (race != Race.MYCELID) {
+			return -1;
 		}
+		int tileW = Math.min(150, (width - 40) / 3);
+		int total = 3 * tileW + 2 * 8;
+		int y = height - 30;
+		int hovered = -1;
+		String resourceIcon = RaceHud.resourceIcon(race);
+		for (int slot = 0; slot < 3; slot++) {
+			int x = (width - total) / 2 + slot * (tileW + 8);
+			boolean hot = mouseX >= x && mouseX < x + tileW && mouseY >= y && mouseY < y + 24;
+			if (hot) {
+				hovered = slot;
+			}
+			LegacyUi.panel(ctx, x, y, x + tileW, y + 24, hot ? color : LegacyUi.RIM_DARK);
+			RaceHud.drawAbility(ctx, race, slot, x + 4, y + 4, true);
+			String key = "mages_legacy.ability." + race.id() + "." + (slot + 1);
+			ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(Text.translatable(key + ".name").getString(), tileW - 52), x + 24, y + 3,
+					LegacyUi.GOLD);
+			int cx = x + 24;
+			if (resourceIcon != null && LegacyUi.exists(LegacyUi.icon(resourceIcon))) {
+				LegacyUi.icon(ctx, LegacyUi.icon(resourceIcon), cx - 1, y + 13, 9, true);
+				cx += 10;
+			}
+			ctx.drawTextWithShadow(textRenderer, String.valueOf(RaceHud.MYCELID_COSTS[slot]), cx, y + 13, LegacyUi.mix(color, 0xFFFFFFFF, 0.3f));
+			LegacyUi.keyCap(ctx, MagesLegacyClient.ABILITY_KEYS[slot].getBoundKeyLocalizedText().getString(), x + tileW - 4, y + 20, 0xFFFFFFFF);
+		}
+		return hovered;
 	}
 
 	public static List<Text> tooltip(Talent t) {
@@ -240,7 +355,7 @@ public class TalentScreen extends Screen {
 		return lines;
 	}
 
-	private static void wrapInto(List<Text> lines, Text text) {
+	static void wrapInto(List<Text> lines, Text text) {
 		// Tooltips do not wrap by themselves; split long lines at about 40 characters on spaces
 		String plain = text.getString();
 		StringBuilder line = new StringBuilder();

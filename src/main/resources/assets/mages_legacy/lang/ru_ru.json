@@ -199,5 +199,6 @@
 	"mages_legacy.talent.flesh_cap.desc": "+4 к броне, пока вы не на солнце.",
 	"mages_legacy.talent.flesh_sunproof": "Тень внутри",
 	"mages_legacy.talent.flesh_sunproof.lore": "Ты носишь тьму с собой, и солнце над тобой больше не властно.",
-	"mages_legacy.talent.flesh_sunproof.desc": "Солнце больше не вызывает слабость и голод."
+	"mages_legacy.talent.flesh_sunproof.desc": "Солнце больше не вызывает слабость и голод.",
+	"mages_legacy.screen.level": "ур. %s"
 }

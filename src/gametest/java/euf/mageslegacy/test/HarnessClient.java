@@ -73,8 +73,11 @@ public class HarnessClient implements ClientModInitializer {
 		// A new player: the legend opens by itself
 		step(40, true, c -> {
 			check("lore_screen_on_join", c.currentScreen instanceof LoreScreen);
-			screenshot(c, "lore");
+			if (c.currentScreen instanceof LoreScreen lore) {
+				lore.revealAll();
+			}
 		});
+		step(5, false, c -> screenshot(c, "lore"));
 		step(20, false, c -> {
 			if (c.currentScreen instanceof LoreScreen lore) {
 				lore.next();
