@@ -117,7 +117,7 @@ RU = {
             "abilities": [
                 ("Споровый прыжок", "Через мгновение прорастаешь там, куда смотришь, до 8 блоков. 15 спор.",
                  "Спора улетает вперёд, а грибница прорастает следом, и ты вместе с ней."),
-                ("Облако спор", "Облако радиусом 4 на 6 секунд: монстры слепнут и травятся, игроки лечатся. 30 спор.",
+                ("Облако спор", "Облако радиусом 4 на 6 секунд: монстры слепнут и травятся (нежить гниёт), игроки лечатся. 30 спор.",
                  "Для врагов это удушье, для своих тёплое дыхание старого леса."),
                 ("Грибница", "Выращивает узел сети (до 3). ПКМ по узлу переносит к следующему узлу в 150 блоках. Пользоваться могут все. Открывается после Незера. 40 спор.",
                  "Грибница помнит каждый узел, который ты вырастил, и проведёт по ним любого, кому ты доверяешь."),
@@ -316,7 +316,7 @@ EN = {
             "abilities": [
                 ("Spore Jump", "A moment later you sprout where you look, up to 8 blocks away. 15 spores.",
                  "The spore flies ahead, the mycelium sprouts after it, and you with it."),
-                ("Spore Cloud", "A cloud of radius 4 for 6 seconds: monsters go blind and are poisoned, players heal. 30 spores.",
+                ("Spore Cloud", "A cloud of radius 4 for 6 seconds: monsters go blind and are poisoned (the undead rot), players heal. 30 spores.",
                  "To enemies it is choking; to friends, the warm breath of an old forest."),
                 ("Mycelium", "Grows a node of your network (up to 3). Right click a node to travel to the next one within 150 blocks. Anyone may use it. Opens after the Nether. 40 spores.",
                  "The mycelium remembers every node you grew and will lead anyone you trust along them."),

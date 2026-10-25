@@ -467,11 +467,11 @@ public final class Mycelid {
 		}
 	}
 
-	/** Monsters choke on the spores; players breathe them in and heal. */
+	/** Living monsters choke on the spores, the undead (immune to poison) rot; players breathe them in and heal. */
 	private static void applyCloud(LivingEntity entity, Cloud cloud) {
 		if (entity instanceof Monster) {
 			entity.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 60, 0));
-			entity.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, 60, cloud.potency()));
+			entity.addStatusEffect(new StatusEffectInstance(entity.isUndead() ? StatusEffects.WITHER : StatusEffects.POISON, 60, cloud.potency()));
 			if (cloud.potency() > 0) {
 				entity.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 1));
 			}

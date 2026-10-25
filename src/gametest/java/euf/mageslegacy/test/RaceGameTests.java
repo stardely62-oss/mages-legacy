@@ -178,14 +178,15 @@ public class RaceGameTests implements FabricGameTest {
 		check(data.resource < 1, "a cloud costs 30 spores");
 		check(Mycelid.sporeCloud(player, data) == Mycelid.AbilityResult.COOLDOWN, "one cloud at a time");
 		ctx.waitAndRun(25, () -> {
-			check(zombie.hasStatusEffect(StatusEffects.BLINDNESS) && zombie.hasStatusEffect(StatusEffects.POISON), "the zombie chokes on spores");
+			check(zombie.hasStatusEffect(StatusEffects.BLINDNESS) && zombie.hasStatusEffect(StatusEffects.WITHER),
+					"the zombie goes blind and rots (the undead are immune to poison)");
 			check(player.hasStatusEffect(StatusEffects.REGENERATION), "the Mycelid breathes them in and heals");
 			zombie.discard();
 			done(ctx, player);
 		});
 	}
 
-	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "dark", tickLimit = 100)
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "dark", tickLimit = 200)
 	public void darknessFeedsAndFireBurns(TestContext ctx) {
 		ServerWorld world = ctx.getWorld();
 		BlockPos at = ctx.getAbsolutePos(new BlockPos(2, 2, 2));
@@ -202,8 +203,10 @@ public class RaceGameTests implements FabricGameTest {
 		world.setBlockState(at.down(), Blocks.MYCELIUM.getDefaultState());
 		ServerPlayerEntity player = mycelid(ctx, at);
 		RaceData data = RaceState.of(player);
-		// Light updates lag behind block changes: check once the box has gone dark
-		ctx.waitAndRun(20, () -> {
+		ServerPlayerEntity human = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
+		human.changeGameMode(GameMode.SURVIVAL);
+		// Wait out the light update in the box and the 3 s of spawn protection new players get
+		ctx.waitAndRun(70, () -> {
 			check(Mycelid.inDark(player) && Mycelid.onMycelium(player), "inside a box on mycelium it is dark");
 			float before = data.resource;
 			Mycelid.tickSecond(player, data);
@@ -215,8 +218,6 @@ public class RaceGameTests implements FabricGameTest {
 			player.timeUntilRegen = 0;
 			player.damage(world.getDamageSources().inFire(), 4);
 			check(Math.abs(player.getHealth() - 14) < 0.01f, "fire hurts a Mycelid 1.5x: 20 - 6 = 14, got " + player.getHealth());
-			ServerPlayerEntity human = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
-			human.changeGameMode(GameMode.SURVIVAL);
 			human.setHealth(20);
 			human.damage(world.getDamageSources().inFire(), 4);
 			check(Math.abs(human.getHealth() - 16) < 0.01f, "a player without a race takes plain fire damage, got " + human.getHealth());

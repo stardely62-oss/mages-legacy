@@ -164,7 +164,7 @@ public class HarnessClient implements ClientModInitializer {
 		step(30, false, c -> {
 			screenshot(c, "spore_cloud");
 			check("cloud_chokes_zombie", onServer(c, s -> s.getOverworld().getEntity(zombie) instanceof ZombieEntity z
-					&& z.hasStatusEffect(StatusEffects.BLINDNESS) && z.hasStatusEffect(StatusEffects.POISON)));
+					&& z.hasStatusEffect(StatusEffects.BLINDNESS) && z.hasStatusEffect(StatusEffects.WITHER)));
 		});
 
 		// Eat a raw mushroom from the hand

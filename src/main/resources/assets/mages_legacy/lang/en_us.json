@@ -68,7 +68,7 @@
 	"mages_legacy.ability.mycelid.1.desc": "A moment later you sprout where you look, up to 8 blocks away. 15 spores.",
 	"mages_legacy.ability.mycelid.1.lore": "The spore flies ahead, the mycelium sprouts after it, and you with it.",
 	"mages_legacy.ability.mycelid.2.name": "Spore Cloud",
-	"mages_legacy.ability.mycelid.2.desc": "A cloud of radius 4 for 6 seconds: monsters go blind and are poisoned, players heal. 30 spores.",
+	"mages_legacy.ability.mycelid.2.desc": "A cloud of radius 4 for 6 seconds: monsters go blind and are poisoned (the undead rot), players heal. 30 spores.",
 	"mages_legacy.ability.mycelid.2.lore": "To enemies it is choking; to friends, the warm breath of an old forest.",
 	"mages_legacy.ability.mycelid.3.name": "Mycelium",
 	"mages_legacy.ability.mycelid.3.desc": "Grows a node of your network (up to 3). Right click a node to travel to the next one within 150 blocks. Anyone may use it. Opens after the Nether. 40 spores.",
