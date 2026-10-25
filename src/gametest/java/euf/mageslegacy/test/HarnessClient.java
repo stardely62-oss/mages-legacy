@@ -131,6 +131,12 @@ public class HarnessClient implements ClientModInitializer {
 		step(20, false, c -> {
 			check("talent_on_server", onServer(c, s -> RaceState.get(s).data(c.player.getUuid()).has(Talents.NET_CHAIN)));
 			screenshot(c, "talents");
+			if (c.currentScreen instanceof TalentScreen tree) {
+				tree.toggleGuide();
+			}
+		});
+		step(5, false, c -> {
+			screenshot(c, "talents_guide");
 			c.setScreen(null);
 		});
 

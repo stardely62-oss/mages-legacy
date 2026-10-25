@@ -355,7 +355,8 @@ public class TalentScreen extends Screen {
 					: state == NodeState.AVAILABLE || state == NodeState.NO_POINTS ? LegacyUi.mix(0xFF3A3238, color, 0.6f) : 0xFF3A3238;
 			int fromX = q[0] + NODE / 2;
 			int toX = p[0] + NODE / 2;
-			int midY = q[1] + NODE + (p[1] - q[1] - NODE) / 2;
+			// A link over more than one tier turns just above its target, clear of the rows it passes
+			int midY = p[1] - q[1] > rowGap() ? p[1] - (rowGap() - NODE) / 2 : q[1] + NODE + (p[1] - q[1] - NODE) / 2;
 			ctx.fill(fromX - 1, q[1] + NODE, fromX + 1, midY + 1, c);
 			ctx.fill(Math.min(fromX, toX) - 1, midY - 1, Math.max(fromX, toX) + 1, midY + 1, c);
 			ctx.fill(toX - 1, midY, toX + 1, p[1], c);
