@@ -111,7 +111,9 @@ public class MagesLegacy implements ModInitializer {
 			if (data.race == null && !data.prompted) {
 				data.prompted = RacePackets.openChoice(player);
 			}
-			boolean coolingDown = data.readyAt.values().stream().anyMatch(t -> t > ticks) || data.chainLeft > 0;
+			// Only the ability slots show on the client; talent timers (Rebirth, Fed Network) don't need a sync every tick
+			boolean coolingDown = data.readyAt.entrySet().stream().anyMatch(e -> e.getKey() < RacePackets.SLOTS && e.getValue() > ticks)
+					|| data.chainLeft > 0;
 			if (data.dirty || coolingDown) {
 				RacePackets.sync(player, data);
 			}

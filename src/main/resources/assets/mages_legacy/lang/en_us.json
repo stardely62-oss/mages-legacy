@@ -242,7 +242,7 @@
 	"mages_legacy.talent.net_haste.desc": "After travelling through a node: Speed II for 10 seconds.",
 	"mages_legacy.talent.net_shared": "Fed Network",
 	"mages_legacy.talent.net_shared.lore": "Every node is a second home.",
-	"mages_legacy.talent.net_shared.desc": "Travelling through a node heals 4 health and gives 10 spores.",
+	"mages_legacy.talent.net_shared.desc": "Travelling through a node heals 4 health and gives 10 spores, at most once in 30 seconds.",
 	"mages_legacy.talent.net_cleanse": "Clean Sprout",
 	"mages_legacy.talent.net_cleanse.lore": "Sprouting anew, you leave sickness behind.",
 	"mages_legacy.talent.net_cleanse.desc": "The spore jump removes all harmful effects from you on landing.",
@@ -280,7 +280,5 @@
 	"mages_legacy.xp.mycelid.6": "Release a spore cloud",
 	"mages_legacy.xp.mycelid.6.amount": "+3",
 	"mages_legacy.xp.mycelid.7": "Land a spore jump",
-	"mages_legacy.xp.mycelid.7.amount": "+2",
-	"mages_legacy.xp.mycelid.8": "Travel through a mycelium node",
-	"mages_legacy.xp.mycelid.8.amount": "+2"
+	"mages_legacy.xp.mycelid.7.amount": "+2"
 }

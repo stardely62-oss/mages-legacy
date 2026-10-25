@@ -67,6 +67,8 @@ public final class Mycelid {
 	private static final int CLOUD_COOLDOWN_QUICK = 140;
 	public static final int JUMP_COST_CHEAP = 10;
 	private static final int REBIRTH_SLOT = 9;
+	private static final int FED_NETWORK_SLOT = 8;
+	private static final int FED_NETWORK_COOLDOWN = 600;
 	private static final int REBIRTH_COOLDOWN = 24000;
 	private static final int MIND_RADIUS = 24;
 	private static final int NODE_COOLDOWN = 100;
@@ -534,14 +536,16 @@ public final class Mycelid {
 				MycelidFx.ring(world, to, 0.3, 1.8, 6, MycelidFx.SPORE);
 				world.playSound(null, next.getPos(), SoundEvents.BLOCK_FUNGUS_PLACE, SoundCategory.BLOCKS, 1.0f, 0.6f);
 				RaceData travellerData = RaceState.of(player);
+				// No race experience for travelling: walking back and forth between two nodes would farm it. For the
+				// same reason the Fed Network bonus comes at most once in 30 seconds.
 				if (travellerData != null && travellerData.race == Race.MYCELID) {
-					Progression.addXp(player, travellerData, 2);
 					if (travellerData.has(Talents.NET_HASTE)) {
 						player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 200, 1, false, false, true));
 					}
-					if (travellerData.has(Talents.NET_SHARED)) {
+					if (travellerData.has(Talents.NET_SHARED) && ready(player, travellerData, FED_NETWORK_SLOT)) {
 						player.heal(4);
 						travellerData.addResource(10);
+						cooldown(player, travellerData, FED_NETWORK_SLOT, FED_NETWORK_COOLDOWN);
 					}
 				}
 				return true;

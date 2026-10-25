@@ -369,6 +369,27 @@ public class RaceGameTests implements FabricGameTest {
 		done(ctx, owner);
 	}
 
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "node_farm")
+	public void walkingBetweenNodesFarmsNothing(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos base = ctx.getAbsolutePos(new BlockPos(0, 2, 0));
+		floor(world, base, 8, 3);
+		ServerPlayerEntity player = mycelid(ctx, base);
+		RaceData data = RaceState.of(player);
+		data.talents.add(Talents.NET_SHARED);
+		BlockPos a = base;
+		BlockPos b = base.add(5, 0, 0);
+		Mycelid.placeNodeAt(world, a, player.getUuid(), 3);
+		Mycelid.placeNodeAt(world, b, player.getUuid(), 3);
+		int xp = data.xp;
+		check(Mycelid.travel(player, a) && Mycelid.travel(player, b) && Mycelid.travel(player, a), "back and forth works");
+		check(data.xp == xp, "travelling gives no race experience: " + xp + " -> " + data.xp);
+		check(Math.abs(data.resource - 10) < 0.01f, "Fed Network pays 10 spores once, not on every trip: " + data.resource);
+		world.removeBlock(a, false);
+		world.removeBlock(b, false);
+		done(ctx, player);
+	}
+
 	private static void check(boolean condition, String message) {
 		if (!condition) {
 			throw new GameTestException(message);

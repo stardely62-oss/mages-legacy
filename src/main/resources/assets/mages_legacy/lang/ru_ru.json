@@ -242,7 +242,7 @@
 	"mages_legacy.talent.net_haste.desc": "После перехода через узел — Скорость II на 10 секунд.",
 	"mages_legacy.talent.net_shared": "Сытая сеть",
 	"mages_legacy.talent.net_shared.lore": "Каждый узел — твой второй дом.",
-	"mages_legacy.talent.net_shared.desc": "Переход через узел лечит 4 здоровья и даёт 10 спор.",
+	"mages_legacy.talent.net_shared.desc": "Переход через узел лечит 4 здоровья и даёт 10 спор, не чаще раза в 30 секунд.",
 	"mages_legacy.talent.net_cleanse": "Чистый росток",
 	"mages_legacy.talent.net_cleanse.lore": "Прорастая заново, оставляешь болезни позади.",
 	"mages_legacy.talent.net_cleanse.desc": "Споровый прыжок снимает с вас все вредные эффекты при приземлении.",
@@ -280,7 +280,5 @@
 	"mages_legacy.xp.mycelid.6": "Выпустить облако спор",
 	"mages_legacy.xp.mycelid.6.amount": "+3",
 	"mages_legacy.xp.mycelid.7": "Приземлиться после спорового прыжка",
-	"mages_legacy.xp.mycelid.7.amount": "+2",
-	"mages_legacy.xp.mycelid.8": "Пройти через узел грибницы",
-	"mages_legacy.xp.mycelid.8.amount": "+2"
+	"mages_legacy.xp.mycelid.7.amount": "+2"
 }
