@@ -11,15 +11,24 @@ import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.race.Talent;
 import euf.mageslegacy.race.Talents;
+import euf.mageslegacy.shepherd.Bonds;
+import euf.mageslegacy.shepherd.EchoType;
+import euf.mageslegacy.shepherd.Echoes;
+import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.shepherd.ShepherdData;
 import java.util.List;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.advancement.Advancement;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.ZombieEntity;
+import net.minecraft.entity.passive.WolfEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -27,8 +36,11 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.GameTestException;
 import net.minecraft.test.TestContext;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.GlobalPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
@@ -113,8 +125,14 @@ public class RaceGameTests implements FabricGameTest {
 
 	@GameTest(templateName = EMPTY_STRUCTURE)
 	public void theTreeHasRoomForBuilds(TestContext ctx) {
-		List<Talent> all = Talents.of(Race.MYCELID);
-		check(all.size() == 33, "33 Mycelid talents, got " + all.size());
+		treeShape(Race.MYCELID);
+		treeShape(Race.SHEPHERD);
+		ctx.complete();
+	}
+
+	private static void treeShape(Race race) {
+		List<Talent> all = Talents.of(race);
+		check(all.size() == 33, "33 talents for " + race + ", got " + all.size());
 		int[] perTier = {0, 3, 4, 3, 1};
 		for (int branch = 0; branch < 3; branch++) {
 			for (int tier = 1; tier <= 4; tier++) {
@@ -132,7 +150,6 @@ public class RaceGameTests implements FabricGameTest {
 				check(req != null && req.branch() == t.branch() && req.tier() <= t.tier(), t.id() + " needs a talent of its own branch, not higher");
 			}
 		}
-		ctx.complete();
 	}
 
 	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "cloud_talents", tickLimit = 100)
@@ -388,6 +405,163 @@ public class RaceGameTests implements FabricGameTest {
 		check(Math.abs(data.resource - 10) < 0.01f, "Fed Network pays 10 spores once, not on every trip: " + data.resource);
 		world.removeBlock(a, false);
 		world.removeBlock(b, false);
+		done(ctx, player);
+	}
+
+	// ---- Shepherds ----
+
+	static ServerPlayerEntity shepherd(TestContext ctx, BlockPos at) {
+		ServerPlayerEntity player = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
+		player.changeGameMode(GameMode.SURVIVAL);
+		player.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
+		RaceState.of(player).reset(Race.SHEPHERD);
+		return player;
+	}
+
+	static void learn(ServerPlayerEntity player, RaceData data, EchoType type) {
+		for (int i = 0; i < type.kills(); i++) {
+			Shepherd.countKill(player, data, type);
+		}
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "echo_learn")
+	public void echoesAreLearnedFromKills(TestContext ctx) {
+		ServerPlayerEntity player = shepherd(ctx, ctx.getAbsolutePos(new BlockPos(1, 2, 1)));
+		RaceData data = RaceState.of(player);
+		EchoType zombie = EchoType.of(EntityType.ZOMBIE).orElseThrow();
+		for (int i = 0; i < zombie.kills() - 1; i++) {
+			Shepherd.countKill(player, data, zombie);
+		}
+		check(!Shepherd.learned(data, zombie), "19 zombies are not enough");
+		check(Shepherd.call(player, data) == AbilityResult.NO_ECHO, "nothing to call yet");
+		int xp = data.xp + data.level * 1000;
+		Shepherd.countKill(player, data, zombie);
+		check(Shepherd.learned(data, zombie), "the 20th zombie teaches its echo");
+		check(data.shepherd.selectedEcho.equals(zombie.id()), "the first learned echo is picked for the Call");
+		check(data.xp + data.level * 1000 > xp, "learning an echo gives race experience");
+		data.talents.add(Talents.LEGION_THRESHOLDS);
+		EchoType skeleton = EchoType.of(EntityType.SKELETON).orElseThrow();
+		check(skeleton.killsNeeded(true) == 15, "Memory of the Fallen: 25 skeletons become 15");
+		RaceData copy = RaceData.fromNbt(data.toNbt());
+		check(copy.shepherd.kills(zombie.id()) == 20 && copy.shepherd.selectedEcho.equals(zombie.id()), "the bestiary survives a save");
+		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "echo_call", tickLimit = 200)
+	public void theCallRaisesAnEchoThatFadesWithoutLoot(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(3, 2, 3));
+		floor(world, at.add(-3, 0, -3), 7, 7);
+		ServerPlayerEntity player = shepherd(ctx, at);
+		RaceData data = RaceState.of(player);
+		learn(player, data, EchoType.of(EntityType.ZOMBIE).orElseThrow());
+		data.addResource(100);
+		check(Shepherd.call(player, data) == AbilityResult.OK, "the Call should raise the echo");
+		check(Math.abs(data.resource - 85) < 0.01f, "a zombie echo costs 15 voice, left " + data.resource);
+		check(Echoes.count(player.getUuid()) == 1 && Shepherd.capacityUsed(data, player.getUuid()) == 1, "one echo, one bond slot");
+		MobEntity echo = world.getEntitiesByClass(MobEntity.class, new Box(at).expand(8), Echoes::isEcho).stream().findFirst().orElse(null);
+		check(echo != null, "the echo stands in the world");
+		ctx.waitAndRun(70, () -> {
+			float before = echo.getHealth();
+			echo.timeUntilRegen = 0;
+			echo.damage(world.getDamageSources().playerAttack(player), 4);
+			check(echo.getHealth() == before, "a Shepherd can't hurt its own echo");
+			echo.timeUntilRegen = 0;
+			echo.damage(world.getDamageSources().generic(), 1000);
+			check(!echo.isAlive() && Echoes.count(player.getUuid()) == 0, "a fallen echo fades");
+			check(world.getEntitiesByClass(ItemEntity.class, new Box(at).expand(8), e -> true).isEmpty(), "an echo drops nothing");
+			done(ctx, player);
+		});
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "echo_capacity", tickLimit = 100)
+	public void heavyArmourCrowdsTheBonds(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(3, 2, 3));
+		floor(world, at.add(-3, 0, -3), 7, 7);
+		ServerPlayerEntity player = shepherd(ctx, at);
+		RaceData data = RaceState.of(player);
+		check(Shepherd.capacityMax(player, data) == 4, "4 bond slots to start");
+		player.equipStack(EquipmentSlot.CHEST, new ItemStack(Items.DIAMOND_CHESTPLATE));
+		player.equipStack(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
+		check(Shepherd.capacityMax(player, data) == 2, "diamond and iron take one slot each");
+		data.talents.add(Talents.VOICE_ARMOR);
+		check(Shepherd.capacityMax(player, data) == 3, "Used to Iron: iron no longer counts");
+		learn(player, data, EchoType.of(EntityType.SKELETON).orElseThrow());
+		data.shepherd.selectedEcho = EchoType.of(EntityType.SKELETON).orElseThrow().id();
+		data.addResource(100);
+		check(Shepherd.call(player, data) == AbilityResult.OK, "a skeleton echo takes 2 of 3 slots");
+		data.readyAt.clear();
+		check(Shepherd.call(player, data) == AbilityResult.NO_CAPACITY, "no room for a second one");
+		player.setSneaking(true);
+		check(Shepherd.call(player, data) == AbilityResult.OK && Echoes.count(player.getUuid()) == 0, "sneak + Call sends them back");
+		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "bond", tickLimit = 200)
+	public void theBondRitualNeedsSongFoodAndFire(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(3, 2, 3));
+		floor(world, at.add(-3, 0, -3), 7, 7);
+		ServerPlayerEntity player = shepherd(ctx, at);
+		RaceData data = RaceState.of(player);
+		data.addResource(100);
+		WolfEntity wolf = EntityType.WOLF.create(world);
+		wolf.refreshPositionAndAngles(at.getX() + 2.5, at.getY(), at.getZ() + 0.5, 0, 0);
+		wolf.setAiDisabled(true);
+		world.spawnEntity(wolf);
+
+		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.BEEF, 8));
+		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.PASS, "food before the Song does nothing special");
+		player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
+		player.setSneaking(true);
+		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.SUCCESS, "the Song of Bonds");
+		check(Math.abs(data.resource - 80) < 0.01f, "the Song costs 20 voice");
+		player.setSneaking(false);
+		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.BEEF, 8));
+		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.SUCCESS, "first feeding");
+		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.FAIL, "not again right away");
+		ShepherdData.Ritual ritual = data.shepherd.rituals.get(wolf.getUuid());
+		ritual.lastFeed -= Bonds.FEED_GAP;
+		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.SUCCESS, "second feeding a minute later");
+		ritual.lastFeed -= Bonds.FEED_GAP;
+		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.FAIL, "the last one needs a campfire");
+		world.setBlockState(at.add(-2, 0, 0), Blocks.CAMPFIRE.getDefaultState());
+		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.SUCCESS, "by the fire the bond is made");
+		check(data.shepherd.bonds.size() == 1 && wolf.isTamed() && player.getUuid().equals(wolf.getOwnerUuid()), "the wolf is the Shepherd's");
+		check(Shepherd.capacityUsed(data, player.getUuid()) == 2, "a wolf takes 2 bond slots");
+		check(player.getMainHandStack().getCount() == 5, "three pieces of meat eaten");
+
+		// It falls: rests instead of dying, and comes back when the rest is over
+		wolf.timeUntilRegen = 0;
+		wolf.damage(world.getDamageSources().generic(), 1000);
+		ShepherdData.Bond bond = data.shepherd.bonds.get(0);
+		check(wolf.isRemoved() && bond.resting(), "a fallen beast goes to rest");
+		bond.restingUntil = world.getTime();
+		Bonds.tickOwner(player, data);
+		check(!bond.resting() && world.getEntity(bond.entity) instanceof WolfEntity back && back.isAlive(), "and comes back to its Shepherd");
+		world.getEntity(bond.entity).discard();
+		world.removeBlock(at.add(-2, 0, 0), false);
+		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "shepherd_body", tickLimit = 100)
+	public void shepherdsAreFrailButTheirCreaturesSpareThem(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(2, 2, 2));
+		ServerPlayerEntity player = shepherd(ctx, at);
+		RaceData data = RaceState.of(player);
+		Shepherd.tickSecond(player, data);
+		check(Math.abs(player.getMaxHealth() - 16) < 0.01f, "a Shepherd has 2 hearts less, got " + player.getMaxHealth());
+		ZombieEntity zombie = EntityType.ZOMBIE.create(world);
+		zombie.refreshPositionAndAngles(at.getX() + 1.5, at.getY(), at.getZ() + 0.5, 0, 0);
+		check(Math.abs(Shepherd.modifyDamage(zombie, world.getDamageSources().playerAttack(player), 4) - 3) < 0.01f, "its own blow is a quarter weaker");
+		data.talents.add(Talents.VOICE_LIFE);
+		data.talents.add(Talents.VOICE_STRENGTH);
+		Shepherd.tickSecond(player, data);
+		check(Math.abs(player.getMaxHealth() - 20) < 0.01f, "Sturdy Body gives the hearts back");
+		check(Math.abs(Shepherd.modifyDamage(zombie, world.getDamageSources().playerAttack(player), 4) - 4) < 0.01f, "Steady Hand: full blows");
+		zombie.discard();
 		done(ctx, player);
 	}
 

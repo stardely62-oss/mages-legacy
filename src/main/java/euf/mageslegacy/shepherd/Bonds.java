@@ -326,6 +326,8 @@ public final class Bonds {
 		if (!(entity instanceof MobEntity mob)) {
 			return;
 		}
+		// A fresh uuid: the body that fell may still be on the world's books for a tick, and a clash would refuse it
+		mob.setUuid(UUID.randomUUID());
 		bond.body = null;
 		bond.restingUntil = 0;
 		bond.entity = mob.getUuid();
