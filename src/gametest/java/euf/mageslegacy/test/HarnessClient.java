@@ -161,7 +161,7 @@ public class HarnessClient implements ClientModInitializer {
 			});
 			tp(c, Vec3d.ofBottomCenter(arena).add(-1, 0, 0), Vec3d.ofBottomCenter(arena).add(2.5, 1, 0));
 		});
-		step(10, false, c -> {
+		step(30, false, c -> {
 			MagesLegacyClient.useAbility(1);
 			// From behind the shoulder, so the whole cloud is in the frame
 			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);

@@ -72,7 +72,7 @@ public final class Mycelid {
 
 	private record PendingJump(UUID player, Vec3d target, long at, Vec3d from) {}
 
-	private record Cloud(ServerWorld world, Vec3d center, UUID owner, double radius, int potency, long until) {}
+	private record Cloud(ServerWorld world, Vec3d center, UUID owner, double radius, int potency, long start, long until) {}
 
 	/** Greenish-grey and dark violet spore dust for the cloud. */
 	private static final DustParticleEffect SPORE_DUST = new DustParticleEffect(new Vector3f(0.62f, 0.72f, 0.48f), 1.6f);
@@ -327,7 +327,8 @@ public final class Mycelid {
 	}
 
 	public static void spawnCloud(ServerWorld world, Vec3d center, UUID owner, double radius, int potency, int ticks) {
-		CLOUDS.add(new Cloud(world, center, owner, radius, potency, world.getServer().getTicks() + ticks));
+		long now = world.getServer().getTicks();
+		CLOUDS.add(new Cloud(world, center, owner, radius, potency, now, now + ticks));
 	}
 
 	public static int nodeLimit(RaceData data) {
@@ -472,7 +473,8 @@ public final class Mycelid {
 					world.spawnParticles(ParticleTypes.MYCELIUM, c.x + Math.cos(a) * r, c.y + 0.2, c.z + Math.sin(a) * r, 1, 0.05, 0.1, 0.05, 0.0);
 				}
 			}
-			if (now % 20 == 0) {
+			// Bites at once, then every second
+			if ((now - cloud.start()) % 20 == 0) {
 				Box area = new Box(c, c).expand(cloud.radius(), 2, cloud.radius());
 				for (LivingEntity entity : world.getEntitiesByClass(LivingEntity.class, area,
 						e -> e.isAlive() && e.getPos().isInRange(c, cloud.radius() + 0.5))) {
