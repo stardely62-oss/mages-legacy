@@ -135,8 +135,28 @@ public class HarnessClient implements ClientModInitializer {
 				tree.toggleGuide();
 			}
 		});
+		// A short screen (GUI scale 4): the guide and the tree no longer fit and must scroll
 		step(5, false, c -> {
 			screenshot(c, "talents_guide");
+			c.options.getGuiScale().setValue(4);
+			c.onResolutionChanged();
+		});
+		step(5, false, c -> {
+			if (c.currentScreen instanceof TalentScreen tree) {
+				tree.mouseScrolled(c.currentScreen.width / 2.0, c.currentScreen.height / 2.0, -3);
+			}
+		});
+		step(5, false, c -> {
+			screenshot(c, "talents_guide_scrolled");
+			if (c.currentScreen instanceof TalentScreen tree) {
+				tree.toggleGuide();
+				tree.mouseScrolled(c.currentScreen.width / 2.0, c.currentScreen.height / 2.0, -10);
+			}
+		});
+		step(5, false, c -> {
+			screenshot(c, "talents_scrolled");
+			c.options.getGuiScale().setValue(0);
+			c.onResolutionChanged();
 			c.setScreen(null);
 		});
 

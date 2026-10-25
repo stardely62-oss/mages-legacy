@@ -35,6 +35,10 @@ public class TalentScreen extends Screen {
 
 	private final Map<String, int[]> positions = new HashMap<>();
 	private boolean showGuide;
+	/** How far the tree and the guide are scrolled, when they don't fit on the screen. */
+	private int treeScroll;
+	private int guideScroll;
+	private int guideMaxScroll;
 
 	public TalentScreen() {
 		super(Text.translatable("mages_legacy.screen.talents"));
@@ -61,6 +65,45 @@ public class TalentScreen extends Screen {
 
 	private int rowY(int tier) {
 		return TOP + (tier - 1) * rowGap();
+	}
+
+	/** The tree scrolls between the header and the ability bar. */
+	private int treeTop() {
+		return 36;
+	}
+
+	private int treeBottom() {
+		return race() == Race.MYCELID ? height - 36 : height - 6;
+	}
+
+	private int treeMaxScroll() {
+		return Math.max(0, rowY(tiers()) + NODE + 12 - treeBottom());
+	}
+
+	private boolean inTree(double mouseY) {
+		return mouseY >= treeTop() && mouseY < treeBottom();
+	}
+
+	@Override
+	public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+		if (showGuide) {
+			guideScroll = Math.max(0, Math.min(guideMaxScroll, guideScroll - (int) (amount * 20)));
+			return true;
+		}
+		if (inTree(mouseY)) {
+			treeScroll = Math.max(0, Math.min(treeMaxScroll(), treeScroll - (int) (amount * 20)));
+			return true;
+		}
+		return super.mouseScrolled(mouseX, mouseY, amount);
+	}
+
+	/** A thin scrollbar: the track, and a thumb as long as the visible part. */
+	private static void scrollbar(DrawContext ctx, int x, int top, int bottom, int scroll, int max, int color) {
+		int track = bottom - top;
+		int thumb = Math.max(12, track * track / (track + max));
+		int y = top + (track - thumb) * scroll / Math.max(1, max);
+		ctx.fill(x, top, x + 3, bottom, LegacyUi.BLACK);
+		ctx.fill(x, y, x + 3, y + thumb, color);
 	}
 
 	private int guideButtonX() {
@@ -139,9 +182,10 @@ public class TalentScreen extends Screen {
 			showGuide = false;
 			return true;
 		}
+		double treeY = mouseY + treeScroll;
 		for (Map.Entry<String, int[]> e : positions.entrySet()) {
 			int[] p = e.getValue();
-			if (mouseX >= p[0] && mouseX < p[0] + NODE && mouseY >= p[1] && mouseY < p[1] + NODE) {
+			if (inTree(mouseY) && mouseX >= p[0] && mouseX < p[0] + NODE && treeY >= p[1] && treeY < p[1] + NODE) {
 				click(e.getKey());
 				return true;
 			}
@@ -162,6 +206,13 @@ public class TalentScreen extends Screen {
 		}
 		int color = LegacyUi.argb(race.color);
 		List<Text> headerTooltip = drawHeader(ctx, race, color, mouseX, mouseY);
+
+		// The tree scrolls when the screen is too short for it: clip it to its strip and shift it up
+		treeScroll = Math.max(0, Math.min(treeMaxScroll(), treeScroll));
+		int treeMouseY = inTree(mouseY) ? mouseY + treeScroll : -1000;
+		ctx.enableScissor(0, treeTop(), width, treeBottom());
+		ctx.getMatrices().push();
+		ctx.getMatrices().translate(0, -treeScroll, 0);
 
 		// Branch columns with their titles and one-line legends
 		int columnBottom = rowY(tiers()) + NODE + 10;
@@ -189,7 +240,12 @@ public class TalentScreen extends Screen {
 		}
 
 		drawLinks(ctx, race, color);
-		Talent hovered = drawNodes(ctx, race, color, mouseX, mouseY);
+		Talent hovered = drawNodes(ctx, race, color, mouseX, treeMouseY);
+		ctx.getMatrices().pop();
+		ctx.disableScissor();
+		if (treeMaxScroll() > 0) {
+			scrollbar(ctx, columnX(2) + columnWidth() + 6, treeTop() + 4, treeBottom() - 4, treeScroll, treeMaxScroll(), color);
+		}
 		int abilityHovered = drawAbilities(ctx, race, color, mouseX, mouseY);
 
 		drawGuideButton(ctx, color, mouseX, mouseY);
@@ -291,8 +347,17 @@ public class TalentScreen extends Screen {
 		}
 		h += 8 + 14 + Progression.MAX_TIER * 12 + 6;
 		int x0 = (width - w) / 2;
-		int y0 = Math.max(4, (height - h) / 2);
-		LegacyUi.panel(ctx, x0, y0, x0 + w, y0 + h);
+		int shown = Math.min(h, height - 8);
+		guideMaxScroll = h - shown;
+		guideScroll = Math.max(0, Math.min(guideMaxScroll, guideScroll));
+		int y0 = (height - shown) / 2;
+		LegacyUi.panel(ctx, x0, y0, x0 + w, y0 + shown);
+		if (guideMaxScroll > 0) {
+			scrollbar(ctx, x0 + w - 6, y0 + 4, y0 + shown - 4, guideScroll, guideMaxScroll, color);
+		}
+		// Taller than the screen: the content scrolls inside the panel
+		ctx.enableScissor(x0 + 1, y0 + 2, x0 + w - 1, y0 + shown - 2);
+		y0 -= guideScroll;
 		int x = x0 + 12;
 		int right = x0 + w - 12;
 		int y = y0 + 8;
@@ -339,6 +404,7 @@ public class TalentScreen extends Screen {
 			}
 			y += 12;
 		}
+		ctx.disableScissor();
 		ctx.getMatrices().pop();
 	}
 
