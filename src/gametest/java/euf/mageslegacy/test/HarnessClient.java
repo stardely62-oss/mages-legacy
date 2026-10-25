@@ -292,6 +292,13 @@ public class HarnessClient implements ClientModInitializer {
 			tp(c, Vec3d.ofBottomCenter(arena).add(-8, 0.5, 3), Vec3d.ofBottomCenter(arena).add(-3, 1, 0));
 		});
 		step(20, true, c -> screenshot(c, "echoes"));
+		// Sneak + Call sends the echoes back and frees the bond slots for the wolf
+		step(5, false, c -> c.options.sneakKey.setPressed(true));
+		step(5, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
+		step(20, false, c -> {
+			c.options.sneakKey.setPressed(false);
+			check("echoes_dismissed", ClientRaceState.extra.getInt("echoes") == 0 && ClientRaceState.extra.getInt("capUsed") == 0);
+		});
 
 		// A wolf, the Song (sneak + empty hand), three feedings, the last by a campfire
 		step(10, false, c -> {
