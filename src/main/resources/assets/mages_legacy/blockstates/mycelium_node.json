@@ -1,0 +1,5 @@
+{
+	"variants": {
+		"": { "model": "mages_legacy:block/mycelium_node" }
+	}
+}
