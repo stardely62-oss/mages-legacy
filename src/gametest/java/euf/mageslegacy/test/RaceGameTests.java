@@ -11,6 +11,7 @@ import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.race.Talent;
 import euf.mageslegacy.race.Talents;
+import euf.mageslegacy.shepherd.BeastKind;
 import euf.mageslegacy.shepherd.Bonds;
 import euf.mageslegacy.shepherd.EchoType;
 import euf.mageslegacy.shepherd.Echoes;
@@ -731,6 +732,42 @@ public class RaceGameTests implements FabricGameTest {
 		check(data.shepherd.bond(llama.getUuid()).isPresent(), "a minute on the lead wins the llama");
 		rabbit.discard();
 		llama.discard();
+		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "focus", tickLimit = 100)
+	public void theHuntersMarkTurnsTheArmyOnOneFoe(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(4, 2, 4));
+		floor(world, at.add(-4, 0, -4), 9, 9);
+		ServerPlayerEntity player = shepherd(ctx, at);
+		RaceData data = RaceState.of(player);
+		EchoType zombieType = EchoType.of(EntityType.ZOMBIE).orElseThrow();
+		learn(player, data, zombieType);
+		MobEntity echo = Echoes.summon(player, data, zombieType, Vec3d.ofBottomCenter(at.add(-2, 0, 0)), false, 0, 0);
+		// A foe straight ahead of the Shepherd (yaw 0 looks south, +Z)
+		ZombieEntity foe = beast(ctx, EntityType.ZOMBIE, at.add(0, 0, 3));
+		data.addResource(100);
+		check(Shepherd.focus(player, data) == AbilityResult.OK, "the Mark lands on the foe ahead");
+		check(echo.getTarget() == foe && foe.hasStatusEffect(StatusEffects.GLOWING), "the echo turns on the marked foe, which glows");
+		float marked = Shepherd.modifyDamage(foe, world.getDamageSources().mobAttack(echo), 10);
+		check(Math.abs(marked - 13) < 0.01f, "the marked foe takes 30% more from creatures, got " + marked);
+
+		// Sneak + G gathers the creatures to the Shepherd
+		echo.refreshPositionAndAngles(at.getX() + 3.5, at.getY(), at.getZ() - 3.5, 0, 0);
+		data.readyAt.clear();
+		player.setSneaking(true);
+		check(Shepherd.focus(player, data) == AbilityResult.OK && echo.squaredDistanceTo(player) < 16, "the Gather brings the echo close");
+		player.setSneaking(false);
+
+		// Light Bonds: a wolf takes one slot instead of two
+		RaceData light = data;
+		check(Shepherd.beastCost(BeastKind.byId("wolf").orElseThrow(), light) == 2, "a wolf takes two slots");
+		light.talents.add(Talents.PACK_LIGHT);
+		check(Shepherd.beastCost(BeastKind.byId("wolf").orElseThrow(), light) == 1 && Shepherd.beastCost(BeastKind.byId("rabbit").orElseThrow(), light) == 1,
+				"Light Bonds: the wolf takes one, the rabbit still one");
+		Echoes.dismiss(world.getServer(), player.getUuid());
+		foe.discard();
 		done(ctx, player);
 	}
 

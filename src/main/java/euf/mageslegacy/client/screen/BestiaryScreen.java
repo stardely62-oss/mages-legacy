@@ -397,7 +397,8 @@ public class BestiaryScreen extends Screen {
 		int needed = Bonds.needed(kind, ClientRaceState.talents.contains(Talents.PACK_FRIENDLY));
 		TalentScreen.wrapInto(lines, Text.translatable("mages_legacy.bestiary.taming", Text.translatable(id + ".taming", needed).getString())
 				.formatted(Formatting.WHITE));
-		lines.add(Text.translatable("mages_legacy.bestiary.beast_cost", kind.capacity()).formatted(Formatting.AQUA));
+		lines.add(Text.translatable("mages_legacy.bestiary.beast_cost", Shepherd.beastCost(kind, ClientRaceState.talents.contains(Talents.PACK_LIGHT)))
+				.formatted(Formatting.AQUA));
 		return lines;
 	}
 

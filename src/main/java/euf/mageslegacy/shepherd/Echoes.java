@@ -88,42 +88,45 @@ public final class Echoes {
 		if (info == null || !(victim.getWorld() instanceof ServerWorld world)) {
 			return amount;
 		}
+		// Resonance makes every trait stronger
+		boolean strong = RaceState.get(world.getServer()).data(info.owner()).has(Talents.LEGION_RESONANCE);
 		switch (info.type()) {
 			case "minecraft:husk" -> {
-				victim.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 1));
+				victim.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, strong ? 2 : 1));
 				victim.addStatusEffect(new StatusEffectInstance(StatusEffects.HUNGER, 100, 0));
 			}
 			case "minecraft:skeleton" -> {
 				// Its arrows mark the target for the whole army
-				victim.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 100, 0));
+				int ticks = strong ? 200 : 100;
+				victim.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, ticks, 0));
 				ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(info.owner());
-				if (owner != null && victim instanceof Monster) {
-					Creatures.mark(owner, victim, world.getServer().getTicks() + 100);
+				if (owner != null && victim instanceof Monster && Creatures.marked(owner) == null) {
+					Creatures.mark(owner, victim, world.getServer().getTicks() + ticks);
 				}
 			}
-			case "minecraft:stray" -> victim.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 2));
+			case "minecraft:stray" -> victim.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, strong ? 3 : 2));
 			case "minecraft:spider" -> {
 				BlockPos feet = victim.getBlockPos();
-				if (world.random.nextFloat() < 0.25f && world.getBlockState(feet).isAir()) {
+				if (world.random.nextFloat() < (strong ? 0.5f : 0.25f) && world.getBlockState(feet).isAir()) {
 					world.setBlockState(feet, Blocks.COBWEB.getDefaultState());
 					WEBS.add(new Web(world, feet, world.getServer().getTicks() + 100));
 				}
 			}
 			case "minecraft:cave_spider" -> victim.addStatusEffect(victim.isUndead()
-					? new StatusEffectInstance(StatusEffects.WITHER, 80, 0) : new StatusEffectInstance(StatusEffects.POISON, 80, 1));
+					? new StatusEffectInstance(StatusEffects.WITHER, 80, strong ? 1 : 0) : new StatusEffectInstance(StatusEffects.POISON, 80, strong ? 2 : 1));
 			case "minecraft:vindicator" -> {
-				if (victim.getHealth() - amount < victim.getMaxHealth() * 0.3f) {
+				if (victim.getHealth() - amount < victim.getMaxHealth() * (strong ? 0.45f : 0.3f)) {
 					amount *= 2;
 					world.spawnParticles(ParticleTypes.DAMAGE_INDICATOR, victim.getX(), victim.getY() + 1, victim.getZ(), 6, 0.3, 0.3, 0.3, 0.1);
 				}
 			}
-			case "minecraft:silverfish" -> victim.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 40, 0));
-			case "minecraft:pillager" -> victim.addStatusEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 80, 0));
+			case "minecraft:silverfish" -> victim.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 40, strong ? 1 : 0));
+			case "minecraft:pillager" -> victim.addStatusEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 80, strong ? 1 : 0));
 			case "minecraft:wither_skeleton" -> {
 				victim.addStatusEffect(new StatusEffectInstance(StatusEffects.WITHER, 100, 1));
 				ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(info.owner());
 				if (owner != null) {
-					owner.heal(1);
+					owner.heal(strong ? 2 : 1);
 				}
 			}
 			default -> {
@@ -134,27 +137,28 @@ public final class Echoes {
 
 	/** What some echoes do just by being near: the zombie draws monsters onto itself, the drowned and the blaze guard. */
 	private static void aura(Echo echo, MobEntity mob, ServerPlayerEntity owner) {
+		boolean strong = RaceState.of(owner).has(Talents.LEGION_RESONANCE);
 		switch (echo.type()) {
 			case "minecraft:zombie" -> {
-				for (MobEntity m : mob.getWorld().getEntitiesByClass(MobEntity.class, mob.getBoundingBox().expand(8),
+				for (MobEntity m : mob.getWorld().getEntitiesByClass(MobEntity.class, mob.getBoundingBox().expand(strong ? 14 : 8),
 						e -> e instanceof Monster && e.getTarget() == owner)) {
 					m.setTarget(mob);
 				}
 			}
 			case "minecraft:drowned" -> {
-				if (owner.isTouchingWater() && owner.distanceTo(mob) < 12) {
+				if (owner.isTouchingWater() && owner.distanceTo(mob) < (strong ? 20 : 12)) {
 					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.DOLPHINS_GRACE, 60, 0, true, false, true));
 					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.WATER_BREATHING, 100, 0, true, false, true));
 				}
 			}
 			case "minecraft:blaze" -> {
-				if (owner.distanceTo(mob) < 8) {
+				if (owner.distanceTo(mob) < (strong ? 16 : 8)) {
 					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.FIRE_RESISTANCE, 60, 0, true, false, true));
 				}
 			}
 			case "minecraft:witch" -> {
 				// The herbalist: every 10 seconds a healing brew for the Shepherd and its creatures close by
-				if (mob.getServer().getTicks() % 200 < 20) {
+				if (mob.getServer().getTicks() % (strong ? 120 : 200) < 20) {
 					ServerWorld world = (ServerWorld) mob.getWorld();
 					if (owner.distanceTo(mob) < 8) {
 						owner.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 0, true, true, true));
@@ -168,7 +172,7 @@ public final class Echoes {
 			}
 			case "minecraft:ravager" -> {
 				// A roar every 6 seconds throws back the monsters around it
-				if (mob.getServer().getTicks() % 120 < 20) {
+				if (mob.getServer().getTicks() % (strong ? 80 : 120) < 20) {
 					ServerWorld world = (ServerWorld) mob.getWorld();
 					boolean any = false;
 					for (LivingEntity m : world.getEntitiesByClass(LivingEntity.class, mob.getBoundingBox().expand(4),
@@ -372,6 +376,9 @@ public final class Echoes {
 		RaceData data = owner == null ? null : RaceState.of(owner);
 		if (data != null && data.has(Talents.LEGION_RETURN) && !echo.temporary()) {
 			data.addResource(echo.voice() / 2f);
+		}
+		if (data != null && !echo.temporary()) {
+			Shepherd.onLoss(owner, data);
 		}
 		fade(entity);
 		return false;

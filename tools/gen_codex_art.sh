@@ -89,6 +89,11 @@ declare -A P=(
   [voice_command]="$ICON $SHEP Subject: a pointing hand with a bold red target mark in front of it."
   [voice_mark]="$ICON $SHEP Subject: a glowing golden target mark over a monster skull."
   [voice_heart]="$ICON $SHEP Subject: a golden heart with golden threads linking it to a small paw print and a small cyan ghost."
+  [legion_resonance]="$ICON $SHEP Subject: a cyan ghost whose outline vibrates with three bold concentric sound rings."
+  [pack_fast]="$ICON $SHEP Subject: a brown paw print with three bold golden speed lines behind it."
+  [pack_light]="$ICON $SHEP Subject: a thin golden lead rope loop as light as a feather, a small white feather on it."
+  [voice_banner]="$ICON $SHEP Subject: a tall golden war banner with a paw print and a ghost on the cloth."
+  [voice_loss]="$ICON $SHEP Subject: a cracked golden heart with a small cyan soul rising out of the crack."
   [lore_mage]="Wide landscape Minecraft-style pixel art SCENE, 3:2 aspect, made of a 96 by 64 grid of large, perfectly square, flat-colored pixels, no text. At night under a starry sky: a hooded nameless ancient mage seen from behind stands before a tall black stone obelisk with a glowing green eye in an iron cage at its top. From the eye five streams of light flow down in five colours (moss green, warm gold, ice blue, crimson, violet) toward five tiny silhouettes of people standing apart on the dark grass. Grim, mysterious, dark fantasy, desaturated with the light streams as the only bright colours."
 )
 NAMES=("$@")

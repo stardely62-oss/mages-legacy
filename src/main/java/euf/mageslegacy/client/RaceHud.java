@@ -29,8 +29,8 @@ public final class RaceHud {
 	public static final Item[] MYCELID_ICONS = {Items.RED_MUSHROOM, Items.SPORE_BLOSSOM, Items.MYCELIUM};
 	public static final String[] MYCELID_ABILITY_ICONS = {"ability_spore_jump", "ability_spore_cloud", "ability_network"};
 	public static final int[] MYCELID_COSTS = {15, 30, 40};
-	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.ENDER_PEARL};
-	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_swap"};
+	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.SPYGLASS};
+	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_focus"};
 
 	private RaceHud() {
 	}
@@ -58,7 +58,7 @@ public final class RaceHud {
 			return switch (slot) {
 				case 0 -> squadCost(false);
 				case 1 -> Shepherd.RALLY_COST;
-				default -> ClientRaceState.talents.contains(Talents.VOICE_SWAP) ? Shepherd.SWAP_COST_CHEAP : Shepherd.SWAP_COST;
+				default -> Shepherd.FOCUS_COST;
 			};
 		}
 		if (slot == 0 && ClientRaceState.talents.contains(Talents.NET_CHEAP)) {

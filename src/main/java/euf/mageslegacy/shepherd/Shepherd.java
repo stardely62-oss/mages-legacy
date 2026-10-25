@@ -49,14 +49,13 @@ import org.jetbrains.annotations.Nullable;
 public final class Shepherd {
 	public static final int BASE_CAPACITY = 4;
 	public static final int RALLY_COST = 25;
-	public static final int SWAP_COST = 15;
-	public static final int SWAP_COST_CHEAP = 5;
+	public static final int FOCUS_COST = 15;
+	public static final int GATHER_COST = 10;
 	public static final int CREATURE_KILL_XP = 3;
 	public static final int ECHO_LEARNED_XP = 20;
 	private static final int CALL_COOLDOWN = 20;
 	private static final int RALLY_COOLDOWN = 600;
-	private static final int SWAP_COOLDOWN = 160;
-	private static final int SWAP_COOLDOWN_CHEAP = 60;
+	private static final int FOCUS_COOLDOWN = 160;
 	private static final int ARMY_SLOT = 7;
 	private static final int ARMY_COOLDOWN = 12000;
 	private static final UUID FRAIL = UUID.fromString("2e8b5c1f-7a3d-4c6e-9f2b-1d5a8e3c7b99");
@@ -99,9 +98,18 @@ public final class Shepherd {
 	public static int capacityUsed(RaceData data, UUID owner) {
 		int beasts = 0;
 		for (Bond bond : data.shepherd.bonds) {
-			beasts += BeastKind.byId(bond.kind).map(BeastKind::capacity).orElse(0);
+			beasts += BeastKind.byId(bond.kind).map(k -> beastCost(k, data)).orElse(0);
 		}
 		return beasts + Echoes.capacityUsed(owner);
+	}
+
+	/** Bond slots a beast takes: Light Bonds take one off (never below one). */
+	public static int beastCost(BeastKind kind, RaceData data) {
+		return beastCost(kind, data.has(Talents.PACK_LIGHT));
+	}
+
+	public static int beastCost(BeastKind kind, boolean light) {
+		return light ? Math.max(1, kind.capacity() - 1) : kind.capacity();
 	}
 
 	public static int capacityFree(ServerPlayerEntity player, RaceData data) {
@@ -178,19 +186,26 @@ public final class Shepherd {
 		Entity attacker = source.getAttacker();
 		if (attacker instanceof ServerPlayerEntity shepherd && source.getSource() == shepherd && is(shepherd)) {
 			RaceData data = RaceState.of(shepherd);
-			if (data.has(Talents.VOICE_MARK) && victim instanceof Monster) {
-				Creatures.mark(shepherd, victim, shepherd.getServer().getTicks() + 100);
-				victim.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 100, 0, true, false));
-			}
 			if (!data.has(Talents.VOICE_STRENGTH)) {
 				amount *= 0.75f;
 			}
 		}
 		if (attacker != null && Echoes.isEcho(attacker)) {
-			if (ownerHas(attacker, Talents.LEGION_BURNING)) {
-				victim.setOnFireFor(3);
-			}
 			amount = Echoes.onHit(attacker, victim, amount);
+		}
+		UUID creatureOwner = attacker == null || attacker instanceof ServerPlayerEntity ? null : Creatures.ownerOf(attacker);
+		ServerPlayerEntity master = creatureOwner == null || attacker.getServer() == null ? null
+				: attacker.getServer().getPlayerManager().getPlayer(creatureOwner);
+		if (master != null) {
+			RaceData data = RaceState.of(master);
+			// The Hunter's Mark: the marked foe takes more from the Shepherd's creatures
+			if (victim == Creatures.marked(master)) {
+				amount *= data.has(Talents.VOICE_FOCUS) ? 1.6f : 1.3f;
+			}
+			// The Banner: creatures near their Shepherd hit harder
+			if (data.has(Talents.VOICE_BANNER) && attacker.squaredDistanceTo(master) < 16 * 16) {
+				amount *= 1.2f;
+			}
 		}
 		if (attacker != null && attacker.getCommandTags().contains(Creatures.BOND_TAG)) {
 			Bonds.onBeastHit(attacker, victim);
@@ -239,7 +254,7 @@ public final class Shepherd {
 		return switch (slot) {
 			case 0 -> call(player, data);
 			case 1 -> rally(player, data);
-			case 2 -> swap(player, data);
+			case 2 -> focus(player, data);
 			default -> AbilityResult.LOCKED;
 		};
 	}
@@ -393,7 +408,6 @@ public final class Shepherd {
 		cooldown(player, data, 1, RALLY_COOLDOWN);
 		ServerWorld world = player.getServerWorld();
 		boolean loud = data.has(Talents.VOICE_RALLY);
-		LivingEntity target = data.has(Talents.VOICE_COMMAND) ? lookedAt(player, 32, e -> !Creatures.isCreatureOf(e, player.getUuid())) : null;
 		if (data.has(Talents.LEGION_ARMY) && ready(player, data, ARMY_SLOT)) {
 			for (EchoType type : EchoType.ALL) {
 				if (learned(data, type)) {
@@ -408,9 +422,6 @@ public final class Shepherd {
 			if (loud) {
 				c.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 200, 0, false, true));
 			}
-			if (target != null && c instanceof MobEntity mob) {
-				mob.setTarget(target);
-			}
 			world.spawnParticles(ParticleTypes.ANGRY_VILLAGER, c.getX(), c.getY() + c.getHeight() + 0.3, c.getZ(), 1, 0, 0, 0, 0);
 		}
 		world.playSound(null, player.getBlockPos(), SoundEvents.EVENT_RAID_HORN.value(), SoundCategory.PLAYERS, 0.8f, 1.3f);
@@ -418,32 +429,67 @@ public final class Shepherd {
 		return AbilityResult.OK;
 	}
 
-	/** Swap: trade places with the creature of yours you look at, up to 24 blocks away. */
-	public static AbilityResult swap(ServerPlayerEntity player, RaceData data) {
+	/**
+	 * Hunter's Mark: the foe you look at (up to 32 blocks) glows for 10 seconds (15 with Hunter's Eye), every creature
+	 * of yours goes for it at once, and it takes 30% more from them (60% with Hunter's Eye). Sneaking gathers instead:
+	 * all your creatures within 64 blocks come to your side.
+	 */
+	public static AbilityResult focus(ServerPlayerEntity player, RaceData data) {
 		if (!ready(player, data, 2)) {
 			return AbilityResult.COOLDOWN;
 		}
-		boolean cheap = data.has(Talents.VOICE_SWAP);
-		int cost = cheap ? SWAP_COST_CHEAP : SWAP_COST;
-		if (data.resource < cost) {
+		ServerWorld world = player.getServerWorld();
+		if (player.isSneaking()) {
+			if (data.resource < GATHER_COST) {
+				return AbilityResult.NO_RESOURCE;
+			}
+			List<LivingEntity> creatures = Creatures.around(player, 64);
+			if (creatures.isEmpty()) {
+				return AbilityResult.NO_CREATURE;
+			}
+			for (int i = 0; i < creatures.size(); i++) {
+				LivingEntity c = creatures.get(i);
+				world.spawnParticles(Echoes.SPIRIT, c.getX(), c.getY() + 1, c.getZ(), 10, 0.3, 0.5, 0.3, 0);
+				Vec3d spot = Echoes.around(world, Creatures.near(player), i);
+				c.refreshPositionAndAngles(spot.x, spot.y, spot.z, c.getYaw(), c.getPitch());
+				if (c instanceof MobEntity mob) {
+					mob.setTarget(null);
+					mob.getNavigation().stop();
+				}
+			}
+			world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 0.7f, 1.2f);
+			data.addResource(-GATHER_COST);
+			cooldown(player, data, 2, FOCUS_COOLDOWN);
+			return AbilityResult.OK;
+		}
+		if (data.resource < FOCUS_COST) {
 			return AbilityResult.NO_RESOURCE;
 		}
-		LivingEntity creature = lookedAt(player, 24, e -> Creatures.isCreatureOf(e, player.getUuid()));
-		if (creature == null) {
-			return AbilityResult.NO_CREATURE;
+		LivingEntity target = lookedAt(player, 32, e -> !Creatures.isCreatureOf(e, player.getUuid()));
+		if (target == null) {
+			return AbilityResult.NO_TARGET;
 		}
-		ServerWorld world = player.getServerWorld();
-		Vec3d mine = player.getPos();
-		Vec3d theirs = creature.getPos();
-		world.spawnParticles(Echoes.SPIRIT, mine.x, mine.y + 1, mine.z, 20, 0.3, 0.6, 0.3, 0);
-		world.spawnParticles(Echoes.SPIRIT, theirs.x, theirs.y + 1, theirs.z, 20, 0.3, 0.6, 0.3, 0);
-		player.teleport(world, theirs.x, theirs.y, theirs.z, player.getYaw(), player.getPitch());
-		creature.refreshPositionAndAngles(mine.x, mine.y, mine.z, creature.getYaw(), creature.getPitch());
-		player.fallDistance = 0;
-		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 0.7f, 1.4f);
-		data.addResource(-cost);
-		cooldown(player, data, 2, cheap ? SWAP_COOLDOWN_CHEAP : SWAP_COOLDOWN);
+		int ticks = data.has(Talents.VOICE_FOCUS) ? 300 : 200;
+		Creatures.mark(player, target, player.getServer().getTicks() + ticks);
+		target.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, ticks, 0, true, false));
+		for (LivingEntity c : Creatures.around(player, 32)) {
+			if (c instanceof MobEntity mob) {
+				mob.setTarget(target);
+			}
+		}
+		world.spawnParticles(ParticleTypes.ANGRY_VILLAGER, target.getX(), target.getY() + target.getHeight() + 0.3, target.getZ(), 3, 0.3, 0.1, 0.3, 0);
+		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_WOLF_GROWL, SoundCategory.PLAYERS, 0.8f, 1.2f);
+		data.addResource(-FOCUS_COST);
+		cooldown(player, data, 2, FOCUS_COOLDOWN);
 		return AbilityResult.OK;
+	}
+
+	/** Loss's Echo: one of your creatures fell (an echo faded in battle, a beast went to rest). */
+	public static void onLoss(ServerPlayerEntity owner, RaceData data) {
+		if (data.has(Talents.VOICE_LOSS)) {
+			owner.addStatusEffect(new StatusEffectInstance(StatusEffects.ABSORPTION, 300, 0, true, true, true));
+			data.addResource(10);
+		}
 	}
 
 	@Nullable

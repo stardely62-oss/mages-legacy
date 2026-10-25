@@ -63,31 +63,31 @@ public final class Talents {
 	public static final String LEGION_WEAPONS = add("legion_weapons", Race.SHEPHERD, 0, 2, 2, LEGION_STURDY, Items.IRON_SWORD);
 	public static final String LEGION_MORE = add("legion_more", Race.SHEPHERD, 0, 3, 3, LEGION_SLEEPLESS, Items.WITHER_SKELETON_SKULL);
 	public static final String LEGION_LEECH = add("legion_leech", Race.SHEPHERD, 0, 3, 3, LEGION_RETURN, Items.SOUL_SAND);
-	public static final String LEGION_BURNING = add("legion_burning", Race.SHEPHERD, 0, 3, 3, LEGION_WEAPONS, Items.SOUL_CAMPFIRE);
+	public static final String LEGION_RESONANCE = add("legion_resonance", Race.SHEPHERD, 0, 3, 3, LEGION_WEAPONS, Items.ECHO_SHARD);
 	public static final String LEGION_ARMY = add("legion_army", Race.SHEPHERD, 0, 4, 5, LEGION_MORE, Items.WHITE_BANNER);
 
 	public static final String PACK_FRIENDLY = add("pack_friendly", Race.SHEPHERD, 1, 1, 1, null, Items.BONE_MEAL);
-	public static final String PACK_CAMPLESS = add("pack_campless", Race.SHEPHERD, 1, 1, 1, null, Items.CAMPFIRE);
 	public static final String PACK_THICK = add("pack_thick", Race.SHEPHERD, 1, 1, 1, null, Items.RABBIT_HIDE);
-	public static final String PACK_LEVELS = add("pack_levels", Race.SHEPHERD, 1, 2, 2, PACK_FRIENDLY, Items.EXPERIENCE_BOTTLE);
-	public static final String PACK_SKILL = add("pack_skill", Race.SHEPHERD, 1, 2, 2, PACK_LEVELS, Items.NETHER_STAR);
-	public static final String PACK_QUICK_REST = add("pack_quick_rest", Race.SHEPHERD, 1, 2, 2, PACK_CAMPLESS, Items.RED_BED);
+	public static final String PACK_FAST = add("pack_fast", Race.SHEPHERD, 1, 1, 1, null, Items.RABBIT_FOOT);
+	public static final String PACK_LIGHT = add("pack_light", Race.SHEPHERD, 1, 2, 2, PACK_FRIENDLY, Items.LEAD);
+	public static final String PACK_LEVELS = add("pack_levels", Race.SHEPHERD, 1, 2, 2, PACK_LIGHT, Items.EXPERIENCE_BOTTLE);
 	public static final String PACK_ARMOR = add("pack_armor", Race.SHEPHERD, 1, 2, 2, PACK_THICK, Items.LEATHER_HORSE_ARMOR);
-	public static final String PACK_HEAL = add("pack_heal", Race.SHEPHERD, 1, 3, 3, PACK_SKILL, Items.GLISTERING_MELON_SLICE);
-	public static final String PACK_INSTANT = add("pack_instant", Race.SHEPHERD, 1, 3, 3, PACK_QUICK_REST, Items.FEATHER);
+	public static final String PACK_SKILL = add("pack_skill", Race.SHEPHERD, 1, 2, 2, PACK_FAST, Items.NETHER_STAR);
+	public static final String PACK_HEAL = add("pack_heal", Race.SHEPHERD, 1, 3, 3, PACK_LEVELS, Items.GLISTERING_MELON_SLICE);
 	public static final String PACK_FURY = add("pack_fury", Race.SHEPHERD, 1, 3, 3, PACK_ARMOR, Items.BLAZE_POWDER);
+	public static final String PACK_INSTANT = add("pack_instant", Race.SHEPHERD, 1, 3, 3, PACK_SKILL, Items.FEATHER);
 	public static final String PACK_ALPHA = add("pack_alpha", Race.SHEPHERD, 1, 4, 5, PACK_HEAL, Items.GOLDEN_HELMET);
 
 	public static final String VOICE_DEEP = add("voice_deep", Race.SHEPHERD, 2, 1, 1, null, Items.NOTE_BLOCK);
 	public static final String VOICE_CAPACITY = add("voice_capacity", Race.SHEPHERD, 2, 1, 1, null, Items.LEAD);
 	public static final String VOICE_ARMOR = add("voice_armor", Race.SHEPHERD, 2, 1, 1, null, Items.IRON_CHESTPLATE);
 	public static final String VOICE_RALLY = add("voice_rally", Race.SHEPHERD, 2, 2, 2, VOICE_DEEP, Items.GOAT_HORN);
-	public static final String VOICE_SWAP = add("voice_swap", Race.SHEPHERD, 2, 2, 2, VOICE_CAPACITY, Items.ENDER_PEARL);
+	public static final String VOICE_FOCUS = add("voice_focus", Race.SHEPHERD, 2, 2, 2, VOICE_CAPACITY, Items.SPYGLASS);
 	public static final String VOICE_STRENGTH = add("voice_strength", Race.SHEPHERD, 2, 2, 2, VOICE_ARMOR, Items.IRON_AXE);
 	public static final String VOICE_LIFE = add("voice_life", Race.SHEPHERD, 2, 2, 2, VOICE_STRENGTH, Items.GOLDEN_APPLE);
 	public static final String VOICE_AURA = add("voice_aura", Race.SHEPHERD, 2, 3, 3, VOICE_RALLY, Items.BEACON);
-	public static final String VOICE_COMMAND = add("voice_command", Race.SHEPHERD, 2, 3, 3, VOICE_SWAP, Items.SPYGLASS);
-	public static final String VOICE_MARK = add("voice_mark", Race.SHEPHERD, 2, 3, 3, VOICE_LIFE, Items.TARGET);
+	public static final String VOICE_BANNER = add("voice_banner", Race.SHEPHERD, 2, 3, 3, VOICE_FOCUS, Items.WHITE_BANNER);
+	public static final String VOICE_LOSS = add("voice_loss", Race.SHEPHERD, 2, 3, 3, VOICE_LIFE, Items.TOTEM_OF_UNDYING);
 	public static final String VOICE_HEART = add("voice_heart", Race.SHEPHERD, 2, 4, 5, VOICE_AURA, Items.HEART_OF_THE_SEA);
 
 	private Talents() {

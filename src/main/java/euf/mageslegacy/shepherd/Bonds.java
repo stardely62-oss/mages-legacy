@@ -133,10 +133,11 @@ public final class Bonds {
 		if (songs && existing != null && existing.feedings > 0 && now - existing.lastFeed < FEED_GAP) {
 			return hint(player, "mages_legacy.bond.too_soon", (FEED_GAP - (now - existing.lastFeed) + 19) / 20);
 		}
-		if (data.resource < SONG_COST) {
+		int songCost = data.has(Talents.PACK_FRIENDLY) ? SONG_COST / 2 : SONG_COST;
+		if (data.resource < songCost) {
 			return hint(player, "mages_legacy.ability.no_resource.shepherd");
 		}
-		data.addResource(-SONG_COST);
+		data.addResource(-songCost);
 		Ritual ritual = data.shepherd.rituals.computeIfAbsent(mob.getUuid(), id -> new Ritual());
 		ritual.listenUntil = now + SONG_TICKS;
 		ritual.kind = kind.id();
@@ -184,7 +185,7 @@ public final class Bonds {
 
 	/** The bond is made if there's room in the bonds; otherwise the Shepherd hears why not. */
 	private static boolean complete(ServerPlayerEntity player, RaceData data, MobEntity mob, BeastKind kind) {
-		if (Shepherd.capacityFree(player, data) < kind.capacity()) {
+		if (Shepherd.capacityFree(player, data) < Shepherd.beastCost(kind, data)) {
 			player.sendMessage(Text.translatable("mages_legacy.ability.no_capacity"), true);
 			return false;
 		}
@@ -198,11 +199,10 @@ public final class Bonds {
 		}
 		int needed = needed(kind, data);
 		boolean last = ritual.feedings + 1 >= needed;
-		if (last && kind.taming() == BeastKind.Taming.FEED_BY_FIRE && !data.has(Talents.PACK_CAMPLESS)
-				&& !nearCampfire(player.getServerWorld(), mob.getBlockPos())) {
+		if (last && kind.taming() == BeastKind.Taming.FEED_BY_FIRE && !nearCampfire(player.getServerWorld(), mob.getBlockPos())) {
 			return hint(player, "mages_legacy.bond.need_fire");
 		}
-		if (last && Shepherd.capacityFree(player, data) < kind.capacity()) {
+		if (last && Shepherd.capacityFree(player, data) < Shepherd.beastCost(kind, data)) {
 			return hint(player, "mages_legacy.ability.no_capacity");
 		}
 		consume(player, stack);
@@ -222,7 +222,7 @@ public final class Bonds {
 
 	/** One gift seals it (the sleeping fox's berries, the axolotl's fish, the goat's wheat after the headbutts). */
 	private static ActionResult gift(ServerPlayerEntity player, RaceData data, MobEntity mob, BeastKind kind, ItemStack stack) {
-		if (Shepherd.capacityFree(player, data) < kind.capacity()) {
+		if (Shepherd.capacityFree(player, data) < Shepherd.beastCost(kind, data)) {
 			return hint(player, "mages_legacy.ability.no_capacity");
 		}
 		consume(player, stack);
@@ -398,7 +398,8 @@ public final class Bonds {
 	/** Health from its level, Thick Fur, and the champion's strength for the Alpha. */
 	static void apply(MobEntity mob, Bond bond, RaceData data) {
 		modifier(mob, EntityAttributes.GENERIC_MAX_HEALTH, LEVEL_HEALTH, "bond_level", bond.level - 1, true);
-		modifier(mob, EntityAttributes.GENERIC_MAX_HEALTH, THICK_FUR, "thick_fur", 4, data.has(Talents.PACK_THICK));
+		double base = mob.getAttributeBaseValue(EntityAttributes.GENERIC_MAX_HEALTH);
+		modifier(mob, EntityAttributes.GENERIC_MAX_HEALTH, THICK_FUR, "thick_fur", Math.round(base * 0.3), data.has(Talents.PACK_THICK));
 		boolean alpha = data.has(Talents.PACK_ALPHA) && alpha(data) == bond;
 		modifier(mob, EntityAttributes.GENERIC_MAX_HEALTH, ALPHA_HEALTH, "alpha", 20, alpha);
 		modifier(mob, EntityAttributes.GENERIC_ATTACK_DAMAGE, ALPHA_DAMAGE, "alpha", 4, alpha);
@@ -463,7 +464,7 @@ public final class Bonds {
 	// ---- falling and coming back ----
 
 	public static long restTicks(RaceData data) {
-		return data.has(Talents.PACK_INSTANT) ? 1200 : data.has(Talents.PACK_QUICK_REST) ? 6000 : 24000;
+		return data.has(Talents.PACK_INSTANT) ? 1200 : 24000;
 	}
 
 	/** A bonded beast would die: it rests instead, and comes back to its Shepherd later. False cancels the death. */
@@ -489,6 +490,7 @@ public final class Bonds {
 		world.spawnParticles(ParticleTypes.CLOUD, mob.getX(), mob.getY() + 0.5, mob.getZ(), 15, 0.3, 0.3, 0.3, 0.02);
 		ServerPlayerEntity owner = entity.getServer().getPlayerManager().getPlayer(ownerId);
 		if (owner != null) {
+			Shepherd.onLoss(owner, data);
 			owner.sendMessage(Text.translatable("mages_legacy.bond.rests", mob.getDisplayName(), restTicks(data) / 1200).formatted(Formatting.YELLOW), false);
 		}
 		Creatures.forgetBeast(mob.getUuid());
@@ -511,6 +513,15 @@ public final class Bonds {
 			if (world.getEntity(bond.entity) instanceof MobEntity mob && mob.isAlive()) {
 				apply(mob, bond, data);
 				skill(owner, data, bond, mob, time);
+			}
+		}
+		// The Alpha leads: the other beasts near the champion fight harder
+		Bond alpha = data.has(Talents.PACK_ALPHA) ? alpha(data) : null;
+		if (alpha != null && !alpha.resting() && world.getEntity(alpha.entity) instanceof MobEntity leader && leader.isAlive()) {
+			for (Bond bond : data.shepherd.bonds) {
+				if (bond != alpha && !bond.resting() && world.getEntity(bond.entity) instanceof MobEntity mob && mob.distanceTo(leader) < 16) {
+					mob.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 60, 0, true, false));
+				}
 			}
 		}
 	}
@@ -547,7 +558,12 @@ public final class Bonds {
 		boolean brainy = mob.getType() == EntityType.GOAT || mob.getType() == EntityType.FROG || mob.getType() == EntityType.AXOLOTL
 				|| mob.getType() == EntityType.BAT || mob.getType() == EntityType.TURTLE;
 		boolean swimmer = mob.getType() == EntityType.AXOLOTL || mob.getType() == EntityType.DOLPHIN;
-		if ((brainy || swimmer) && dist > 12 && (!swimmer || owner.isTouchingWater())) {
+		// Quick Paws: every beast runs faster and none is ever left behind
+		boolean fast = data.has(Talents.PACK_FAST);
+		if (fast) {
+			mob.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 60, 0, true, false));
+		}
+		if ((brainy || swimmer || fast) && dist > (fast ? 16 : 12) && (!swimmer || owner.isTouchingWater())) {
 			Vec3d spot = Creatures.near(owner);
 			mob.refreshPositionAndAngles(spot.x, spot.y, spot.z, mob.getYaw(), mob.getPitch());
 		}
