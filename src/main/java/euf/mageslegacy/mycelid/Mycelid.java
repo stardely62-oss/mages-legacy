@@ -98,6 +98,7 @@ public final class Mycelid {
 	public static void reset() {
 		JUMPS.clear();
 		CLOUDS.clear();
+		MycelidFx.reset();
 	}
 
 	// ---- passives, once a second ----
@@ -273,14 +274,15 @@ public final class Mycelid {
 		if (nearest == null) {
 			return true;
 		}
-		world.spawnParticles(ParticleTypes.MYCELIUM, player.getX(), player.getY() + 1, player.getZ(), 60, 0.4, 0.8, 0.4, 0.03);
+		Vec3d fell = player.getPos();
 		Vec3d to = Vec3d.ofBottomCenter(nearest.getPos().up());
 		player.setHealth(player.getMaxHealth() / 2);
 		player.extinguish();
 		player.fallDistance = 0;
 		player.teleport(world, to.x, to.y, to.z, player.getYaw(), player.getPitch());
-		world.spawnParticles(ParticleTypes.SPORE_BLOSSOM_AIR, to.x, to.y + 1, to.z, 60, 0.4, 0.8, 0.4, 0.02);
+		MycelidFx.rebirth(world, fell, to);
 		world.playSound(null, nearest.getPos(), SoundEvents.BLOCK_FUNGUS_PLACE, SoundCategory.PLAYERS, 1.2f, 0.5f);
+		world.playSound(null, nearest.getPos(), SoundEvents.ITEM_TOTEM_USE, SoundCategory.PLAYERS, 0.5f, 1.4f);
 		player.sendMessage(Text.translatable("mages_legacy.mycelid.reborn").formatted(net.minecraft.util.Formatting.GREEN), false);
 		cooldown(player, data, REBIRTH_SLOT, REBIRTH_COOLDOWN);
 		return false;
@@ -346,9 +348,9 @@ public final class Mycelid {
 		}
 		data.chainUntil = now + 60;
 		ServerWorld world = player.getServerWorld();
-		// The spore flies ahead and the Mycelid sprouts where it landed a moment later
-		world.spawnParticles(ParticleTypes.SPORE_BLOSSOM_AIR, target.x, target.y + 0.5, target.z, 25, 0.3, 0.5, 0.3, 0.02);
-		world.spawnParticles(ParticleTypes.MYCELIUM, player.getX(), player.getY() + 1, player.getZ(), 20, 0.3, 0.6, 0.3, 0.02);
+		// The body crumbles into spores, one flies ahead along an arc and the Mycelid sprouts where it lands
+		MycelidFx.crumble(world, player.getPos());
+		MycelidFx.landingMark(world, target, 0);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_FUNGUS_BREAK, SoundCategory.PLAYERS, 1.0f, 0.7f);
 		JUMPS.add(new PendingJump(player.getUuid(), target, now + JUMP_DELAY, player.getPos()));
 		data.dirty = true;
@@ -409,6 +411,7 @@ public final class Mycelid {
 		double radius = data.has(Talents.SWARM_WIDE) ? 6 : 4;
 		spawnCloud(player.getServerWorld(), player.getPos(), player.getUuid(), radius,
 				data.has(Talents.SWARM_POTENT) ? 1 : 0, data.has(Talents.SWARM_LINGERING) ? 240 : 120, data.has(Talents.SWARM_FOLLOW));
+		MycelidFx.cloudBurst(player.getServerWorld(), player.getPos(), radius);
 		if (data.has(Talents.SWARM_BURST)) {
 			burst(player, radius);
 		}
@@ -435,7 +438,7 @@ public final class Mycelid {
 			Vec3d away = mob.getPos().subtract(player.getPos());
 			mob.takeKnockback(1.0, -away.x, -away.z);
 		}
-		world.spawnParticles(ParticleTypes.EXPLOSION, player.getX(), player.getY() + 1, player.getZ(), 1, 0, 0, 0, 0);
+		MycelidFx.blast(world, player.getPos(), radius);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.PLAYERS, 0.5f, 1.6f);
 	}
 
@@ -500,8 +503,9 @@ public final class Mycelid {
 			}
 		}
 		state.markDirty();
-		world.spawnParticles(ParticleTypes.MYCELIUM, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 30, 0.4, 0.4, 0.4, 0.02);
+		MycelidFx.nodeGrow(world, Vec3d.ofBottomCenter(pos));
 		world.playSound(null, pos, SoundEvents.BLOCK_FUNGUS_PLACE, SoundCategory.BLOCKS, 1.0f, 0.8f);
+		world.playSound(null, pos, SoundEvents.BLOCK_ROOTS_PLACE, SoundCategory.BLOCKS, 1.0f, 0.6f);
 	}
 
 	/**
@@ -523,10 +527,11 @@ public final class Mycelid {
 			if (next.getDimension().equals(world.getRegistryKey()) && next.getPos().isWithinDistance(from, range)
 					&& world.getBlockState(next.getPos()).isOf(MagesLegacy.MYCELIUM_NODE)) {
 				Vec3d to = Vec3d.ofBottomCenter(next.getPos().up());
-				world.spawnParticles(ParticleTypes.MYCELIUM, player.getX(), player.getY() + 1, player.getZ(), 30, 0.3, 0.8, 0.3, 0.02);
+				MycelidFx.column(world, player.getPos());
 				player.teleport(world, to.x, to.y, to.z, player.getYaw(), player.getPitch());
 				player.fallDistance = 0;
-				world.spawnParticles(ParticleTypes.SPORE_BLOSSOM_AIR, to.x, to.y + 1, to.z, 30, 0.3, 0.8, 0.3, 0.02);
+				MycelidFx.column(world, to);
+				MycelidFx.ring(world, to, 0.3, 1.8, 6, MycelidFx.SPORE);
 				world.playSound(null, next.getPos(), SoundEvents.BLOCK_FUNGUS_PLACE, SoundCategory.BLOCKS, 1.0f, 0.6f);
 				RaceData travellerData = RaceState.of(player);
 				if (travellerData != null && travellerData.race == Race.MYCELID) {
@@ -550,9 +555,16 @@ public final class Mycelid {
 
 	public static void tick(MinecraftServer server) {
 		long now = server.getTicks();
+		MycelidFx.tick(now);
 		for (Iterator<PendingJump> it = JUMPS.iterator(); it.hasNext(); ) {
 			PendingJump jump = it.next();
 			if (jump.at() > now) {
+				ServerPlayerEntity flying = server.getPlayerManager().getPlayer(jump.player());
+				if (flying != null) {
+					double progress = 1 - (jump.at() - now) / (double) JUMP_DELAY;
+					MycelidFx.arc(flying.getServerWorld(), jump.from(), jump.target(), progress);
+					MycelidFx.landingMark(flying.getServerWorld(), jump.target(), progress);
+				}
 				continue;
 			}
 			it.remove();
@@ -567,8 +579,9 @@ public final class Mycelid {
 			}
 			player.teleport(world, jump.target().x, jump.target().y, jump.target().z, player.getYaw(), player.getPitch());
 			player.fallDistance = 0;
-			world.spawnParticles(ParticleTypes.SPORE_BLOSSOM_AIR, jump.target().x, jump.target().y + 1, jump.target().z, 30, 0.4, 0.8, 0.4, 0.02);
+			MycelidFx.sprout(world, jump.target());
 			world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_FUNGUS_PLACE, SoundCategory.PLAYERS, 1.0f, 1.2f);
+			world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_MOSS_PLACE, SoundCategory.PLAYERS, 0.8f, 0.8f);
 			if (data != null) {
 				if (data.has(Talents.NET_ROOTS)) {
 					for (LivingEntity mob : world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(3),
@@ -600,6 +613,7 @@ public final class Mycelid {
 				world.spawnParticles(SPORE_DUST, c.x, c.y + 0.7, c.z, (int) (r * r * 2), r * 0.55, 0.5, r * 0.55, 0.0);
 				world.spawnParticles(SPORE_DUST_DARK, c.x, c.y + 0.3, c.z, (int) (r * r), r * 0.55, 0.25, r * 0.55, 0.0);
 				world.spawnParticles(ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 1.2, c.z, (int) (r * 4), r * 0.5, 0.6, r * 0.5, 0.0);
+				MycelidFx.vortex(world, c, r, now - cloud.start());
 				// The edge of the cloud, so it's clear where it ends
 				for (int i = 0; i < 12; i++) {
 					double a = (now * 0.05) + i * Math.PI / 6;
