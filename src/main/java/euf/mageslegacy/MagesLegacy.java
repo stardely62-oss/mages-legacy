@@ -22,6 +22,7 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -116,6 +117,14 @@ public class MagesLegacy implements ModInitializer {
 				return ActionResult.PASS;
 			}
 			return Bonds.interact(serverPlayer, RaceState.of(serverPlayer), entity, hand);
+		});
+		// The goat's way: bare-handed headbutts at a listening goat count and do no harm
+		AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+			if (!world.isClient() && player instanceof ServerPlayerEntity serverPlayer && Shepherd.is(serverPlayer)
+					&& Bonds.headbutt(serverPlayer, RaceState.of(serverPlayer), entity)) {
+				return ActionResult.FAIL;
+			}
+			return ActionResult.PASS;
 		});
 		// Echoes left in saved chunks go; bonded beasts get their owner and goals back
 		ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {

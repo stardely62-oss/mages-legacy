@@ -22,6 +22,7 @@ import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.Monster;
+import net.minecraft.entity.mob.SlimeEntity;
 import net.minecraft.entity.passive.BeeEntity;
 import net.minecraft.entity.passive.FoxEntity;
 import net.minecraft.entity.passive.TameableEntity;
@@ -29,6 +30,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.registry.Registries;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
@@ -40,6 +42,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Bonds with living beasts. The ritual: sing the Song of Bonds to a beast (sneak + right click with an empty hand),
@@ -60,12 +63,16 @@ public final class Bonds {
 
 	// ---- the ritual ----
 
-	/** Sneak + right click with an empty hand, or with the beast's food: the steps of the ritual. */
+	/**
+	 * Sneak + right click with an empty hand sings the Song of Bonds; with the right thing in hand the beast's own way
+	 * goes on (see {@link BeastKind.Taming}).
+	 */
 	public static ActionResult interact(ServerPlayerEntity player, RaceData data, Entity entity, Hand hand) {
-		Optional<BeastKind> kind = BeastKind.of(entity.getType());
-		if (kind.isEmpty() || hand != Hand.MAIN_HAND || !(entity instanceof MobEntity mob) || !mob.isAlive()) {
+		Optional<BeastKind> found = BeastKind.of(entity.getType());
+		if (found.isEmpty() || hand != Hand.MAIN_HAND || !(entity instanceof MobEntity mob) || !mob.isAlive()) {
 			return ActionResult.PASS;
 		}
+		BeastKind kind = found.get();
 		ShepherdData shepherd = data.shepherd;
 		if (shepherd.bond(entity.getUuid()).isPresent() || Creatures.ownerOf(entity) != null) {
 			return ActionResult.PASS;
@@ -73,19 +80,52 @@ public final class Bonds {
 		ItemStack stack = player.getMainHandStack();
 		long now = player.getServerWorld().getTime();
 		if (stack.isEmpty() && player.isSneaking()) {
-			return sing(player, data, mob, now);
+			return sing(player, data, mob, kind, now);
 		}
 		Ritual ritual = shepherd.rituals.get(entity.getUuid());
-		if (ritual == null || ritual.listenUntil < now || !kind.get().food().test(stack)) {
+		if (ritual == null || ritual.listenUntil < now || !kind.food().test(stack)) {
 			return ActionResult.PASS;
 		}
-		return feed(player, data, mob, kind.get(), ritual, stack, now);
+		return switch (kind.taming()) {
+			case FEED_BY_FIRE, FEED_TWICE -> feed(player, data, mob, kind, ritual, stack, now);
+			case ASLEEP, ONE_GIFT -> gift(player, data, mob, kind, stack);
+			case TWO_KINDS -> flower(player, data, mob, kind, ritual, stack);
+			case HEADBUTTS -> ritual.feedings >= needed(kind, data) ? gift(player, data, mob, kind, stack) : hint(player, "mages_legacy.bond.headbutt_first");
+			default -> ActionResult.PASS;
+		};
 	}
 
-	private static ActionResult sing(ServerPlayerEntity player, RaceData data, MobEntity mob, long now) {
+	/** How many steps this beast's way takes: feedings, songs, headbutts, kills, or seconds of patience. */
+	public static int needed(BeastKind kind, RaceData data) {
+		return needed(kind, data.has(Talents.PACK_FRIENDLY));
+	}
+
+	/** The same, for the client's bestiary: Gentle Voice takes a step off (four seconds off the cat's patience). */
+	public static int needed(BeastKind kind, boolean gentle) {
+		int friendly = gentle ? 1 : 0;
+		return switch (kind.taming()) {
+			case FEED_BY_FIRE, HEADBUTTS, HUNT, SONGS -> 3 - friendly;
+			case FEED_TWICE -> 2 - friendly;
+			case PATIENCE -> 10 - 4 * friendly;
+			default -> 1;
+		};
+	}
+
+	private static ActionResult hint(ServerPlayerEntity player, String key, Object... args) {
+		player.sendMessage(Text.translatable(key, args), true);
+		return ActionResult.FAIL;
+	}
+
+	private static ActionResult sing(ServerPlayerEntity player, RaceData data, MobEntity mob, BeastKind kind, long now) {
+		Ritual existing = data.shepherd.rituals.get(mob.getUuid());
+		if (kind.taming() == BeastKind.Taming.ASLEEP && !(mob instanceof FoxEntity fox && fox.isSleeping())) {
+			return hint(player, "mages_legacy.bond.fox_awake");
+		}
+		if (kind.taming() == BeastKind.Taming.SONGS && existing != null && existing.feedings > 0 && now - existing.lastFeed < FEED_GAP) {
+			return hint(player, "mages_legacy.bond.too_soon", (FEED_GAP - (now - existing.lastFeed) + 19) / 20);
+		}
 		if (data.resource < SONG_COST) {
-			player.sendMessage(Text.translatable("mages_legacy.ability.no_resource.shepherd"), true);
-			return ActionResult.FAIL;
+			return hint(player, "mages_legacy.ability.no_resource.shepherd");
 		}
 		data.addResource(-SONG_COST);
 		Ritual ritual = data.shepherd.rituals.computeIfAbsent(mob.getUuid(), id -> new Ritual());
@@ -98,51 +138,180 @@ public final class Bonds {
 		}
 		world.playSound(null, mob.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.0f, 0.8f);
 		world.playSound(null, mob.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.0f, 1.2f);
-		player.sendMessage(Text.translatable("mages_legacy.bond.listening", mob.getDisplayName(), feedingsNeeded(data)).formatted(Formatting.GOLD), true);
 		Progression.addXp(player, data, 2);
+		if (kind.taming() == BeastKind.Taming.SONGS) {
+			// The parrot is won by the songs themselves
+			ritual.feedings++;
+			ritual.lastFeed = now;
+			if (ritual.feedings >= needed(kind, data)) {
+				return complete(player, data, mob, kind) ? ActionResult.SUCCESS : ActionResult.FAIL;
+			}
+			player.sendMessage(Text.translatable("mages_legacy.bond.progress", ritual.feedings, needed(kind, data)).formatted(Formatting.GOLD), true);
+			return ActionResult.SUCCESS;
+		}
+		player.sendMessage(Text.translatable("mages_legacy.bond.listening", mob.getDisplayName(),
+				Text.translatable("mages_legacy.beast." + kind.id() + ".taming", needed(kind, data))).formatted(Formatting.GOLD), true);
 		return ActionResult.SUCCESS;
 	}
 
-	public static int feedingsNeeded(RaceData data) {
-		return data.has(Talents.PACK_FRIENDLY) ? 2 : 3;
+	/** Uses up what was given (a tropical fish bucket leaves its water bucket). */
+	private static void consume(ServerPlayerEntity player, ItemStack stack) {
+		if (player.getAbilities().creativeMode) {
+			return;
+		}
+		if (stack.isOf(Items.TROPICAL_FISH_BUCKET)) {
+			player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.WATER_BUCKET));
+		} else {
+			stack.decrement(1);
+		}
+	}
+
+	private static void fedEffects(ServerPlayerEntity player, MobEntity mob) {
+		ServerWorld world = player.getServerWorld();
+		world.spawnParticles(ParticleTypes.HEART, mob.getX(), mob.getY() + mob.getHeight(), mob.getZ(), 2, 0.3, 0.2, 0.3, 0);
+		world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_GENERIC_EAT, SoundCategory.NEUTRAL, 0.8f, 1.2f);
+	}
+
+	/** The bond is made if there's room in the bonds; otherwise the Shepherd hears why not. */
+	private static boolean complete(ServerPlayerEntity player, RaceData data, MobEntity mob, BeastKind kind) {
+		if (Shepherd.capacityFree(player, data) < kind.capacity()) {
+			player.sendMessage(Text.translatable("mages_legacy.ability.no_capacity"), true);
+			return false;
+		}
+		bond(player, data, mob, kind);
+		return true;
 	}
 
 	private static ActionResult feed(ServerPlayerEntity player, RaceData data, MobEntity mob, BeastKind kind, Ritual ritual, ItemStack stack, long now) {
 		if (ritual.feedings > 0 && now - ritual.lastFeed < FEED_GAP) {
-			player.sendMessage(Text.translatable("mages_legacy.bond.too_soon", (FEED_GAP - (now - ritual.lastFeed) + 19) / 20), true);
-			return ActionResult.FAIL;
+			return hint(player, "mages_legacy.bond.too_soon", (FEED_GAP - (now - ritual.lastFeed) + 19) / 20);
 		}
-		int needed = feedingsNeeded(data);
+		int needed = needed(kind, data);
 		boolean last = ritual.feedings + 1 >= needed;
-		if (last && !data.has(Talents.PACK_CAMPLESS) && !nearCampfire(player.getServerWorld(), mob.getBlockPos())) {
-			player.sendMessage(Text.translatable("mages_legacy.bond.need_fire"), true);
-			return ActionResult.FAIL;
+		if (last && kind.taming() == BeastKind.Taming.FEED_BY_FIRE && !data.has(Talents.PACK_CAMPLESS)
+				&& !nearCampfire(player.getServerWorld(), mob.getBlockPos())) {
+			return hint(player, "mages_legacy.bond.need_fire");
 		}
 		if (last && Shepherd.capacityFree(player, data) < kind.capacity()) {
-			player.sendMessage(Text.translatable("mages_legacy.ability.no_capacity"), true);
-			return ActionResult.FAIL;
+			return hint(player, "mages_legacy.ability.no_capacity");
 		}
-		if (!player.getAbilities().creativeMode) {
-			if (stack.isOf(Items.TROPICAL_FISH_BUCKET)) {
-				player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.WATER_BUCKET));
-			} else {
-				stack.decrement(1);
-			}
-		}
+		consume(player, stack);
 		ritual.feedings++;
 		ritual.lastFeed = now;
 		ritual.listenUntil = Math.max(ritual.listenUntil, now + SONG_TICKS);
 		data.dirty = true;
-		ServerWorld world = player.getServerWorld();
-		world.spawnParticles(ParticleTypes.HEART, mob.getX(), mob.getY() + mob.getHeight(), mob.getZ(), 2, 0.3, 0.2, 0.3, 0);
-		world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_GENERIC_EAT, SoundCategory.NEUTRAL, 0.8f, 1.2f);
+		fedEffects(player, mob);
 		Progression.addXp(player, data, 5);
 		if (last) {
 			bond(player, data, mob, kind);
 		} else {
-			player.sendMessage(Text.translatable("mages_legacy.bond.fed", ritual.feedings, needed), true);
+			player.sendMessage(Text.translatable("mages_legacy.bond.progress", ritual.feedings, needed), true);
 		}
 		return ActionResult.SUCCESS;
+	}
+
+	/** One gift seals it (the sleeping fox's berries, the axolotl's fish, the goat's wheat after the headbutts). */
+	private static ActionResult gift(ServerPlayerEntity player, RaceData data, MobEntity mob, BeastKind kind, ItemStack stack) {
+		if (Shepherd.capacityFree(player, data) < kind.capacity()) {
+			return hint(player, "mages_legacy.ability.no_capacity");
+		}
+		consume(player, stack);
+		fedEffects(player, mob);
+		Progression.addXp(player, data, 5);
+		bond(player, data, mob, kind);
+		return ActionResult.SUCCESS;
+	}
+
+	/** The bee wants two different flowers. */
+	private static ActionResult flower(ServerPlayerEntity player, RaceData data, MobEntity mob, BeastKind kind, Ritual ritual, ItemStack stack) {
+		String id = Registries.ITEM.getId(stack.getItem()).toString();
+		if (ritual.note.isEmpty()) {
+			consume(player, stack);
+			ritual.note = id;
+			ritual.feedings = 1;
+			data.dirty = true;
+			fedEffects(player, mob);
+			player.sendMessage(Text.translatable("mages_legacy.bond.progress", 1, 2), true);
+			return ActionResult.SUCCESS;
+		}
+		if (ritual.note.equals(id)) {
+			return hint(player, "mages_legacy.bond.another_flower");
+		}
+		return gift(player, data, mob, kind, stack);
+	}
+
+	/** A bare-handed headbutt at a listening goat: counts, and does no harm. True cancels the blow. */
+	public static boolean headbutt(ServerPlayerEntity player, RaceData data, Entity entity) {
+		BeastKind kind = BeastKind.of(entity.getType()).orElse(null);
+		Ritual ritual = data.shepherd.rituals.get(entity.getUuid());
+		long now = player.getServerWorld().getTime();
+		if (kind == null || kind.taming() != BeastKind.Taming.HEADBUTTS || ritual == null || ritual.listenUntil < now
+				|| !player.getMainHandStack().isEmpty()) {
+			return false;
+		}
+		if (now - ritual.lastFeed < 10) {
+			return true;
+		}
+		if (ritual.feedings < needed(kind, data)) {
+			ritual.feedings++;
+			ritual.lastFeed = now;
+			data.dirty = true;
+			ServerWorld world = player.getServerWorld();
+			world.spawnParticles(ParticleTypes.CRIT, entity.getX(), entity.getY() + entity.getHeight() * 0.7, entity.getZ(), 8, 0.3, 0.2, 0.3, 0.1);
+			world.playSound(null, entity.getBlockPos(), SoundEvents.ENTITY_GOAT_RAM_IMPACT, SoundCategory.NEUTRAL, 0.8f, 1.2f);
+			player.sendMessage(Text.translatable(ritual.feedings >= needed(kind, data) ? "mages_legacy.bond.headbutts_done"
+					: "mages_legacy.bond.progress", ritual.feedings, needed(kind, data)).formatted(Formatting.GOLD), true);
+		}
+		return true;
+	}
+
+	/** A monster died near a listening polar bear: it saw the Shepherd's strength. */
+	public static void onHunt(ServerPlayerEntity owner, RaceData data, LivingEntity victim) {
+		if (data.shepherd.rituals.isEmpty()) {
+			return;
+		}
+		long now = owner.getServerWorld().getTime();
+		for (MobEntity bear : owner.getServerWorld().getEntitiesByClass(MobEntity.class, victim.getBoundingBox().expand(12), e -> e.isAlive()
+				&& BeastKind.of(e.getType()).map(k -> k.taming() == BeastKind.Taming.HUNT).orElse(false))) {
+			Ritual ritual = data.shepherd.rituals.get(bear.getUuid());
+			if (ritual == null || ritual.listenUntil < now) {
+				continue;
+			}
+			BeastKind kind = BeastKind.of(bear.getType()).orElseThrow();
+			ritual.feedings++;
+			data.dirty = true;
+			if (ritual.feedings >= needed(kind, data)) {
+				complete(owner, data, bear, kind);
+			} else {
+				owner.sendMessage(Text.translatable("mages_legacy.bond.progress", ritual.feedings, needed(kind, data)).formatted(Formatting.GOLD), true);
+			}
+		}
+	}
+
+	/** Once a second: a cat being won by patience counts the seconds the Shepherd crouches by it with fish in hand. */
+	private static void patience(ServerPlayerEntity owner, RaceData data, long now) {
+		for (MobEntity cat : owner.getServerWorld().getEntitiesByClass(MobEntity.class, owner.getBoundingBox().expand(4), e -> e.isAlive()
+				&& BeastKind.of(e.getType()).map(k -> k.taming() == BeastKind.Taming.PATIENCE).orElse(false))) {
+			Ritual ritual = data.shepherd.rituals.get(cat.getUuid());
+			BeastKind kind = BeastKind.of(cat.getType()).orElseThrow();
+			if (ritual == null || ritual.listenUntil < now) {
+				continue;
+			}
+			if (!owner.isSneaking() || !kind.food().test(owner.getMainHandStack())) {
+				ritual.feedings = Math.max(0, ritual.feedings - 1);
+				continue;
+			}
+			ritual.feedings++;
+			data.dirty = true;
+			owner.getServerWorld().spawnParticles(ParticleTypes.HEART, cat.getX(), cat.getY() + cat.getHeight(), cat.getZ(), 1, 0.2, 0.1, 0.2, 0);
+			if (ritual.feedings >= needed(kind, data)) {
+				if (complete(owner, data, cat, kind)) {
+					consume(owner, owner.getMainHandStack());
+				}
+			} else {
+				owner.sendMessage(Text.translatable("mages_legacy.bond.progress", ritual.feedings, needed(kind, data)).formatted(Formatting.GOLD), true);
+			}
+		}
 	}
 
 	public static boolean nearCampfire(ServerWorld world, BlockPos pos) {
@@ -186,7 +355,8 @@ public final class Bonds {
 			tame.setOwnerUuid(owner);
 			tame.setTamed(true);
 		} else {
-			Creatures.teach(mob, !(mob instanceof BeeEntity) && !(mob.getType() == EntityType.AXOLOTL));
+			// Foxes and polar bears fight for their Shepherd; bees, axolotls, goats and frogs help in their own ways
+			Creatures.teach(mob, mob.getType() == EntityType.FOX || mob.getType() == EntityType.POLAR_BEAR);
 		}
 		if (mob instanceof FoxEntity fox) {
 			((FoxEntityInvoker) fox).mages_legacy$trust(owner);
@@ -302,6 +472,7 @@ public final class Bonds {
 	public static void tickOwner(ServerPlayerEntity owner, RaceData data) {
 		ServerWorld world = owner.getServerWorld();
 		long time = world.getTime();
+		patience(owner, data, time);
 		for (Bond bond : data.shepherd.bonds) {
 			if (bond.resting()) {
 				if (time >= bond.restingUntil) {
@@ -343,6 +514,12 @@ public final class Bonds {
 		boolean strong = data.has(Talents.PACK_SKILL);
 		ServerWorld world = owner.getServerWorld();
 		double dist = mob.distanceTo(owner);
+		// Goats, frogs and axolotls think with a brain, not with goals: when they fall behind they jump to the Shepherd
+		boolean brainy = mob.getType() == EntityType.GOAT || mob.getType() == EntityType.FROG || mob.getType() == EntityType.AXOLOTL;
+		if (brainy && dist > 12 && (mob.getType() != EntityType.AXOLOTL || owner.isTouchingWater())) {
+			Vec3d spot = Creatures.near(owner);
+			mob.refreshPositionAndAngles(spot.x, spot.y, spot.z, mob.getYaw(), mob.getPitch());
+		}
 		switch (bond.kind) {
 			case "wolf" -> {
 				if (dist < 16) {
@@ -354,6 +531,9 @@ public final class Bonds {
 				for (LivingEntity m : world.getEntitiesByClass(LivingEntity.class, mob.getBoundingBox().expand(r), e -> e instanceof Monster)) {
 					m.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 40, 0, true, false));
 				}
+				if (dist < 16 && world.isNight()) {
+					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.NIGHT_VISION, 300, 0, true, false, true));
+				}
 			}
 			case "fox" -> {
 				if (time % 60 < 20 && dist < 24) {
@@ -364,6 +544,14 @@ public final class Bonds {
 						item.refreshPositionAndAngles(owner.getX(), owner.getY() + 0.5, owner.getZ(), 0, 0);
 					}
 				}
+				// Now and then she digs something up (every 5 minutes, 3 with Second Skill)
+				int every = strong ? 3600 : 6000;
+				if (dist < 24 && Math.floorMod(time + mob.getUuid().hashCode(), every) < 20) {
+					ItemStack find = FoxFinds.roll(mob.getRandom());
+					world.spawnEntity(new ItemEntity(world, owner.getX(), owner.getY() + 0.5, owner.getZ(), find));
+					world.spawnParticles(ParticleTypes.HAPPY_VILLAGER, mob.getX(), mob.getY() + 0.5, mob.getZ(), 8, 0.3, 0.3, 0.3, 0);
+					owner.sendMessage(Text.translatable("mages_legacy.beast.fox.found", find.getName()).formatted(Formatting.GOLD), true);
+				}
 			}
 			case "bee" -> {
 				if (time % 160 < 20) {
@@ -371,6 +559,8 @@ public final class Bonds {
 					Box area = mob.getBoundingBox().expand(r);
 					if (owner.getBoundingBox().intersects(area)) {
 						owner.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 0, true, true));
+						owner.removeStatusEffect(StatusEffects.POISON);
+						owner.removeStatusEffect(StatusEffects.WITHER);
 					}
 					for (LivingEntity c : world.getEntitiesByClass(LivingEntity.class, area, e -> Creatures.isCreatureOf(e, owner.getUuid()))) {
 						c.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 0, true, true));
@@ -381,12 +571,99 @@ public final class Bonds {
 			case "axolotl" -> {
 				if (owner.isTouchingWater() && dist < (strong ? 20 : 12)) {
 					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.WATER_BREATHING, 300, 0, true, true));
+					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.DOLPHINS_GRACE, 60, 0, true, true));
+					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 60, 0, true, true));
 					owner.removeStatusEffect(StatusEffects.POISON);
+				}
+			}
+			case "goat" -> {
+				// Rams the nearest monster at its Shepherd's side every 4 seconds (every 2 with Second Skill)
+				if (time % (strong ? 40 : 80) < 20 && dist < 16) {
+					LivingEntity target = nearestMonster(world, owner, 6);
+					if (target != null) {
+						Vec3d away = target.getPos().subtract(owner.getPos()).normalize();
+						Vec3d spot = target.getPos().subtract(away.multiply(1.2));
+						mob.refreshPositionAndAngles(spot.x, target.getY(), spot.z, mob.getYaw(), mob.getPitch());
+						target.damage(world.getDamageSources().mobAttack(mob), strong ? 6 : 4);
+						target.takeKnockback(1.6, -away.x, -away.z);
+						world.playSound(null, target.getBlockPos(), SoundEvents.ENTITY_GOAT_RAM_IMPACT, SoundCategory.NEUTRAL, 1.0f, 1.0f);
+						world.spawnParticles(ParticleTypes.CRIT, target.getX(), target.getY() + 1, target.getZ(), 10, 0.3, 0.3, 0.3, 0.2);
+					}
+				}
+			}
+			case "polar_bear" -> {
+				// The tank: monsters going for the Shepherd turn on the bear
+				mob.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 60, strong ? 1 : 0, true, false));
+				if (dist < 16) {
+					for (MobEntity m : world.getEntitiesByClass(MobEntity.class, mob.getBoundingBox().expand(8),
+							e -> e instanceof Monster && e.getTarget() == owner)) {
+						m.setTarget(mob);
+					}
+				}
+			}
+			case "parrot" -> {
+				// Cries out when something hunts the Shepherd, and catches it when it falls
+				for (MobEntity m : world.getEntitiesByClass(MobEntity.class, owner.getBoundingBox().expand(strong ? 24 : 16),
+						e -> e instanceof Monster && e.getTarget() == owner)) {
+					if (!m.hasStatusEffect(StatusEffects.GLOWING)) {
+						owner.sendMessage(Text.translatable("mages_legacy.beast.parrot.warn", m.getDisplayName()).formatted(Formatting.RED), true);
+						world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_PARROT_IMITATE_CREEPER, SoundCategory.NEUTRAL, 0.8f, 1.2f);
+					}
+					m.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 60, 0, true, false));
+				}
+				if (dist < 16 && owner.fallDistance > 4) {
+					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 60, 0, true, false, true));
+				}
+			}
+			case "frog" -> {
+				// Every 3 seconds the tongue pulls the nearest monster in and slows it; small slimes it simply eats
+				if (time % 60 < 20) {
+					LivingEntity target = nearestMonster(world, mob, strong ? 12 : 8);
+					if (target instanceof SlimeEntity slime && slime.getSize() <= 1) {
+						world.spawnParticles(ParticleTypes.ITEM_SLIME, slime.getX(), slime.getY(), slime.getZ(), 8, 0.2, 0.2, 0.2, 0.05);
+						slime.discard();
+					} else if (target != null) {
+						Vec3d pull = mob.getPos().subtract(target.getPos()).normalize().multiply(0.9);
+						target.addVelocity(pull.x, 0.25, pull.z);
+						target.velocityModified = true;
+						target.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, strong ? 2 : 1));
+						world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_FROG_TONGUE, SoundCategory.NEUTRAL, 1.0f, 1.0f);
+					}
 				}
 			}
 			default -> {
 			}
 		}
+	}
+
+	@Nullable
+	private static LivingEntity nearestMonster(ServerWorld world, Entity center, double radius) {
+		LivingEntity best = null;
+		for (LivingEntity m : world.getEntitiesByClass(LivingEntity.class, center.getBoundingBox().expand(radius),
+				e -> e instanceof Monster && e.isAlive() && Creatures.ownerOf(e) == null)) {
+			if (best == null || m.squaredDistanceTo(center) < best.squaredDistanceTo(center)) {
+				best = m;
+			}
+		}
+		return best;
+	}
+
+	/** A bonded beast's blow: the wolf's bite slows. */
+	public static void onBeastHit(Entity beast, LivingEntity victim) {
+		if (beast.getType() == EntityType.WOLF) {
+			victim.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 40, 1));
+		}
+	}
+
+	/** Polar bear guard: a Shepherd with its bonded bear close by takes a fifth less damage. */
+	public static boolean bearGuards(ServerPlayerEntity owner, RaceData data) {
+		for (Bond bond : data.shepherd.bonds) {
+			if (bond.kind.equals("polar_bear") && !bond.resting() && owner.getServerWorld().getEntity(bond.entity) instanceof MobEntity bear
+					&& bear.isAlive() && bear.distanceTo(owner) < 6) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** When a bonded beast loads with its chunk: register it and give back its goals (goals aren't saved). */

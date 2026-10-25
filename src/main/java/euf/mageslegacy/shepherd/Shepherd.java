@@ -183,15 +183,27 @@ public final class Shepherd {
 				amount *= 0.75f;
 			}
 		}
-		if (attacker != null && Echoes.isEcho(attacker) && ownerHas(attacker, Talents.LEGION_BURNING)) {
-			victim.setOnFireFor(3);
+		if (attacker != null && Echoes.isEcho(attacker)) {
+			if (ownerHas(attacker, Talents.LEGION_BURNING)) {
+				victim.setOnFireFor(3);
+			}
+			amount = Echoes.onHit(attacker, victim, amount);
+		}
+		if (attacker != null && attacker.getCommandTags().contains(Creatures.BOND_TAG)) {
+			Bonds.onBeastHit(attacker, victim);
 		}
 		UUID beastOwner = victim.getCommandTags().contains(Creatures.BOND_TAG) ? Creatures.ownerOf(victim) : null;
 		if (beastOwner != null && dataOf(victim, beastOwner).map(d -> d.has(Talents.PACK_ARMOR)).orElse(false)) {
 			amount *= 0.7f;
 		}
-		if (victim instanceof ServerPlayerEntity shepherd && is(shepherd) && RaceState.of(shepherd).has(Talents.VOICE_HEART) && amount > 0) {
-			amount = shareHeart(shepherd, source, amount);
+		if (victim instanceof ServerPlayerEntity shepherd && is(shepherd) && amount > 0) {
+			RaceData data = RaceState.of(shepherd);
+			if (Bonds.bearGuards(shepherd, data)) {
+				amount *= 0.8f;
+			}
+			if (data.has(Talents.VOICE_HEART)) {
+				amount = shareHeart(shepherd, source, amount);
+			}
 		}
 		return amount;
 	}
@@ -371,6 +383,9 @@ public final class Shepherd {
 		}
 		RaceData data = RaceState.of(owner);
 		EchoType.of(victim.getType()).ifPresent(type -> countKill(owner, data, type));
+		if (victim instanceof Monster) {
+			Bonds.onHunt(owner, data, victim);
+		}
 		if (killer == owner || !(victim instanceof Monster)) {
 			return;
 		}

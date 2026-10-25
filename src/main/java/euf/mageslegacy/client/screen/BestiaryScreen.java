@@ -5,6 +5,7 @@ import euf.mageslegacy.client.MagesLegacyClient;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.Talents;
 import euf.mageslegacy.shepherd.BeastKind;
+import euf.mageslegacy.shepherd.Bonds;
 import euf.mageslegacy.shepherd.EchoType;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +13,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.registry.Registries;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.text.OrderedText;
@@ -204,9 +206,11 @@ public class BestiaryScreen extends Screen {
 			ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.bestiary.no_beasts").formatted(Formatting.ITALIC), x, y, LegacyUi.MUTED);
 			y += 14;
 		}
-		// The ritual, step by step, at the bottom of the panel
+		// The Song, and every beast that can be bonded (its own way in the tooltip), at the bottom of the panel
 		List<Text> steps = Lines.of("mages_legacy.bestiary.ritual");
-		int ritualH = 8;
+		int perRow = Math.max(1, (w + 2) / 19);
+		int iconRows = (BeastKind.ALL.size() + perRow - 1) / perRow;
+		int ritualH = 8 + 12 + iconRows * 19;
 		for (Text step : steps) {
 			ritualH += textRenderer.wrapLines(step, w - 10).size() * 10 + 2;
 		}
@@ -221,12 +225,41 @@ public class BestiaryScreen extends Screen {
 			}
 			y += 2;
 		}
+		ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.bestiary.tameable").formatted(Formatting.BOLD), x, y + 2, color);
+		y += 13;
+		for (int i = 0; i < BeastKind.ALL.size(); i++) {
+			BeastKind kind = BeastKind.ALL.get(i);
+			int ix = x + (i % perRow) * 19;
+			int iy = y + (i / perRow) * 19;
+			boolean hot = mouseX >= ix && mouseX < ix + 18 && mouseY >= iy && mouseY < iy + 18;
+			ctx.fill(ix, iy, ix + 18, iy + 18, LegacyUi.BLACK);
+			LegacyUi.outline(ctx, ix, iy, ix + 18, iy + 18, hot ? color : LegacyUi.RIM_DARK);
+			ctx.drawItem(new ItemStack(kind.icon()), ix + 1, iy + 1);
+			if (hot) {
+				tooltip = beastKindTooltip(kind);
+			}
+		}
 		return tooltip;
+	}
+
+	private List<Text> beastKindTooltip(BeastKind kind) {
+		List<Text> lines = new ArrayList<>();
+		String id = "mages_legacy.beast." + kind.id();
+		lines.add(Text.translatable(id).formatted(Formatting.GOLD, Formatting.BOLD));
+		lines.add(Text.translatable(id + ".skill").formatted(Formatting.YELLOW));
+		TalentScreen.wrapInto(lines, Text.translatable(id + ".skill_desc").formatted(Formatting.GRAY));
+		int needed = Bonds.needed(kind, ClientRaceState.talents.contains(Talents.PACK_FRIENDLY));
+		TalentScreen.wrapInto(lines, Text.translatable("mages_legacy.bestiary.taming", Text.translatable(id + ".taming", needed).getString())
+				.formatted(Formatting.WHITE));
+		lines.add(Text.translatable("mages_legacy.bestiary.beast_cost", kind.capacity()).formatted(Formatting.AQUA));
+		return lines;
 	}
 
 	private List<Text> echoTooltip(EchoType type) {
 		List<Text> lines = new ArrayList<>();
 		lines.add(Text.translatable("mages_legacy.echo.name", type.type().getName()).formatted(Formatting.AQUA, Formatting.BOLD));
+		TalentScreen.wrapInto(lines, Text.translatable("mages_legacy.echo.trait." + Registries.ENTITY_TYPE.getId(type.type()).getPath())
+				.formatted(Formatting.YELLOW));
 		int kills = extra().getCompound("kills").getInt(type.id());
 		int need = type.killsNeeded(memory());
 		if (kills >= need) {

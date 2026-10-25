@@ -12,7 +12,9 @@ import java.util.Map;
 import java.util.UUID;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.attribute.EntityAttributeInstance;
@@ -21,6 +23,7 @@ import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.mob.Monster;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
@@ -57,11 +60,99 @@ public final class Echoes {
 
 	private static final Map<UUID, Echo> ACTIVE = new HashMap<>();
 
+	/** Cobwebs a spider echo spun, removed again after a few seconds. */
+	private record Web(ServerWorld world, BlockPos pos, long until) {}
+
+	private static final List<Web> WEBS = new ArrayList<>();
+
 	private Echoes() {
 	}
 
 	public static void reset() {
 		ACTIVE.clear();
+		WEBS.clear();
+	}
+
+	/** The kind of echo (entity type id), or "" for anything else. */
+	public static String typeOf(Entity entity) {
+		Echo echo = ACTIVE.get(entity.getUuid());
+		return echo == null ? "" : echo.type();
+	}
+
+	/**
+	 * Every kind of echo hits in its own way (texts: mages_legacy.echo.trait.<kind>). Returns the damage, which the
+	 * Executioner doubles on the nearly dead.
+	 */
+	public static float onHit(Entity echo, LivingEntity victim, float amount) {
+		Echo info = ACTIVE.get(echo.getUuid());
+		if (info == null || !(victim.getWorld() instanceof ServerWorld world)) {
+			return amount;
+		}
+		switch (info.type()) {
+			case "minecraft:husk" -> {
+				victim.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 1));
+				victim.addStatusEffect(new StatusEffectInstance(StatusEffects.HUNGER, 100, 0));
+			}
+			case "minecraft:skeleton" -> {
+				// Its arrows mark the target for the whole army
+				victim.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 100, 0));
+				ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(info.owner());
+				if (owner != null && victim instanceof Monster) {
+					Creatures.mark(owner, victim, world.getServer().getTicks() + 100);
+				}
+			}
+			case "minecraft:stray" -> victim.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 2));
+			case "minecraft:spider" -> {
+				BlockPos feet = victim.getBlockPos();
+				if (world.random.nextFloat() < 0.25f && world.getBlockState(feet).isAir()) {
+					world.setBlockState(feet, Blocks.COBWEB.getDefaultState());
+					WEBS.add(new Web(world, feet, world.getServer().getTicks() + 100));
+				}
+			}
+			case "minecraft:cave_spider" -> victim.addStatusEffect(victim.isUndead()
+					? new StatusEffectInstance(StatusEffects.WITHER, 80, 0) : new StatusEffectInstance(StatusEffects.POISON, 80, 1));
+			case "minecraft:vindicator" -> {
+				if (victim.getHealth() - amount < victim.getMaxHealth() * 0.3f) {
+					amount *= 2;
+					world.spawnParticles(ParticleTypes.DAMAGE_INDICATOR, victim.getX(), victim.getY() + 1, victim.getZ(), 6, 0.3, 0.3, 0.3, 0.1);
+				}
+			}
+			case "minecraft:wither_skeleton" -> {
+				victim.addStatusEffect(new StatusEffectInstance(StatusEffects.WITHER, 100, 1));
+				ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(info.owner());
+				if (owner != null) {
+					owner.heal(1);
+				}
+			}
+			default -> {
+			}
+		}
+		return amount;
+	}
+
+	/** What some echoes do just by being near: the zombie draws monsters onto itself, the drowned and the blaze guard. */
+	private static void aura(Echo echo, MobEntity mob, ServerPlayerEntity owner) {
+		switch (echo.type()) {
+			case "minecraft:zombie" -> {
+				for (MobEntity m : mob.getWorld().getEntitiesByClass(MobEntity.class, mob.getBoundingBox().expand(8),
+						e -> e instanceof Monster && e.getTarget() == owner)) {
+					m.setTarget(mob);
+				}
+			}
+			case "minecraft:drowned" -> {
+				if (owner.isTouchingWater() && owner.distanceTo(mob) < 12) {
+					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.DOLPHINS_GRACE, 60, 0, true, false, true));
+					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.WATER_BREATHING, 100, 0, true, false, true));
+				}
+			}
+			case "minecraft:blaze" -> {
+				if (owner.distanceTo(mob) < 8) {
+					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.FIRE_RESISTANCE, 60, 0, true, false, true));
+				}
+			}
+			default -> {
+			}
+		}
 	}
 
 	public static boolean isEcho(Entity entity) {
@@ -261,8 +352,21 @@ public final class Echoes {
 			}
 			world.spawnParticles(SPIRIT, entity.getX(), entity.getY() + entity.getHeight() * 0.6, entity.getZ(), 3,
 					entity.getWidth() * 0.4, entity.getHeight() * 0.3, entity.getWidth() * 0.4, 0);
+			if (entity instanceof MobEntity mob) {
+				aura(echo, mob, owner);
+			}
 		}
 		gone.forEach(ACTIVE::remove);
+		long ticks = server.getTicks();
+		WEBS.removeIf(web -> {
+			if (web.until() > ticks) {
+				return false;
+			}
+			if (web.world().getBlockState(web.pos()).isOf(Blocks.COBWEB)) {
+				web.world().removeBlock(web.pos(), false);
+			}
+			return true;
+		});
 		broadcast(server);
 	}
 

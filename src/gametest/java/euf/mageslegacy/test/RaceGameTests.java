@@ -28,6 +28,12 @@ import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.ZombieEntity;
+import net.minecraft.entity.passive.BeeEntity;
+import net.minecraft.entity.passive.CatEntity;
+import net.minecraft.entity.passive.FoxEntity;
+import net.minecraft.entity.passive.GoatEntity;
+import net.minecraft.entity.passive.ParrotEntity;
+import net.minecraft.entity.passive.PolarBearEntity;
 import net.minecraft.entity.passive.WolfEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -545,6 +551,129 @@ public class RaceGameTests implements FabricGameTest {
 		check(!bond.resting() && world.getEntity(bond.entity) instanceof WolfEntity back && back.isAlive(), "and comes back to its Shepherd");
 		world.getEntity(bond.entity).discard();
 		world.removeBlock(at.add(-2, 0, 0), false);
+		done(ctx, player);
+	}
+
+	static <T extends MobEntity> T beast(TestContext ctx, EntityType<T> type, BlockPos at) {
+		T mob = type.create(ctx.getWorld());
+		mob.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
+		mob.setAiDisabled(true);
+		ctx.getWorld().spawnEntity(mob);
+		return mob;
+	}
+
+	static void sing(ServerPlayerEntity player, RaceData data, MobEntity mob) {
+		player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
+		player.setSneaking(true);
+		Bonds.interact(player, data, mob, Hand.MAIN_HAND);
+		player.setSneaking(false);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "taming", tickLimit = 200)
+	public void everyBeastIsWonItsOwnWay(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(4, 2, 4));
+		floor(world, at.add(-4, 0, -4), 9, 9);
+		ServerPlayerEntity player = shepherd(ctx, at);
+		RaceData data = RaceState.of(player);
+		data.talents.add(Talents.VOICE_CAPACITY);
+		data.talents.add(Talents.LEGION_CAPACITY);
+		data.talents.add(Talents.LEGION_MORE);
+
+		// The bee: two different flowers
+		BeeEntity bee = beast(ctx, EntityType.BEE, at.add(2, 1, 0));
+		data.addResource(100);
+		sing(player, data, bee);
+		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.POPPY, 4));
+		check(Bonds.interact(player, data, bee, Hand.MAIN_HAND) == ActionResult.SUCCESS, "the first flower");
+		check(Bonds.interact(player, data, bee, Hand.MAIN_HAND) == ActionResult.FAIL, "not the same flower twice");
+		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.DANDELION));
+		check(Bonds.interact(player, data, bee, Hand.MAIN_HAND) == ActionResult.SUCCESS && data.shepherd.bond(bee.getUuid()).isPresent(),
+				"a second kind of flower wins the bee");
+
+		// The goat: three bare-handed headbutts, then wheat
+		GoatEntity goat = beast(ctx, EntityType.GOAT, at.add(-2, 0, 0));
+		data.addResource(100);
+		sing(player, data, goat);
+		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.WHEAT));
+		check(Bonds.interact(player, data, goat, Hand.MAIN_HAND) == ActionResult.FAIL, "wheat before the headbutts is not enough");
+		player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
+		for (int i = 0; i < 3; i++) {
+			data.shepherd.rituals.get(goat.getUuid()).lastFeed -= 20;
+			check(Bonds.headbutt(player, data, goat), "a headbutt counts and is cancelled");
+		}
+		check(goat.getHealth() == goat.getMaxHealth(), "the headbutts did no harm");
+		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.WHEAT));
+		check(Bonds.interact(player, data, goat, Hand.MAIN_HAND) == ActionResult.SUCCESS && data.shepherd.bond(goat.getUuid()).isPresent(),
+				"then wheat wins the goat");
+
+		// The parrot: three songs a minute apart
+		ParrotEntity parrot = beast(ctx, EntityType.PARROT, at.add(0, 0, 2));
+		for (int i = 0; i < 3; i++) {
+			data.addResource(100);
+			sing(player, data, parrot);
+			ShepherdData.Ritual r = data.shepherd.rituals.get(parrot.getUuid());
+			if (r != null) {
+				r.lastFeed -= Bonds.FEED_GAP;
+			}
+		}
+		check(data.shepherd.bond(parrot.getUuid()).isPresent() && parrot.isTamed(), "three songs win the parrot");
+
+		// The cat: crouching beside it with fish for ten seconds
+		CatEntity cat = beast(ctx, EntityType.CAT, at.add(1, 0, -1));
+		data.addResource(100);
+		sing(player, data, cat);
+		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.COD, 2));
+		player.setSneaking(true);
+		for (int i = 0; i < 10; i++) {
+			Bonds.tickOwner(player, data);
+		}
+		player.setSneaking(false);
+		check(data.shepherd.bond(cat.getUuid()).isPresent() && player.getMainHandStack().getCount() == 1, "patience wins the cat, for one fish");
+
+		// The polar bear: three monsters killed in front of it
+		PolarBearEntity bear = beast(ctx, EntityType.POLAR_BEAR, at.add(-2, 0, 2));
+		data.addResource(100);
+		sing(player, data, bear);
+		for (int i = 0; i < 3; i++) {
+			ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(-3, 0, 3));
+			Bonds.onHunt(player, data, zombie);
+			zombie.discard();
+		}
+		check(data.shepherd.bond(bear.getUuid()).isPresent(), "strength wins the polar bear");
+
+		// The fox only listens while she sleeps
+		FoxEntity fox = beast(ctx, EntityType.FOX, at.add(3, 0, 3));
+		data.addResource(100);
+		player.setSneaking(true);
+		check(Bonds.interact(player, data, fox, Hand.MAIN_HAND) == ActionResult.FAIL, "an awake fox won't listen");
+		player.setSneaking(false);
+		for (MobEntity m : List.of(bee, goat, parrot, cat, bear, fox)) {
+			m.discard();
+		}
+		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "echo_traits", tickLimit = 100)
+	public void everyEchoHitsInItsOwnWay(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(3, 2, 3));
+		floor(world, at.add(-3, 0, -3), 7, 7);
+		ServerPlayerEntity player = shepherd(ctx, at);
+		RaceData data = RaceState.of(player);
+		MobEntity vindicator = Echoes.summon(player, data, EchoType.of(EntityType.VINDICATOR).orElseThrow(), Vec3d.ofBottomCenter(at.add(2, 0, 0)),
+				false, 0, 0);
+		MobEntity stray = Echoes.summon(player, data, EchoType.of(EntityType.STRAY).orElseThrow(), Vec3d.ofBottomCenter(at.add(-2, 0, 0)),
+				false, 0, 0);
+		ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(0, 0, 2));
+		check(Echoes.onHit(vindicator, zombie, 4) == 4, "a healthy foe takes the plain blow");
+		zombie.setHealth(5);
+		check(Echoes.onHit(vindicator, zombie, 4) == 8, "the Executioner doubles it on the nearly dead");
+		Echoes.onHit(stray, zombie, 2);
+		StatusEffectInstance slow = zombie.getStatusEffect(StatusEffects.SLOWNESS);
+		check(slow != null && slow.getAmplifier() == 2, "a stray echo's arrows freeze: Slowness III");
+		Echoes.dismiss(world.getServer(), player.getUuid());
+		zombie.discard();
 		done(ctx, player);
 	}
 

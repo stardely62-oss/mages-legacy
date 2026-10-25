@@ -66,11 +66,16 @@ public class ShepherdData {
 		}
 	}
 
-	/** A bond ritual: the Song was sung until {@code listenUntil}; {@code feedings} so far, the last at {@code lastFeed}. */
+	/**
+	 * A bond ritual: the Song was sung until {@code listenUntil}; {@code feedings} so far (or songs, headbutts, kills,
+	 * seconds of patience: whatever this beast's way counts), the last at {@code lastFeed}; {@code note} remembers
+	 * e.g. which flower came first.
+	 */
 	public static class Ritual {
 		public long listenUntil;
 		public int feedings;
 		public long lastFeed;
+		public String note = "";
 	}
 
 	public Optional<Bond> bond(UUID entity) {
@@ -104,6 +109,7 @@ public class ShepherdData {
 			e.putLong("listenUntil", r.listenUntil);
 			e.putInt("feedings", r.feedings);
 			e.putLong("lastFeed", r.lastFeed);
+			e.putString("note", r.note);
 			ritualList.add(e);
 		});
 		nbt.put("rituals", ritualList);
@@ -126,6 +132,7 @@ public class ShepherdData {
 			r.listenUntil = c.getLong("listenUntil");
 			r.feedings = c.getInt("feedings");
 			r.lastFeed = c.getLong("lastFeed");
+			r.note = c.getString("note");
 			rituals.put(c.getUuid("id"), r);
 		}
 	}
