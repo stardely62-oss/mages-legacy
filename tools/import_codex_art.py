@@ -22,6 +22,11 @@ def is_background(c):
 
 def crop_to_symbol(img):
     """Codex often leaves wide margins: crop to the non-magenta area, square and centred."""
+    # Pad with magenta first, so a crop past the canvas edge stays background instead of turning black
+    pad = img.size[0] // 16
+    padded = Image.new("RGB", (img.size[0] + 2 * pad, img.size[1] + 2 * pad), (255, 0, 255))
+    padded.paste(img, (pad, pad))
+    img = padded
     small = img.resize((128, 128), Image.NEAREST)
     px = small.load()
     pts = [(x, y) for y in range(128) for x in range(128) if not is_background(px[x, y])]
