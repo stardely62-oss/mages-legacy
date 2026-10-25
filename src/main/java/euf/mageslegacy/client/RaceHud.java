@@ -6,12 +6,17 @@ import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.Talents;
 import euf.mageslegacy.shepherd.EchoType;
 import euf.mageslegacy.shepherd.Shepherd;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
 
@@ -51,8 +56,7 @@ public final class RaceHud {
 	public static int cost(Race race, int slot) {
 		if (race == Race.SHEPHERD) {
 			return switch (slot) {
-				case 0 -> EchoType.byId(ClientRaceState.extra.getString("selected"))
-						.map(t -> t.voiceCost(ClientRaceState.talents.contains(Talents.LEGION_CHEAP))).orElse(-1);
+				case 0 -> squadCost(false);
 				case 1 -> Shepherd.RALLY_COST;
 				default -> ClientRaceState.talents.contains(Talents.VOICE_SWAP) ? Shepherd.SWAP_COST_CHEAP : Shepherd.SWAP_COST;
 			};
@@ -61,6 +65,44 @@ public final class RaceHud {
 			return Mycelid.JUMP_COST_CHEAP;
 		}
 		return MYCELID_COSTS[slot];
+	}
+
+	/** The active squad from the sync: echo type id -> how many. */
+	public static Map<String, Integer> activeSquad() {
+		NbtList presets = ClientRaceState.extra.getList("presets", NbtElement.COMPOUND_TYPE);
+		int index = ClientRaceState.extra.getInt("activePreset");
+		Map<String, Integer> squad = new LinkedHashMap<>();
+		if (index < presets.size()) {
+			NbtCompound preset = presets.getCompound(index);
+			for (String key : preset.getKeys()) {
+				squad.put(key, preset.getInt(key));
+			}
+		}
+		return squad;
+	}
+
+	/**
+	 * Voice for the squad members not on the field yet: all of them ({@code cheapest} false, shown on the slot) or
+	 * the cheapest one (what a Call needs to bring anyone). -1 for an empty squad, 0 when all are there.
+	 */
+	public static int squadCost(boolean cheapest) {
+		Map<String, Integer> squad = activeSquad();
+		if (squad.isEmpty()) {
+			return -1;
+		}
+		NbtCompound alive = ClientRaceState.extra.getCompound("alive");
+		boolean quiet = ClientRaceState.talents.contains(Talents.LEGION_CHEAP);
+		int total = 0;
+		int min = Integer.MAX_VALUE;
+		for (Map.Entry<String, Integer> e : squad.entrySet()) {
+			EchoType type = EchoType.byId(e.getKey()).orElse(null);
+			int lacking = type == null ? 0 : e.getValue() - type.units(alive.getInt(e.getKey()));
+			if (lacking > 0) {
+				total += lacking * type.voiceCost(quiet);
+				min = Math.min(min, type.voiceCost(quiet));
+			}
+		}
+		return cheapest ? (min == Integer.MAX_VALUE ? 0 : min) : total;
 	}
 
 	/** The race resource's icon, or null. */
@@ -82,8 +124,8 @@ public final class RaceHud {
 		} else if (race == Race.MYCELID) {
 			ctx.drawItem(new ItemStack(MYCELID_ICONS[slot]), x, y);
 		} else if (race == Race.SHEPHERD) {
-			// The Call shows the echo it would bring
-			EchoType echo = slot == 0 ? EchoType.byId(ClientRaceState.extra.getString("selected")).orElse(null) : null;
+			// The Call shows the first echo of its squad
+			EchoType echo = slot == 0 ? activeSquad().keySet().stream().findFirst().flatMap(EchoType::byId).orElse(null) : null;
 			ctx.drawItem(new ItemStack(echo != null ? echo.icon() : SHEPHERD_ICONS[slot]), x, y);
 		}
 	}
@@ -141,7 +183,7 @@ public final class RaceHud {
 			int cooldown = ClientRaceState.cooldown(slot);
 			boolean chain = race == Race.MYCELID && slot == 0 && ClientRaceState.chainLeft > 0;
 			boolean cooling = cooldown > 0 && !chain;
-			int cost = chain ? Mycelid.CHAIN_COST : cost(race, slot);
+			int cost = chain ? Mycelid.CHAIN_COST : race == Race.SHEPHERD && slot == 0 ? squadCost(true) : cost(race, slot);
 			boolean short_ = cost < 0 || ClientRaceState.resource < cost;
 			boolean ready = !cooling && !short_;
 			ctx.fill(sx - 2, sy - 2, sx + 20, sy + 20, LegacyUi.BLACK);
@@ -149,14 +191,12 @@ public final class RaceHud {
 			ctx.fill(sx, sy, sx + 18, sy + 18, 0xD0141016);
 			drawAbility(ctx, race, slot, sx + 1, sy + 1, ready);
 			if (race == Race.SHEPHERD && slot == 0) {
-				// The echo the Call brings, small in the corner
-				EchoType.byId(ClientRaceState.extra.getString("selected")).ifPresent(echo -> {
-					ctx.getMatrices().push();
-					ctx.getMatrices().translate(sx - 2, sy - 3, 150);
-					ctx.getMatrices().scale(0.5f, 0.5f, 1f);
-					ctx.drawItem(new ItemStack(echo.icon()), 0, 0);
-					ctx.getMatrices().pop();
-				});
+				// The active squad's numeral in the corner
+				String numeral = Shepherd.ROMAN[Math.floorMod(ClientRaceState.extra.getInt("activePreset"), 3)];
+				ctx.getMatrices().push();
+				ctx.getMatrices().translate(0, 0, 250);
+				ctx.drawText(tr, numeral, sx, sy - 1, 0xFF9FE8E0, true);
+				ctx.getMatrices().pop();
 			}
 			ctx.getMatrices().push();
 			ctx.getMatrices().translate(0, 0, 200);

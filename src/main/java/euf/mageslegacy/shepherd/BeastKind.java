@@ -33,8 +33,14 @@ public record BeastKind(String id, EntityType<?> type, Taming taming, Predicate<
 		HUNT,
 		/** Sing to it three times, a minute apart (the parrot). */
 		SONGS,
-		/** Feed it twice, a minute apart (the frog). */
-		FEED_TWICE
+		/** Feed it twice, a minute apart (the frog, the turtle). */
+		FEED_TWICE,
+		/** Walk it on a lead for a minute (the llama). */
+		LEAD,
+		/** Give it its food while you swim beside it (the dolphin). */
+		WATER_GIFT,
+		/** Sing to it twice in the dark (the bat). */
+		DARK_SONGS
 	}
 
 	public static final List<BeastKind> ALL = List.of(
@@ -46,7 +52,12 @@ public record BeastKind(String id, EntityType<?> type, Taming taming, Predicate<
 			new BeastKind("goat", EntityType.GOAT, Taming.HEADBUTTS, s -> s.isOf(Items.WHEAT), 2, Items.GOAT_SPAWN_EGG),
 			new BeastKind("polar_bear", EntityType.POLAR_BEAR, Taming.HUNT, s -> false, 3, Items.POLAR_BEAR_SPAWN_EGG),
 			new BeastKind("parrot", EntityType.PARROT, Taming.SONGS, s -> false, 1, Items.PARROT_SPAWN_EGG),
-			new BeastKind("frog", EntityType.FROG, Taming.FEED_TWICE, s -> s.isOf(Items.SLIME_BALL), 1, Items.FROG_SPAWN_EGG));
+			new BeastKind("frog", EntityType.FROG, Taming.FEED_TWICE, s -> s.isOf(Items.SLIME_BALL), 1, Items.FROG_SPAWN_EGG),
+			new BeastKind("llama", EntityType.LLAMA, Taming.LEAD, s -> false, 2, Items.LLAMA_SPAWN_EGG),
+			new BeastKind("rabbit", EntityType.RABBIT, Taming.ONE_GIFT, s -> s.isOf(Items.GOLDEN_CARROT), 1, Items.RABBIT_SPAWN_EGG),
+			new BeastKind("turtle", EntityType.TURTLE, Taming.FEED_TWICE, s -> s.isOf(Items.SEAGRASS), 1, Items.TURTLE_SPAWN_EGG),
+			new BeastKind("dolphin", EntityType.DOLPHIN, Taming.WATER_GIFT, s -> s.isOf(Items.COD) || s.isOf(Items.SALMON), 2, Items.DOLPHIN_SPAWN_EGG),
+			new BeastKind("bat", EntityType.BAT, Taming.DARK_SONGS, s -> false, 1, Items.BAT_SPAWN_EGG));
 
 	public static Optional<BeastKind> of(EntityType<?> type) {
 		return ALL.stream().filter(k -> k.type() == type).findFirst();

@@ -25,7 +25,8 @@ public final class RacePackets {
 	public static final Identifier CHOOSE = MagesLegacy.id("choose");
 	public static final Identifier ABILITY = MagesLegacy.id("ability");
 	public static final Identifier UNLOCK = MagesLegacy.id("unlock");
-	public static final Identifier SELECT_ECHO = MagesLegacy.id("select_echo");
+	/** Squads: [0, index] picks the active one, [1, index, echo id, delta] adds or takes one echo. */
+	public static final Identifier PRESET = MagesLegacy.id("preset");
 	/** Server to client: entity ids of the echoes in the player's world, so they are drawn as spirits. */
 	public static final Identifier ECHOES = MagesLegacy.id("echoes");
 	public static final int SLOTS = 3;
@@ -42,13 +43,22 @@ public final class RacePackets {
 			int slot = buf.readVarInt();
 			server.execute(() -> useAbility(player, slot));
 		});
-		ServerPlayNetworking.registerGlobalReceiver(SELECT_ECHO, (server, player, handler, buf, sender) -> {
-			String id = buf.readString(64);
+		ServerPlayNetworking.registerGlobalReceiver(PRESET, (server, player, handler, buf, sender) -> {
+			int action = buf.readVarInt();
+			int index = buf.readVarInt();
+			String id = action == 1 ? buf.readString(64) : "";
+			int delta = action == 1 ? buf.readVarInt() : 0;
 			server.execute(() -> {
 				RaceData data = RaceState.of(player);
-				if (data != null && data.race == Race.SHEPHERD && Shepherd.select(player, data, id)) {
-					sync(player, data);
+				if (data == null || data.race != Race.SHEPHERD) {
+					return;
 				}
+				if (action == 0) {
+					Shepherd.selectPreset(player, data, index);
+				} else {
+					Shepherd.editPreset(data, index, id, delta);
+				}
+				sync(player, data);
 			});
 		});
 		ServerPlayNetworking.registerGlobalReceiver(UNLOCK, (server, player, handler, buf, sender) -> {

@@ -2,6 +2,7 @@ package euf.mageslegacy.shepherd;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -18,6 +19,12 @@ public class ShepherdData {
 	/** Entity type id -> how many of them this Shepherd (or its creatures) killed. */
 	public final Map<String, Integer> kills = new HashMap<>();
 	public String selectedEcho = "";
+	/**
+	 * Three squads of echoes the Call brings at once (echo type id -> how many); {@code activePreset} is the one
+	 * the Call uses now.
+	 */
+	public final List<Map<String, Integer>> presets = List.of(new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>());
+	public int activePreset;
 	public final List<Bond> bonds = new ArrayList<>();
 	/** Animal uuid -> a bond ritual under way. */
 	public final Map<UUID, Ritual> rituals = new HashMap<>();
@@ -76,6 +83,8 @@ public class ShepherdData {
 		public int feedings;
 		public long lastFeed;
 		public String note = "";
+		/** Which beast kind listens (for the bestiary). */
+		public String kind = "";
 	}
 
 	public Optional<Bond> bond(UUID entity) {
@@ -89,6 +98,8 @@ public class ShepherdData {
 	public void clear() {
 		kills.clear();
 		selectedEcho = "";
+		presets.forEach(Map::clear);
+		activePreset = 0;
 		bonds.clear();
 		rituals.clear();
 	}
@@ -99,6 +110,14 @@ public class ShepherdData {
 		kills.forEach(killNbt::putInt);
 		nbt.put("kills", killNbt);
 		nbt.putString("selected", selectedEcho);
+		NbtList presetList = new NbtList();
+		for (Map<String, Integer> preset : presets) {
+			NbtCompound p = new NbtCompound();
+			preset.forEach(p::putInt);
+			presetList.add(p);
+		}
+		nbt.put("presets", presetList);
+		nbt.putInt("activePreset", activePreset);
 		NbtList bondList = new NbtList();
 		bonds.forEach(b -> bondList.add(b.toNbt()));
 		nbt.put("bonds", bondList);
@@ -110,6 +129,7 @@ public class ShepherdData {
 			e.putInt("feedings", r.feedings);
 			e.putLong("lastFeed", r.lastFeed);
 			e.putString("note", r.note);
+			e.putString("kind", r.kind);
 			ritualList.add(e);
 		});
 		nbt.put("rituals", ritualList);
@@ -123,6 +143,14 @@ public class ShepherdData {
 			kills.put(key, killNbt.getInt(key));
 		}
 		selectedEcho = nbt.getString("selected");
+		NbtList presetList = nbt.getList("presets", NbtElement.COMPOUND_TYPE);
+		for (int i = 0; i < presets.size() && i < presetList.size(); i++) {
+			NbtCompound p = presetList.getCompound(i);
+			for (String key : p.getKeys()) {
+				presets.get(i).put(key, p.getInt(key));
+			}
+		}
+		activePreset = Math.floorMod(nbt.getInt("activePreset"), presets.size());
 		for (NbtElement e : nbt.getList("bonds", NbtElement.COMPOUND_TYPE)) {
 			bonds.add(Bond.fromNbt((NbtCompound) e));
 		}
@@ -133,6 +161,7 @@ public class ShepherdData {
 			r.feedings = c.getInt("feedings");
 			r.lastFeed = c.getLong("lastFeed");
 			r.note = c.getString("note");
+			r.kind = c.getString("kind");
 			rituals.put(c.getUuid("id"), r);
 		}
 	}

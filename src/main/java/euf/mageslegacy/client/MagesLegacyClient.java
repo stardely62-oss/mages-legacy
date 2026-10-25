@@ -29,6 +29,7 @@ public class MagesLegacyClient implements ClientModInitializer {
 			key("ability_1", GLFW.GLFW_KEY_R), key("ability_2", GLFW.GLFW_KEY_V), key("ability_3", GLFW.GLFW_KEY_G)};
 	public static final KeyBinding TREE_KEY = key("talents", GLFW.GLFW_KEY_K);
 	public static final KeyBinding BESTIARY_KEY = key("bestiary", GLFW.GLFW_KEY_B);
+	public static final KeyBinding SQUAD_KEY = key("next_squad", GLFW.GLFW_KEY_N);
 
 	/**
 	 * The key as printed on an English keyboard (R, V, G), whatever layout the system has switched to: GLFW names
@@ -92,6 +93,11 @@ public class MagesLegacyClient implements ClientModInitializer {
 				client.setScreen(new BestiaryScreen());
 			}
 		}
+		while (SQUAD_KEY.wasPressed()) {
+			if (ClientRaceState.race == Race.SHEPHERD) {
+				selectSquad(ClientRaceState.extra.getInt("activePreset") + 1);
+			}
+		}
 	}
 
 	public static void useAbility(int slot) {
@@ -106,10 +112,24 @@ public class MagesLegacyClient implements ClientModInitializer {
 		ClientPlayNetworking.send(RacePackets.CHOOSE, buf);
 	}
 
-	public static void sendSelectEcho(String id) {
+	/** Makes squad {@code index} (wrapping around) the one the Call brings. */
+	public static void selectSquad(int index) {
+		int wrapped = Math.floorMod(index, 3);
+		ClientRaceState.extra.putInt("activePreset", wrapped);
 		PacketByteBuf buf = PacketByteBufs.create();
-		buf.writeString(id);
-		ClientPlayNetworking.send(RacePackets.SELECT_ECHO, buf);
+		buf.writeVarInt(0);
+		buf.writeVarInt(wrapped);
+		ClientPlayNetworking.send(RacePackets.PRESET, buf);
+	}
+
+	/** One more (+1) or one less (-1) echo of a kind in a squad. */
+	public static void editSquad(int index, String echo, int delta) {
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeVarInt(1);
+		buf.writeVarInt(index);
+		buf.writeString(echo);
+		buf.writeVarInt(delta);
+		ClientPlayNetworking.send(RacePackets.PRESET, buf);
 	}
 
 	public static void sendUnlock(String talent) {

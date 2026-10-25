@@ -3,6 +3,7 @@ package euf.mageslegacy.test;
 import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.client.ClientRaceState;
 import euf.mageslegacy.client.MagesLegacyClient;
+import euf.mageslegacy.client.RaceHud;
 import euf.mageslegacy.client.screen.BestiaryScreen;
 import euf.mageslegacy.client.screen.LoreScreen;
 import euf.mageslegacy.client.screen.RaceSelectScreen;
@@ -271,7 +272,7 @@ public class HarnessClient implements ClientModInitializer {
 		});
 		step(20, false, c -> {
 			check("shepherd_chosen", serverRace(c) == Race.SHEPHERD && ClientRaceState.race == Race.SHEPHERD);
-			check("echoes_learned", ClientRaceState.extra.getString("selected").equals("minecraft:zombie"));
+			check("echoes_learned", RaceHud.activeSquad().getOrDefault("minecraft:zombie", 0) == 1);
 			c.setScreen(new BestiaryScreen());
 		});
 		step(20, false, c -> screenshot(c, "bestiary"));
@@ -282,7 +283,7 @@ public class HarnessClient implements ClientModInitializer {
 		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
 		step(30, false, c -> {
 			check("echo_called", ClientRaceState.extra.getInt("echoes") == 1);
-			MagesLegacyClient.sendSelectEcho("minecraft:skeleton");
+			MagesLegacyClient.editSquad(0, "minecraft:skeleton", 1);
 			resetCooldowns(c);
 		});
 		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
@@ -292,13 +293,25 @@ public class HarnessClient implements ClientModInitializer {
 			tp(c, Vec3d.ofBottomCenter(arena).add(-8, 0.5, 3), Vec3d.ofBottomCenter(arena).add(-3, 1, 0));
 		});
 		step(20, true, c -> screenshot(c, "echoes"));
-		// Sneak + Call sends the echoes back and frees the bond slots for the wolf
+		// Sneak + Call sends the echoes back; one Call then brings the whole squad at once
 		step(5, false, c -> c.options.sneakKey.setPressed(true));
 		step(5, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
 		step(20, false, c -> {
 			c.options.sneakKey.setPressed(false);
 			check("echoes_dismissed", ClientRaceState.extra.getInt("echoes") == 0 && ClientRaceState.extra.getInt("capUsed") == 0);
+			commands(c, "race resource @a 100");
+			resetCooldowns(c);
 		});
+		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
+		step(20, false, c -> {
+			check("squad_at_once", ClientRaceState.extra.getInt("echoes") == 2);
+			c.setScreen(new BestiaryScreen());
+		});
+		step(20, false, c -> screenshot(c, "bestiary_squad"));
+		step(5, false, c -> c.setScreen(null));
+		step(5, false, c -> c.options.sneakKey.setPressed(true));
+		step(5, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
+		step(20, false, c -> c.options.sneakKey.setPressed(false));
 
 		// A wolf, the Song (sneak + empty hand), three feedings, the last by a campfire
 		step(10, false, c -> {

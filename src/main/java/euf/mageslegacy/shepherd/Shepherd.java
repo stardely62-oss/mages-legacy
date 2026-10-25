@@ -7,7 +7,9 @@ import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.race.Talents;
 import euf.mageslegacy.shepherd.ShepherdData.Bond;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.entity.Entity;
@@ -31,6 +33,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.hit.EntityHitResult;
@@ -258,7 +261,23 @@ public final class Shepherd {
 		return data.shepherd.kills(type.id()) >= type.killsNeeded(data.has(Talents.LEGION_THRESHOLDS));
 	}
 
-	/** Call: the echo picked in the bestiary rises where you look. Sneaking sends all your echoes back. */
+	public static final int PRESET_MAX = 12;
+
+	/** The echoes of the active squad that aren't walking with this Shepherd yet, in the squad's order. */
+	public static List<EchoType> missing(RaceData data, Map<String, Integer> alive) {
+		List<EchoType> list = new ArrayList<>();
+		data.shepherd.presets.get(data.shepherd.activePreset).forEach((id, count) -> EchoType.byId(id).ifPresent(type -> {
+			for (int i = type.units(alive.getOrDefault(id, 0)); i < count; i++) {
+				list.add(type);
+			}
+		}));
+		return list;
+	}
+
+	/**
+	 * Call: the active squad rises where you look, all at once. Echoes of it already with you stay; only the missing
+	 * ones come, as many as the voice and the bond slots allow. Sneaking sends all your echoes back.
+	 */
 	public static AbilityResult call(ServerPlayerEntity player, RaceData data) {
 		if (player.isSneaking()) {
 			int gone = Echoes.dismiss(player.getServer(), player.getUuid());
@@ -268,24 +287,96 @@ public final class Shepherd {
 		if (!ready(player, data, 0)) {
 			return AbilityResult.COOLDOWN;
 		}
-		EchoType type = EchoType.byId(data.shepherd.selectedEcho).orElse(null);
-		if (type == null || !learned(data, type)) {
+		if (data.shepherd.presets.get(data.shepherd.activePreset).isEmpty()) {
 			return AbilityResult.NO_ECHO;
 		}
-		int cost = type.voiceCost(data.has(Talents.LEGION_CHEAP));
-		if (data.resource < cost) {
-			return AbilityResult.NO_RESOURCE;
+		List<EchoType> missing = missing(data, Echoes.countByType(player.getUuid()));
+		if (missing.isEmpty()) {
+			player.sendMessage(Text.translatable("mages_legacy.echo.squad_full"), true);
+			return AbilityResult.OK;
 		}
-		if (capacityFree(player, data) < type.capacity()) {
-			return AbilityResult.NO_CAPACITY;
+		boolean quiet = data.has(Talents.LEGION_CHEAP);
+		Vec3d base = Echoes.callSpot(player);
+		int summoned = 0;
+		boolean lackVoice = false;
+		boolean lackRoom = false;
+		for (EchoType type : missing) {
+			int cost = type.voiceCost(quiet);
+			if (!learned(data, type)) {
+				continue;
+			}
+			if (data.resource < cost) {
+				lackVoice = true;
+				continue;
+			}
+			if (capacityFree(player, data) < type.capacity()) {
+				lackRoom = true;
+				continue;
+			}
+			// A group (silverfish) comes several at once for one price and one slot
+			int spot = summoned;
+			boolean any = false;
+			for (int g = 0; g < type.group(); g++) {
+				any |= Echoes.summon(player, data, type, Echoes.around(player.getServerWorld(), base, spot++), false, 0,
+						g == 0 ? cost : 0) != null;
+			}
+			if (any) {
+				data.addResource(-cost);
+				summoned++;
+			}
 		}
-		if (Echoes.summon(player, data, type, Echoes.callSpot(player), false, 0, cost) == null) {
-			return AbilityResult.NO_SPACE;
+		if (summoned == 0) {
+			return lackVoice ? AbilityResult.NO_RESOURCE : lackRoom ? AbilityResult.NO_CAPACITY : AbilityResult.NO_SPACE;
 		}
-		data.addResource(-cost);
+		if (summoned < missing.size()) {
+			player.sendMessage(Text.translatable("mages_legacy.echo.partial", summoned, missing.size(),
+					Text.translatable(lackVoice ? "mages_legacy.echo.lack_voice" : "mages_legacy.echo.lack_room")), true);
+		}
 		cooldown(player, data, 0, CALL_COOLDOWN);
 		return AbilityResult.OK;
 	}
+
+	/** Bestiary: one more (+1) or one less (-1) of a learned echo in a squad. */
+	public static boolean editPreset(RaceData data, int index, String id, int delta) {
+		if (index < 0 || index >= data.shepherd.presets.size()) {
+			return false;
+		}
+		Optional<EchoType> type = EchoType.byId(id);
+		if (type.isEmpty() || (delta > 0 && !learned(data, type.get()))) {
+			return false;
+		}
+		Map<String, Integer> preset = data.shepherd.presets.get(index);
+		int total = preset.values().stream().mapToInt(Integer::intValue).sum();
+		int now = preset.getOrDefault(id, 0);
+		int next = Math.max(0, now + Integer.signum(delta));
+		if (next > now && total >= PRESET_MAX) {
+			return false;
+		}
+		if (next == 0) {
+			preset.remove(id);
+		} else {
+			preset.put(id, next);
+		}
+		data.dirty = true;
+		return true;
+	}
+
+	/** Makes squad {@code index} the one the Call brings, and says what it holds. */
+	public static void selectPreset(ServerPlayerEntity player, RaceData data, int index) {
+		data.shepherd.activePreset = Math.floorMod(index, data.shepherd.presets.size());
+		data.dirty = true;
+		MutableText list = Text.empty();
+		data.shepherd.presets.get(data.shepherd.activePreset).forEach((id, count) -> EchoType.byId(id).ifPresent(type -> {
+			if (!list.getSiblings().isEmpty()) {
+				list.append(", ");
+			}
+			list.append(type.type().getName()).append(" ×" + count);
+		}));
+		player.sendMessage(Text.translatable("mages_legacy.echo.squad", ROMAN[data.shepherd.activePreset],
+				list.getSiblings().isEmpty() ? Text.translatable("mages_legacy.echo.squad_empty") : list).formatted(Formatting.AQUA), true);
+	}
+
+	public static final String[] ROMAN = {"I", "II", "III"};
 
 	/**
 	 * Rally: every creature within 24 blocks grows stronger and faster for 10 seconds (Loud Rally adds resistance).
@@ -403,7 +494,9 @@ public final class Shepherd {
 		data.shepherd.kills.merge(type.id(), 1, Integer::sum);
 		data.dirty = true;
 		if (!before && learned(data, type)) {
-			if (data.shepherd.selectedEcho.isEmpty()) {
+			// The first echo learned goes straight into the first squad, so the Call works at once
+			if (data.shepherd.presets.stream().allMatch(Map::isEmpty)) {
+				data.shepherd.presets.get(0).put(type.id(), 1);
 				data.shepherd.selectedEcho = type.id();
 			}
 			owner.sendMessage(Text.translatable("mages_legacy.echo.learned", type.type().getName()).formatted(Formatting.AQUA), false);
@@ -412,16 +505,6 @@ public final class Shepherd {
 		}
 	}
 
-	/** Pick the echo the Call brings (from the bestiary); only learned ones. */
-	public static boolean select(ServerPlayerEntity player, RaceData data, String id) {
-		Optional<EchoType> type = EchoType.byId(id);
-		if (type.isEmpty() || !learned(data, type.get())) {
-			return false;
-		}
-		data.shepherd.selectedEcho = id;
-		data.dirty = true;
-		return true;
-	}
 
 	/** What the client's HUD and bestiary need beyond the common sync. */
 	public static NbtCompound clientInfo(ServerPlayerEntity player, RaceData data) {
@@ -437,6 +520,21 @@ public final class Shepherd {
 		nbt.putInt("capUsed", capacityUsed(data, player.getUuid()));
 		nbt.putInt("capMax", capacityMax(player, data));
 		nbt.putInt("echoes", Echoes.count(player.getUuid()));
+		NbtCompound alive = new NbtCompound();
+		Echoes.countByType(player.getUuid()).forEach(alive::putInt);
+		nbt.put("alive", alive);
+		NbtList rituals = new NbtList();
+		long now = player.getServerWorld().getTime();
+		data.shepherd.rituals.forEach((id, r) -> {
+			if (r.listenUntil > now && !r.kind.isEmpty()) {
+				NbtCompound e = new NbtCompound();
+				e.putString("kind", r.kind);
+				e.putInt("progress", r.feedings);
+				e.putInt("minutes", (int) ((r.listenUntil - now) / 1200));
+				rituals.add(e);
+			}
+		});
+		nbt.put("rituals", rituals);
 		return nbt;
 	}
 }

@@ -32,8 +32,10 @@ import net.minecraft.entity.passive.BeeEntity;
 import net.minecraft.entity.passive.CatEntity;
 import net.minecraft.entity.passive.FoxEntity;
 import net.minecraft.entity.passive.GoatEntity;
+import net.minecraft.entity.passive.LlamaEntity;
 import net.minecraft.entity.passive.ParrotEntity;
 import net.minecraft.entity.passive.PolarBearEntity;
+import net.minecraft.entity.passive.RabbitEntity;
 import net.minecraft.entity.passive.WolfEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -443,13 +445,13 @@ public class RaceGameTests implements FabricGameTest {
 		int xp = data.xp + data.level * 1000;
 		Shepherd.countKill(player, data, zombie);
 		check(Shepherd.learned(data, zombie), "the 20th zombie teaches its echo");
-		check(data.shepherd.selectedEcho.equals(zombie.id()), "the first learned echo is picked for the Call");
+		check(data.shepherd.presets.get(0).getOrDefault(zombie.id(), 0) == 1, "the first learned echo goes into the first squad");
 		check(data.xp + data.level * 1000 > xp, "learning an echo gives race experience");
 		data.talents.add(Talents.LEGION_THRESHOLDS);
 		EchoType skeleton = EchoType.of(EntityType.SKELETON).orElseThrow();
 		check(skeleton.killsNeeded(true) == 15, "Memory of the Fallen: 25 skeletons become 15");
 		RaceData copy = RaceData.fromNbt(data.toNbt());
-		check(copy.shepherd.kills(zombie.id()) == 20 && copy.shepherd.selectedEcho.equals(zombie.id()), "the bestiary survives a save");
+		check(copy.shepherd.kills(zombie.id()) == 20 && copy.shepherd.presets.get(0).getOrDefault(zombie.id(), 0) == 1, "the bestiary survives a save");
 		done(ctx, player);
 	}
 
@@ -497,11 +499,12 @@ public class RaceGameTests implements FabricGameTest {
 		player.equipStack(EquipmentSlot.LEGS, new ItemStack(Items.IRON_LEGGINGS));
 		check(Shepherd.capacityMax(player, data) == 3, "Used to Iron: only the diamond chestplate counts (2 points = 1 slot)");
 		learn(player, data, EchoType.of(EntityType.SKELETON).orElseThrow());
-		data.shepherd.selectedEcho = EchoType.of(EntityType.SKELETON).orElseThrow().id();
+		data.shepherd.presets.get(0).clear();
+		data.shepherd.presets.get(0).put(EchoType.of(EntityType.SKELETON).orElseThrow().id(), 2);
 		data.addResource(100);
-		check(Shepherd.call(player, data) == AbilityResult.OK, "a skeleton echo takes 2 of 3 slots");
+		check(Shepherd.call(player, data) == AbilityResult.OK && Echoes.count(player.getUuid()) == 1, "one skeleton fits (2 of 3 slots), the other doesn't");
 		data.readyAt.clear();
-		check(Shepherd.call(player, data) == AbilityResult.NO_CAPACITY, "no room for a second one");
+		check(Shepherd.call(player, data) == AbilityResult.NO_CAPACITY, "no room for the second one"); 
 		player.setSneaking(true);
 		check(Shepherd.call(player, data) == AbilityResult.OK && Echoes.count(player.getUuid()) == 0, "sneak + Call sends them back");
 		done(ctx, player);
@@ -674,6 +677,60 @@ public class RaceGameTests implements FabricGameTest {
 		check(slow != null && slow.getAmplifier() == 2, "a stray echo's arrows freeze: Slowness III");
 		Echoes.dismiss(world.getServer(), player.getUuid());
 		zombie.discard();
+		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "squad", tickLimit = 100)
+	public void theCallBringsTheWholeSquadAtOnce(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(4, 2, 4));
+		floor(world, at.add(-4, 0, -4), 9, 9);
+		ServerPlayerEntity player = shepherd(ctx, at);
+		RaceData data = RaceState.of(player);
+		EchoType zombie = EchoType.of(EntityType.ZOMBIE).orElseThrow();
+		EchoType silverfish = EchoType.of(EntityType.SILVERFISH).orElseThrow();
+		learn(player, data, zombie);
+		learn(player, data, silverfish);
+		check(Shepherd.editPreset(data, 0, zombie.id(), 1) && Shepherd.editPreset(data, 0, silverfish.id(), 1), "the squad is edited");
+		check(!Shepherd.editPreset(data, 0, EchoType.of(EntityType.RAVAGER).orElseThrow().id(), 1), "an unlearned echo can't join");
+		data.addResource(100);
+		check(Shepherd.call(player, data) == AbilityResult.OK, "the Call");
+		check(Echoes.count(player.getUuid()) == 5, "two zombies and three silverfish at once, got " + Echoes.count(player.getUuid()));
+		check(Shepherd.capacityUsed(data, player.getUuid()) == 3, "the three silverfish share one bond slot");
+		check(Math.abs(data.resource - 60) < 0.01f, "2 x 15 + 10 voice, left " + data.resource);
+		data.readyAt.clear();
+		Shepherd.call(player, data);
+		check(Echoes.count(player.getUuid()) == 5 && Math.abs(data.resource - 60) < 0.01f, "a full squad isn't called twice");
+		Shepherd.selectPreset(player, data, 1);
+		data.readyAt.clear();
+		check(Shepherd.call(player, data) == AbilityResult.NO_ECHO, "squad II is empty");
+		Echoes.dismiss(world.getServer(), player.getUuid());
+		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "taming2", tickLimit = 100)
+	public void theLlamaWalksAndTheRabbitTakesAGift(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(4, 2, 4));
+		floor(world, at.add(-4, 0, -4), 9, 9);
+		ServerPlayerEntity player = shepherd(ctx, at);
+		RaceData data = RaceState.of(player);
+		RabbitEntity rabbit = beast(ctx, EntityType.RABBIT, at.add(2, 0, 0));
+		data.addResource(100);
+		sing(player, data, rabbit);
+		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.GOLDEN_CARROT));
+		check(Bonds.interact(player, data, rabbit, Hand.MAIN_HAND) == ActionResult.SUCCESS && data.shepherd.bond(rabbit.getUuid()).isPresent(),
+				"a golden carrot wins the rabbit");
+		LlamaEntity llama = beast(ctx, EntityType.LLAMA, at.add(-2, 0, 0));
+		data.addResource(100);
+		sing(player, data, llama);
+		llama.attachLeash(player, true);
+		for (int i = 0; i < 60; i++) {
+			Bonds.tickOwner(player, data);
+		}
+		check(data.shepherd.bond(llama.getUuid()).isPresent(), "a minute on the lead wins the llama");
+		rabbit.discard();
+		llama.discard();
 		done(ctx, player);
 	}
 

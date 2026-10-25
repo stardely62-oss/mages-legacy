@@ -117,6 +117,8 @@ public final class Echoes {
 					world.spawnParticles(ParticleTypes.DAMAGE_INDICATOR, victim.getX(), victim.getY() + 1, victim.getZ(), 6, 0.3, 0.3, 0.3, 0.1);
 				}
 			}
+			case "minecraft:silverfish" -> victim.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 40, 0));
+			case "minecraft:pillager" -> victim.addStatusEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 80, 0));
 			case "minecraft:wither_skeleton" -> {
 				victim.addStatusEffect(new StatusEffectInstance(StatusEffects.WITHER, 100, 1));
 				ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(info.owner());
@@ -150,6 +152,38 @@ public final class Echoes {
 					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.FIRE_RESISTANCE, 60, 0, true, false, true));
 				}
 			}
+			case "minecraft:witch" -> {
+				// The herbalist: every 10 seconds a healing brew for the Shepherd and its creatures close by
+				if (mob.getServer().getTicks() % 200 < 20) {
+					ServerWorld world = (ServerWorld) mob.getWorld();
+					if (owner.distanceTo(mob) < 8) {
+						owner.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 0, true, true, true));
+					}
+					for (LivingEntity c : world.getEntitiesByClass(LivingEntity.class, mob.getBoundingBox().expand(8),
+							e -> Creatures.isCreatureOf(e, owner.getUuid()))) {
+						c.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 0, true, true));
+					}
+					world.spawnParticles(ParticleTypes.HAPPY_VILLAGER, mob.getX(), mob.getY() + 1.5, mob.getZ(), 10, 1.5, 0.5, 1.5, 0);
+				}
+			}
+			case "minecraft:ravager" -> {
+				// A roar every 6 seconds throws back the monsters around it
+				if (mob.getServer().getTicks() % 120 < 20) {
+					ServerWorld world = (ServerWorld) mob.getWorld();
+					boolean any = false;
+					for (LivingEntity m : world.getEntitiesByClass(LivingEntity.class, mob.getBoundingBox().expand(4),
+							e -> e instanceof Monster && Creatures.ownerOf(e) == null)) {
+						Vec3d away = m.getPos().subtract(mob.getPos());
+						m.damage(world.getDamageSources().mobAttack(mob), 3);
+						m.takeKnockback(1.5, -away.x, -away.z);
+						any = true;
+					}
+					if (any) {
+						world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 1.0f, 1.0f);
+						world.spawnParticles(ParticleTypes.POOF, mob.getX(), mob.getY() + 1, mob.getZ(), 20, 1.5, 0.5, 1.5, 0.05);
+					}
+				}
+			}
 			default -> {
 			}
 		}
@@ -168,12 +202,40 @@ public final class Echoes {
 	/** Bond slots this Shepherd's echoes take (the Army of Oblivion's temporary ones are free). */
 	public static int capacityUsed(UUID owner) {
 		int used = 0;
-		for (Echo echo : ACTIVE.values()) {
-			if (echo.owner().equals(owner) && !echo.temporary()) {
-				used += EchoType.byId(echo.type()).map(EchoType::capacity).orElse(0);
-			}
+		for (Map.Entry<String, Integer> e : countByType(owner).entrySet()) {
+			used += EchoType.byId(e.getKey()).map(t -> t.units(e.getValue()) * t.capacity()).orElse(0);
 		}
 		return used;
+	}
+
+	/** How many echoes of each kind walk with this Shepherd now (the Army of Oblivion's temporary ones aside). */
+	public static Map<String, Integer> countByType(UUID owner) {
+		Map<String, Integer> counts = new HashMap<>();
+		for (Echo echo : ACTIVE.values()) {
+			if (echo.owner().equals(owner) && !echo.temporary()) {
+				counts.merge(echo.type(), 1, Integer::sum);
+			}
+		}
+		return counts;
+	}
+
+	/** Spots for a squad: the first at the Call's spot, the rest in a ring around it where there's room. */
+	static Vec3d around(ServerWorld world, Vec3d base, int index) {
+		if (index == 0) {
+			return base;
+		}
+		double a = index * 2.4;
+		double r = 1.5 + (index / 6) * 1.2;
+		BlockPos column = BlockPos.ofFloored(base.x + Math.cos(a) * r, base.y, base.z + Math.sin(a) * r);
+		for (int dy = 1; dy >= -2; dy--) {
+			BlockPos feet = column.up(dy);
+			if (world.getBlockState(feet).getCollisionShape(world, feet).isEmpty()
+					&& world.getBlockState(feet.up()).getCollisionShape(world, feet.up()).isEmpty()
+					&& !world.getBlockState(feet.down()).getCollisionShape(world, feet.down()).isEmpty()) {
+				return Vec3d.ofBottomCenter(feet);
+			}
+		}
+		return base;
 	}
 
 	public static int count(UUID owner) {
