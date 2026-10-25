@@ -483,10 +483,13 @@ public class RaceGameTests implements FabricGameTest {
 		RaceData data = RaceState.of(player);
 		check(Shepherd.capacityMax(player, data) == 4, "4 bond slots to start");
 		player.equipStack(EquipmentSlot.CHEST, new ItemStack(Items.DIAMOND_CHESTPLATE));
+		player.equipStack(EquipmentSlot.LEGS, new ItemStack(Items.DIAMOND_LEGGINGS));
 		player.equipStack(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
-		check(Shepherd.capacityMax(player, data) == 2, "diamond and iron take one slot each");
+		player.equipStack(EquipmentSlot.FEET, new ItemStack(Items.IRON_BOOTS));
+		check(Shepherd.capacityMax(player, data) == 1, "2 diamond + 2 iron = 6 points = 3 slots, got " + Shepherd.capacityMax(player, data));
 		data.talents.add(Talents.VOICE_ARMOR);
-		check(Shepherd.capacityMax(player, data) == 3, "Used to Iron: iron no longer counts");
+		player.equipStack(EquipmentSlot.LEGS, new ItemStack(Items.IRON_LEGGINGS));
+		check(Shepherd.capacityMax(player, data) == 3, "Used to Iron: only the diamond chestplate counts (2 points = 1 slot)");
 		learn(player, data, EchoType.of(EntityType.SKELETON).orElseThrow());
 		data.shepherd.selectedEcho = EchoType.of(EntityType.SKELETON).orElseThrow().id();
 		data.addResource(100);

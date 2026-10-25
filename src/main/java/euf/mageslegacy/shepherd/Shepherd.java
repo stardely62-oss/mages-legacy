@@ -67,25 +67,30 @@ public final class Shepherd {
 
 	// ---- capacity ----
 
-	/** Bond slots: 4, more from talents, one less for every heavy armour piece (iron counts unless Used to Iron). */
+	/** Bond slots: 4, more from talents, one less for every 2 points of heavy armour (see {@link #heavyArmor}). */
 	public static int capacityMax(ServerPlayerEntity player, RaceData data) {
 		int max = BASE_CAPACITY + (data.has(Talents.LEGION_CAPACITY) ? 2 : 0) + (data.has(Talents.LEGION_MORE) ? 2 : 0)
 				+ (data.has(Talents.VOICE_CAPACITY) ? 1 : 0);
-		return Math.max(1, max - heavyArmor(player, data));
+		return Math.max(1, max - heavyArmor(player, data) / 2);
 	}
 
+	/**
+	 * Heavy armour points: iron and chainmail 1 a piece (none with Used to Iron), diamond and netherite 2. Every 2
+	 * points take a bond slot: a full iron set costs 2, a full diamond one 4.
+	 */
 	public static int heavyArmor(ServerPlayerEntity player, RaceData data) {
-		int heavy = 0;
+		int points = 0;
 		for (ItemStack stack : player.getArmorItems()) {
 			if (stack.getItem() instanceof ArmorItem armor) {
 				var material = armor.getMaterial();
-				boolean iron = material == ArmorMaterials.IRON || material == ArmorMaterials.CHAIN;
-				if (material == ArmorMaterials.DIAMOND || material == ArmorMaterials.NETHERITE || (iron && !data.has(Talents.VOICE_ARMOR))) {
-					heavy++;
+				if (material == ArmorMaterials.DIAMOND || material == ArmorMaterials.NETHERITE) {
+					points += 2;
+				} else if ((material == ArmorMaterials.IRON || material == ArmorMaterials.CHAIN) && !data.has(Talents.VOICE_ARMOR)) {
+					points += 1;
 				}
 			}
 		}
-		return heavy;
+		return points;
 	}
 
 	public static int capacityUsed(RaceData data, UUID owner) {
@@ -104,8 +109,8 @@ public final class Shepherd {
 
 	public static void tickSecond(ServerPlayerEntity player, RaceData data) {
 		List<LivingEntity> near = Creatures.around(player, 16);
-		// The voice comes back by itself, faster with creatures around
-		float regen = 1.0f + Math.min(1.5f, near.size() * 0.25f);
+		// The voice comes back by itself, faster with creatures around: about two minutes for a full bar alone
+		float regen = 0.5f + Math.min(1.0f, near.size() * 0.2f);
 		data.addResource(data.has(Talents.VOICE_DEEP) ? regen * 1.5f : regen);
 
 		frail(player, !data.has(Talents.VOICE_LIFE));

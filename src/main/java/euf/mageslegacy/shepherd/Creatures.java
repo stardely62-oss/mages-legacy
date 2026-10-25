@@ -14,6 +14,8 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.goal.ActiveTargetGoal;
 import net.minecraft.entity.ai.goal.Goal;
+import net.minecraft.entity.mob.Angerable;
+import net.minecraft.entity.mob.CreeperEntity;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.Monster;
 import net.minecraft.entity.passive.AxolotlEntity;
@@ -130,8 +132,11 @@ public final class Creatures {
 		if (fights) {
 			ai.mages_legacy$targets().getGoals().clear();
 			ai.mages_legacy$targets().add(1, new DefendOwnerGoal(mob));
+			// Not the neutral ones (a hit on one zombified piglin brings the whole horde down on the Shepherd) and not
+			// creepers (a melee echo would set one off next to its Shepherd); those only when they attack
 			ai.mages_legacy$targets().add(3, new ActiveTargetGoal<>(mob, MobEntity.class, 10, true, false, e ->
-					e instanceof Monster && ownerOf(e) == null && nearOwner(mob, e, 16)));
+					e instanceof Monster && !(e instanceof Angerable) && !(e instanceof CreeperEntity) && ownerOf(e) == null
+							&& nearOwner(mob, e, 16)));
 		}
 		ai.mages_legacy$goals().add(fights ? 6 : 2, new FollowOwnerGoal(mob));
 	}

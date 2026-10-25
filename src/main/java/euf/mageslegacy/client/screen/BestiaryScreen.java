@@ -95,10 +95,12 @@ public class BestiaryScreen extends Screen {
 		ctx.drawCenteredTextWithShadow(textRenderer, cap, width / 2, 24, used >= max ? LegacyUi.RED : LegacyUi.GOLD);
 
 		EchoType hovered = drawEchoes(ctx, color, mouseX, mouseY);
-		drawBeasts(ctx, color);
+		List<Text> beastTooltip = drawBeasts(ctx, color, mouseX, mouseY);
 		super.render(ctx, mouseX, mouseY, delta);
 		if (hovered != null) {
 			ctx.drawTooltip(textRenderer, echoTooltip(hovered), mouseX, mouseY);
+		} else if (beastTooltip != null) {
+			ctx.drawTooltip(textRenderer, beastTooltip, mouseX, mouseY);
 		}
 	}
 
@@ -134,25 +136,28 @@ public class BestiaryScreen extends Screen {
 			int tx = p[0] + 24;
 			int tw = cardW() - 28;
 			int kills = Math.min(extra().getCompound("kills").getInt(type.id()), type.killsNeeded(memory()));
-			String count = known ? "" : kills + "/" + type.killsNeeded(memory());
-			int nameW = tw - (count.isEmpty() ? 0 : textRenderer.getWidth(count) + 4);
-			ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(type.type().getName().getString(), nameW), tx, p[1] + 4,
+			ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(type.type().getName().getString(), tw), tx, p[1] + 4,
 					known ? LegacyUi.TEXT : LegacyUi.MUTED);
 			if (known) {
 				String cost = type.voiceCost(ClientRaceState.talents.contains(Talents.LEGION_CHEAP)) + "  ◆" + type.capacity();
 				ctx.drawTextWithShadow(textRenderer, cost, tx, p[1] + 15, 0xFF9FE8E0);
 			} else {
-				// Progress towards learning it: a thin bar that fills with kills
+				// Progress towards learning it: the count, and a thin bar beside it that fills with kills
 				int need = type.killsNeeded(memory());
-				ctx.fill(tx, p[1] + 17, tx + tw, p[1] + 20, LegacyUi.BLACK);
-				ctx.fill(tx, p[1] + 17, tx + tw * kills / need, p[1] + 20, LegacyUi.mix(color, 0xFF9FE8E0, 0.5f));
-				ctx.drawTextWithShadow(textRenderer, count, tx + tw - textRenderer.getWidth(count), p[1] + 4 + 0, LegacyUi.MUTED);
+				String count = kills + "/" + need;
+				ctx.drawTextWithShadow(textRenderer, count, tx, p[1] + 15, LegacyUi.MUTED);
+				int bx = tx + textRenderer.getWidth(count) + 4;
+				int bw = Math.max(4, tx + tw - bx);
+				ctx.fill(bx, p[1] + 17, bx + bw, p[1] + 20, LegacyUi.BLACK);
+				ctx.fill(bx, p[1] + 17, bx + bw * kills / need, p[1] + 20, LegacyUi.mix(color, 0xFF9FE8E0, 0.5f));
 			}
 		}
 		return hovered;
 	}
 
-	private void drawBeasts(DrawContext ctx, int color) {
+	/** The bonded beasts and the ritual; returns the tooltip of the beast under the mouse, if any. */
+	private List<Text> drawBeasts(DrawContext ctx, int color, int mouseX, int mouseY) {
+		List<Text> tooltip = null;
 		int x = width / 2 + 8;
 		int w = colWidth();
 		LegacyUi.panel(ctx, x - 6, top() - 6, x + w + 6, height - 12);
@@ -165,7 +170,8 @@ public class BestiaryScreen extends Screen {
 			if (kind == null) {
 				continue;
 			}
-			LegacyUi.panel(ctx, x, y, x + w, y + 22, LegacyUi.RIM_DARK);
+			boolean hot = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + 22;
+			LegacyUi.panel(ctx, x, y, x + w, y + 22, hot ? color : LegacyUi.RIM_DARK);
 			ctx.drawItem(new ItemStack(kind.icon()), x + 3, y + 3);
 			String name = b.getString("name").isEmpty() ? Text.translatable("mages_legacy.beast." + kind.id()).getString() : b.getString("name");
 			ctx.drawTextWithShadow(textRenderer, name, x + 22, y + 3, LegacyUi.TEXT);
@@ -175,6 +181,14 @@ public class BestiaryScreen extends Screen {
 			Text line = rest > 0 ? Text.translatable("mages_legacy.bestiary.resting", (rest + 59) / 60).formatted(Formatting.YELLOW)
 					: Text.translatable("mages_legacy.beast." + kind.id() + ".skill").formatted(Formatting.GRAY);
 			ctx.drawTextWithShadow(textRenderer, Language.getInstance().reorder(textRenderer.trimToWidth(line, w - 26)), x + 22, y + 12, 0xFFFFFFFF);
+			if (hot) {
+				tooltip = new ArrayList<>();
+				tooltip.add(Text.literal(name).formatted(Formatting.GOLD, Formatting.BOLD));
+				tooltip.add(Text.translatable("mages_legacy.beast." + kind.id() + ".skill").formatted(Formatting.YELLOW));
+				TalentScreen.wrapInto(tooltip, Text.translatable("mages_legacy.beast." + kind.id() + ".skill_desc").formatted(Formatting.GRAY));
+				tooltip.add(Text.translatable("mages_legacy.bestiary.beast_level", b.getInt("level"), b.getInt("xp"), 30 * b.getInt("level"))
+						.formatted(Formatting.GREEN));
+			}
 			y += 26;
 		}
 		if (bonds.isEmpty()) {
@@ -198,6 +212,7 @@ public class BestiaryScreen extends Screen {
 			}
 			y += 2;
 		}
+		return tooltip;
 	}
 
 	private List<Text> echoTooltip(EchoType type) {

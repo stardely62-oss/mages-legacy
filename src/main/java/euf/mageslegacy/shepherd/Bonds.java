@@ -171,7 +171,7 @@ public final class Bonds {
 		world.spawnParticles(ParticleTypes.FLAME, mob.getX(), mob.getY() + 0.2, mob.getZ(), 20, 0.5, 0.1, 0.5, 0.01);
 		world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.6f, 1.4f);
 		player.sendMessage(Text.translatable("mages_legacy.bond.done", mob.getDisplayName(),
-				Text.translatable("mages_legacy.beast." + kind.id() + ".skill")).formatted(Formatting.GOLD), false);
+				Text.translatable("mages_legacy.beast." + kind.id() + ".skill_desc")).formatted(Formatting.GOLD), false);
 		Progression.addXp(player, data, 30);
 	}
 
