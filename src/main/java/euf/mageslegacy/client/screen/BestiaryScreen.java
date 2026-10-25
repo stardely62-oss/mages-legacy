@@ -181,11 +181,16 @@ public class BestiaryScreen extends Screen {
 			ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.bestiary.no_beasts").formatted(Formatting.ITALIC), x, y, LegacyUi.MUTED);
 			y += 14;
 		}
-		// The ritual, step by step
-		y = Math.max(y + 4, height - 12 - 8 - 4 * 20);
+		// The ritual, step by step, at the bottom of the panel
+		List<Text> steps = Lines.of("mages_legacy.bestiary.ritual");
+		int ritualH = 8;
+		for (Text step : steps) {
+			ritualH += textRenderer.wrapLines(step, w - 10).size() * 10 + 2;
+		}
+		y = Math.max(y + 4, height - 16 - ritualH);
 		LegacyUi.divider(ctx, x, x + w, y, color);
 		y += 8;
-		for (Text step : Lines.of("mages_legacy.bestiary.ritual")) {
+		for (Text step : steps) {
 			LegacyUi.diamond(ctx, x + 3, y + 3, 2, color);
 			for (OrderedText row : textRenderer.wrapLines(step, w - 10)) {
 				ctx.drawText(textRenderer, row, x + 10, y, LegacyUi.PARCHMENT, true);
