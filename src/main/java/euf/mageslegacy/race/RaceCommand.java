@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import euf.mageslegacy.mycelid.Mycelid;
+import euf.mageslegacy.shepherd.Shepherd;
 import euf.mageslegacy.net.RacePackets;
 import java.util.Arrays;
 import java.util.Collection;
@@ -74,15 +75,23 @@ public final class RaceCommand {
 			return 0;
 		}
 		return each(c, (p, d) -> {
-			Mycelid.removeCapArmor(p);
+			cleanup(p, d);
 			d.reset(race);
 		});
 	}
 
 	private static int reset(CommandContext<ServerCommandSource> c) throws CommandSyntaxException {
 		return each(c, (p, d) -> {
-			Mycelid.removeCapArmor(p);
+			cleanup(p, d);
 			d.reset(null);
 		});
+	}
+
+	/** What the old race left on the player: Mycelid armour and health bonuses, a Shepherd's echoes and beasts. */
+	private static void cleanup(ServerPlayerEntity player, RaceData data) {
+		Mycelid.removeCapArmor(player);
+		if (data.race == Race.SHEPHERD) {
+			Shepherd.cleanup(player, data);
+		}
 	}
 }

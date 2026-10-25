@@ -3,6 +3,7 @@ package euf.mageslegacy.test;
 import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
+import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Progression.UnlockResult;
 import euf.mageslegacy.race.Race;
@@ -78,7 +79,7 @@ public class RaceGameTests implements FabricGameTest {
 		ServerPlayerEntity player = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
 		RaceData data = RaceState.of(player);
 		check(data.race == null, "a new player has no race");
-		check(!RacePackets.choose(player, Race.SHEPHERD), "a sleeping race can't be picked yet");
+		check(!RacePackets.choose(player, Race.FROZEN), "a sleeping race can't be picked yet");
 		check(RacePackets.choose(player, Race.MYCELID) && data.race == Race.MYCELID, "picking the Mycelids should work");
 		check(!RacePackets.choose(player, Race.MYCELID), "the choice is made once");
 		check(RaceState.get(ctx.getWorld().getServer()).data(player.getUuid()) == data, "the data lives in the saved state");
@@ -148,7 +149,7 @@ public class RaceGameTests implements FabricGameTest {
 		data.talents.add(Talents.SWARM_WEAKNESS);
 		data.talents.add(Talents.SWARM_MENDING);
 		data.addResource(30);
-		check(Mycelid.sporeCloud(player, data) == Mycelid.AbilityResult.OK, "the cloud should rise");
+		check(Mycelid.sporeCloud(player, data) == AbilityResult.OK, "the cloud should rise");
 		ctx.waitAndRun(25, () -> {
 			StatusEffectInstance weakness = zombie.getStatusEffect(StatusEffects.WEAKNESS);
 			check(weakness != null && weakness.getAmplifier() == 1, "Rot of Strength: the zombie gets Weakness II");
@@ -253,9 +254,9 @@ public class RaceGameTests implements FabricGameTest {
 		RaceData data = RaceState.of(player);
 		data.addResource(40);
 		Vec3d from = player.getPos();
-		check(Mycelid.sporeJump(player, data) == Mycelid.AbilityResult.OK, "the jump should start");
+		check(Mycelid.sporeJump(player, data) == AbilityResult.OK, "the jump should start");
 		check((int) data.resource == 25, "a jump costs 15 spores");
-		check(Mycelid.sporeJump(player, data) == Mycelid.AbilityResult.COOLDOWN, "no second jump right away");
+		check(Mycelid.sporeJump(player, data) == AbilityResult.COOLDOWN, "no second jump right away");
 		ctx.waitAndRun(Mycelid.JUMP_DELAY + 3, () -> {
 			double moved = player.getPos().subtract(from).horizontalLength();
 			check(moved > 2 && moved <= 8.6, "the player should sprout up to 8 blocks ahead, moved " + moved);
@@ -266,7 +267,7 @@ public class RaceGameTests implements FabricGameTest {
 			player.refreshPositionAndAngles(second.x, second.y, second.z, 0, 3);
 			data.readyAt.clear();
 			data.chainLeft = 0;
-			check(Mycelid.sporeJump(player, data) == Mycelid.AbilityResult.OK, "the level jump should start");
+			check(Mycelid.sporeJump(player, data) == AbilityResult.OK, "the level jump should start");
 			ctx.waitAndRun(Mycelid.JUMP_DELAY + 3, () -> {
 				double far = player.getPos().subtract(second).horizontalLength();
 				check(far > 6 && far <= 8.6, "a level jump should cover most of the 8 blocks, moved " + far);
@@ -287,9 +288,9 @@ public class RaceGameTests implements FabricGameTest {
 		world.spawnEntity(zombie);
 		RaceData data = RaceState.of(player);
 		data.addResource(30);
-		check(Mycelid.sporeCloud(player, data) == Mycelid.AbilityResult.OK, "the cloud should rise");
+		check(Mycelid.sporeCloud(player, data) == AbilityResult.OK, "the cloud should rise");
 		check(data.resource < 1, "a cloud costs 30 spores");
-		check(Mycelid.sporeCloud(player, data) == Mycelid.AbilityResult.COOLDOWN, "one cloud at a time");
+		check(Mycelid.sporeCloud(player, data) == AbilityResult.COOLDOWN, "one cloud at a time");
 		ctx.waitAndRun(25, () -> {
 			check(zombie.hasStatusEffect(StatusEffects.BLINDNESS) && zombie.hasStatusEffect(StatusEffects.WITHER),
 					"the zombie goes blind and rots (the undead are immune to poison)");

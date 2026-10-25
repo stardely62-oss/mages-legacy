@@ -5,6 +5,7 @@ import euf.mageslegacy.race.ClientRaceView;
 import euf.mageslegacy.race.Race;
 import java.util.HashSet;
 import java.util.Set;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.PacketByteBuf;
 
 /** The client's copy of its own race data, from the sync packet; cooldowns count down locally between syncs. */
@@ -19,6 +20,8 @@ public final class ClientRaceState {
 	public static final Set<String> talents = new HashSet<>();
 	private static final int[] cooldowns = new int[RacePackets.SLOTS];
 	public static int chainLeft;
+	/** Race extras from the sync: for Shepherds the capacity, bestiary kills, picked echo and bonds. */
+	public static NbtCompound extra = new NbtCompound();
 	private static long receivedAt;
 	private static long clientTicks;
 
@@ -44,6 +47,8 @@ public final class ClientRaceState {
 			cooldowns[slot] = buf.readVarInt();
 		}
 		chainLeft = buf.readVarInt();
+		NbtCompound nbt = buf.readNbt();
+		extra = nbt == null ? new NbtCompound() : nbt;
 		receivedAt = clientTicks;
 	}
 

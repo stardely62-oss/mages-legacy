@@ -1,0 +1,132 @@
+package euf.mageslegacy.shepherd;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+
+/**
+ * What a Shepherd keeps: kills per mob type (the bestiary of echoes), the echo picked for the Call, the bonded beasts,
+ * and bond rituals still in progress. Saved with the rest of the race data.
+ */
+public class ShepherdData {
+	/** Entity type id -> how many of them this Shepherd (or its creatures) killed. */
+	public final Map<String, Integer> kills = new HashMap<>();
+	public String selectedEcho = "";
+	public final List<Bond> bonds = new ArrayList<>();
+	/** Animal uuid -> a bond ritual under way. */
+	public final Map<UUID, Ritual> rituals = new HashMap<>();
+
+	/**
+	 * A bonded beast. While it rests after falling, {@code restingUntil} is the world time it comes back and
+	 * {@code body} holds the entity, to bring it back as it was.
+	 */
+	public static class Bond {
+		public UUID entity;
+		public String kind;
+		public String name = "";
+		public int level = 1;
+		public int xp;
+		public long restingUntil;
+		public NbtCompound body;
+
+		public boolean resting() {
+			return body != null;
+		}
+
+		NbtCompound toNbt() {
+			NbtCompound nbt = new NbtCompound();
+			nbt.putUuid("entity", entity);
+			nbt.putString("kind", kind);
+			nbt.putString("name", name);
+			nbt.putInt("level", level);
+			nbt.putInt("xp", xp);
+			nbt.putLong("restingUntil", restingUntil);
+			if (body != null) {
+				nbt.put("body", body);
+			}
+			return nbt;
+		}
+
+		static Bond fromNbt(NbtCompound nbt) {
+			Bond bond = new Bond();
+			bond.entity = nbt.getUuid("entity");
+			bond.kind = nbt.getString("kind");
+			bond.name = nbt.getString("name");
+			bond.level = Math.max(1, nbt.getInt("level"));
+			bond.xp = nbt.getInt("xp");
+			bond.restingUntil = nbt.getLong("restingUntil");
+			bond.body = nbt.contains("body") ? nbt.getCompound("body") : null;
+			return bond;
+		}
+	}
+
+	/** A bond ritual: the Song was sung until {@code listenUntil}; {@code feedings} so far, the last at {@code lastFeed}. */
+	public static class Ritual {
+		public long listenUntil;
+		public int feedings;
+		public long lastFeed;
+	}
+
+	public Optional<Bond> bond(UUID entity) {
+		return bonds.stream().filter(b -> b.entity.equals(entity)).findFirst();
+	}
+
+	public int kills(String type) {
+		return kills.getOrDefault(type, 0);
+	}
+
+	public void clear() {
+		kills.clear();
+		selectedEcho = "";
+		bonds.clear();
+		rituals.clear();
+	}
+
+	public NbtCompound toNbt() {
+		NbtCompound nbt = new NbtCompound();
+		NbtCompound killNbt = new NbtCompound();
+		kills.forEach(killNbt::putInt);
+		nbt.put("kills", killNbt);
+		nbt.putString("selected", selectedEcho);
+		NbtList bondList = new NbtList();
+		bonds.forEach(b -> bondList.add(b.toNbt()));
+		nbt.put("bonds", bondList);
+		NbtList ritualList = new NbtList();
+		rituals.forEach((id, r) -> {
+			NbtCompound e = new NbtCompound();
+			e.putUuid("id", id);
+			e.putLong("listenUntil", r.listenUntil);
+			e.putInt("feedings", r.feedings);
+			e.putLong("lastFeed", r.lastFeed);
+			ritualList.add(e);
+		});
+		nbt.put("rituals", ritualList);
+		return nbt;
+	}
+
+	public void readNbt(NbtCompound nbt) {
+		clear();
+		NbtCompound killNbt = nbt.getCompound("kills");
+		for (String key : killNbt.getKeys()) {
+			kills.put(key, killNbt.getInt(key));
+		}
+		selectedEcho = nbt.getString("selected");
+		for (NbtElement e : nbt.getList("bonds", NbtElement.COMPOUND_TYPE)) {
+			bonds.add(Bond.fromNbt((NbtCompound) e));
+		}
+		for (NbtElement e : nbt.getList("rituals", NbtElement.COMPOUND_TYPE)) {
+			NbtCompound c = (NbtCompound) e;
+			Ritual r = new Ritual();
+			r.listenUntil = c.getLong("listenUntil");
+			r.feedings = c.getInt("feedings");
+			r.lastFeed = c.getLong("lastFeed");
+			rituals.put(c.getUuid("id"), r);
+		}
+	}
+}

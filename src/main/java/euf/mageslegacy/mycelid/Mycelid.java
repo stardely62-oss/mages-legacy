@@ -2,6 +2,7 @@ package euf.mageslegacy.mycelid;
 
 import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.net.RacePackets;
+import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceData;
@@ -291,8 +292,6 @@ public final class Mycelid {
 	}
 
 	// ---- abilities ----
-
-	public enum AbilityResult { OK, COOLDOWN, NO_RESOURCE, NO_TARGET, LOCKED, NO_SPACE }
 
 	public static AbilityResult use(ServerPlayerEntity player, RaceData data, int slot) {
 		return switch (slot) {

@@ -1,10 +1,12 @@
 package euf.mageslegacy.client;
 
 import euf.mageslegacy.MagesLegacy;
+import euf.mageslegacy.client.screen.BestiaryScreen;
 import euf.mageslegacy.client.screen.LoreScreen;
 import euf.mageslegacy.client.screen.RaceSelectScreen;
 import euf.mageslegacy.client.screen.TalentScreen;
 import euf.mageslegacy.net.RacePackets;
+import euf.mageslegacy.race.Race;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -26,6 +28,7 @@ public class MagesLegacyClient implements ClientModInitializer {
 	public static final KeyBinding[] ABILITY_KEYS = {
 			key("ability_1", GLFW.GLFW_KEY_R), key("ability_2", GLFW.GLFW_KEY_V), key("ability_3", GLFW.GLFW_KEY_G)};
 	public static final KeyBinding TREE_KEY = key("talents", GLFW.GLFW_KEY_K);
+	public static final KeyBinding BESTIARY_KEY = key("bestiary", GLFW.GLFW_KEY_B);
 
 	/**
 	 * The key as printed on an English keyboard (R, V, G), whatever layout the system has switched to: GLFW names
@@ -77,6 +80,11 @@ public class MagesLegacyClient implements ClientModInitializer {
 		while (TREE_KEY.wasPressed()) {
 			client.setScreen(ClientRaceState.race == null ? new LoreScreen() : new TalentScreen());
 		}
+		while (BESTIARY_KEY.wasPressed()) {
+			if (ClientRaceState.race == Race.SHEPHERD) {
+				client.setScreen(new BestiaryScreen());
+			}
+		}
 	}
 
 	public static void useAbility(int slot) {
@@ -89,6 +97,12 @@ public class MagesLegacyClient implements ClientModInitializer {
 		PacketByteBuf buf = PacketByteBufs.create();
 		buf.writeString(raceId);
 		ClientPlayNetworking.send(RacePackets.CHOOSE, buf);
+	}
+
+	public static void sendSelectEcho(String id) {
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeString(id);
+		ClientPlayNetworking.send(RacePackets.SELECT_ECHO, buf);
 	}
 
 	public static void sendUnlock(String talent) {

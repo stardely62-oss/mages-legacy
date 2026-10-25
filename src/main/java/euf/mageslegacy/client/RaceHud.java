@@ -4,6 +4,8 @@ import euf.mageslegacy.client.screen.LegacyUi;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.Talents;
+import euf.mageslegacy.shepherd.EchoType;
+import euf.mageslegacy.shepherd.Shepherd;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -22,18 +24,39 @@ public final class RaceHud {
 	public static final Item[] MYCELID_ICONS = {Items.RED_MUSHROOM, Items.SPORE_BLOSSOM, Items.MYCELIUM};
 	public static final String[] MYCELID_ABILITY_ICONS = {"ability_spore_jump", "ability_spore_cloud", "ability_network"};
 	public static final int[] MYCELID_COSTS = {15, 30, 40};
+	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.ENDER_PEARL};
+	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_swap"};
 
 	private RaceHud() {
+	}
+
+	public static boolean hasAbilities(Race race) {
+		return race == Race.MYCELID || race == Race.SHEPHERD;
 	}
 
 	/** The Codex icon of an ability slot (0..2), or null if the race has none yet. */
 	@Nullable
 	public static String abilityIcon(Race race, int slot) {
-		return race == Race.MYCELID ? MYCELID_ABILITY_ICONS[slot] : null;
+		return switch (race) {
+			case MYCELID -> MYCELID_ABILITY_ICONS[slot];
+			case SHEPHERD -> SHEPHERD_ABILITY_ICONS[slot];
+			default -> null;
+		};
 	}
 
-	/** What an ability costs this player now (Light Spore makes the jump cheaper). */
-	public static int cost(int slot) {
+	/**
+	 * What an ability costs this player now: Light Spore makes the jump cheaper, the Call costs what the picked echo
+	 * does (-1 while none is picked), Shadow for Shadow makes the swap cheaper.
+	 */
+	public static int cost(Race race, int slot) {
+		if (race == Race.SHEPHERD) {
+			return switch (slot) {
+				case 0 -> EchoType.byId(ClientRaceState.extra.getString("selected"))
+						.map(t -> t.voiceCost(ClientRaceState.talents.contains(Talents.LEGION_CHEAP))).orElse(-1);
+				case 1 -> Shepherd.RALLY_COST;
+				default -> ClientRaceState.talents.contains(Talents.VOICE_SWAP) ? Shepherd.SWAP_COST_CHEAP : Shepherd.SWAP_COST;
+			};
+		}
 		if (slot == 0 && ClientRaceState.talents.contains(Talents.NET_CHEAP)) {
 			return Mycelid.JUMP_COST_CHEAP;
 		}
@@ -43,7 +66,11 @@ public final class RaceHud {
 	/** The race resource's icon, or null. */
 	@Nullable
 	public static String resourceIcon(Race race) {
-		return race == Race.MYCELID ? "res_spores" : null;
+		return switch (race) {
+			case MYCELID -> "res_spores";
+			case SHEPHERD -> "res_voice";
+			default -> null;
+		};
 	}
 
 	/** An ability's icon: the Codex texture if it ships, the item otherwise. */
@@ -54,6 +81,10 @@ public final class RaceHud {
 			LegacyUi.icon(ctx, texture, x, y, 16, bright);
 		} else if (race == Race.MYCELID) {
 			ctx.drawItem(new ItemStack(MYCELID_ICONS[slot]), x, y);
+		} else if (race == Race.SHEPHERD) {
+			// The Call shows the echo it would bring
+			EchoType echo = slot == 0 ? EchoType.byId(ClientRaceState.extra.getString("selected")).orElse(null) : null;
+			ctx.drawItem(new ItemStack(echo != null ? echo.icon() : SHEPHERD_ICONS[slot]), x, y);
 		}
 	}
 
@@ -92,23 +123,41 @@ public final class RaceHud {
 		}
 		String amount = String.valueOf((int) ClientRaceState.resource);
 		ctx.drawText(tr, amount, barX + 3 - tr.getWidth(amount) / 2, barTop - 11, color, true);
+		if (race == Race.SHEPHERD) {
+			// Bond slots in use, over the voice icon; red when full
+			int used = ClientRaceState.extra.getInt("capUsed");
+			int max = ClientRaceState.extra.getInt("capMax");
+			String cap = used + "/" + max;
+			ctx.drawText(tr, cap, barX - 10 - tr.getWidth(cap) / 2, barTop - 11, used >= max ? LegacyUi.RED : LegacyUi.GOLD, true);
+		}
 
-		if (race != Race.MYCELID) {
+		if (!hasAbilities(race)) {
 			return;
 		}
 		int x = w / 2 + 91 + 8;
-		for (int slot = 0; slot < MYCELID_ICONS.length; slot++) {
+		for (int slot = 0; slot < 3; slot++) {
 			int sx = x + slot * 23;
 			int sy = h - 22;
 			int cooldown = ClientRaceState.cooldown(slot);
-			boolean chain = slot == 0 && ClientRaceState.chainLeft > 0;
+			boolean chain = race == Race.MYCELID && slot == 0 && ClientRaceState.chainLeft > 0;
 			boolean cooling = cooldown > 0 && !chain;
-			boolean short_ = ClientRaceState.resource < (chain ? Mycelid.CHAIN_COST : cost(slot));
+			int cost = chain ? Mycelid.CHAIN_COST : cost(race, slot);
+			boolean short_ = cost < 0 || ClientRaceState.resource < cost;
 			boolean ready = !cooling && !short_;
 			ctx.fill(sx - 2, sy - 2, sx + 20, sy + 20, LegacyUi.BLACK);
 			LegacyUi.outline(ctx, sx - 1, sy - 1, sx + 19, sy + 19, ready ? LegacyUi.mix(LegacyUi.RIM, color, 0.5f) : LegacyUi.RIM_DARK);
 			ctx.fill(sx, sy, sx + 18, sy + 18, 0xD0141016);
 			drawAbility(ctx, race, slot, sx + 1, sy + 1, ready);
+			if (race == Race.SHEPHERD && slot == 0) {
+				// The echo the Call brings, small in the corner
+				EchoType.byId(ClientRaceState.extra.getString("selected")).ifPresent(echo -> {
+					ctx.getMatrices().push();
+					ctx.getMatrices().translate(sx - 2, sy - 3, 150);
+					ctx.getMatrices().scale(0.5f, 0.5f, 1f);
+					ctx.drawItem(new ItemStack(echo.icon()), 0, 0);
+					ctx.getMatrices().pop();
+				});
+			}
 			ctx.getMatrices().push();
 			ctx.getMatrices().translate(0, 0, 200);
 			if (cooling) {

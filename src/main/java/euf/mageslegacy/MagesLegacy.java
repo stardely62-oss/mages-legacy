@@ -9,13 +9,20 @@ import euf.mageslegacy.race.RaceCommand;
 import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.race.Talents;
+import euf.mageslegacy.shepherd.Bonds;
+import euf.mageslegacy.shepherd.Creatures;
+import euf.mageslegacy.shepherd.Echoes;
+import euf.mageslegacy.shepherd.Shepherd;
+import java.util.UUID;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityCombatEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
@@ -28,6 +35,7 @@ import net.minecraft.registry.Registry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.BlockSoundGroup;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.TypedActionResult;
 import org.slf4j.Logger;
@@ -52,7 +60,11 @@ public class MagesLegacy implements ModInitializer {
 		RacePackets.registerServerReceivers();
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> RaceCommand.register(dispatcher));
 		ServerTickEvents.END_SERVER_TICK.register(MagesLegacy::tick);
-		ServerLifecycleEvents.SERVER_STOPPED.register(server -> Mycelid.reset());
+		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+			Mycelid.reset();
+			Echoes.reset();
+			Creatures.reset();
+		});
 
 		// A fresh session: send everything again, and the legend with the choice of race if there is no race yet
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> server.execute(() -> {
@@ -85,11 +97,34 @@ public class MagesLegacy implements ModInitializer {
 			return Mycelid.eat((ServerPlayerEntity) player, data, stack) ? TypedActionResult.success(stack) : TypedActionResult.fail(stack);
 		});
 		ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> Mycelid.onDeath(entity));
-		ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
-				!(entity instanceof ServerPlayerEntity player) || Mycelid.allowDeath(player));
+		ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
+			if (entity instanceof ServerPlayerEntity player) {
+				return Mycelid.allowDeath(player);
+			}
+			// Echoes fade and bonded beasts go to rest instead of dying
+			return Echoes.allowDeath(entity) && Bonds.allowDeath(entity);
+		});
 		ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY.register((world, killer, victim) -> {
 			if (killer instanceof ServerPlayerEntity player) {
 				Mycelid.onKill(player, victim);
+			}
+			Shepherd.onKill(killer, victim);
+		});
+		// Shepherds: the Song of Bonds and the feeding of the ritual
+		UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+			if (world.isClient() || !(player instanceof ServerPlayerEntity serverPlayer) || !Shepherd.is(serverPlayer)) {
+				return ActionResult.PASS;
+			}
+			return Bonds.interact(serverPlayer, RaceState.of(serverPlayer), entity, hand);
+		});
+		// Echoes left in saved chunks go; bonded beasts get their owner and goals back
+		ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+			Echoes.onLoad(entity);
+			if (entity.getCommandTags().contains(Creatures.BOND_TAG)) {
+				UUID owner = Creatures.taggedOwner(entity);
+				if (owner != null) {
+					Bonds.onLoad(entity, RaceState.get(world.getServer()).data(owner), owner);
+				}
 			}
 		});
 		LOGGER.info("Mage's Legacy loaded");
@@ -98,14 +133,21 @@ public class MagesLegacy implements ModInitializer {
 	private static void tick(MinecraftServer server) {
 		Mycelid.tick(server);
 		int ticks = server.getTicks();
+		if (ticks % 20 == 0) {
+			Echoes.tickSecond(server);
+		}
 		if (ticks % 10 != 0) {
 			return;
 		}
 		RaceState state = RaceState.get(server);
 		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
 			RaceData data = state.data(player.getUuid());
-			if (data.race == Race.MYCELID && ticks % 20 == 0 && player.isAlive() && !player.isSpectator()) {
-				Mycelid.tickSecond(player, data);
+			if (ticks % 20 == 0 && player.isAlive() && !player.isSpectator()) {
+				if (data.race == Race.MYCELID) {
+					Mycelid.tickSecond(player, data);
+				} else if (data.race == Race.SHEPHERD) {
+					Shepherd.tickSecond(player, data);
+				}
 			}
 			// The client registers our channels a moment after joining, so the prompt waits for the tick
 			if (data.race == null && !data.prompted) {

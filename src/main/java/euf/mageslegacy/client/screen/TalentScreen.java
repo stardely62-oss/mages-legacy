@@ -73,7 +73,7 @@ public class TalentScreen extends Screen {
 	}
 
 	private int treeBottom() {
-		return race() == Race.MYCELID ? height - 36 : height - 6;
+		return RaceHud.hasAbilities(race()) ? height - 36 : height - 6;
 	}
 
 	private int treeMaxScroll() {
@@ -486,7 +486,7 @@ public class TalentScreen extends Screen {
 
 	/** The three abilities: icon, name, key cap and cost. Returns the hovered slot, or -1. */
 	private int drawAbilities(DrawContext ctx, Race race, int color, int mouseX, int mouseY) {
-		if (race != Race.MYCELID) {
+		if (!RaceHud.hasAbilities(race)) {
 			return -1;
 		}
 		int tileW = Math.min(150, (width - 40) / 3);
@@ -510,7 +510,7 @@ public class TalentScreen extends Screen {
 				LegacyUi.icon(ctx, LegacyUi.icon(resourceIcon), cx - 1, y + 13, 9, true);
 				cx += 10;
 			}
-			ctx.drawTextWithShadow(textRenderer, String.valueOf(RaceHud.cost(slot)), cx, y + 13, LegacyUi.mix(color, 0xFFFFFFFF, 0.3f));
+			ctx.drawTextWithShadow(textRenderer, (RaceHud.cost(race, slot) < 0 ? "—" : String.valueOf(RaceHud.cost(race, slot))), cx, y + 13, LegacyUi.mix(color, 0xFFFFFFFF, 0.3f));
 			LegacyUi.keyCap(ctx, MagesLegacyClient.keyLabel(MagesLegacyClient.ABILITY_KEYS[slot]), x + tileW - 4, y + 20, 0xFFFFFFFF);
 		}
 		return hovered;

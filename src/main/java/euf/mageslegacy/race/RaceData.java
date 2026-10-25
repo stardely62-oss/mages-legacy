@@ -1,5 +1,6 @@
 package euf.mageslegacy.race;
 
+import euf.mageslegacy.shepherd.ShepherdData;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -23,6 +24,8 @@ public class RaceData {
 	public final Set<String> talents = new LinkedHashSet<>();
 	/** Effect ids of the mushroom tastes now active, oldest first. */
 	public final List<String> tastes = new ArrayList<>();
+	/** The Shepherds' bestiary, bonds and rituals (empty for other races). */
+	public final ShepherdData shepherd = new ShepherdData();
 
 	// Not saved: server ticks at which each ability slot is ready again, and the spore jump chain
 	public final Map<Integer, Long> readyAt = new HashMap<>();
@@ -86,6 +89,7 @@ public class RaceData {
 		level = 0;
 		talents.clear();
 		tastes.clear();
+		shepherd.clear();
 		readyAt.clear();
 		chainLeft = 0;
 		prompted = false;
@@ -106,6 +110,7 @@ public class RaceData {
 		NbtList tasteList = new NbtList();
 		tastes.forEach(t -> tasteList.add(NbtString.of(t)));
 		nbt.put("tastes", tasteList);
+		nbt.put("shepherd", shepherd.toNbt());
 		return nbt;
 	}
 
@@ -121,6 +126,7 @@ public class RaceData {
 		for (NbtElement e : nbt.getList("tastes", NbtElement.STRING_TYPE)) {
 			data.tastes.add(e.asString());
 		}
+		data.shepherd.readNbt(nbt.getCompound("shepherd"));
 		return data;
 	}
 }

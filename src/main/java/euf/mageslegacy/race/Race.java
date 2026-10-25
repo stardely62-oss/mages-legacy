@@ -6,7 +6,7 @@ import java.util.Optional;
 /** The peoples the nameless mage split humankind into. Only races marked playable can be picked yet. */
 public enum Race {
 	MYCELID(0x7FB069, true),
-	SHEPHERD(0xD9B26F, false),
+	SHEPHERD(0xD9B26F, true),
 	FROZEN(0x8FB8DE, false),
 	BLOODKIN(0xB23A48, false),
 	VOIDBORN(0x9B7FD4, false);
