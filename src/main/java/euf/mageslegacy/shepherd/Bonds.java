@@ -401,7 +401,7 @@ public final class Bonds {
 				wake(owner, data, bond);
 			}
 			if (owner.getServerWorld().getEntity(bond.entity) instanceof MobEntity mob) {
-				mob.removeCommandTag(Creatures.BOND_TAG);
+				mob.getCommandTags().remove(Creatures.BOND_TAG);
 				mob.getCommandTags().removeIf(t -> t.startsWith(Creatures.OWNER_TAG));
 				Creatures.forgetBeast(mob.getUuid());
 			}

@@ -17,6 +17,7 @@ import net.minecraft.nbt.NbtList;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Language;
 
 /**
  * The Shepherd's bestiary: on the left every echo with how many kills it still needs (or what the Call costs once
@@ -172,7 +173,7 @@ public class BestiaryScreen extends Screen {
 			int rest = b.getInt("restSeconds");
 			Text line = rest > 0 ? Text.translatable("mages_legacy.bestiary.resting", (rest + 59) / 60).formatted(Formatting.YELLOW)
 					: Text.translatable("mages_legacy.beast." + kind.id() + ".skill").formatted(Formatting.GRAY);
-			ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(line, w - 26), x + 22, y + 12, 0xFFFFFFFF);
+			ctx.drawTextWithShadow(textRenderer, Language.getInstance().reorder(textRenderer.trimToWidth(line, w - 26)), x + 22, y + 12, 0xFFFFFFFF);
 			y += 26;
 		}
 		if (bonds.isEmpty()) {
