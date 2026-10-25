@@ -27,6 +27,7 @@ import net.minecraft.item.FoodComponent;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.tag.DamageTypeTags;
@@ -45,6 +46,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.GlobalPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
+import org.joml.Vector3f;
 
 /**
  * Everything the Mycelids do: spores as their resource, night sight and regeneration in the dark, the mushroom diet,
@@ -71,6 +73,10 @@ public final class Mycelid {
 	private record PendingJump(UUID player, Vec3d target, long at, Vec3d from) {}
 
 	private record Cloud(ServerWorld world, Vec3d center, UUID owner, double radius, int potency, long until) {}
+
+	/** Greenish-grey and dark violet spore dust for the cloud. */
+	private static final DustParticleEffect SPORE_DUST = new DustParticleEffect(new Vector3f(0.62f, 0.72f, 0.48f), 1.6f);
+	private static final DustParticleEffect SPORE_DUST_DARK = new DustParticleEffect(new Vector3f(0.42f, 0.28f, 0.40f), 2.0f);
 
 	private static final List<PendingJump> JUMPS = new ArrayList<>();
 	private static final List<Cloud> CLOUDS = new ArrayList<>();
@@ -177,7 +183,8 @@ public final class Mycelid {
 			}
 		}
 		boolean rich = data.has(Talents.FLESH_RICH);
-		player.addStatusEffect(new StatusEffectInstance(effect, rich ? 2400 : 1200, rich ? 1 : 0));
+		// Tastes work from the inside: no swirl of particles in front of the eyes, only the icon
+		player.addStatusEffect(new StatusEffectInstance(effect, rich ? 2400 : 1200, rich ? 1 : 0, false, false, true));
 		data.dirty = true;
 	}
 
@@ -454,11 +461,16 @@ public final class Mycelid {
 			}
 			ServerWorld world = cloud.world();
 			Vec3d c = cloud.center();
-			if (now % 4 == 0) {
-				world.spawnParticles(ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 0.8, c.z, (int) (cloud.radius() * 6),
-						cloud.radius() * 0.6, 0.6, cloud.radius() * 0.6, 0.0);
-				world.spawnParticles(ParticleTypes.CRIMSON_SPORE, c.x, c.y + 0.5, c.z, (int) (cloud.radius() * 3),
-						cloud.radius() * 0.5, 0.4, cloud.radius() * 0.5, 0.0);
+			if (now % 3 == 0) {
+				double r = cloud.radius();
+				world.spawnParticles(SPORE_DUST, c.x, c.y + 0.7, c.z, (int) (r * r * 2), r * 0.55, 0.5, r * 0.55, 0.0);
+				world.spawnParticles(SPORE_DUST_DARK, c.x, c.y + 0.3, c.z, (int) (r * r), r * 0.55, 0.25, r * 0.55, 0.0);
+				world.spawnParticles(ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 1.2, c.z, (int) (r * 4), r * 0.5, 0.6, r * 0.5, 0.0);
+				// The edge of the cloud, so it's clear where it ends
+				for (int i = 0; i < 12; i++) {
+					double a = (now * 0.05) + i * Math.PI / 6;
+					world.spawnParticles(ParticleTypes.MYCELIUM, c.x + Math.cos(a) * r, c.y + 0.2, c.z + Math.sin(a) * r, 1, 0.05, 0.1, 0.05, 0.0);
+				}
 			}
 			if (now % 20 == 0) {
 				Box area = new Box(c, c).expand(cloud.radius(), 2, cloud.radius());
@@ -479,7 +491,7 @@ public final class Mycelid {
 				entity.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 1));
 			}
 		} else if (entity instanceof ServerPlayerEntity) {
-			entity.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 60, 0, true, true));
+			entity.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 60, 0, true, false, true));
 		}
 	}
 

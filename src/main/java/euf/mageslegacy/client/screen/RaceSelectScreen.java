@@ -14,7 +14,7 @@ import net.minecraft.util.Formatting;
 
 /** Five race cards on top; below, the chosen one's legend, strengths, weaknesses and abilities. */
 public class RaceSelectScreen extends Screen {
-	private static final int CARD_H = 34;
+	private static final int CARD_H = 40;
 	private Race selected = Race.MYCELID;
 	private ButtonWidget chooseButton;
 

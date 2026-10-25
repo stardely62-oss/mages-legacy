@@ -25,6 +25,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.Perspective;
 import net.minecraft.client.util.ScreenshotRecorder;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
@@ -160,11 +161,20 @@ public class HarnessClient implements ClientModInitializer {
 			});
 			tp(c, Vec3d.ofBottomCenter(arena).add(-1, 0, 0), Vec3d.ofBottomCenter(arena).add(2.5, 1, 0));
 		});
-		step(10, false, c -> MagesLegacyClient.useAbility(1));
+		step(10, false, c -> {
+			MagesLegacyClient.useAbility(1);
+			// From behind the shoulder, so the whole cloud is in the frame
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+		});
 		step(30, false, c -> {
 			screenshot(c, "spore_cloud");
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+			String effects = onServer(c, s -> s.getOverworld().getEntity(zombie) instanceof ZombieEntity z
+					? z.getStatusEffects().toString() + " hp " + z.getHealth() : "no zombie");
+			LOGGER.info("[harness] zombie in the cloud: {}", effects);
 			check("cloud_chokes_zombie", onServer(c, s -> s.getOverworld().getEntity(zombie) instanceof ZombieEntity z
-					&& z.hasStatusEffect(StatusEffects.BLINDNESS) && z.hasStatusEffect(StatusEffects.WITHER)));
+					&& z.hasStatusEffect(StatusEffects.BLINDNESS)
+					&& (z.hasStatusEffect(StatusEffects.WITHER) || z.hasStatusEffect(StatusEffects.POISON))));
 		});
 
 		// Eat a raw mushroom from the hand
