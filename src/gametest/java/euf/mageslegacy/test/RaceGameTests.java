@@ -139,11 +139,11 @@ public class RaceGameTests implements FabricGameTest {
 		done(ctx, player);
 	}
 
-	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "jump", tickLimit = 100)
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "jump", tickLimit = 150)
 	public void sporeJumpSproutsWhereYouLook(TestContext ctx) {
 		ServerWorld world = ctx.getWorld();
 		BlockPos start = ctx.getAbsolutePos(new BlockPos(1, 2, 0));
-		floor(world, start.add(-1, 0, 0), 3, 14);
+		floor(world, start.add(-1, 0, 0), 3, 20);
 		ServerPlayerEntity player = mycelid(ctx, start);
 		// Yaw 0 looks south (+Z), a little down so the spore lands on the floor
 		player.refreshPositionAndAngles(start.getX() + 0.5, start.getY(), start.getZ() + 0.5, 0, 25);
@@ -158,7 +158,17 @@ public class RaceGameTests implements FabricGameTest {
 			check(moved > 2 && moved <= 8.6, "the player should sprout up to 8 blocks ahead, moved " + moved);
 			check(player.getZ() > from.z, "forward is south, now at " + player.getPos());
 			check(!world.isSpaceEmpty(player, player.getBoundingBox().offset(0, -0.3, 0)), "landed on the floor");
-			done(ctx, player);
+			// Looking almost level: the spore flies the full reach and the Mycelid settles on the floor there
+			Vec3d second = player.getPos();
+			player.refreshPositionAndAngles(second.x, second.y, second.z, 0, 3);
+			data.readyAt.clear();
+			data.chainLeft = 0;
+			check(Mycelid.sporeJump(player, data) == Mycelid.AbilityResult.OK, "the level jump should start");
+			ctx.waitAndRun(Mycelid.JUMP_DELAY + 3, () -> {
+				double far = player.getPos().subtract(second).horizontalLength();
+				check(far > 6 && far <= 8.6, "a level jump should cover most of the 8 blocks, moved " + far);
+				done(ctx, player);
+			});
 		});
 	}
 

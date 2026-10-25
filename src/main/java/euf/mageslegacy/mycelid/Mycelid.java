@@ -270,11 +270,14 @@ public final class Mycelid {
 				RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, player));
 		Vec3d end = hit.getType() == HitResult.Type.MISS ? eye.add(look.multiply(range))
 				: hit.getPos().subtract(look.multiply(0.4));
-		// Walk back from the end until the body fits, preferring a spot with ground right below
+		// The spore marks where the feet go; walk back towards the player until the body fits, then settle on ground
 		for (double back = 0; back <= range; back += 0.5) {
-			Vec3d feet = end.subtract(look.multiply(back)).subtract(0, player.getStandingEyeHeight(), 0);
+			Vec3d feet = end.subtract(look.multiply(back));
 			if (hit.getType() == HitResult.Type.BLOCK && hit.getSide() == Direction.UP && back == 0) {
 				feet = Vec3d.ofBottomCenter(hit.getBlockPos().up());
+			}
+			if (feet.isInRange(player.getPos(), 1.5)) {
+				break;
 			}
 			Vec3d grounded = drop(player, feet);
 			if (grounded != null) {
