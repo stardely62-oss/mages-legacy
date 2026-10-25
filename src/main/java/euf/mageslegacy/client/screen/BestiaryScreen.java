@@ -43,12 +43,21 @@ public class BestiaryScreen extends Screen {
 		return extra().getCompound("kills").getInt(type.id()) >= type.killsNeeded(memory());
 	}
 
+	/** The echoes get the wider column (their names are long); the beasts and the ritual the rest. */
 	private int colWidth() {
-		return Math.min(250, (width - 40) / 2);
+		return Math.min(300, (width - 40) * 58 / 100);
+	}
+
+	private int beastWidth() {
+		return Math.min(260, width - 40 - colWidth());
 	}
 
 	private int leftX() {
-		return width / 2 - colWidth() - 8;
+		return (width - colWidth() - beastWidth() - 16) / 2;
+	}
+
+	private int rightX() {
+		return leftX() + colWidth() + 16;
 	}
 
 	private int top() {
@@ -158,8 +167,8 @@ public class BestiaryScreen extends Screen {
 	/** The bonded beasts and the ritual; returns the tooltip of the beast under the mouse, if any. */
 	private List<Text> drawBeasts(DrawContext ctx, int color, int mouseX, int mouseY) {
 		List<Text> tooltip = null;
-		int x = width / 2 + 8;
-		int w = colWidth();
+		int x = rightX();
+		int w = beastWidth();
 		LegacyUi.panel(ctx, x - 6, top() - 6, x + w + 6, height - 12);
 		ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.bestiary.beasts").formatted(Formatting.BOLD), x, top(), color);
 		int y = top() + 14;
