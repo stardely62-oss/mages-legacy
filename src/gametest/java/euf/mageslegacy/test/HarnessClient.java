@@ -323,15 +323,16 @@ public class HarnessClient implements ClientModInitializer {
 			selectItem(c, Items.BEEF);
 		});
 		for (int i = 0; i < 3; i++) {
-			step(10, false, c -> {
-				interactWolf(c);
-				// The ritual wants a minute between feedings; the harness doesn't wait that long
+			// The ritual wants a minute between feedings; the harness moves the last one back before each click
+			// (the click itself reaches the server a tick later)
+			step(2, false, c -> {
 				UUID me = c.player.getUuid();
 				onServer(c, s -> {
 					RaceState.get(s).data(me).shepherd.rituals.values().forEach(r -> r.lastFeed -= 2400);
 					return null;
 				});
 			});
+			step(10, false, c -> interactWolf(c));
 		}
 		step(20, false, c -> {
 			check("wolf_bonded", ClientRaceState.extra.getList("bonds", 10).size() == 1);
