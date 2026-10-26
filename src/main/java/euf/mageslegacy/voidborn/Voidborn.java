@@ -256,6 +256,10 @@ public final class Voidborn {
 		}
 		RaceData data = RaceState.of(player);
 		data.addResource(3);
+		// The dark is the void's own: a kill in it teaches more
+		if (player.getServerWorld().getLightLevel(BlockPos.ofFloored(player.getEyePos())) <= 7) {
+			Progression.addXp(player, data, 2);
+		}
 		if (data.has(Talents.WELL_HUNGER) && WELLS.stream().anyMatch(w -> w.owner() == player && w.pulled().contains(victim.getUuid()))) {
 			data.addResource(10);
 		}
@@ -289,6 +293,12 @@ public final class Voidborn {
 		}
 		long time = overworld.getTimeOfDay() + 24000;
 		overworld.setTimeOfDay(time - time % 24000);
+		// A night slept at home in the void
+		for (ServerPlayerEntity p : pocket.getPlayers()) {
+			if (p.isSleeping() && is(p)) {
+				Progression.addXp(p, RaceState.of(p), 10);
+			}
+		}
 		for (ServerWorld w : List.of(pocket, overworld)) {
 			for (ServerPlayerEntity p : w.getPlayers()) {
 				if (p.isSleeping()) {
@@ -650,13 +660,22 @@ public final class Voidborn {
 
 	/** The Excision of a given creature (the one looked at, or one a test picks). */
 	public static AbilityResult excise(ServerPlayerEntity player, RaceData data, LivingEntity target) {
-		// Pressed while holding someone: they go back now, and only then does the Excision start to recharge
-		if (holding(player)) {
-			long now = now(player.getServer());
-			HELD.replaceAll(h -> h.excised() && h.owner().equals(player.getUuid())
-					? new Held(h.entity(), h.owner(), h.origin(), h.pos(), h.yaw(), now, h.ally(), true) : h);
-			cooldown(player, data, 2, EXCISE_COOLDOWN);
-			return AbilityResult.OK;
+		// Pressed at nothing while holding someone: everyone held comes back now
+		if (target == null || HELD.stream().anyMatch(h -> h.entity() == target)) {
+			if (holding(player)) {
+				release(player);
+				return AbilityResult.OK;
+			}
+			return AbilityResult.NO_SIGHT;
+		}
+		if (tooBig(target)) {
+			return AbilityResult.NO_SIGHT;
+		}
+		boolean ally = !enemy(target, player);
+		// Only one enemy at a time; friends, as many as you like
+		if (!ally && HELD.stream().anyMatch(h -> h.excised() && !h.ally() && h.owner().equals(player.getUuid()))) {
+			player.sendMessage(Text.translatable("mages_legacy.voidborn.one_enemy"), true);
+			return AbilityResult.HINTED;
 		}
 		if (!ready(player, data, 2)) {
 			return AbilityResult.COOLDOWN;
@@ -665,17 +684,36 @@ public final class Voidborn {
 		if (data.resource < cost) {
 			return AbilityResult.NO_RESOURCE;
 		}
-		if (target == null || tooBig(target) || HELD.stream().anyMatch(h -> h.entity() == target)) {
-			return AbilityResult.NO_SIGHT;
-		}
 		ServerWorld pocket = Pocket.world(player.getServer());
 		if (pocket == null) {
 			return AbilityResult.LOCKED;
 		}
 		data.addResource(-cost);
 		data.dirty = true;
+		take(player, data, pocket, target, ally);
+		// A player taken brings the players standing right beside them along
+		if (target instanceof PlayerEntity) {
+			for (ServerPlayerEntity other : player.getServerWorld().getPlayers(p -> p != player && p != target && p.isAlive() && !p.isSpectator()
+					&& p.squaredDistanceTo(target) < 9 && HELD.stream().noneMatch(h -> h.entity() == p))) {
+				take(player, data, pocket, other, true);
+			}
+		}
+		if (!ally) {
+			Progression.addXp(player, data, 3);
+		}
+		return AbilityResult.OK;
+	}
+
+	/** Lets go of everyone this Voidborn's Excision holds: they come back where they were. */
+	private static void release(ServerPlayerEntity player) {
+		long now = now(player.getServer());
+		HELD.replaceAll(h -> h.excised() && h.owner().equals(player.getUuid())
+				? new Held(h.entity(), h.owner(), h.origin(), h.pos(), h.yaw(), now, h.ally(), true) : h);
+	}
+
+	/** One creature torn into the pocket: an enemy into the sealed cell, a friend onto the island. */
+	private static void take(ServerPlayerEntity player, RaceData data, ServerWorld pocket, LivingEntity target, boolean ally) {
 		ServerWorld world = player.getServerWorld();
-		boolean ally = !enemy(target, player);
 		int room = Pocket.room(player, data);
 		Pocket.build(pocket, room, data.voidborn, Pocket.half(data));
 		Vec3d from = target.getPos();
@@ -688,7 +726,7 @@ public final class Voidborn {
 		world.playSound(null, target.getBlockPos(), SoundEvents.ITEM_CHORUS_FRUIT_TELEPORT, SoundCategory.PLAYERS, 1.2f, 0.5f);
 		target.stopRiding();
 		target.removeAllPassengers();
-		Vec3d into = ally ? Pocket.center(room) : Pocket.cell(room);
+		Vec3d into = ally ? Pocket.center(room).add(world.getRandom().nextDouble() * 2 - 1, 0, world.getRandom().nextDouble() * 2 - 1) : Pocket.cell(room);
 		pocket.setChunkForced((int) Math.floor(into.x) >> 4, (int) Math.floor(into.z) >> 4, true);
 		Entity moved = Pocket.move(target, pocket, into, yaw);
 		// Dropped from High: an enemy comes back out of the sky, if there is sky above its spot
@@ -700,11 +738,8 @@ public final class Voidborn {
 			}
 		}
 		HELD.add(new Held(moved, player.getUuid(), world, back, yaw, Long.MAX_VALUE, ally, true));
-		if (!ally) {
-			Progression.addXp(player, data, 3);
-		}
-		return AbilityResult.OK;
 	}
+
 
 	/** Motes of void drawn into a point from all around. */
 	private static void implode(ServerWorld world, Vec3d c) {
@@ -730,6 +765,27 @@ public final class Voidborn {
 		return hit != null && hit.getEntity() instanceof LivingEntity living ? living : null;
 	}
 
+	/**
+	 * Someone joins the game standing in a pocket that isn't theirs (taken in by a friend's Excision, then gone
+	 * offline): nobody holds them any more, so they come out at their spawn point.
+	 */
+	public static void onJoin(ServerPlayerEntity player) {
+		RaceData data = RaceState.of(player);
+		if (!Pocket.in(player) || (data != null && data.race == Race.VOIDBORN && Pocket.inOwnRoom(player, data))
+				|| HELD.stream().anyMatch(h -> h.entity() == player)) {
+			return;
+		}
+		ServerWorld to = player.getServer().getWorld(player.getSpawnPointDimension());
+		BlockPos spawn = player.getSpawnPointPosition();
+		Vec3d at = to != null && spawn != null
+				? PlayerEntity.findRespawnPosition(to, spawn, player.getSpawnAngle(), player.isSpawnForced(), true).orElse(null) : null;
+		if (at == null) {
+			to = player.getServer().getOverworld();
+			at = Vec3d.ofBottomCenter(to.getSpawnPos());
+		}
+		player.teleport(to, at.x, at.y, at.z, player.getYaw(), player.getPitch());
+	}
+
 	/** Whether this Voidborn holds someone in its pocket by the Excision now. */
 	public static boolean holding(ServerPlayerEntity player) {
 		return HELD.stream().anyMatch(h -> h.excised() && h.owner().equals(player.getUuid()));
@@ -748,6 +804,15 @@ public final class Voidborn {
 			ServerPlayerEntity owner = server.getPlayerManager().getPlayer(h.owner());
 			// A held one is let go when its Voidborn lets go, leaves or dies
 			boolean ownerGone = owner == null || !owner.isAlive();
+			// An enemy held costs its Voidborn 1 void a second; when the void runs out, it falls back out
+			if (h.excised() && !h.ally() && !ownerGone && h.until() > now && now % 20 == 0) {
+				RaceData upkeep = RaceState.of(owner);
+				if (upkeep.resource < 1) {
+					h = new Held(h.entity(), h.owner(), h.origin(), h.pos(), h.yaw(), now, false, true);
+				} else {
+					upkeep.addResource(-1);
+				}
+			}
 			if (h.until() > now && !ownerGone && !h.entity().isRemoved()) {
 				// Gnawing Void: an enemy held by the Excision wears away, down to a third of its health
 				if (h.excised() && !h.ally() && now % 20 == 0 && h.entity() instanceof LivingEntity living

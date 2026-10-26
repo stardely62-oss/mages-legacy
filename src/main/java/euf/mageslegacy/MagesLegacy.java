@@ -90,6 +90,7 @@ public class MagesLegacy implements ModInitializer {
 				data.prompted = false;
 				data.dirty = true;
 			}
+			Voidborn.onJoin(handler.player);
 		}));
 		ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
 			RaceData data = RaceState.of(newPlayer);

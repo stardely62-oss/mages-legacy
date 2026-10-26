@@ -45,6 +45,29 @@ public final class Progression {
 		return tier;
 	}
 
+	/** How much stronger a race's abilities are at its level: 1.5% a level, three quarters more at level 50. */
+	public static float power(RaceData data) {
+		return 1 + 0.015f * data.level;
+	}
+
+	/**
+	 * A race grows into its powers: damage from its abilities (void and spore magic, a race's own blows of power) and
+	 * from a Shepherd's creatures grows with the race level. Ordinary weapon blows stay as they are.
+	 */
+	public static float scale(net.minecraft.entity.damage.DamageSource source, float amount) {
+		net.minecraft.entity.Entity attacker = source.getAttacker();
+		ServerPlayerEntity owner = null;
+		if (attacker instanceof ServerPlayerEntity player && source.isOf(net.minecraft.entity.damage.DamageTypes.INDIRECT_MAGIC)
+				&& source.getSource() == player) {
+			owner = player;
+		} else if (attacker != null && !(attacker instanceof net.minecraft.entity.player.PlayerEntity) && attacker.getServer() != null) {
+			java.util.UUID id = euf.mageslegacy.shepherd.Creatures.ownerOf(attacker);
+			owner = id == null ? null : attacker.getServer().getPlayerManager().getPlayer(id);
+		}
+		RaceData data = owner == null ? null : RaceState.of(owner);
+		return data == null || data.race == null ? amount : amount * power(data);
+	}
+
 	/** Every monster a race's player kills teaches a little, whatever the race. */
 	public static void onKill(ServerPlayerEntity player, net.minecraft.entity.LivingEntity victim) {
 		RaceData data = RaceState.of(player);

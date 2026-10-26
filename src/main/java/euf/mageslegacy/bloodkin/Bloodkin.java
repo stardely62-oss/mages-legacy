@@ -44,6 +44,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 /**
  * Everything the Bloodkin do: blood as their resource, which only hunting fills and which slowly drains away;
@@ -56,6 +57,9 @@ public final class Bloodkin {
 	public static final int HARVEST_COST = 40;
 	public static final int SWARM_COST = 30;
 	public static final int FEAST_COST = 30;
+	public static final int TRANSFUSE_COST = 25;
+	private static final int TRANSFUSE_SLOT = 7;
+	private static final int TRANSFUSE_COOLDOWN = 200;
 	public static final int THIRST_BELOW = 20;
 	public static final int SENSE = 12;
 	public static final int SENSE_WIDE = 24;
@@ -219,11 +223,24 @@ public final class Bloodkin {
 		sun(player, data, world);
 	}
 
-	/** In direct sunlight a bare head burns (Shade halves it, Twilight Cloak turns it into mere weakness). */
-	private static void sun(ServerPlayerEntity player, RaceData data, ServerWorld world) {
-		boolean sunlit = world.getDimension().hasSkyLight() && world.isDay() && !world.isRaining() && !player.isTouchingWaterOrRain()
+	/** Whether a player stands in direct sunlight. */
+	public static boolean sunlit(PlayerEntity player) {
+		World world = player.getWorld();
+		return world.getDimension().hasSkyLight() && world.isDay() && !world.isRaining() && !player.isTouchingWaterOrRain()
 				&& world.isSkyVisible(BlockPos.ofFloored(player.getEyePos()));
-		if (!sunlit || !player.getEquippedStack(EquipmentSlot.HEAD).isEmpty()) {
+	}
+
+	/**
+	 * Direct sunlight dries a Bloodkin's blood twice as fast, helmet or not (Twilight Cloak softens that to half again);
+	 * a bare head burns as well (Shade halves it, Twilight Cloak turns it into mere weakness). Its healing stops in
+	 * the sun too (see {@link #naturalHealing}).
+	 */
+	private static void sun(ServerPlayerEntity player, RaceData data, ServerWorld world) {
+		if (!sunlit(player)) {
+			return;
+		}
+		data.addResource(data.has(Talents.NIGHT_CLOAK) ? -0.15f : -0.3f);
+		if (!player.getEquippedStack(EquipmentSlot.HEAD).isEmpty()) {
 			return;
 		}
 		if (data.has(Talents.NIGHT_CLOAK)) {
@@ -245,13 +262,19 @@ public final class Bloodkin {
 
 	// ---- weaknesses ----
 
-	/** Natural healing stops while thirsty (unless On the Edge). */
+	/** Natural healing stops while thirsty (unless On the Edge), and in direct sunlight (halved with Twilight Cloak). */
 	public static float naturalHealing(PlayerEntity player) {
 		if (!is(player)) {
 			return 1;
 		}
 		RaceData data = RaceState.of((ServerPlayerEntity) player);
-		return thirsty(data) && !data.has(Talents.THIRST_EDGE) ? 0 : 1;
+		if (thirsty(data) && !data.has(Talents.THIRST_EDGE)) {
+			return 0;
+		}
+		if (sunlit(player)) {
+			return data.has(Talents.NIGHT_CLOAK) ? 0.5f : 0;
+		}
+		return 1;
 	}
 
 	/** Ordinary food feeds a Bloodkin only a third. */
@@ -409,7 +432,11 @@ public final class Bloodkin {
 		return switch (slot) {
 			case 0 -> dash(player, data);
 			case 1 -> harvest(player, data);
-			case 2 -> sacrifice(player, data);
+			case 2 -> {
+				// Looking at a friend, the Bloodkin gives blood instead of shedding it
+				LivingEntity friend = lookedAtFriend(player, 8);
+				yield friend != null ? transfuse(player, data, friend) : sacrifice(player, data);
+			}
 			case 3 -> data.has(Talents.FANG_FEAST) ? feast(player, data) : RaceData.talentLocked(player, Talents.FANG_FEAST);
 			case 4 -> data.has(Talents.NIGHT_BATS) ? swarm(player, data) : RaceData.talentLocked(player, Talents.NIGHT_BATS);
 			default -> AbilityResult.LOCKED;
@@ -652,6 +679,58 @@ public final class Bloodkin {
 		Fx.ring(world, player.getPos(), 0.3f, 2.5f, 12, WINE_INK);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_PLAYER_HURT_SWEET_BERRY_BUSH, SoundCategory.PLAYERS, 1.0f, 0.6f);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_BREWING_STAND_BREW, SoundCategory.PLAYERS, 0.8f, 0.5f);
+		return AbilityResult.OK;
+	}
+
+	/** A friend in sight within {@code range}: another player, or a tamed or bonded creature. */
+	private static LivingEntity lookedAtFriend(ServerPlayerEntity player, double range) {
+		Vec3d eye = player.getEyePos();
+		Vec3d look = player.getRotationVec(1.0f);
+		net.minecraft.util.hit.BlockHitResult wall = player.getWorld().raycast(new net.minecraft.world.RaycastContext(eye, eye.add(look.multiply(range)),
+				net.minecraft.world.RaycastContext.ShapeType.COLLIDER, net.minecraft.world.RaycastContext.FluidHandling.NONE, player));
+		double reach = wall.getType() == net.minecraft.util.hit.HitResult.Type.MISS ? range : wall.getPos().distanceTo(eye);
+		Vec3d end = eye.add(look.multiply(reach));
+		Box box = player.getBoundingBox().stretch(look.multiply(reach)).expand(1);
+		net.minecraft.util.hit.EntityHitResult hit = net.minecraft.entity.projectile.ProjectileUtil.raycast(player, eye, end, box,
+				e -> e instanceof LivingEntity l && l.isAlive() && e != player && !(e instanceof Monster) && (e instanceof PlayerEntity p && !p.isSpectator()
+						|| e instanceof TameableEntity t && t.isTamed() || euf.mageslegacy.shepherd.Creatures.ownerOf(e) != null), reach * reach);
+		return hit != null && hit.getEntity() instanceof LivingEntity living ? living : null;
+	}
+
+	/**
+	 * Blood Transfusion (Z, looking at a friend): the Bloodkin's blood into a friend's veins: 25 blood and 2 of its
+	 * own health for 6 health, Regeneration and, for a player, Strength for 8 seconds. Once in 10 seconds.
+	 */
+	public static AbilityResult transfuse(ServerPlayerEntity player, RaceData data, LivingEntity friend) {
+		if (!ready(player, data, TRANSFUSE_SLOT)) {
+			return AbilityResult.COOLDOWN;
+		}
+		if (data.resource < TRANSFUSE_COST) {
+			return AbilityResult.NO_RESOURCE;
+		}
+		if (player.getHealth() <= 3) {
+			player.sendMessage(Text.translatable("mages_legacy.bloodkin.too_weak"), true);
+			return AbilityResult.HINTED;
+		}
+		data.addResource(-TRANSFUSE_COST);
+		cooldown(player, data, TRANSFUSE_SLOT, TRANSFUSE_COOLDOWN);
+		player.setHealth(player.getHealth() - 2);
+		friend.heal(6);
+		friend.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 0, true, true, true));
+		if (friend instanceof PlayerEntity) {
+			friend.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 160, 0, true, true, true));
+		}
+		ServerWorld world = player.getServerWorld();
+		// A stream of blood from vein to vein, and it winds into the friend
+		Fx.tendril(world, player, friend, 18, WINE_INK, BLOOD_INK);
+		Fx.helix(world, friend, friend.getWidth() + 0.6f, friend.getHeight() + 0.4f, 3, true, 20, BLOOD_INK);
+		Fx.burst(world, friend.getPos().add(0, friend.getHeight() / 2, 0), 1.2f + friend.getWidth(), 7, BLOOD_INK);
+		Fx.pulse(player, 1, 18, HEART_RGB);
+		world.spawnParticles(net.minecraft.particle.ParticleTypes.HEART, friend.getX(), friend.getY() + friend.getHeight() + 0.2, friend.getZ(), 4, 0.3, 0.2,
+				0.3, 0);
+		world.playSound(null, friend.getBlockPos(), SoundEvents.ENTITY_GENERIC_DRINK, SoundCategory.PLAYERS, 1.0f, 1.2f);
+		world.playSound(null, friend.getBlockPos(), SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 1.0f, 1.2f);
+		Progression.addXp(player, data, 3);
 		return AbilityResult.OK;
 	}
 

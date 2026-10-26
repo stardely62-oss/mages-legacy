@@ -3,6 +3,7 @@ package euf.mageslegacy.mixin;
 import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
+import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.shepherd.Shepherd;
@@ -36,6 +37,7 @@ public abstract class LivingEntityMixin {
 		} else if (race == Race.FROZEN) {
 			amount = Frozen.modifyDamage((ServerPlayerEntity) self, source, amount);
 		}
+		amount = Progression.scale(source, amount);
 		Voidborn.onHurt(self, amount);
 		amount = Frozen.onHit(self, source, amount);
 		amount = Bloodkin.onHit(self, source, amount);

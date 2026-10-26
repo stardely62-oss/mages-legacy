@@ -51,6 +51,16 @@ public final class AbilitySlots {
 	 * almost at once, the others as the race grows; abilities a talent opens need only that talent.
 	 */
 	public static int unlockLevel(Race race, int slot) {
+		// The Shepherds start from the Song (beasts first), then the Call, the Whistle and the horn
+		if (race == Race.SHEPHERD) {
+			return switch (slot) {
+				case 0 -> 3;
+				case 1 -> 10;
+				case 2 -> 5;
+				case 3 -> 1;
+				default -> 0;
+			};
+		}
 		// The Voidborn start from their pocket: home first, the rest of the void after
 		if (race == Race.VOIDBORN) {
 			return switch (slot) {
@@ -65,7 +75,7 @@ public final class AbilitySlots {
 			case 0 -> 1;
 			case 1 -> 5;
 			case 2 -> 10;
-			case 3 -> race == Race.SHEPHERD ? 3 : 0;
+			case 3 -> 0;
 			default -> 0;
 		};
 	}
