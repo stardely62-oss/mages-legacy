@@ -85,7 +85,7 @@ public final class Voidborn {
 
 	private record Step(ServerPlayerEntity player, List<Vec3d> path, Set<UUID> hit, boolean through, List<ServerPlayerEntity> companions) {}
 
-	private record Well(ServerWorld world, Vec3d center, double radius, long until, UUID owner, Set<UUID> pulled) {}
+	private record Well(ServerWorld world, Vec3d center, double radius, long until, ServerPlayerEntity owner, Set<UUID> pulled) {}
 
 	/** An open way left by a Rift Step: whoever walks into its start comes out at its end. */
 	private record Door(ServerWorld world, Vec3d from, Vec3d to, long until) {}
@@ -246,7 +246,7 @@ public final class Voidborn {
 		}
 		RaceData data = RaceState.of(player);
 		data.addResource(3);
-		if (data.has(Talents.WELL_HUNGER) && WELLS.stream().anyMatch(w -> w.owner().equals(player.getUuid()) && w.pulled().contains(victim.getUuid()))) {
+		if (data.has(Talents.WELL_HUNGER) && WELLS.stream().anyMatch(w -> w.owner() == player && w.pulled().contains(victim.getUuid()))) {
 			data.addResource(10);
 		}
 		if (victim instanceof EndermanEntity) {
@@ -524,7 +524,7 @@ public final class Voidborn {
 		Vec3d center = aim(player, 20);
 		int ticks = data.has(Talents.WELL_LONG) ? 120 : WELL_TICKS;
 		double radius = wellRadius(data);
-		WELLS.add(new Well(world, center, radius, now(player.getServer()) + ticks, player.getUuid(), new HashSet<>()));
+		WELLS.add(new Well(world, center, radius, now(player.getServer()) + ticks, player, new HashSet<>()));
 		Fx.vortex(world, center, (float) radius * 0.3f, ticks, VOID_RGB);
 		Fx.mark(world, ground(world, center), null, (float) radius * 0.45f, ticks + 10, VOID_INK, Fx.CRACKS);
 		Fx.shake(player, 0.8f, 8);
@@ -549,7 +549,7 @@ public final class Voidborn {
 	private static void tickWells(MinecraftServer server, long now) {
 		for (Iterator<Well> it = WELLS.iterator(); it.hasNext(); ) {
 			Well w = it.next();
-			ServerPlayerEntity owner = server.getPlayerManager().getPlayer(w.owner());
+			ServerPlayerEntity owner = w.owner().isRemoved() ? null : w.owner();
 			ServerWorld world = w.world();
 			Box reach = new Box(w.center(), w.center()).expand(w.radius());
 			RaceData data = owner == null ? null : RaceState.of(owner);
@@ -926,7 +926,7 @@ public final class Voidborn {
 	/** The race changed: whatever it held goes back, its wells close. */
 	public static void cleanup(ServerPlayerEntity player) {
 		FREE_STEP.remove(player.getUuid());
-		WELLS.removeIf(w -> w.owner().equals(player.getUuid()));
+		WELLS.removeIf(w -> w.owner() == player);
 		STEPS.removeIf(s -> s.player() == player);
 		HELD.replaceAll(h -> h.owner().equals(player.getUuid()) ? new Held(h.entity(), h.owner(), h.origin(), h.pos(), h.yaw(), 0, h.ally()) : h);
 	}
