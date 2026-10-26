@@ -17,6 +17,7 @@
 		"client.ClientPlayerEntityMixin",
 		"client.EntityOutlineMixin",
 		"client.GameRendererMixin",
+		"client.IntegratedServerLoaderMixin",
 		"client.LivingEntityRendererMixin",
 		"client.MinecraftClientMixin"
 	],
