@@ -1,6 +1,7 @@
 package euf.mageslegacy.shepherd;
 
 import euf.mageslegacy.mixin.MobEntityAccessor;
+import euf.mageslegacy.race.RaceState;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -138,9 +139,20 @@ public final class Creatures {
 			// creepers (a melee echo would set one off next to its Shepherd); those only when they attack
 			ai.mages_legacy$targets().add(3, new ActiveTargetGoal<>(mob, MobEntity.class, 10, true, false, e ->
 					e instanceof Monster && !(e instanceof Angerable) && !(e instanceof CreeperEntity) && ownerOf(e) == null
-							&& nearOwner(mob, e, 16)));
+							&& nearOwner(mob, e, huntRadius(stance(mob)))));
 		}
 		ai.mages_legacy$goals().add(fights ? 6 : 2, new FollowOwnerGoal(mob));
+	}
+
+	/** The Whistle's order this creature's Shepherd gave (guard while the Shepherd is away). */
+	static int stance(MobEntity mob) {
+		ServerPlayerEntity owner = owner(mob);
+		return owner == null ? ShepherdData.GUARD : RaceState.of(owner).shepherd.stance;
+	}
+
+	/** How far from the Shepherd its creatures pick fights on their own: never on Follow, 8 on Guard, 24 on Hunt. */
+	static double huntRadius(int stance) {
+		return stance == ShepherdData.HUNT ? 24 : stance == ShepherdData.GUARD ? 8 : 0;
 	}
 
 	private static boolean nearOwner(MobEntity mob, LivingEntity target, double radius) {
@@ -186,7 +198,8 @@ public final class Creatures {
 			if (mob instanceof AxolotlEntity && !owner.isTouchingWater()) {
 				return false;
 			}
-			return mob.squaredDistanceTo(owner) > 64;
+			// Guards keep close: they start after their Shepherd at 4 blocks, the others at 8
+			return mob.squaredDistanceTo(owner) > (stance(mob) == ShepherdData.GUARD ? 16 : 64);
 		}
 
 		@Override

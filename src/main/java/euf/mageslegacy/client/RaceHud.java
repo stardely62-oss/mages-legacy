@@ -30,8 +30,10 @@ public final class RaceHud {
 	public static final Item[] MYCELID_ICONS = {Items.RED_MUSHROOM, Items.SPORE_BLOSSOM, Items.MYCELIUM};
 	public static final String[] MYCELID_ABILITY_ICONS = {"ability_spore_jump", "ability_spore_cloud", "ability_network"};
 	public static final int[] MYCELID_COSTS = {15, 30, 40};
-	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.GLISTERING_MELON_SLICE, Items.NOTE_BLOCK};
-	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_mend", "ability_song"};
+	/** The Whistle's orders as marks on its slot: Follow, Guard, Hunt. */
+	public static final String[] STANCE_MARKS = {"↩", "◈", "⚔"};
+	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.FEATHER, Items.NOTE_BLOCK};
+	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_whistle", "ability_song"};
 
 	private RaceHud() {
 	}
@@ -65,7 +67,7 @@ public final class RaceHud {
 				case 0 -> squadCost(false);
 				case 1 -> Shepherd.RALLY_COST;
 				case 3 -> Bonds.SONG_COST;
-				default -> Shepherd.MEND_COST;
+				default -> 0;
 			};
 		}
 		if (slot == 0 && ClientRaceState.talents.contains(Talents.NET_CHEAP)) {
@@ -201,6 +203,14 @@ public final class RaceHud {
 			LegacyUi.outline(ctx, sx - 1, sy - 1, sx + 19, sy + 19, ready ? LegacyUi.mix(LegacyUi.RIM, color, 0.5f) : LegacyUi.RIM_DARK);
 			ctx.fill(sx, sy, sx + 18, sy + 18, 0xD0141016);
 			drawAbility(ctx, race, slot, sx + 1, sy + 1, ready);
+			if (race == Race.SHEPHERD && slot == 2) {
+				// The Whistle's order in the corner: back to heel, guard, hunt
+				String order = STANCE_MARKS[Math.floorMod(ClientRaceState.extra.getInt("stance"), 3)];
+				ctx.getMatrices().push();
+				ctx.getMatrices().translate(0, 0, 250);
+				ctx.drawText(tr, order, sx, sy - 1, LegacyUi.GOLD, true);
+				ctx.getMatrices().pop();
+			}
 			if (race == Race.SHEPHERD && slot == 0) {
 				// The active squad's numeral in the corner
 				String numeral = Shepherd.ROMAN[Math.floorMod(ClientRaceState.extra.getInt("activePreset"), 3)];

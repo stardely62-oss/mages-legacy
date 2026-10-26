@@ -44,19 +44,19 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Everything the Shepherds do that isn't the echoes or the bonds themselves: the voice (their resource) and the bond
  * capacity, their weaknesses (less health, a weak hand, heavy armour crowds the bonds), the abilities (Call, Rally,
- * Mend the Pack; the Song of Bonds lives in {@link Bonds}), the auras of the Voice branch, and race experience from what their creatures do.
+ * the Whistle; the Song of Bonds lives in {@link Bonds}), the auras of the Voice branch, and race experience from what their creatures do.
  */
 public final class Shepherd {
 	public static final int BASE_CAPACITY = 4;
 	public static final int RALLY_COST = 25;
-	public static final int MEND_COST = 30;
-	public static final int MEND_RADIUS = 16;
+	public static final float RALLY_HEAL = 0.3f;
+	public static final float RALLY_HEAL_WARM = 0.5f;
 	public static final int GATHER_COST = 10;
 	public static final int CREATURE_KILL_XP = 3;
 	public static final int ECHO_LEARNED_XP = 20;
 	private static final int CALL_COOLDOWN = 20;
 	private static final int RALLY_COOLDOWN = 600;
-	private static final int MEND_COOLDOWN = 400;
+	private static final int WHISTLE_COOLDOWN = 10;
 	private static final int GATHER_SLOT = 5;
 	private static final int GATHER_COOLDOWN = 160;
 	private static final int ARMY_SLOT = 7;
@@ -141,6 +141,7 @@ public final class Shepherd {
 				}
 			}
 		}
+		stance(player, data, near);
 		Bonds.tickOwner(player, data);
 	}
 
@@ -215,6 +216,11 @@ public final class Shepherd {
 		if (attacker != null && attacker.getCommandTags().contains(Creatures.BOND_TAG)) {
 			Bonds.onBeastHit(attacker, victim);
 		}
+		// On Guard the pack stands firm: a fifth less damage
+		UUID guardOwner = victim instanceof ServerPlayerEntity ? null : Creatures.ownerOf(victim);
+		if (guardOwner != null && dataOf(victim, guardOwner).map(d -> d.shepherd.stance == ShepherdData.GUARD).orElse(false)) {
+			amount *= 0.8f;
+		}
 		UUID beastOwner = victim.getCommandTags().contains(Creatures.BOND_TAG) ? Creatures.ownerOf(victim) : null;
 		if (beastOwner != null && dataOf(victim, beastOwner).map(d -> d.has(Talents.PACK_ARMOR)).orElse(false)) {
 			amount *= 0.7f;
@@ -259,7 +265,7 @@ public final class Shepherd {
 		return switch (slot) {
 			case 0 -> call(player, data);
 			case 1 -> rally(player, data);
-			case 2 -> mend(player, data);
+			case 2 -> whistle(player, data);
 			case 3 -> Bonds.song(player, data);
 			default -> AbilityResult.LOCKED;
 		};
@@ -400,8 +406,8 @@ public final class Shepherd {
 	public static final String[] ROMAN = {"I", "II", "III"};
 
 	/**
-	 * Rally: every creature within 24 blocks grows stronger and faster for 10 seconds (Loud Rally adds resistance).
-	 * Command turns them all on what you look at; the Army of Oblivion crown calls every echo you know for 30 s.
+	 * Rally: every creature within 24 blocks grows stronger and faster for 10 seconds (Loud Rally adds resistance)
+	 * and heals; the players around heal 2 hearts. The Army of Oblivion crown calls every echo you know for 30 s.
 	 */
 	public static AbilityResult rally(ServerPlayerEntity player, RaceData data) {
 		if (!ready(player, data, 1)) {
@@ -422,13 +428,26 @@ public final class Shepherd {
 			}
 			cooldown(player, data, ARMY_SLOT, ARMY_COOLDOWN);
 		}
+		// The horn heals the pack a lot (30% of their health, half with Warm Hands, which also cleanse them) and the
+		// players around only a little
+		boolean warm = data.has(Talents.VOICE_MEND);
 		for (LivingEntity c : Creatures.around(player, 24)) {
 			c.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 200, loud ? 1 : 0, false, true));
 			c.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 200, 0, false, true));
 			if (loud) {
 				c.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 200, 0, false, true));
 			}
+			c.heal(c.getMaxHealth() * (warm ? RALLY_HEAL_WARM : RALLY_HEAL));
+			if (warm) {
+				c.getStatusEffects().stream().filter(e -> !e.getEffectType().isBeneficial()).map(StatusEffectInstance::getEffectType).toList()
+						.forEach(c::removeStatusEffect);
+			}
 			world.spawnParticles(ParticleTypes.ANGRY_VILLAGER, c.getX(), c.getY() + c.getHeight() + 0.3, c.getZ(), 1, 0, 0, 0, 0);
+			world.spawnParticles(ParticleTypes.HEART, c.getX(), c.getY() + c.getHeight() + 0.2, c.getZ(), 2, 0.3, 0.2, 0.3, 0);
+		}
+		for (ServerPlayerEntity p : world.getEntitiesByClass(ServerPlayerEntity.class, player.getBoundingBox().expand(24),
+				p -> p.isAlive() && !p.isSpectator())) {
+			p.heal(4);
 		}
 		world.playSound(null, player.getBlockPos(), SoundEvents.EVENT_RAID_HORN.value(), SoundCategory.PLAYERS, 0.8f, 1.3f);
 		world.spawnParticles(Echoes.SPIRIT, player.getX(), player.getY() + 1.6, player.getZ(), 30, 1.0, 0.4, 1.0, 0.05);
@@ -436,11 +455,11 @@ public final class Shepherd {
 	}
 
 	/**
-	 * Mend the Pack: every creature of yours within 16 blocks heals 40% of its health (60% with Warm Hands, which also
-	 * cleanses them and gives Resistance); you and other players there heal only 2 hearts. Sneaking gathers instead:
-	 * your creatures within 64 blocks come to your side, on their own short cooldown.
+	 * The Whistle: the pack's order changes, Follow (close, fighting only back), Guard (in a ring around you, picking
+	 * off what comes near, taking less damage) or Hunt (going after every monster within 24 blocks). It costs no
+	 * voice. Sneaking gathers instead: your creatures within 64 blocks come to your side, on their own cooldown.
 	 */
-	public static AbilityResult mend(ServerPlayerEntity player, RaceData data) {
+	public static AbilityResult whistle(ServerPlayerEntity player, RaceData data) {
 		ServerWorld world = player.getServerWorld();
 		if (player.isSneaking()) {
 			if (!ready(player, data, GATHER_SLOT)) {
@@ -473,32 +492,69 @@ public final class Shepherd {
 		if (!ready(player, data, 2)) {
 			return AbilityResult.COOLDOWN;
 		}
-		if (data.resource < MEND_COST) {
-			return AbilityResult.NO_RESOURCE;
-		}
-		boolean warm = data.has(Talents.VOICE_MEND);
-		for (LivingEntity c : Creatures.around(player, MEND_RADIUS)) {
-			c.heal(c.getMaxHealth() * (warm ? 0.6f : 0.4f));
-			c.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 1, true, true));
-			if (warm) {
-				c.getStatusEffects().stream().filter(e -> !e.getEffectType().isBeneficial()).map(StatusEffectInstance::getEffectType).toList()
-						.forEach(c::removeStatusEffect);
-				c.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 100, 0, true, true));
+		ShepherdData shepherd = data.shepherd;
+		shepherd.stance = (shepherd.stance + 1) % 3;
+		data.dirty = true;
+		cooldown(player, data, 2, WHISTLE_COOLDOWN);
+		for (LivingEntity c : Creatures.around(player, 32)) {
+			// Called back to heel: whatever they chased that isn't hurting anyone of ours is let go
+			if (shepherd.stance == ShepherdData.FOLLOW && c instanceof MobEntity mob && !threatens(mob.getTarget(), player)) {
+				mob.setTarget(null);
 			}
-			world.spawnParticles(ParticleTypes.HEART, c.getX(), c.getY() + c.getHeight() + 0.2, c.getZ(), 3, 0.3, 0.2, 0.3, 0);
+			world.spawnParticles(ParticleTypes.NOTE, c.getX(), c.getY() + c.getHeight() + 0.3, c.getZ(), 0, shepherd.stance / 2.0, 0, 0, 1);
 		}
-		// Players (the Shepherd among them) only get a little: the song is meant for the pack
-		for (ServerPlayerEntity p : world.getEntitiesByClass(ServerPlayerEntity.class, player.getBoundingBox().expand(MEND_RADIUS),
-				p -> p.isAlive() && !p.isSpectator())) {
-			p.heal(4);
-			world.spawnParticles(ParticleTypes.HAPPY_VILLAGER, p.getX(), p.getY() + 1, p.getZ(), 6, 0.3, 0.4, 0.3, 0);
-		}
-		world.spawnParticles(ParticleTypes.WAX_ON, player.getX(), player.getY() + 0.3, player.getZ(), 40, MEND_RADIUS * 0.3, 0.2, MEND_RADIUS * 0.3, 0);
-		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.2f, 0.7f);
-		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_CHIME.value(), SoundCategory.PLAYERS, 1.0f, 1.0f);
-		data.addResource(-MEND_COST);
-		cooldown(player, data, 2, MEND_COOLDOWN);
+		float pitch = shepherd.stance == ShepherdData.HUNT ? 2.0f : shepherd.stance == ShepherdData.GUARD ? 1.6f : 1.2f;
+		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.2f, pitch);
+		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.0f, pitch * 0.85f);
+		player.sendMessage(Text.translatable("mages_legacy.whistle." + shepherd.stance).formatted(Formatting.GOLD), true);
 		return AbilityResult.OK;
+	}
+
+	/** Whether this mob is fighting the Shepherd or one of its creatures. */
+	private static boolean threatens(@Nullable LivingEntity mob, ServerPlayerEntity owner) {
+		if (!(mob instanceof MobEntity m) || !mob.isAlive()) {
+			return false;
+		}
+		LivingEntity target = m.getTarget();
+		return target == owner || (target != null && Creatures.isCreatureOf(target, owner.getUuid()));
+	}
+
+	/**
+	 * The Whistle's order, once a second. Hunt: idle creatures go for the nearest monster within 24 blocks. Guard:
+	 * monsters coming for the Shepherd are met by the nearest idle creature. Follow: whatever a creature chases far
+	 * from the Shepherd without being a threat is let go.
+	 */
+	private static void stance(ServerPlayerEntity player, RaceData data, List<LivingEntity> near) {
+		int stance = data.shepherd.stance;
+		ServerWorld world = player.getServerWorld();
+		if (stance == ShepherdData.FOLLOW) {
+			for (LivingEntity c : near) {
+				if (c instanceof MobEntity mob && mob.getTarget() != null && mob.getTarget().squaredDistanceTo(player) > 64
+						&& !threatens(mob.getTarget(), player)) {
+					mob.setTarget(null);
+				}
+			}
+			return;
+		}
+		double radius = Creatures.huntRadius(stance);
+		List<MobEntity> foes = world.getEntitiesByClass(MobEntity.class, player.getBoundingBox().expand(stance == ShepherdData.GUARD ? 12 : radius),
+				e -> e.isAlive() && e instanceof Monster && Creatures.ownerOf(e) == null
+						&& (stance == ShepherdData.HUNT || e.getTarget() == player || e.squaredDistanceTo(player) < radius * radius));
+		if (foes.isEmpty()) {
+			return;
+		}
+		for (LivingEntity c : near) {
+			if (c instanceof MobEntity mob && (mob.getTarget() == null || !mob.getTarget().isAlive())
+					&& mob.getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE) != null) {
+				MobEntity nearest = null;
+				for (MobEntity foe : foes) {
+					if (nearest == null || foe.squaredDistanceTo(mob) < nearest.squaredDistanceTo(mob)) {
+						nearest = foe;
+					}
+				}
+				mob.setTarget(nearest);
+			}
+		}
 	}
 
 	/** Loss's Echo: one of your creatures fell (an echo faded in battle, a beast went to rest). */

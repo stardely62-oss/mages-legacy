@@ -25,6 +25,11 @@ public class ShepherdData {
 	 */
 	public final List<Map<String, Integer>> presets = List.of(new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>());
 	public int activePreset;
+	/** The Whistle's order to the pack: {@link #FOLLOW}, {@link #GUARD} or {@link #HUNT}. */
+	public int stance = GUARD;
+	public static final int FOLLOW = 0;
+	public static final int GUARD = 1;
+	public static final int HUNT = 2;
 	public final List<Bond> bonds = new ArrayList<>();
 	/** Animal uuid -> a bond ritual under way. */
 	public final Map<UUID, Ritual> rituals = new HashMap<>();
@@ -119,6 +124,7 @@ public class ShepherdData {
 		selectedEcho = "";
 		presets.forEach(Map::clear);
 		activePreset = 0;
+		stance = GUARD;
 		bonds.clear();
 		rituals.clear();
 	}
@@ -137,6 +143,7 @@ public class ShepherdData {
 		}
 		nbt.put("presets", presetList);
 		nbt.putInt("activePreset", activePreset);
+		nbt.putInt("stance", stance);
 		NbtList bondList = new NbtList();
 		bonds.forEach(b -> bondList.add(b.toNbt()));
 		nbt.put("bonds", bondList);
@@ -170,6 +177,7 @@ public class ShepherdData {
 			}
 		}
 		activePreset = Math.floorMod(nbt.getInt("activePreset"), presets.size());
+		stance = nbt.contains("stance") ? Math.floorMod(nbt.getInt("stance"), 3) : GUARD;
 		for (NbtElement e : nbt.getList("bonds", NbtElement.COMPOUND_TYPE)) {
 			bonds.add(Bond.fromNbt((NbtCompound) e));
 		}

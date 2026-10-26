@@ -838,8 +838,8 @@ public class RaceGameTests implements FabricGameTest {
 		done(ctx, player);
 	}
 
-	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "mend", tickLimit = 100)
-	public void mendThePackHealsCreaturesMuchAndPlayersALittle(TestContext ctx) {
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "whistle", tickLimit = 100)
+	public void theWhistleOrdersThePackAndTheRallyHealsIt(TestContext ctx) {
 		ServerWorld world = ctx.getWorld();
 		BlockPos at = ctx.getAbsolutePos(new BlockPos(4, 2, 4));
 		floor(world, at.add(-4, 0, -4), 9, 9);
@@ -848,25 +848,34 @@ public class RaceGameTests implements FabricGameTest {
 		EchoType zombieType = EchoType.of(EntityType.ZOMBIE).orElseThrow();
 		learn(player, data, zombieType);
 		MobEntity echo = Echoes.summon(player, data, zombieType, Vec3d.ofBottomCenter(at.add(-2, 0, 0)), false, 0, 0);
+		ZombieEntity foe = beast(ctx, EntityType.ZOMBIE, at.add(3, 0, 3));
+
+		// The Whistle: Guard -> Hunt -> Follow, for free
+		check(data.shepherd.stance == ShepherdData.GUARD, "the pack starts on Guard");
+		float guarded = Shepherd.modifyDamage(echo, world.getDamageSources().mobAttack(foe), 10);
+		check(Math.abs(guarded - 8) < 0.01f, "on Guard a creature takes 20% less, got " + guarded);
+		data.addResource(-data.resource);
+		check(Shepherd.whistle(player, data) == AbilityResult.OK && data.shepherd.stance == ShepherdData.HUNT, "Hunt, and it costs no voice");
+		Shepherd.tickSecond(player, data);
+		check(echo.getTarget() == foe, "on Hunt the echo goes for the zombie four blocks away");
+		data.readyAt.clear();
+		Shepherd.whistle(player, data);
+		check(data.shepherd.stance == ShepherdData.FOLLOW && echo.getTarget() == null, "Follow calls it back from a foe that hurts nobody");
+		check(RaceData.fromNbt(data.toNbt()).shepherd.stance == ShepherdData.FOLLOW, "the order survives a save");
+
+		// The Rally heals the pack a lot and the Shepherd a little
 		echo.setHealth(2);
 		player.setHealth(6);
 		data.addResource(100);
-		check(Shepherd.mend(player, data) == AbilityResult.OK, "Mend the Pack");
-		check(echo.getHealth() >= 2 + echo.getMaxHealth() * 0.4f - 0.01f, "the echo heals 40% of its health, now " + echo.getHealth());
-		check(Math.abs(player.getHealth() - 10) < 0.01f, "the Shepherd heals only 2 hearts, now " + player.getHealth());
-		check(Math.abs(data.resource - 70) < 0.01f, "it costs 30 voice");
-		check(Shepherd.mend(player, data) == AbilityResult.COOLDOWN, "and then waits");
-		data.readyAt.clear();
-		data.talents.add(Talents.VOICE_MEND);
-		echo.setHealth(2);
-		echo.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, 200));
-		Shepherd.mend(player, data);
-		check(!echo.hasStatusEffect(StatusEffects.POISON) && echo.hasStatusEffect(StatusEffects.RESISTANCE), "Warm Hands cleanse and harden");
+		check(Shepherd.rally(player, data) == AbilityResult.OK, "the Rally");
+		check(echo.getHealth() >= 2 + echo.getMaxHealth() * Shepherd.RALLY_HEAL - 0.01f, "the echo heals 30%, now " + echo.getHealth());
+		check(Math.abs(player.getHealth() - 10) < 0.01f, "the Shepherd heals 2 hearts, now " + player.getHealth());
+		foe.discard();
 
 		// Sneak + G gathers the creatures to the Shepherd, on its own cooldown
 		echo.refreshPositionAndAngles(at.getX() + 3.5, at.getY(), at.getZ() - 3.5, 0, 0);
 		player.setSneaking(true);
-		check(Shepherd.mend(player, data) == AbilityResult.OK && echo.squaredDistanceTo(player) < 16, "the Gather brings the echo close");
+		check(Shepherd.whistle(player, data) == AbilityResult.OK && echo.squaredDistanceTo(player) < 16, "the Gather brings the echo close");
 		player.setSneaking(false);
 
 		// Light Bonds: a wolf takes one slot instead of two
