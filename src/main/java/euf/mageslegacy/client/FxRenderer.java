@@ -34,8 +34,11 @@ public final class FxRenderer {
 	private static final List<float[]> FOVS = new ArrayList<>();
 	/** Until when (client ticks) the server is carrying this player along a path. */
 	private static long flightUntil;
-	/** Whether the shapes now being drawn are the ink under the glow. */
+	/** Whether the shapes now being drawn are the ink under the glow, and how thick the current effect lays it. */
 	private static boolean inkPass;
+	private static float inkStrength;
+	/** The camera this frame: nothing is drawn right at the eye (see {@link #vertex}). */
+	private static Vec3d eye = Vec3d.ZERO;
 
 	private FxRenderer() {
 	}
@@ -60,6 +63,11 @@ public final class FxRenderer {
 
 		/** Once a client tick, for effects that make particles of their own. */
 		void tick() {
+		}
+
+		/** How thick its ink is: a flash or a ghost only tints, a stream of blood is solid. */
+		float inkStrength() {
+			return 0.85f;
 		}
 
 		abstract void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta);
@@ -193,6 +201,7 @@ public final class FxRenderer {
 		}
 		VertexConsumerProvider.Immediate immediate = MinecraftClient.getInstance().getBufferBuilders().getEntityVertexConsumers();
 		Vec3d cam = context.camera().getPos();
+		eye = cam;
 		context.matrixStack().push();
 		context.matrixStack().translate(-cam.x, -cam.y, -cam.z);
 		Matrix4f m = context.matrixStack().peek().getPositionMatrix();
@@ -201,6 +210,7 @@ public final class FxRenderer {
 		VertexConsumer ink = immediate.getBuffer(FxLayers.INK);
 		for (Effect e : EFFECTS) {
 			if (e.ink) {
+				inkStrength = e.inkStrength();
 				e.draw(m, ink, cam, context.tickDelta());
 			}
 		}
@@ -255,6 +265,11 @@ public final class FxRenderer {
 	}
 
 	private static void vertex(VertexConsumer vc, Matrix4f m, double x, double y, double z, int rgb, float alpha) {
+		// Right at the eye any shape would fill the view: it thins away there
+		double d = Math.sqrt(eye.squaredDistanceTo(x, y, z));
+		if (d < 1.5) {
+			alpha *= (float) MathHelper.clamp(d - 0.5, 0, 1);
+		}
 		vc.vertex(m, (float) x, (float) y, (float) z).color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF,
 				(int) (MathHelper.clamp(alpha, 0, 1) * 255)).next();
 	}
@@ -269,7 +284,7 @@ public final class FxRenderer {
 				return;
 			}
 			int deep = lerpColor(rgb, 0x000000, 0.3f);
-			float k = 0.85f;
+			float k = inkStrength;
 			vertex(vc, m, a.x, a.y, a.z, deep, aa * k);
 			vertex(vc, m, b.x, b.y, b.z, deep, ab * k);
 			vertex(vc, m, c.x, c.y, c.z, deep, ac * k);
@@ -301,6 +316,11 @@ public final class FxRenderer {
 			this.at = at.add(0, 0.06, 0);
 			this.r0 = r0;
 			this.r1 = r1;
+		}
+
+		@Override
+		float inkStrength() {
+			return 0.7f;
 		}
 
 		@Override
@@ -340,6 +360,11 @@ public final class FxRenderer {
 			this.radius = radius;
 			this.follow = follow;
 			this.full = full;
+		}
+
+		@Override
+		float inkStrength() {
+			return 0.4f;
 		}
 
 		@Override
@@ -424,6 +449,11 @@ public final class FxRenderer {
 		}
 
 		@Override
+		float inkStrength() {
+			return 0.6f;
+		}
+
+		@Override
 		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
 			float t = progress(delta);
 			int n = points.size();
@@ -465,6 +495,11 @@ public final class FxRenderer {
 			this.at = at;
 			this.radius = radius;
 			this.height = height;
+		}
+
+		@Override
+		float inkStrength() {
+			return 0.5f;
 		}
 
 		@Override
@@ -527,17 +562,9 @@ public final class FxRenderer {
 			}
 			sideA = sideA.normalize().multiply(widths[i] / 2);
 			sideB = sideB.normalize().multiply(widths[i + 1] / 2);
-			// Right at the eye a strand would blot out the view: it thins away instead
-			float na = alphas[i] * nearFade(cam, a);
-			float nb = alphas[i + 1] * nearFade(cam, b);
-			quad(vc, m, a.subtract(sideA), b.subtract(sideB), b, a, colors[i], 0, 0, nb, na);
-			quad(vc, m, a, b, b.add(sideB), a.add(sideA), colors[i], na, nb, 0, 0);
+			quad(vc, m, a.subtract(sideA), b.subtract(sideB), b, a, colors[i], 0, 0, alphas[i + 1], alphas[i]);
+			quad(vc, m, a, b, b.add(sideB), a.add(sideA), colors[i], alphas[i], alphas[i + 1], 0, 0);
 		}
-	}
-
-	/** 0 within half a block of the eye, 1 from a block and a half on. */
-	private static float nearFade(Vec3d cam, Vec3d p) {
-		return MathHelper.clamp(((float) cam.distanceTo(p) - 0.5f), 0, 1);
 	}
 
 	/** A ring of light lying flat at {@code center}. */
@@ -586,6 +613,11 @@ public final class FxRenderer {
 			this.size = size;
 			// The arc bulges forward through the point it cuts
 			this.center = at.subtract(f.multiply(size * 0.55));
+		}
+
+		@Override
+		float inkStrength() {
+			return 0.9f;
 		}
 
 		@Override
@@ -640,6 +672,11 @@ public final class FxRenderer {
 			this.from = from;
 			this.to = to;
 			this.seed = (from * 31 + to) % 100 / 10f;
+		}
+
+		@Override
+		float inkStrength() {
+			return 1.0f;
 		}
 
 		@Override
@@ -700,6 +737,11 @@ public final class FxRenderer {
 			this.at = at;
 			this.follow = follow;
 			this.radius = radius;
+		}
+
+		@Override
+		float inkStrength() {
+			return 0.9f;
 		}
 
 		@Override
@@ -775,6 +817,11 @@ public final class FxRenderer {
 		}
 
 		@Override
+		float inkStrength() {
+			return 0.9f;
+		}
+
+		@Override
 		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
 			Vec3d base = lerped(around, delta);
 			if (base == null) {
@@ -816,6 +863,11 @@ public final class FxRenderer {
 			super(ticks, rgb);
 			this.yaw = yaw;
 			this.spots = spots;
+		}
+
+		@Override
+		float inkStrength() {
+			return 0.45f;
 		}
 
 		@Override
@@ -870,6 +922,11 @@ public final class FxRenderer {
 			super(ticks, rgb);
 			this.at = at;
 			this.radius = radius;
+		}
+
+		@Override
+		float inkStrength() {
+			return 0.3f;
 		}
 
 		@Override

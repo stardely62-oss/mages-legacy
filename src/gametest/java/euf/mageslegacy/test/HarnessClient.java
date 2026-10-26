@@ -534,6 +534,8 @@ public class HarnessClient implements ClientModInitializer {
 			screenshot(c, "blood_harvest");
 			c.options.setPerspective(Perspective.THIRD_PERSON_FRONT);
 		});
+		step(4, false, c -> {
+		});
 		step(6, false, c -> {
 			screenshot(c, "blood_harvest_side");
 			c.options.setPerspective(Perspective.FIRST_PERSON);
