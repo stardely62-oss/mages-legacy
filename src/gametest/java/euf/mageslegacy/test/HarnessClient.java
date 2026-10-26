@@ -31,6 +31,7 @@ import java.util.function.Function;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.option.Perspective;
@@ -435,6 +436,33 @@ public class HarnessClient implements ClientModInitializer {
 			tp(c, Vec3d.ofBottomCenter(arena).add(-1, 0, -5), Vec3d.ofBottomCenter(arena).add(-4, 1, 0));
 		});
 		step(10, true, c -> screenshot(c, "frozen_dome"));
+		// The Quickening the way a player uses it: a burning furnace in front, a real G
+		step(10, false, c -> {
+			resetCooldowns(c);
+			commands(c, "race resource @a 100");
+			onServer(c, s -> {
+				ServerWorld world = s.getOverworld();
+				BlockPos furnace = arena.add(4, 0, -3);
+				world.setBlockState(furnace, Blocks.FURNACE.getDefaultState());
+				if (world.getBlockEntity(furnace) instanceof AbstractFurnaceBlockEntity be) {
+					be.setStack(0, new ItemStack(Items.RAW_IRON, 16));
+					be.setStack(1, new ItemStack(Items.COAL, 8));
+				}
+				return null;
+			});
+			tp(c, Vec3d.ofBottomCenter(arena).add(4, 0, -1), Vec3d.ofCenter(arena.add(4, 0, -3)));
+		});
+		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[2].getDefaultKey()));
+		step(60, false, c -> {
+			UUID me = c.player.getUuid();
+			float sand = onServer(c, s -> RaceState.get(s).data(me).resource);
+			int smelted = onServer(c, s -> s.getOverworld().getBlockEntity(arena.add(4, 0, -3)) instanceof AbstractFurnaceBlockEntity be
+					? be.getStack(2).getCount() : -1);
+			LOGGER.info("[harness] quickening: sand {}, iron smelted in 3 s: {}", sand, smelted);
+			// A plain furnace smelts one item in 10 s; quickened, three seconds give a couple
+			check("quicken_key", sand < 95 && smelted >= 2);
+			screenshot(c, "quicken");
+		});
 		step(10, false, c -> {
 			screenshot(c, "hud_frozen");
 			c.setScreen(new TalentScreen());
