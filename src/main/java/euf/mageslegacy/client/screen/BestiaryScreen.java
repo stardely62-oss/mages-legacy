@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -37,9 +38,56 @@ public class BestiaryScreen extends Screen {
 	private static final int SPIRIT = 0xFF9FE8E0;
 
 	private int echoScroll;
+	/** The bonded beast being renamed, or -1; the field sits over its row. */
+	private int renaming = -1;
+	private TextFieldWidget nameField;
 
 	public BestiaryScreen() {
 		super(Text.translatable("mages_legacy.bestiary.title"));
+	}
+
+	@Override
+	protected void init() {
+		nameField = addDrawableChild(new TextFieldWidget(textRenderer, 0, 0, 100, 10, Text.translatable("mages_legacy.bestiary.name")));
+		nameField.setMaxLength(24);
+		nameField.setDrawsBackground(false);
+		nameField.setEditableColor(LegacyUi.TEXT);
+		nameField.visible = false;
+		renaming = -1;
+	}
+
+	private void finishRename() {
+		if (renaming >= 0) {
+			MagesLegacyClient.renameBeast(renaming, nameField.getText());
+		}
+		renaming = -1;
+		nameField.visible = false;
+		nameField.setFocused(false);
+		setFocused(null);
+	}
+
+	@Override
+	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+		if (renaming >= 0 && (keyCode == 257 || keyCode == 335)) { // Enter
+			finishRename();
+			return true;
+		}
+		if (renaming >= 0 && keyCode == 256) { // Escape cancels the rename, not the screen
+			renaming = -1;
+			nameField.visible = false;
+			return true;
+		}
+		return super.keyPressed(keyCode, scanCode, modifiers);
+	}
+
+	@Override
+	public void tick() {
+		nameField.tick();
+	}
+
+	/** Beast rows on the right, as {x, y, w} for row {@code index}. */
+	private int[] beastRow(int index) {
+		return new int[] {rightX(), top() + 12 + index * 23, beastWidth()};
 	}
 
 	private NbtCompound extra() {
@@ -112,6 +160,30 @@ public class BestiaryScreen extends Screen {
 
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+		if (renaming >= 0 && nameField.isMouseOver(mouseX, mouseY)) {
+			return super.mouseClicked(mouseX, mouseY, button);
+		}
+		finishRename();
+		// A bonded beast: left click names it, right click makes it the leader
+		NbtList bonds = extra().getList("bonds", NbtElement.COMPOUND_TYPE);
+		for (int i = 0; i < bonds.size(); i++) {
+			int[] r = beastRow(i);
+			if (mouseX >= r[0] && mouseX < r[0] + r[2] && mouseY >= r[1] && mouseY < r[1] + 20) {
+				if (button == 1) {
+					MagesLegacyClient.toggleLeader(i);
+				} else {
+					renaming = i;
+					nameField.setX(r[0] + 21);
+					nameField.setY(r[1] + 3);
+					nameField.setWidth(r[2] - 60);
+					nameField.setText(bonds.getCompound(i).getString("name"));
+					nameField.visible = true;
+					setFocused(nameField);
+					nameField.setFocused(true);
+				}
+				return true;
+			}
+		}
 		for (int i = 0; i < 3; i++) {
 			int[] t = tabPos(i);
 			if (mouseX >= t[0] && mouseX < t[0] + t[2] && mouseY >= t[1] && mouseY < t[1] + 13) {
@@ -299,18 +371,32 @@ public class BestiaryScreen extends Screen {
 		int bottomY = height - 14 - bottomH;
 
 		NbtList bonds = extra().getList("bonds", NbtElement.COMPOUND_TYPE);
+		boolean alphaCrown = ClientRaceState.talents.contains(Talents.PACK_ALPHA);
 		for (int i = 0; i < bonds.size() && y + 20 < bottomY; i++) {
 			NbtCompound b = bonds.getCompound(i);
 			BeastKind kind = BeastKind.byId(b.getString("kind")).orElse(null);
 			if (kind == null) {
 				continue;
 			}
+			y = beastRow(i)[1];
 			boolean hot = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + 20;
-			LegacyUi.panel(ctx, x, y, x + w, y + 20, hot ? color : LegacyUi.RIM_DARK);
+			boolean leader = b.getBoolean("leader");
+			LegacyUi.panel(ctx, x, y, x + w, y + 20, leader ? LegacyUi.GOLD : hot ? color : LegacyUi.RIM_DARK);
 			ctx.drawItem(new ItemStack(kind.icon()), x + 2, y + 2);
+			if (leader) {
+				// A small crown over the leader's icon
+				ctx.getMatrices().push();
+				ctx.getMatrices().translate(0, 0, 250);
+				ctx.drawText(textRenderer, "♛", x + 1, y - 2, LegacyUi.GOLD, true);
+				ctx.getMatrices().pop();
+			}
 			String name = b.getString("name").isEmpty() ? Text.translatable("mages_legacy.beast." + kind.id()).getString() : b.getString("name");
 			Text level = Text.translatable("mages_legacy.screen.level", b.getInt("level"));
-			ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(name, w - 26 - textRenderer.getWidth(level)), x + 21, y + 2, LegacyUi.TEXT);
+			if (renaming != i) {
+				ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(name, w - 26 - textRenderer.getWidth(level)), x + 21, y + 2, LegacyUi.TEXT);
+			} else {
+				ctx.fill(x + 19, y + 1, x + w - 36, y + 12, LegacyUi.BLACK);
+			}
 			ctx.drawTextWithShadow(textRenderer, level, x + w - 3 - textRenderer.getWidth(level), y + 2, LegacyUi.GOLD);
 			int rest = b.getInt("restSeconds");
 			Text line = rest > 0 ? Text.translatable("mages_legacy.bestiary.resting", (rest + 59) / 60).formatted(Formatting.YELLOW)
@@ -321,8 +407,15 @@ public class BestiaryScreen extends Screen {
 				tooltip.add(Text.literal(name).formatted(Formatting.GOLD, Formatting.BOLD));
 				tooltip.add(Text.translatable("mages_legacy.beast." + kind.id() + ".skill").formatted(Formatting.YELLOW));
 				TalentScreen.wrapInto(tooltip, Text.translatable("mages_legacy.beast." + kind.id() + ".skill_desc").formatted(Formatting.GRAY));
-				tooltip.add(Text.translatable("mages_legacy.bestiary.beast_level", b.getInt("level"), b.getInt("xp"), 30 * b.getInt("level"))
+				tooltip.add(Text.translatable("mages_legacy.bestiary.beast_level", b.getInt("level"), b.getInt("xp"), Bonds.xpForNext(b.getInt("level")))
 						.formatted(Formatting.GREEN));
+				int power = b.getInt("level") / 5 + (ClientRaceState.talents.contains(Talents.PACK_SKILL) ? 1 : 0) + (leader && alphaCrown ? 2 : 0);
+				tooltip.add(Text.translatable("mages_legacy.bestiary.power", power).formatted(Formatting.AQUA));
+				if (leader) {
+					tooltip.add(Text.translatable(alphaCrown ? "mages_legacy.bestiary.leader" : "mages_legacy.bestiary.leader_no_crown")
+							.formatted(Formatting.GOLD));
+				}
+				tooltip.add(Text.translatable("mages_legacy.bestiary.beast_hint").formatted(Formatting.DARK_GRAY));
 			}
 			y += 23;
 		}

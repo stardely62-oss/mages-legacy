@@ -335,7 +335,7 @@ public class HarnessClient implements ClientModInitializer {
 			c.options.sneakKey.setPressed(false);
 			selectItem(c, Items.BEEF);
 		});
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < 4; i++) {
 			// The ritual wants a minute between feedings; the harness moves the last one back before each click
 			// (the click itself reaches the server a tick later)
 			step(2, false, c -> {

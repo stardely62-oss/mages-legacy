@@ -21,6 +21,7 @@ import java.util.List;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.advancement.Advancement;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.JukeboxBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
@@ -538,12 +539,14 @@ public class RaceGameTests implements FabricGameTest {
 		ritual.lastFeed -= Bonds.FEED_GAP;
 		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.SUCCESS, "second feeding a minute later");
 		ritual.lastFeed -= Bonds.FEED_GAP;
+		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.SUCCESS, "third feeding");
+		ritual.lastFeed -= Bonds.FEED_GAP;
 		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.FAIL, "the last one needs a campfire");
 		world.setBlockState(at.add(-2, 0, 0), Blocks.CAMPFIRE.getDefaultState());
 		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.SUCCESS, "by the fire the bond is made");
 		check(data.shepherd.bonds.size() == 1 && wolf.isTamed() && player.getUuid().equals(wolf.getOwnerUuid()), "the wolf is the Shepherd's");
 		check(Shepherd.capacityUsed(data, player.getUuid()) == 2, "a wolf takes 2 bond slots");
-		check(player.getMainHandStack().getCount() == 5, "three pieces of meat eaten");
+		check(player.getMainHandStack().getCount() == 4, "four pieces of meat eaten");
 
 		// It falls: rests instead of dying, and comes back when the rest is over
 		wolf.timeUntilRegen = 0;
@@ -592,8 +595,11 @@ public class RaceGameTests implements FabricGameTest {
 		check(Bonds.interact(player, data, bee, Hand.MAIN_HAND) == ActionResult.SUCCESS, "the first flower");
 		check(Bonds.interact(player, data, bee, Hand.MAIN_HAND) == ActionResult.FAIL, "not the same flower twice");
 		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.DANDELION));
+		check(Bonds.interact(player, data, bee, Hand.MAIN_HAND) == ActionResult.SUCCESS && data.shepherd.bond(bee.getUuid()).isEmpty(),
+				"a second kind is not yet enough");
+		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.CORNFLOWER));
 		check(Bonds.interact(player, data, bee, Hand.MAIN_HAND) == ActionResult.SUCCESS && data.shepherd.bond(bee.getUuid()).isPresent(),
-				"a second kind of flower wins the bee");
+				"a third kind of flower wins the bee");
 
 		// The goat: three bare-handed headbutts, then wheat
 		GoatEntity goat = beast(ctx, EntityType.GOAT, at.add(-2, 0, 0));
@@ -602,7 +608,7 @@ public class RaceGameTests implements FabricGameTest {
 		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.WHEAT));
 		check(Bonds.interact(player, data, goat, Hand.MAIN_HAND) == ActionResult.FAIL, "wheat before the headbutts is not enough");
 		player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < 5; i++) {
 			data.shepherd.rituals.get(goat.getUuid()).lastFeed -= 20;
 			check(Bonds.headbutt(player, data, goat), "a headbutt counts and is cancelled");
 		}
@@ -611,8 +617,13 @@ public class RaceGameTests implements FabricGameTest {
 		check(Bonds.interact(player, data, goat, Hand.MAIN_HAND) == ActionResult.SUCCESS && data.shepherd.bond(goat.getUuid()).isPresent(),
 				"then wheat wins the goat");
 
-		// The parrot: three songs a minute apart
+		// The parrot: three songs a minute apart, with music playing
 		ParrotEntity parrot = beast(ctx, EntityType.PARROT, at.add(0, 0, 2));
+		data.addResource(100);
+		player.setSneaking(true);
+		check(Bonds.interact(player, data, parrot, Hand.MAIN_HAND) == ActionResult.FAIL, "no music, no listening");
+		player.setSneaking(false);
+		world.setBlockState(at.add(0, 0, 4), Blocks.JUKEBOX.getDefaultState().with(JukeboxBlock.HAS_RECORD, true));
 		for (int i = 0; i < 3; i++) {
 			data.addResource(100);
 			sing(player, data, parrot);
@@ -629,7 +640,7 @@ public class RaceGameTests implements FabricGameTest {
 		sing(player, data, cat);
 		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.COD, 2));
 		player.setSneaking(true);
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < 20; i++) {
 			Bonds.tickOwner(player, data);
 		}
 		player.setSneaking(false);
@@ -639,7 +650,7 @@ public class RaceGameTests implements FabricGameTest {
 		PolarBearEntity bear = beast(ctx, EntityType.POLAR_BEAR, at.add(-2, 0, 2));
 		data.addResource(100);
 		sing(player, data, bear);
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < 5; i++) {
 			ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(-3, 0, 3));
 			Bonds.onHunt(player, data, zombie);
 			zombie.discard();
@@ -719,17 +730,38 @@ public class RaceGameTests implements FabricGameTest {
 		RabbitEntity rabbit = beast(ctx, EntityType.RABBIT, at.add(2, 0, 0));
 		data.addResource(100);
 		sing(player, data, rabbit);
-		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.GOLDEN_CARROT));
+		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.GOLDEN_CARROT, 2));
+		check(Bonds.interact(player, data, rabbit, Hand.MAIN_HAND) == ActionResult.SUCCESS, "the first golden carrot");
+		data.shepherd.rituals.get(rabbit.getUuid()).lastFeed -= Bonds.FEED_GAP;
 		check(Bonds.interact(player, data, rabbit, Hand.MAIN_HAND) == ActionResult.SUCCESS && data.shepherd.bond(rabbit.getUuid()).isPresent(),
-				"a golden carrot wins the rabbit");
+				"the second wins the rabbit");
 		LlamaEntity llama = beast(ctx, EntityType.LLAMA, at.add(-2, 0, 0));
 		data.addResource(100);
 		sing(player, data, llama);
 		llama.attachLeash(player, true);
-		for (int i = 0; i < 60; i++) {
+		for (int i = 0; i < 120; i++) {
 			Bonds.tickOwner(player, data);
 		}
-		check(data.shepherd.bond(llama.getUuid()).isPresent(), "a minute on the lead wins the llama");
+		check(data.shepherd.bond(llama.getUuid()).isPresent(), "two minutes on the lead win the llama");
+
+		// Beasts grow from what happens around them; levels and the leader make their skill stronger; names stick
+		ShepherdData.Bond bond = data.shepherd.bond(rabbit.getUuid()).orElseThrow();
+		check(Bonds.power(data, bond) == 0, "a fresh beast has power 0");
+		for (int i = 0; i < 12; i++) {
+			ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(1, 0, 1));
+			Shepherd.onKill(player, zombie);
+			zombie.discard();
+		}
+		check(bond.level >= 2, "a rabbit that never fights still learns from kills nearby: level " + bond.level);
+		while (bond.level < 5) {
+			Bonds.beastXp(player, data, bond, rabbit, 50);
+		}
+		check(Bonds.power(data, bond) == 1, "level 5 gives power 1");
+		data.talents.add(Talents.PACK_ALPHA);
+		Bonds.toggleLeader(data, data.shepherd.bonds.indexOf(bond));
+		check(bond.leader && Bonds.power(data, bond) == 3, "the chosen leader with the Alpha crown: +2 power");
+		Bonds.rename(player, data, data.shepherd.bonds.indexOf(bond), "Пушок");
+		check("Пушок".equals(rabbit.getCustomName().getString()) && bond.name.equals("Пушок"), "the name is on the beast and in the bond");
 		rabbit.discard();
 		llama.discard();
 		done(ctx, player);

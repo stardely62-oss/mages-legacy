@@ -520,18 +520,23 @@ public final class Shepherd {
 		}
 		RaceData data = RaceState.of(owner);
 		EchoType.of(victim.getType()).ifPresent(type -> countKill(owner, data, type));
-		if (victim instanceof Monster) {
-			Bonds.onHunt(owner, data, victim);
+		if (!(victim instanceof Monster)) {
+			return;
 		}
-		if (killer == owner || !(victim instanceof Monster)) {
+		Bonds.onHunt(owner, data, victim);
+		// Every bonded beast near the fight learns from it; the one that struck the blow learns most
+		for (ShepherdData.Bond bond : data.shepherd.bonds) {
+			if (!bond.resting() && owner.getServerWorld().getEntity(bond.entity) instanceof MobEntity beast && beast.isAlive()
+					&& beast.squaredDistanceTo(victim) < 16 * 16) {
+				Bonds.beastXp(owner, data, bond, beast, beast == killer ? 10 : 4);
+			}
+		}
+		if (killer == owner) {
 			return;
 		}
 		Progression.addXp(owner, data, CREATURE_KILL_XP);
 		if (Echoes.isEcho(killer) && data.has(Talents.LEGION_LEECH)) {
 			data.addResource(5);
-		}
-		if (killer instanceof MobEntity mob) {
-			data.shepherd.bond(killer.getUuid()).ifPresent(bond -> Bonds.beastXp(owner, data, bond, mob, 10));
 		}
 	}
 

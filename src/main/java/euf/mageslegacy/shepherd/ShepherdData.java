@@ -41,6 +41,8 @@ public class ShepherdData {
 		public int xp;
 		public long restingUntil;
 		public NbtCompound body;
+		/** Chosen in the bestiary to lead the pack (the Alpha crown). */
+		public boolean leader;
 
 		public boolean resting() {
 			return body != null;
@@ -54,6 +56,7 @@ public class ShepherdData {
 			nbt.putInt("level", level);
 			nbt.putInt("xp", xp);
 			nbt.putLong("restingUntil", restingUntil);
+			nbt.putBoolean("leader", leader);
 			if (body != null) {
 				nbt.put("body", body);
 			}
@@ -68,6 +71,7 @@ public class ShepherdData {
 			bond.level = Math.max(1, nbt.getInt("level"));
 			bond.xp = nbt.getInt("xp");
 			bond.restingUntil = nbt.getLong("restingUntil");
+			bond.leader = nbt.getBoolean("leader");
 			bond.body = nbt.contains("body") ? nbt.getCompound("body") : null;
 			return bond;
 		}

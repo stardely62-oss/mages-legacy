@@ -7,6 +7,7 @@ import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
+import euf.mageslegacy.shepherd.Bonds;
 import euf.mageslegacy.shepherd.Shepherd;
 import java.util.Locale;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
@@ -27,6 +28,8 @@ public final class RacePackets {
 	public static final Identifier UNLOCK = MagesLegacy.id("unlock");
 	/** Squads: [0, index] picks the active one, [1, index, echo id, delta] adds or takes one echo. */
 	public static final Identifier PRESET = MagesLegacy.id("preset");
+	/** Bonded beasts: [0, index, name] renames, [1, index] makes the leader. */
+	public static final Identifier BEAST = MagesLegacy.id("beast");
 	/** Server to client: entity ids of the echoes in the player's world, so they are drawn as spirits. */
 	public static final Identifier ECHOES = MagesLegacy.id("echoes");
 	public static final int SLOTS = 3;
@@ -57,6 +60,23 @@ public final class RacePackets {
 					Shepherd.selectPreset(player, data, index);
 				} else {
 					Shepherd.editPreset(data, index, id, delta);
+				}
+				sync(player, data);
+			});
+		});
+		ServerPlayNetworking.registerGlobalReceiver(BEAST, (server, player, handler, buf, sender) -> {
+			int action = buf.readVarInt();
+			int index = buf.readVarInt();
+			String name = action == 0 ? buf.readString(64) : "";
+			server.execute(() -> {
+				RaceData data = RaceState.of(player);
+				if (data == null || data.race != Race.SHEPHERD) {
+					return;
+				}
+				if (action == 0) {
+					Bonds.rename(player, data, index, name);
+				} else {
+					Bonds.toggleLeader(data, index);
 				}
 				sync(player, data);
 			});

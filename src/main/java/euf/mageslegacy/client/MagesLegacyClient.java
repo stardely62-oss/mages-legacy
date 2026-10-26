@@ -122,6 +122,21 @@ public class MagesLegacyClient implements ClientModInitializer {
 		ClientPlayNetworking.send(RacePackets.PRESET, buf);
 	}
 
+	public static void renameBeast(int index, String name) {
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeVarInt(0);
+		buf.writeVarInt(index);
+		buf.writeString(name);
+		ClientPlayNetworking.send(RacePackets.BEAST, buf);
+	}
+
+	public static void toggleLeader(int index) {
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeVarInt(1);
+		buf.writeVarInt(index);
+		ClientPlayNetworking.send(RacePackets.BEAST, buf);
+	}
+
 	/** One more (+1) or one less (-1) echo of a kind in a squad. */
 	public static void editSquad(int index, String echo, int delta) {
 		PacketByteBuf buf = PacketByteBufs.create();

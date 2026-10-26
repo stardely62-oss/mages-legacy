@@ -10,7 +10,9 @@ import euf.mageslegacy.shepherd.ShepherdData.Ritual;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import net.minecraft.block.Blocks;
 import net.minecraft.block.CampfireBlock;
+import net.minecraft.block.JukeboxBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
@@ -90,11 +92,11 @@ public final class Bonds {
 			return ActionResult.PASS;
 		}
 		return switch (kind.taming()) {
-			case FEED_BY_FIRE, FEED_TWICE -> feed(player, data, mob, kind, ritual, stack, now);
-			case ASLEEP, ONE_GIFT -> gift(player, data, mob, kind, stack);
-			case TWO_KINDS -> flower(player, data, mob, kind, ritual, stack);
+			case FEED_BY_FIRE, FEED -> feed(player, data, mob, kind, ritual, stack, now);
+			case WATER_GIFT -> player.isTouchingWater() ? feed(player, data, mob, kind, ritual, stack, now) : hint(player, "mages_legacy.bond.swim_with_it");
+			case ASLEEP -> gift(player, data, mob, kind, stack);
+			case KINDS -> flower(player, data, mob, kind, ritual, stack);
 			case HEADBUTTS -> ritual.feedings >= needed(kind, data) ? gift(player, data, mob, kind, stack) : hint(player, "mages_legacy.bond.headbutt_first");
-			case WATER_GIFT -> player.isTouchingWater() ? gift(player, data, mob, kind, stack) : hint(player, "mages_legacy.bond.swim_with_it");
 			default -> ActionResult.PASS;
 		};
 	}
@@ -106,14 +108,12 @@ public final class Bonds {
 
 	/** The same, for the client's bestiary: Gentle Voice takes a step off (four seconds off the cat's patience). */
 	public static int needed(BeastKind kind, boolean gentle) {
-		int friendly = gentle ? 1 : 0;
-		return switch (kind.taming()) {
-			case FEED_BY_FIRE, HEADBUTTS, HUNT, SONGS -> 3 - friendly;
-			case FEED_TWICE, DARK_SONGS -> 2 - friendly;
-			case PATIENCE -> 10 - 4 * friendly;
-			case LEAD -> 60 - 20 * friendly;
-			default -> 1;
-		};
+		// Counted in seconds (patience, the lead) Gentle Voice takes a quarter off; otherwise one step
+		int steps = kind.steps();
+		if (!gentle) {
+			return steps;
+		}
+		return kind.taming() == BeastKind.Taming.PATIENCE || kind.taming() == BeastKind.Taming.LEAD ? steps * 3 / 4 : Math.max(1, steps - 1);
 	}
 
 	private static ActionResult hint(ServerPlayerEntity player, String key, Object... args) {
@@ -126,9 +126,13 @@ public final class Bonds {
 		if (kind.taming() == BeastKind.Taming.ASLEEP && !(mob instanceof FoxEntity fox && fox.isSleeping())) {
 			return hint(player, "mages_legacy.bond.fox_awake");
 		}
-		boolean songs = kind.taming() == BeastKind.Taming.SONGS || kind.taming() == BeastKind.Taming.DARK_SONGS;
-		if (kind.taming() == BeastKind.Taming.DARK_SONGS && mob.getWorld().getLightLevel(mob.getBlockPos()) > 7) {
-			return hint(player, "mages_legacy.bond.too_bright");
+		boolean songs = kind.taming() == BeastKind.Taming.SONGS;
+		// The bat listens only underground, the parrot only to a song with music playing
+		if (kind.id().equals("bat") && player.getServerWorld().isSkyVisible(mob.getBlockPos())) {
+			return hint(player, "mages_legacy.bond.underground");
+		}
+		if (kind.id().equals("parrot") && !nearJukebox(player.getServerWorld(), mob.getBlockPos())) {
+			return hint(player, "mages_legacy.bond.need_music");
 		}
 		if (songs && existing != null && existing.feedings > 0 && now - existing.lastFeed < FEED_GAP) {
 			return hint(player, "mages_legacy.bond.too_soon", (FEED_GAP - (now - existing.lastFeed) + 19) / 20);
@@ -232,22 +236,24 @@ public final class Bonds {
 		return ActionResult.SUCCESS;
 	}
 
-	/** The bee wants two different flowers. */
+	/** The bee wants flowers of different kinds; {@code note} remembers the ones she had. */
 	private static ActionResult flower(ServerPlayerEntity player, RaceData data, MobEntity mob, BeastKind kind, Ritual ritual, ItemStack stack) {
 		String id = Registries.ITEM.getId(stack.getItem()).toString();
-		if (ritual.note.isEmpty()) {
-			consume(player, stack);
-			ritual.note = id;
-			ritual.feedings = 1;
-			data.dirty = true;
-			fedEffects(player, mob);
-			player.sendMessage(Text.translatable("mages_legacy.bond.progress", 1, 2), true);
-			return ActionResult.SUCCESS;
-		}
-		if (ritual.note.equals(id)) {
+		List<String> had = ritual.note.isEmpty() ? List.of() : List.of(ritual.note.split(","));
+		if (had.contains(id)) {
 			return hint(player, "mages_legacy.bond.another_flower");
 		}
-		return gift(player, data, mob, kind, stack);
+		int needed = needed(kind, data);
+		if (had.size() + 1 >= needed) {
+			return gift(player, data, mob, kind, stack);
+		}
+		consume(player, stack);
+		ritual.note = ritual.note.isEmpty() ? id : ritual.note + "," + id;
+		ritual.feedings = had.size() + 1;
+		data.dirty = true;
+		fedEffects(player, mob);
+		player.sendMessage(Text.translatable("mages_legacy.bond.progress", ritual.feedings, needed), true);
+		return ActionResult.SUCCESS;
 	}
 
 	/** A bare-handed headbutt at a listening goat: counts, and does no harm. True cancels the blow. */
@@ -342,6 +348,17 @@ public final class Bonds {
 		}
 	}
 
+	/** A jukebox with a disc in it within 8 blocks: the parrot dances to it and listens. */
+	public static boolean nearJukebox(ServerWorld world, BlockPos pos) {
+		for (BlockPos p : BlockPos.iterate(pos.add(-8, -3, -8), pos.add(8, 3, 8))) {
+			var state = world.getBlockState(p);
+			if (state.isOf(Blocks.JUKEBOX) && state.get(JukeboxBlock.HAS_RECORD)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public static boolean nearCampfire(ServerWorld world, BlockPos pos) {
 		for (BlockPos p : BlockPos.iterate(pos.add(-6, -2, -6), pos.add(6, 2, 6))) {
 			if (CampfireBlock.isLitCampfire(world.getBlockState(p))) {
@@ -395,17 +412,30 @@ public final class Bonds {
 		}
 	}
 
-	/** Health from its level, Thick Fur, and the champion's strength for the Alpha. */
+	/** Health from its level, Thick Fur, and the leader's strength with the Alpha crown. */
 	static void apply(MobEntity mob, Bond bond, RaceData data) {
 		modifier(mob, EntityAttributes.GENERIC_MAX_HEALTH, LEVEL_HEALTH, "bond_level", bond.level - 1, true);
 		double base = mob.getAttributeBaseValue(EntityAttributes.GENERIC_MAX_HEALTH);
 		modifier(mob, EntityAttributes.GENERIC_MAX_HEALTH, THICK_FUR, "thick_fur", Math.round(base * 0.3), data.has(Talents.PACK_THICK));
-		boolean alpha = data.has(Talents.PACK_ALPHA) && alpha(data) == bond;
-		modifier(mob, EntityAttributes.GENERIC_MAX_HEALTH, ALPHA_HEALTH, "alpha", 20, alpha);
+		boolean alpha = isAlpha(data, bond);
+		modifier(mob, EntityAttributes.GENERIC_MAX_HEALTH, ALPHA_HEALTH, "alpha", Math.round(base * 0.5), alpha);
 		modifier(mob, EntityAttributes.GENERIC_ATTACK_DAMAGE, ALPHA_DAMAGE, "alpha", 4, alpha);
 		if (alpha) {
 			mob.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 60, 0, true, false));
 		}
+	}
+
+	/** This beast leads the pack with the Alpha crown. */
+	static boolean isAlpha(RaceData data, Bond bond) {
+		return data.has(Talents.PACK_ALPHA) && alpha(data) == bond;
+	}
+
+	/**
+	 * How strong a beast's skill is: a step every 5 levels, one more with Gift Unfolded, two more for the Alpha's
+	 * leader. 0 for a fresh beast, up to 7.
+	 */
+	public static int power(RaceData data, Bond bond) {
+		return bond.level / 5 + (data.has(Talents.PACK_SKILL) ? 1 : 0) + (isAlpha(data, bond) ? 2 : 0);
 	}
 
 	private static void modifier(LivingEntity entity, net.minecraft.entity.attribute.EntityAttribute attribute, UUID id, String name,
@@ -427,10 +457,13 @@ public final class Bonds {
 		}
 	}
 
-	/** The highest-level beast, the one the Alpha crown makes a champion. */
+	/** The pack's leader: the one the Shepherd chose in the bestiary, or else the highest-level beast. */
 	static Bond alpha(RaceData data) {
 		Bond best = null;
 		for (Bond b : data.shepherd.bonds) {
+			if (b.leader) {
+				return b;
+			}
 			if (best == null || b.level > best.level) {
 				best = b;
 			}
@@ -438,18 +471,60 @@ public final class Bonds {
 		return best;
 	}
 
+	/** Makes this beast the leader (or, if it already is, nobody). */
+	public static void toggleLeader(RaceData data, int index) {
+		if (index < 0 || index >= data.shepherd.bonds.size()) {
+			return;
+		}
+		Bond chosen = data.shepherd.bonds.get(index);
+		boolean was = chosen.leader;
+		data.shepherd.bonds.forEach(b -> b.leader = false);
+		chosen.leader = !was;
+		data.dirty = true;
+	}
+
+	/** A name for a beast, from the bestiary: kept in the bond and shown over the beast. */
+	public static void rename(ServerPlayerEntity owner, RaceData data, int index, String name) {
+		if (index < 0 || index >= data.shepherd.bonds.size()) {
+			return;
+		}
+		Bond bond = data.shepherd.bonds.get(index);
+		bond.name = name.strip();
+		if (bond.name.length() > 24) {
+			bond.name = bond.name.substring(0, 24);
+		}
+		if (!bond.resting() && owner.getServerWorld().getEntity(bond.entity) instanceof MobEntity mob) {
+			mob.setCustomName(bond.name.isEmpty() ? null : Text.literal(bond.name));
+		} else if (bond.resting()) {
+			if (bond.name.isEmpty()) {
+				bond.body.remove("CustomName");
+			} else {
+				bond.body.putString("CustomName", Text.Serializer.toJson(Text.literal(bond.name)));
+			}
+		}
+		data.dirty = true;
+	}
+
 	public static int maxLevel(RaceData data) {
 		return data.has(Talents.PACK_LEVELS) ? 20 : 10;
 	}
 
-	/** A bonded beast took part in a kill: it learns, and levels up every 30 x level experience. */
+	/** Experience to go from {@code level} to the next. */
+	public static int xpForNext(int level) {
+		return 20 * level;
+	}
+
+	/**
+	 * A bonded beast learns: from monsters killed near it (more if it struck the blow), from using its skill, and a
+	 * little from simply walking with its Shepherd.
+	 */
 	public static void beastXp(ServerPlayerEntity owner, RaceData data, Bond bond, MobEntity mob, int amount) {
 		if (bond.level >= maxLevel(data)) {
 			return;
 		}
 		bond.xp += data.has(Talents.PACK_LEVELS) ? amount * 2 : amount;
-		while (bond.level < maxLevel(data) && bond.xp >= 30 * bond.level) {
-			bond.xp -= 30 * bond.level;
+		while (bond.level < maxLevel(data) && bond.xp >= xpForNext(bond.level)) {
+			bond.xp -= xpForNext(bond.level);
 			bond.level++;
 			apply(mob, bond, data);
 			mob.heal(4);
@@ -464,7 +539,7 @@ public final class Bonds {
 	// ---- falling and coming back ----
 
 	public static long restTicks(RaceData data) {
-		return data.has(Talents.PACK_INSTANT) ? 1200 : 24000;
+		return data.has(Talents.PACK_INSTANT) ? 600 : 6000;
 	}
 
 	/** A bonded beast would die: it rests instead, and comes back to its Shepherd later. False cancels the death. */
@@ -491,7 +566,9 @@ public final class Bonds {
 		ServerPlayerEntity owner = entity.getServer().getPlayerManager().getPlayer(ownerId);
 		if (owner != null) {
 			Shepherd.onLoss(owner, data);
-			owner.sendMessage(Text.translatable("mages_legacy.bond.rests", mob.getDisplayName(), restTicks(data) / 1200).formatted(Formatting.YELLOW), false);
+			long rest = restTicks(data);
+			Text when = rest >= 1200 ? Text.translatable("mages_legacy.time.minutes", rest / 1200) : Text.translatable("mages_legacy.time.seconds", rest / 20);
+			owner.sendMessage(Text.translatable("mages_legacy.bond.rests", mob.getDisplayName(), when).formatted(Formatting.YELLOW), false);
 		}
 		Creatures.forgetBeast(mob.getUuid());
 		mob.discard();
@@ -513,6 +590,16 @@ public final class Bonds {
 			if (world.getEntity(bond.entity) instanceof MobEntity mob && mob.isAlive()) {
 				apply(mob, bond, data);
 				skill(owner, data, bond, mob, time);
+				// A name given with a name tag becomes the bond's name too
+				String name = mob.hasCustomName() ? mob.getCustomName().getString() : "";
+				if (!name.equals(bond.name)) {
+					bond.name = name;
+					data.dirty = true;
+				}
+				// Walking with its Shepherd teaches a little too
+				if (time % 600 < 20 && mob.distanceTo(owner) < 16) {
+					beastXp(owner, data, bond, mob, 2);
+				}
 			}
 		}
 		// The Alpha leads: the other beasts near the champion fight harder
@@ -521,6 +608,7 @@ public final class Bonds {
 			for (Bond bond : data.shepherd.bonds) {
 				if (bond != alpha && !bond.resting() && world.getEntity(bond.entity) instanceof MobEntity mob && mob.distanceTo(leader) < 16) {
 					mob.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 60, 0, true, false));
+					mob.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 60, 0, true, false));
 				}
 			}
 		}
@@ -548,9 +636,12 @@ public final class Bonds {
 		owner.sendMessage(Text.translatable("mages_legacy.bond.back", mob.getDisplayName()).formatted(Formatting.GREEN), true);
 	}
 
-	/** What each beast does for its Shepherd; Second Skill makes every one stronger. */
+	/**
+	 * What each beast does for its Shepherd. Its {@link #power} (levels, Gift Unfolded, the leader) widens the reach,
+	 * shortens the wait and strengthens the effect; doing something useful teaches the beast a little.
+	 */
 	private static void skill(ServerPlayerEntity owner, RaceData data, Bond bond, MobEntity mob, long time) {
-		boolean strong = data.has(Talents.PACK_SKILL);
+		int p = power(data, bond);
 		ServerWorld world = owner.getServerWorld();
 		double dist = mob.distanceTo(owner);
 		// Goats, frogs and axolotls think with a brain, not with goals: when they fall behind they jump to the Shepherd
@@ -567,94 +658,118 @@ public final class Bonds {
 			Vec3d spot = Creatures.near(owner);
 			mob.refreshPositionAndAngles(spot.x, spot.y, spot.z, mob.getYaw(), mob.getPitch());
 		}
+		if (dist > 32) {
+			return;
+		}
 		switch (bond.kind) {
 			case "wolf" -> {
 				if (dist < 16) {
-					mob.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 60, strong ? 1 : 0, true, false));
+					mob.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 60, Math.min(2, p / 2), true, false));
 				}
 			}
 			case "cat" -> {
-				double r = strong ? 20 : 12;
-				for (LivingEntity m : world.getEntitiesByClass(LivingEntity.class, mob.getBoundingBox().expand(r), e -> e instanceof Monster)) {
+				int seen = 0;
+				for (LivingEntity m : world.getEntitiesByClass(LivingEntity.class, mob.getBoundingBox().expand(12 + 3 * p), e -> e instanceof Monster)) {
 					m.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 40, 0, true, false));
+					seen++;
 				}
 				if (dist < 16 && world.isNight()) {
 					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.NIGHT_VISION, 300, 0, true, false, true));
 				}
+				if (seen > 0 && time % 200 < 20) {
+					beastXp(owner, data, bond, mob, 2);
+				}
 			}
 			case "fox" -> {
 				if (time % 60 < 20 && dist < 24) {
-					double r = strong ? 12 : 8;
-					for (ItemEntity item : world.getEntitiesByClass(ItemEntity.class, mob.getBoundingBox().expand(r),
+					for (ItemEntity item : world.getEntitiesByClass(ItemEntity.class, mob.getBoundingBox().expand(8 + 2 * p),
 							i -> i.isAlive() && !i.cannotPickup() && i.squaredDistanceTo(owner) > 36)) {
 						world.spawnParticles(ParticleTypes.POOF, item.getX(), item.getY() + 0.2, item.getZ(), 3, 0.1, 0.1, 0.1, 0);
 						item.refreshPositionAndAngles(owner.getX(), owner.getY() + 0.5, owner.getZ(), 0, 0);
 					}
 				}
-				// Now and then she digs something up (every 5 minutes, 3 with Second Skill)
-				int every = strong ? 3600 : 6000;
+				// Now and then she digs something up: every 5 minutes, sooner as she grows
+				int every = Math.max(1800, 6000 - 700 * p);
 				if (dist < 24 && Math.floorMod(time + mob.getUuid().hashCode(), every) < 20) {
 					ItemStack find = FoxFinds.roll(mob.getRandom());
 					world.spawnEntity(new ItemEntity(world, owner.getX(), owner.getY() + 0.5, owner.getZ(), find));
 					world.spawnParticles(ParticleTypes.HAPPY_VILLAGER, mob.getX(), mob.getY() + 0.5, mob.getZ(), 8, 0.3, 0.3, 0.3, 0);
 					owner.sendMessage(Text.translatable("mages_legacy.beast.fox.found", find.getName()).formatted(Formatting.GOLD), true);
+					beastXp(owner, data, bond, mob, 10);
 				}
 			}
 			case "bee" -> {
-				if (time % 160 < 20) {
-					double r = strong ? 10 : 6;
+				if (time % Math.max(60, 160 - 20 * p) < 20) {
+					double r = 6 + 2 * p;
+					int amp = p >= 3 ? 1 : 0;
 					Box area = mob.getBoundingBox().expand(r);
+					boolean healed = false;
 					if (owner.getBoundingBox().intersects(area)) {
-						owner.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 0, true, true));
+						healed = owner.getHealth() < owner.getMaxHealth() || owner.hasStatusEffect(StatusEffects.POISON);
+						owner.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, amp, true, true));
 						owner.removeStatusEffect(StatusEffects.POISON);
 						owner.removeStatusEffect(StatusEffects.WITHER);
 					}
 					for (LivingEntity c : world.getEntitiesByClass(LivingEntity.class, area, e -> Creatures.isCreatureOf(e, owner.getUuid()))) {
-						c.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 0, true, true));
+						healed |= c.getHealth() < c.getMaxHealth();
+						c.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, amp, true, true));
 					}
 					world.spawnParticles(ParticleTypes.WAX_ON, mob.getX(), mob.getY() + 0.5, mob.getZ(), 6, r * 0.3, 0.4, r * 0.3, 0);
+					if (healed) {
+						beastXp(owner, data, bond, mob, 3);
+					}
 				}
 			}
 			case "axolotl" -> {
-				if (owner.isTouchingWater() && dist < (strong ? 20 : 12)) {
+				if (owner.isTouchingWater() && dist < 12 + 4 * p) {
 					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.WATER_BREATHING, 300, 0, true, true));
 					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.DOLPHINS_GRACE, 60, 0, true, true));
-					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 60, 0, true, true));
+					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 60, p >= 3 ? 1 : 0, true, true));
 					owner.removeStatusEffect(StatusEffects.POISON);
+					if (time % 200 < 20) {
+						beastXp(owner, data, bond, mob, 2);
+					}
 				}
 			}
 			case "goat" -> {
-				// Rams the nearest monster at its Shepherd's side every 4 seconds (every 2 with Second Skill)
-				if (time % (strong ? 40 : 80) < 20 && dist < 16) {
-					LivingEntity target = nearestMonster(world, owner, 6);
+				// Rams the nearest monster at its Shepherd's side; more often, harder and from farther as it grows
+				if (time % Math.max(30, 80 - 10 * p) < 20 && dist < 16) {
+					LivingEntity target = nearestMonster(world, owner, 6 + p);
 					if (target != null) {
 						Vec3d away = target.getPos().subtract(owner.getPos()).normalize();
 						Vec3d spot = target.getPos().subtract(away.multiply(1.2));
 						mob.refreshPositionAndAngles(spot.x, target.getY(), spot.z, mob.getYaw(), mob.getPitch());
-						target.damage(world.getDamageSources().mobAttack(mob), strong ? 6 : 4);
-						target.takeKnockback(1.6, -away.x, -away.z);
+						target.damage(world.getDamageSources().mobAttack(mob), 4 + p);
+						target.takeKnockback(1.4 + 0.15 * p, -away.x, -away.z);
 						world.playSound(null, target.getBlockPos(), SoundEvents.ENTITY_GOAT_RAM_IMPACT, SoundCategory.NEUTRAL, 1.0f, 1.0f);
 						world.spawnParticles(ParticleTypes.CRIT, target.getX(), target.getY() + 1, target.getZ(), 10, 0.3, 0.3, 0.3, 0.2);
+						beastXp(owner, data, bond, mob, 2);
 					}
 				}
 			}
 			case "polar_bear" -> {
 				// The tank: monsters going for the Shepherd turn on the bear
-				mob.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 60, strong ? 1 : 0, true, false));
+				mob.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 60, Math.min(2, p / 2), true, false));
 				if (dist < 16) {
-					for (MobEntity m : world.getEntitiesByClass(MobEntity.class, mob.getBoundingBox().expand(8),
+					int taken = 0;
+					for (MobEntity m : world.getEntitiesByClass(MobEntity.class, mob.getBoundingBox().expand(8 + 2 * p),
 							e -> e instanceof Monster && e.getTarget() == owner)) {
 						m.setTarget(mob);
+						taken++;
+					}
+					if (taken > 0) {
+						beastXp(owner, data, bond, mob, 2);
 					}
 				}
 			}
 			case "parrot" -> {
 				// Cries out when something hunts the Shepherd, and catches it when it falls
-				for (MobEntity m : world.getEntitiesByClass(MobEntity.class, owner.getBoundingBox().expand(strong ? 24 : 16),
+				for (MobEntity m : world.getEntitiesByClass(MobEntity.class, owner.getBoundingBox().expand(16 + 4 * p),
 						e -> e instanceof Monster && e.getTarget() == owner)) {
 					if (!m.hasStatusEffect(StatusEffects.GLOWING)) {
 						owner.sendMessage(Text.translatable("mages_legacy.beast.parrot.warn", m.getDisplayName()).formatted(Formatting.RED), true);
 						world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_PARROT_IMITATE_CREEPER, SoundCategory.NEUTRAL, 0.8f, 1.2f);
+						beastXp(owner, data, bond, mob, 2);
 					}
 					m.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 60, 0, true, false));
 				}
@@ -663,64 +778,76 @@ public final class Bonds {
 				}
 			}
 			case "frog" -> {
-				// Every 3 seconds the tongue pulls the nearest monster in and slows it; small slimes it simply eats
-				if (time % 60 < 20) {
-					LivingEntity target = nearestMonster(world, mob, strong ? 12 : 8);
-					if (target instanceof SlimeEntity slime && slime.getSize() <= 1) {
+				// The tongue pulls the nearest monster in and slows it; small slimes it simply eats
+				if (time % Math.max(20, 60 - 8 * p) < 20) {
+					LivingEntity target = nearestMonster(world, mob, 8 + 2 * p);
+					if (target instanceof SlimeEntity slime && slime.getSize() <= 1 + p / 3) {
 						world.spawnParticles(ParticleTypes.ITEM_SLIME, slime.getX(), slime.getY(), slime.getZ(), 8, 0.2, 0.2, 0.2, 0.05);
 						slime.discard();
+						beastXp(owner, data, bond, mob, 4);
 					} else if (target != null) {
 						Vec3d pull = mob.getPos().subtract(target.getPos()).normalize().multiply(0.9);
 						target.addVelocity(pull.x, 0.25, pull.z);
 						target.velocityModified = true;
-						target.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, strong ? 2 : 1));
+						target.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, Math.min(3, 1 + p / 2)));
 						world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_FROG_TONGUE, SoundCategory.NEUTRAL, 1.0f, 1.0f);
+						beastXp(owner, data, bond, mob, 2);
 					}
 				}
 			}
 			case "llama" -> {
-				// Spits at the nearest monster near its Shepherd every 3 seconds
-				if (time % 60 < 20 && dist < 16 && mob instanceof LlamaEntity llama) {
-					LivingEntity target = nearestMonster(world, owner, 10);
+				// Spits at the nearest monster near its Shepherd
+				if (time % Math.max(20, 60 - 8 * p) < 20 && dist < 16 && mob instanceof LlamaEntity llama) {
+					LivingEntity target = nearestMonster(world, owner, 10 + p);
 					if (target != null) {
 						LlamaSpitEntity spit = new LlamaSpitEntity(world, llama);
 						Vec3d to = target.getEyePos().subtract(spit.getPos());
 						spit.setVelocity(to.x, to.y + to.horizontalLength() * 0.1, to.z, 1.5f, 2);
 						world.spawnEntity(spit);
-						target.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, strong ? 2 : 1));
+						target.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, Math.min(3, 1 + p / 2)));
 						world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_LLAMA_SPIT, SoundCategory.NEUTRAL, 1.0f, 1.0f);
+						beastXp(owner, data, bond, mob, 2);
 					}
 				}
 			}
 			case "rabbit" -> {
 				if (dist < 16) {
-					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.LUCK, 60, strong ? 1 : 0, true, false, true));
-					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.JUMP_BOOST, 60, strong ? 1 : 0, true, false, true));
+					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.LUCK, 60, Math.min(2, p / 2), true, false, true));
+					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.JUMP_BOOST, 60, Math.min(2, p / 2), true, false, true));
 				}
 			}
 			case "turtle" -> {
-				// The shell: on the brink of death the Shepherd hardens, once in 90 seconds (60 with Second Skill)
+				// The shell: on the brink of death the Shepherd hardens; the wait shortens as the turtle grows
 				long ticks = owner.getServer().getTicks();
 				if (dist < 24 && owner.getHealth() < owner.getMaxHealth() * 0.3f && data.readyAt.getOrDefault(TURTLE_SLOT, 0L) <= ticks) {
-					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 200, 1, true, true, true));
-					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.ABSORPTION, 200, 1, true, true, true));
-					data.readyAt.put(TURTLE_SLOT, ticks + (strong ? 1200 : 1800));
+					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 200, Math.min(3, 1 + p / 2), true, true, true));
+					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.ABSORPTION, 200, 1 + p / 3, true, true, true));
+					data.readyAt.put(TURTLE_SLOT, ticks + Math.max(600, 1800 - 200 * p));
 					world.playSound(null, owner.getBlockPos(), SoundEvents.ITEM_ARMOR_EQUIP_TURTLE, SoundCategory.PLAYERS, 1.0f, 0.8f);
 					owner.sendMessage(Text.translatable("mages_legacy.beast.turtle.shell").formatted(Formatting.GREEN), true);
+					beastXp(owner, data, bond, mob, 10);
 				}
 			}
 			case "dolphin" -> {
-				if (owner.isTouchingWater() && dist < (strong ? 24 : 16)) {
+				if (owner.isTouchingWater() && dist < 16 + 4 * p) {
 					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.CONDUIT_POWER, 300, 0, true, false, true));
 					owner.addStatusEffect(new StatusEffectInstance(StatusEffects.DOLPHINS_GRACE, 60, 0, true, false, true));
+					if (time % 200 < 20) {
+						beastXp(owner, data, bond, mob, 2);
+					}
 				}
 			}
 			case "bat" -> {
 				// Echolocation: underground, monsters around glow
 				if (dist < 24 && !world.isSkyVisible(owner.getBlockPos())) {
-					for (LivingEntity m : world.getEntitiesByClass(LivingEntity.class, owner.getBoundingBox().expand(strong ? 32 : 20),
+					int heard = 0;
+					for (LivingEntity m : world.getEntitiesByClass(LivingEntity.class, owner.getBoundingBox().expand(20 + 4 * p),
 							e -> e instanceof Monster)) {
 						m.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 40, 0, true, false));
+						heard++;
+					}
+					if (heard > 0 && time % 200 < 20) {
+						beastXp(owner, data, bond, mob, 2);
 					}
 				}
 			}
