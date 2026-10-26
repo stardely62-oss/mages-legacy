@@ -18,7 +18,6 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
-import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Language;
@@ -352,16 +351,24 @@ public class BestiaryScreen extends Screen {
 		int w = beastWidth();
 		LegacyUi.panel(ctx, x - 6, top() - 6, x + w + 6, height - 8);
 		ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.bestiary.beasts").formatted(Formatting.BOLD), x, top(), color);
+		// How to bond and care, behind a "?" in the corner: the column keeps its room for the beasts themselves
+		int qx = x + w - 11;
+		boolean helpHot = mouseX >= qx && mouseX < qx + 11 && mouseY >= top() - 2 && mouseY < top() + 9;
+		LegacyUi.button(ctx, qx, top() - 2, 11, 11, true, helpHot, false, color);
+		ctx.drawCenteredTextWithShadow(textRenderer, "?", qx + 6, top(), helpHot ? 0xFFFFFFFF : LegacyUi.GOLD);
+		if (helpHot) {
+			tooltip = new ArrayList<>();
+			tooltip.add(Text.translatable("mages_legacy.bestiary.help").formatted(Formatting.GOLD, Formatting.BOLD));
+			for (Text step : Lines.of("mages_legacy.bestiary.ritual", MagesLegacyClient.keyLabel(MagesLegacyClient.ABILITY_KEYS[Bonds.SONG_SLOT]))) {
+				TalentScreen.wrapInto(tooltip, step.copy().formatted(Formatting.WHITE));
+			}
+		}
 		int y = top() + 12;
 
-		// The bottom block: the Song, and every beast that can be bonded
-		List<Text> steps = Lines.of("mages_legacy.bestiary.ritual", MagesLegacyClient.keyLabel(MagesLegacyClient.ABILITY_KEYS[Bonds.SONG_SLOT]));
+		// The bottom block: every beast that can be bonded
 		int perRow = Math.max(1, (w + 2) / 19);
 		int iconRows = (BeastKind.ALL.size() + perRow - 1) / perRow;
 		int bottomH = 8 + 12 + iconRows * 19;
-		for (Text step : steps) {
-			bottomH += textRenderer.wrapLines(step, w - 10).size() * 10 + 2;
-		}
 		int bottomY = height - 14 - bottomH;
 
 		NbtList bonds = extra().getList("bonds", NbtElement.COMPOUND_TYPE);
@@ -470,14 +477,6 @@ public class BestiaryScreen extends Screen {
 		y = Math.max(y + 4, bottomY);
 		LegacyUi.divider(ctx, x, x + w, y, color);
 		y += 8;
-		for (Text step : steps) {
-			LegacyUi.diamond(ctx, x + 3, y + 3, 2, color);
-			for (OrderedText row : textRenderer.wrapLines(step, w - 10)) {
-				ctx.drawText(textRenderer, row, x + 10, y, LegacyUi.PARCHMENT, true);
-				y += 10;
-			}
-			y += 2;
-		}
 		ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.bestiary.tameable").formatted(Formatting.BOLD), x, y + 2, color);
 		y += 13;
 		for (int i = 0; i < BeastKind.ALL.size(); i++) {

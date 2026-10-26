@@ -307,7 +307,7 @@
 	"mages_legacy.bestiary.echoes": "Эхо павших",
 	"mages_legacy.bestiary.beasts": "Звери уз",
 	"mages_legacy.bestiary.resting": "Отдыхает: ещё %s мин",
-	"mages_legacy.bestiary.no_beasts": "Пока никого. Ритуал описан ниже",
+	"mages_legacy.bestiary.no_beasts": "Пока никого. Как приручить: «?» вверху",
 	"mages_legacy.bestiary.ritual.1": "Песнь уз (клавиша %s): посмотрите на дикого зверя и спойте ему. 20 минут он слушает, и за это время нужно пройти его путь",
 	"mages_legacy.bestiary.ritual.2": "Свой зверь: ПКМ пустой рукой — погладить, лакомством — покормить (лечит, +10% урона), Shift + ПКМ — «жди здесь»",
 	"mages_legacy.bestiary.cost": "Призыв: %s голоса, %s уз",
@@ -562,5 +562,6 @@
 	"mages_legacy.beast.dolphin.treat": "треска или лосось",
 	"mages_legacy.beast.bat.treat": "сладкие или светящиеся ягоды",
 	"mages_legacy.xp.shepherd.6": "Погладить своего зверя (раз в 2 минуты)",
-	"mages_legacy.xp.shepherd.6.amount": "+5 голоса"
+	"mages_legacy.xp.shepherd.6.amount": "+5 голоса",
+	"mages_legacy.bestiary.help": "Как приручать и ухаживать"
 }

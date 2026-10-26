@@ -307,7 +307,7 @@
 	"mages_legacy.bestiary.echoes": "Echoes of the fallen",
 	"mages_legacy.bestiary.beasts": "Bonded beasts",
 	"mages_legacy.bestiary.resting": "Resting: %s min more",
-	"mages_legacy.bestiary.no_beasts": "Nobody yet. The ritual is below",
+	"mages_legacy.bestiary.no_beasts": "Nobody yet. How to bond: the \"?\" above",
 	"mages_legacy.bestiary.ritual.1": "Song of Bonds (key %s): look at a wild beast and sing to it. For 20 minutes it listens, and in that time you walk its way",
 	"mages_legacy.bestiary.ritual.2": "Your own beast: right click with an empty hand to pet, with its treat to feed (heals, +10% damage), sneak + right click to make it wait",
 	"mages_legacy.bestiary.cost": "Call: %s voice, %s bonds",
@@ -562,5 +562,6 @@
 	"mages_legacy.beast.dolphin.treat": "cod or salmon",
 	"mages_legacy.beast.bat.treat": "sweet or glow berries",
 	"mages_legacy.xp.shepherd.6": "Pet your beast (once in 2 minutes)",
-	"mages_legacy.xp.shepherd.6.amount": "+5 voice"
+	"mages_legacy.xp.shepherd.6.amount": "+5 voice",
+	"mages_legacy.bestiary.help": "Bonding and care"
 }
