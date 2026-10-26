@@ -130,7 +130,12 @@ public final class FxRenderer {
 			case Fx.VORTEX -> EFFECTS.add(new Vortex(ticks, rgb, readVec(buf), buf.readFloat()));
 			case Fx.VOID_SCREEN -> SCREENS.add(new VoidScreen(ticks));
 			case Fx.CRYSTALS -> EFFECTS.add(new Crystals(ticks, rgb, readVec(buf), buf.readFloat(), buf.readVarInt(), buf.readFloat()));
-			case Fx.MUSHROOM -> EFFECTS.add(new Mushroom(ticks, rgb, readVec(buf), buf.readFloat()));
+			case Fx.NEBULA -> {
+				int rgb2 = buf.readInt();
+				EFFECTS.add(new Nebula(ticks, rgb, rgb2, readVec(buf), buf.readVarInt(), buf.readFloat()));
+			}
+			case Fx.COMET -> EFFECTS.add(new Comet(ticks, rgb, readVec(buf), readVec(buf)));
+			case Fx.THREADS -> EFFECTS.add(new Threads(ticks, rgb, readVec(buf), buf.readFloat(), buf.readFloat(), buf.readVarInt()));
 			case Fx.AURORA -> {
 				int rgb2 = buf.readInt();
 				EFFECTS.add(new Aurora(ticks, rgb, rgb2, readVec(buf), buf.readFloat()));
@@ -756,7 +761,7 @@ public final class FxRenderer {
 	}
 
 	/**
-	 * A mark on the ground in a race's own manner: a pool of blood, a clock face, a fairy ring of mushrooms, ripples of a voice.
+	 * A mark on the ground in a race's own manner: a pool of blood, a clock face, ripples of a voice, cracks onto the void.
 	 * It opens, holds (riding with an entity if it has one) and fades.
 	 */
 	private static final class Mark extends Effect {
@@ -797,7 +802,6 @@ public final class FxRenderer {
 			switch (style) {
 				case Fx.POOL -> pool(m, vc, center, life, fade);
 				case Fx.CLOCK -> clock(m, vc, center, life, fade);
-				case Fx.FAIRY_RING -> fairyRing(m, vc, center, life, fade);
 				case Fx.CRACKS -> cracks(m, vc, center, life, fade);
 				default -> ripples(m, vc, center, life, fade);
 			}
@@ -878,86 +882,6 @@ public final class FxRenderer {
 			glowLine(vc, m, c, c.add(Math.cos(minute) * r * 0.78, 0, Math.sin(minute) * r * 0.78), up, 0.08, rgb, a);
 			glowLine(vc, m, c, c.add(Math.cos(hour) * r * 0.5, 0, Math.sin(hour) * r * 0.5), up, 0.13, rgb, a);
 			flatRing(vc, m, c, r * 0.06, 0.08, rgb, a, 12);
-		}
-
-		/**
-		 * A fairy ring: small glowing mushrooms springing up one after another around the circle, each a pale stem
-		 * under a cap of spore light, with a faint glow on the ground at its foot.
-		 */
-		private void fairyRing(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
-			java.util.Random random = new java.util.Random(seed);
-			int count = Math.max(6, (int) (radius * Math.PI * 2 * 1.6));
-			for (int k = 0; k < count; k++) {
-				double a = Math.PI * 2 * k / count + (random.nextDouble() - 0.5) * 0.25;
-				double d = radius * (0.92 + random.nextDouble() * 0.16);
-				float size = 0.7f + random.nextFloat() * 0.6f;
-				// They come up around the ring in turn, each springing up with a little overshoot
-				float own = MathHelper.clamp((life - (float) k / count * 10) / 6f, 0, 1);
-				if (own <= 0) {
-					continue;
-				}
-				mushroom(m, vc, c.add(Math.cos(a) * d, 0, Math.sin(a) * d), size * easeOutBack(own), fade, (float) a);
-			}
-		}
-
-		/** One glowing mushroom of a fairy ring, {@code size} 1 being about a quarter of a block tall. */
-		private void mushroom(Matrix4f m, VertexConsumer vc, Vec3d foot, float size, float fade, float turn) {
-			double h = 0.24 * size;
-			double cap = 0.13 * size;
-			Vec3d top = foot.add(0, h, 0);
-			Vec3d side = new Vec3d(Math.cos(turn), 0, Math.sin(turn));
-			// The stem, pale, seen from any side
-			glowLine(vc, m, foot, top, side, 0.05 * size, 0xE8FFE0, 0.7f * fade);
-			glowLine(vc, m, foot, top, side.crossProduct(new Vec3d(0, 1, 0)), 0.05 * size, 0xE8FFE0, 0.7f * fade);
-			// The cap: a low cone of spore light, brightest at its crown
-			Vec3d crown = top.add(0, cap * 0.7, 0);
-			int segments = 8;
-			for (int i = 0; i < segments; i++) {
-				double a0 = Math.PI * 2 * i / segments;
-				double a1 = Math.PI * 2 * (i + 1) / segments;
-				Vec3d r0 = top.add(Math.cos(a0) * cap, -cap * 0.15, Math.sin(a0) * cap);
-				Vec3d r1 = top.add(Math.cos(a1) * cap, -cap * 0.15, Math.sin(a1) * cap);
-				quad(vc, m, crown, crown, r1, r0, rgb, 0.95f * fade, 0.95f * fade, 0.5f * fade, 0.5f * fade);
-			}
-			// A small glow on the ground where it stands
-			flatRing(vc, m, foot.add(0, 0.01, 0), cap * 1.2, cap, rgb, 0.25f * fade, 10);
-		}
-
-		/**
-		 * The ground cracked open onto the void: black fissures zigzagging out from the middle, glowing violet at their
-		 * lips, stars glinting deep in them. They split open in a few ticks, as ground does under a blow.
-		 */
-		private void cracks(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
-			float grow = easeOut(Math.min(1, life / 6f));
-			Vec3d up = new Vec3d(0, 1, 0);
-			int count = 7;
-			for (int i = 0; i < count; i++) {
-				double angle = Math.PI * 2 * i / count + hash(seed, i) * 0.6;
-				double length = radius * (0.55 + 0.45 * hash(seed, i + 50)) * grow;
-				int steps = 5;
-				Vec3d p = c;
-				for (int s = 0; s < steps; s++) {
-					angle += (hash(seed, i * 10 + s + 100) - 0.5) * 1.2;
-					Vec3d next = p.add(Math.cos(angle) * length / steps, 0, Math.sin(angle) * length / steps);
-					double width = 0.24 * (1 - (double) s / steps) + 0.04;
-					if (inkPass) {
-						Vec3d dir = next.subtract(p).normalize();
-						Vec3d side = new Vec3d(-dir.z, 0, dir.x).multiply(width / 2);
-						quad(vc, m, p.subtract(side), next.subtract(side.multiply(0.7)), next.add(side.multiply(0.7)), p.add(side), 0x05020A, fade, fade, fade, fade);
-					} else {
-						glowLine(vc, m, p, next, up, width * 2.4, rgb, 0.5f * fade);
-						glowLine(vc, m, p, next, up, width * 0.35, 0xE8E0FF, 0.5f * fade);
-						if (hash(seed, i * 10 + s + 700) < 0.5) {
-							float twinkle = fade * (0.5f + 0.5f * MathHelper.sin(life * 0.6f + i * 3 + s));
-							double size = 0.04;
-							Vec3d q = p.lerp(next, 0.5).add(0, 0.01, 0);
-							quad(vc, m, q.add(-size, 0, -size), q.add(size, 0, -size), q.add(size, 0, size), q.add(-size, 0, size), 0xFFFFFF, twinkle, twinkle,
-									twinkle, twinkle);
-						}
-					}
-					p = next;
-				}
-			}
 		}
 
 		/** A voice on the ground: soft rings rolling out from the middle one after another, fading as they go. */
@@ -1589,108 +1513,6 @@ public final class FxRenderer {
 	}
 
 	/**
-	 * A great glowing mushroom shooting up out of the ground: a pale stem, a cap of spore light with bright spots and
-	 * glowing gills under it, a little sway; it sinks back into the ground at the end.
-	 */
-	private static final class Mushroom extends Effect {
-		final Vec3d at;
-		final float size;
-		final long seed;
-
-		Mushroom(int ticks, int rgb, Vec3d at, float size) {
-			super(ticks, rgb);
-			this.at = at;
-			this.size = size;
-			this.seed = Double.doubleToLongBits(at.x * 3 + at.z * 5 + size);
-		}
-
-		@Override
-		boolean inks() {
-			return true;
-		}
-
-		@Override
-		float inkStrength() {
-			return 0.85f;
-		}
-
-		@Override
-		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
-			float life = age + delta;
-			float scale = easeOutBack(Math.min(1, life / 8f)) * Math.min(1, (ticks - life) / 10f);
-			if (scale <= 0.02f) {
-				return;
-			}
-			double sway = Math.sin(life * 0.35) * 0.06 * size;
-			double stemH = size * 0.55 * scale;
-			double stemR = size * 0.09 * scale;
-			double capR = size * 0.42 * scale;
-			double capH = size * 0.3 * scale;
-			Vec3d top = at.add(sway, stemH, 0);
-			int lon = 16;
-			// The stem, a little wider at its foot
-			for (int i = 0; i < lon; i++) {
-				double a0 = Math.PI * 2 * i / lon;
-				double a1 = Math.PI * 2 * (i + 1) / lon;
-				Vec3d b0 = at.add(Math.cos(a0) * stemR * 1.3, 0, Math.sin(a0) * stemR * 1.3);
-				Vec3d b1 = at.add(Math.cos(a1) * stemR * 1.3, 0, Math.sin(a1) * stemR * 1.3);
-				Vec3d t0 = top.add(Math.cos(a0) * stemR, 0, Math.sin(a0) * stemR);
-				Vec3d t1 = top.add(Math.cos(a1) * stemR, 0, Math.sin(a1) * stemR);
-				if (inkPass) {
-					quad(vc, m, b0, b1, t1, t0, 0xEDE4CC, 0.95f, 0.95f, 0.95f, 0.95f);
-				} else {
-					quad(vc, m, b0, b1, t1, t0, 0xFFFFFF, 0.04f, 0.04f, 0.1f, 0.1f);
-				}
-			}
-			// The cap: a squashed dome
-			Vec3d capBase = top.add(0, -capH * 0.15, 0);
-			int lat = 6;
-			for (int j = 0; j < lat; j++) {
-				double p0 = Math.PI / 2 * j / lat;
-				double p1 = Math.PI / 2 * (j + 1) / lat;
-				for (int i = 0; i < lon; i++) {
-					double a0 = Math.PI * 2 * i / lon;
-					double a1 = Math.PI * 2 * (i + 1) / lon;
-					Vec3d v00 = capBase.add(Math.cos(a0) * Math.cos(p0) * capR, Math.sin(p0) * capH, Math.sin(a0) * Math.cos(p0) * capR);
-					Vec3d v01 = capBase.add(Math.cos(a1) * Math.cos(p0) * capR, Math.sin(p0) * capH, Math.sin(a1) * Math.cos(p0) * capR);
-					Vec3d v11 = capBase.add(Math.cos(a1) * Math.cos(p1) * capR, Math.sin(p1) * capH, Math.sin(a1) * Math.cos(p1) * capR);
-					Vec3d v10 = capBase.add(Math.cos(a0) * Math.cos(p1) * capR, Math.sin(p1) * capH, Math.sin(a0) * Math.cos(p1) * capR);
-					if (inkPass) {
-						quad(vc, m, v00, v01, v11, v10, rgb, 0.95f, 0.95f, 0.95f, 0.95f);
-					} else {
-						// Brightest at the rim, as if lit from inside
-						float glow = 0.35f * (1 - (float) j / lat);
-						quad(vc, m, v00, v01, v11, v10, rgb, glow, glow, glow * 0.6f, glow * 0.6f);
-					}
-				}
-			}
-			if (inkPass) {
-				return;
-			}
-			// Gills under the cap, and the rim
-			for (int i = 0; i < lon * 2; i++) {
-				double a = Math.PI * 2 * i / (lon * 2);
-				Vec3d in = capBase.add(Math.cos(a) * stemR, 0, Math.sin(a) * stemR);
-				Vec3d out = capBase.add(Math.cos(a) * capR * 0.95, 0, Math.sin(a) * capR * 0.95);
-				glowLine(vc, m, in, out, new Vec3d(0, 1, 0), 0.03 * size, 0xE6FFDC, 0.45f);
-			}
-			flatRing(vc, m, capBase, capR, 0.08 * size, 0xE6FFDC, 0.8f, 32);
-			// Bright spots on the cap
-			for (int k = 0; k < 7; k++) {
-				double a = hash(seed, k) * Math.PI * 2;
-				double p = 0.2 + hash(seed, k + 20) * 1.0;
-				Vec3d spot = capBase.add(Math.cos(a) * Math.cos(p) * capR * 1.01, Math.sin(p) * capH * 1.01, Math.sin(a) * Math.cos(p) * capR * 1.01);
-				Vec3d toCam = cam.subtract(spot).normalize();
-				Vec3d[] uv = around(toCam);
-				double s = 0.05 * size;
-				float tw = 0.6f + 0.4f * MathHelper.sin(life * 0.3f + k);
-				quad(vc, m, spot.add(uv[0].multiply(s)), spot.add(uv[1].multiply(s)), spot.subtract(uv[0].multiply(s)), spot.subtract(uv[1].multiply(s)),
-						0xF0FFE8, tw, tw, tw, tw);
-			}
-		}
-	}
-
-	/**
 	 * Curtains of light like the northern lights, waving in a ring overhead: bright at their lower hem, shading into
 	 * the second colour as they rise and thin out, with rays shimmering along them.
 	 */
@@ -1734,6 +1556,248 @@ public final class FxRenderer {
 				float al = 0.55f * fade * ray;
 				quad(vc, m, lo[0], lo[1], mid[1], mid[0], rgb, al, al, al * 0.7f, al * 0.7f);
 				quad(vc, m, mid[0], mid[1], hi[1], hi[0], rgb2, al * 0.7f, al * 0.7f, 0, 0);
+			}
+		}
+	}
+
+	// ---- the Mycelids: spores and threads ----
+
+	/** A soft round glow turned to the camera: bright in the middle, fading to nothing at its edge. */
+	private static void orb(VertexConsumer vc, Matrix4f m, Vec3d c, Vec3d cam, double r, int rgb, float alpha) {
+		Vec3d n = cam.subtract(c);
+		if (n.lengthSquared() < 1.0E-6) {
+			return;
+		}
+		Vec3d[] uv = around(n.normalize());
+		int seg = 14;
+		for (int i = 0; i < seg; i++) {
+			double a0 = Math.PI * 2 * i / seg;
+			double a1 = Math.PI * 2 * (i + 1) / seg;
+			Vec3d p0 = c.add(uv[0].multiply(Math.cos(a0) * r)).add(uv[1].multiply(Math.sin(a0) * r));
+			Vec3d p1 = c.add(uv[0].multiply(Math.cos(a1) * r)).add(uv[1].multiply(Math.sin(a1) * r));
+			quad(vc, m, c, c, p1, p0, rgb, alpha, alpha, 0, 0);
+		}
+	}
+
+	/**
+	 * A spore cloud like a nebula: billows of soft light turning slowly round its middle, each on its own height and
+	 * pace, breathing; a dark mossy haze under them gives the cloud body by day; bright motes twinkle in its depth.
+	 * It swells open, lives, and thins away.
+	 */
+	private static final class Nebula extends Effect {
+		final int rgb2;
+		final Vec3d at;
+		final int follow;
+		final float radius;
+		final long seed;
+
+		Nebula(int ticks, int rgb, int rgb2, Vec3d at, int follow, float radius) {
+			super(ticks, rgb);
+			this.rgb2 = rgb2;
+			this.at = at;
+			this.follow = follow;
+			this.radius = radius;
+			this.seed = Double.doubleToLongBits(at.x * 11 + at.z * 19 + radius);
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		float inkStrength() {
+			return 1.0f;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			Vec3d center = at;
+			if (follow >= 0) {
+				Vec3d riding = lerped(follow, delta);
+				if (riding != null) {
+					center = riding;
+				}
+			}
+			float life = age + delta;
+			float open = easeOut(Math.min(1, life / 10f));
+			float fade = Math.min(1, (ticks - life) / 15f);
+			int billows = 34;
+			for (int i = 0; i < billows; i++) {
+				double turn = hash(seed, i) * Math.PI * 2 + life * 0.025 * (0.4 + hash(seed, i + 300));
+				double dist = radius * Math.sqrt(hash(seed, i + 100)) * open;
+				double y = 0.3 + hash(seed, i + 200) * radius * 0.7 + Math.sin(life * 0.08 + i) * 0.15;
+				Vec3d p = center.add(Math.cos(turn) * dist, y, Math.sin(turn) * dist);
+				double size = radius * 0.4 * (0.6 + 0.8 * hash(seed, i + 400)) * open * (0.9 + 0.1 * Math.sin(life * 0.15 + i));
+				float edge = (float) (1 - 0.5 * dist / (radius + 0.01));
+				if (inkPass) {
+					orb(vc, m, p, cam, size * 1.15, 0x173A16, 0.32f * fade * edge);
+				} else {
+					orb(vc, m, p, cam, size, i % 3 == 0 ? rgb2 : rgb, 0.16f * fade * edge);
+				}
+			}
+			if (inkPass) {
+				return;
+			}
+			// Motes deep in the cloud, each twinkling on its own beat
+			for (int i = 0; i < 26; i++) {
+				double turn = hash(seed, i + 500) * Math.PI * 2 - life * 0.04;
+				double dist = radius * 0.85 * hash(seed, i + 600) * open;
+				double y = 0.4 + hash(seed, i + 700) * radius * 0.8 + Math.sin(life * 0.12 + i * 2) * 0.25;
+				Vec3d p = center.add(Math.cos(turn) * dist, y, Math.sin(turn) * dist);
+				float tw = 0.5f + 0.5f * MathHelper.sin(life * 0.35f + i * 1.7f);
+				orb(vc, m, p, cam, 0.07 + 0.05 * tw, 0xE6FFDC, 0.9f * tw * fade);
+			}
+		}
+	}
+
+	/**
+	 * A comet of spores: a glowing head flying in an arc from one spot to another, its tail of fading puffs behind,
+	 * spores shed along the way.
+	 */
+	private static final class Comet extends Effect {
+		final Vec3d from;
+		final Vec3d to;
+		final double rise;
+
+		Comet(int ticks, int rgb, Vec3d from, Vec3d to) {
+			super(ticks + 6, rgb);
+			this.from = from.add(0, 1, 0);
+			this.to = to.add(0, 1, 0);
+			this.rise = 1.0 + from.distanceTo(to) * 0.25;
+		}
+
+		/** Where the head is at a share of the way: on a raised arc, a little faster in the middle. */
+		private Vec3d at(double s) {
+			s = MathHelper.clamp(s, 0, 1);
+			double e = s * s * (3 - 2 * s);
+			return from.lerp(to, e).add(0, Math.sin(Math.PI * e) * rise, 0);
+		}
+
+		private double share(float life) {
+			return life / (ticks - 6);
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		float inkStrength() {
+			return 0.6f;
+		}
+
+		@Override
+		void tick() {
+			MinecraftClient client = MinecraftClient.getInstance();
+			if (client.world == null || age > ticks - 6) {
+				return;
+			}
+			Vec3d head = at(share(age));
+			for (int i = 0; i < 3; i++) {
+				client.world.addParticle(ModParticles.SPORE, head.x, head.y, head.z, (client.world.random.nextDouble() - 0.5) * 0.06, 0,
+						(client.world.random.nextDouble() - 0.5) * 0.06);
+			}
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			float life = age + delta;
+			double s = share(life);
+			float fade = s > 1 ? (float) Math.max(0, 1 - (s - 1) * 4) : 1;
+			// The tail: puffs left behind, smaller and dimmer the older
+			for (int k = 14; k >= 0; k--) {
+				double t = s - k * 0.035;
+				if (t < 0) {
+					continue;
+				}
+				Vec3d p = at(t);
+				double size = 0.45 * (1 - k / 16.0);
+				if (inkPass) {
+					orb(vc, m, p, cam, size * 1.2, 0x173A16, 0.35f * fade * (1 - k / 15f));
+				} else {
+					orb(vc, m, p, cam, size, rgb, 0.3f * fade * (1 - k / 15f));
+				}
+			}
+			if (!inkPass && s <= 1) {
+				Vec3d head = at(s);
+				orb(vc, m, head, cam, 0.7, rgb, 0.45f * fade);
+				orb(vc, m, head, cam, 0.25, 0xF0FFE8, 0.95f * fade);
+			}
+		}
+	}
+
+	/**
+	 * Threads of mycelium tearing up out of the ground in a ring and curling in towards a point above its middle, a bud
+	 * of light at each tip, swaying; they grow fast and at the end draw back into the ground.
+	 */
+	private static final class Threads extends Effect {
+		final Vec3d at;
+		final float radius;
+		final float height;
+		final int count;
+		final long seed;
+
+		Threads(int ticks, int rgb, Vec3d at, float radius, float height, int count) {
+			super(ticks, rgb);
+			this.at = at;
+			this.radius = radius;
+			this.height = height;
+			this.count = Math.max(1, count);
+			this.seed = Double.doubleToLongBits(at.x * 5 + at.z * 9 + height);
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		float inkStrength() {
+			return 0.8f;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			float life = age + delta;
+			float grow = easeOut(Math.min(1, life / 7f));
+			float back = Math.min(1, (ticks - life) / 10f);
+			float reach = grow * back;
+			if (reach <= 0.01f) {
+				return;
+			}
+			int n = 18;
+			for (int i = 0; i < count; i++) {
+				double angle = Math.PI * 2 * i / count + hash(seed, i) * 0.5;
+				Vec3d out = new Vec3d(Math.cos(angle), 0, Math.sin(angle));
+				Vec3d base = at.add(out.multiply(radius * (0.75 + 0.5 * hash(seed, i + 30))));
+				double h = height * (0.6 + 0.5 * hash(seed, i + 60));
+				double sway = Math.sin(life * 0.25 + i * 1.3) * 0.25;
+				Vec3d tip = at.add(out.multiply(radius * 0.15)).add(new Vec3d(-out.z, 0, out.x).multiply(sway)).add(0, h, 0);
+				// Up out of the ground first, then curling in over the middle
+				Vec3d c1 = base.add(out.multiply(0.3)).add(0, h * 0.7, 0);
+				Vec3d c2 = tip.add(out.multiply(radius * 0.5)).add(0, h * 0.25, 0);
+				List<Vec3d> points = new ArrayList<>();
+				float[] widths = new float[n + 1];
+				int[] colors = new int[n + 1];
+				float[] alphas = new float[n + 1];
+				for (int k = 0; k <= n; k++) {
+					double s = (double) k / n * reach;
+					double u = 1 - s;
+					points.add(base.multiply(u * u * u).add(c1.multiply(3 * u * u * s)).add(c2.multiply(3 * u * s * s)).add(tip.multiply(s * s * s)));
+					float along = (float) k / n;
+					widths[k] = (float) (0.14 * (1 - along) + 0.03);
+					colors[k] = lerpColor(inkPass ? 0x1E4A1C : rgb, inkPass ? 0x1E4A1C : 0xF0FFE8, along * along);
+					alphas[k] = 0.85f * back;
+				}
+				strip(vc, m, cam, points, widths, colors, alphas);
+				if (!inkPass) {
+					// The bud of light at the growing tip
+					float tw = 0.7f + 0.3f * MathHelper.sin(life * 0.4f + i);
+					orb(vc, m, points.get(n), cam, 0.16 * tw, 0xF0FFE8, 0.9f * back);
+					orb(vc, m, points.get(n), cam, 0.35, rgb, 0.25f * back);
+				}
 			}
 		}
 	}

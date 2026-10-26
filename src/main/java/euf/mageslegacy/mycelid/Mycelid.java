@@ -32,7 +32,6 @@ import net.minecraft.item.FoodComponent;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.tag.DamageTypeTags;
@@ -51,7 +50,6 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.GlobalPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
-import org.joml.Vector3f;
 
 /**
  * Everything the Mycelids do: spores as their resource, night sight and regeneration in the dark, the mushroom diet,
@@ -94,8 +92,6 @@ public final class Mycelid {
 	private record Cloud(ServerWorld world, Vec3d center, UUID owner, double radius, int potency, long start, long until, boolean follows) {}
 
 	/** Greenish-grey and dark violet spore dust for the cloud. */
-	private static final DustParticleEffect SPORE_DUST = new DustParticleEffect(new Vector3f(0.62f, 0.72f, 0.48f), 0.9f);
-	private static final DustParticleEffect SPORE_DUST_DARK = new DustParticleEffect(new Vector3f(0.42f, 0.28f, 0.40f), 1.0f);
 
 	private static final List<PendingJump> JUMPS = new ArrayList<>();
 	private static final List<Cloud> CLOUDS = new ArrayList<>();
@@ -294,7 +290,8 @@ public final class Mycelid {
 		// The mycelium gives the body back: spores wind in, a column of light
 		Fx.helix(world, player, 1.4f, 2.6f, 4, true, 26, SPORE_RGB);
 		Fx.pillar(world, to, 0.7f, 5, 24, SPORE_RGB);
-		Fx.mushroom(world, to, 3.2f, 44, SPORE_RGB);
+		Fx.threads(world, to, 2.2f, 3.2f, 14, 44, SPORE_RGB);
+		Fx.nebula(world, to, null, 2.4f, 40, SPORE_RGB, 0xC8FFB0);
 		Fx.burst(world, to.add(0, 1, 0), 3.0f, 9, MOSS_INK);
 		Fx.screen(player, 30, SPORE_RGB);
 		Fx.shake(player, 2.0f, 12);
@@ -367,7 +364,9 @@ public final class Mycelid {
 		MycelidFx.crumble(world, player.getPos());
 		MycelidFx.landingMark(world, target, 0);
 		Fx.burst(world, player.getPos().add(0, 1, 0), 1.3f, 6, MOSS_INK);
-		Fx.mark(world, target, null, 1.3f, JUMP_DELAY + 40, SPORE_RGB, Fx.FAIRY_RING);
+		// The body scatters into a puff of spores, and a comet of them flies ahead to where it will sprout
+		Fx.nebula(world, player.getPos(), null, 1.2f, 18, SPORE_RGB, 0xC8FFB0);
+		Fx.comet(world, player.getPos(), target, JUMP_DELAY, SPORE_RGB);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_FUNGUS_BREAK, SoundCategory.PLAYERS, 1.0f, 0.7f);
 		JUMPS.add(new PendingJump(player.getUuid(), target, now + JUMP_DELAY, player.getPos()));
 		data.dirty = true;
@@ -429,12 +428,11 @@ public final class Mycelid {
 		spawnCloud(player.getServerWorld(), player.getPos(), player.getUuid(), radius,
 				data.has(Talents.SWARM_POTENT) ? 2 : 1, data.has(Talents.SWARM_LINGERING) ? 240 : 120, data.has(Talents.SWARM_FOLLOW));
 		MycelidFx.cloudBurst(player.getServerWorld(), player.getPos(), radius);
-		// A circle of mycelium under the cloud for as long as it lasts, and the spores thrown out in a puff
+		// The cloud itself: a glowing nebula of spores for as long as it lasts, and a puff as it bursts out
 		ServerWorld here = player.getServerWorld();
 		int lasts = data.has(Talents.SWARM_LINGERING) ? 240 : 120;
-		Fx.mark(here, player.getPos(), data.has(Talents.SWARM_FOLLOW) ? player : null, (float) radius * 0.9f, lasts, SPORE_RGB, Fx.FAIRY_RING);
+		Fx.nebula(here, player.getPos(), data.has(Talents.SWARM_FOLLOW) ? player : null, (float) radius, lasts, SPORE_RGB, 0xC8FFB0);
 		Fx.burst(here, player.getPos().add(0, 1, 0), (float) radius, 9, MOSS_INK);
-		Fx.mushroom(here, player.getPos(), (float) radius * 0.6f, 24, SPORE_RGB);
 		Fx.shake(player, 0.8f, 8);
 		if (data.has(Talents.SWARM_BURST)) {
 			burst(player, radius);
@@ -543,7 +541,7 @@ public final class Mycelid {
 		state.markDirty();
 		MycelidFx.nodeGrow(world, Vec3d.ofBottomCenter(pos));
 		Fx.pillar(world, Vec3d.ofBottomCenter(pos), 0.4f, 2.5f, 16, SPORE_RGB);
-		Fx.mushroom(world, Vec3d.ofBottomCenter(pos.up()), 1.3f, 26, SPORE_RGB);
+		Fx.threads(world, Vec3d.ofBottomCenter(pos), 0.9f, 1.8f, 7, 30, SPORE_RGB);
 		world.playSound(null, pos, SoundEvents.BLOCK_FUNGUS_PLACE, SoundCategory.BLOCKS, 1.0f, 0.8f);
 		world.playSound(null, pos, SoundEvents.BLOCK_ROOTS_PLACE, SoundCategory.BLOCKS, 1.0f, 0.6f);
 	}
@@ -627,12 +625,11 @@ public final class Mycelid {
 			player.teleport(world, jump.target().x, jump.target().y, jump.target().z, player.getYaw(), player.getPitch());
 			player.fallDistance = 0;
 			MycelidFx.sprout(world, jump.target());
-			// The flight seen as a streak of spores, and the body sprouting out of the ground in a burst
-			List<Vec3d> arc = arcPath(jump.from(), jump.target());
-			Fx.ribbon(world, arc, 18, MOSS_INK, SPORE_RGB, 0.7f);
+			// The body sprouting out of the ground in a burst
 			Fx.burst(world, jump.target().add(0, 1, 0), 1.8f, 7, SPORE_RGB);
-			// The body comes up out of a great mushroom, and the spores thrown out burst over whatever stands close
-			Fx.mushroom(world, jump.target(), 2.4f, 30, SPORE_RGB);
+			// Threads of mycelium tear up out of the ground and knit the body together; the spores thrown out burst over
+			// whatever stands close
+			Fx.threads(world, jump.target(), 1.4f, 2.4f, 10, 24, SPORE_RGB);
 			for (LivingEntity mob : world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(3), e -> e instanceof Monster && e.isAlive())) {
 				mob.damage(world.getDamageSources().indirectMagic(player, player), 4);
 				Vec3d away = mob.getPos().subtract(jump.target());
@@ -678,9 +675,7 @@ public final class Mycelid {
 			if (now % 3 == 0) {
 				double r = cloud.radius();
 				// Glowing spores drift up through the cloud (they live a few seconds, so a few at a time are plenty)
-				world.spawnParticles(ModParticles.SPORE, c.x, c.y + 0.5, c.z, (int) (r * r * 0.6), r * 0.5, 0.5, r * 0.5, 0.0);
-				world.spawnParticles(SPORE_DUST, c.x, c.y + 0.7, c.z, (int) (r * r * 0.6), r * 0.55, 0.5, r * 0.55, 0.0);
-				world.spawnParticles(SPORE_DUST_DARK, c.x, c.y + 0.3, c.z, (int) (r * r * 0.5), r * 0.55, 0.25, r * 0.55, 0.0);
+				world.spawnParticles(ModParticles.SPORE, c.x, c.y + 0.5, c.z, (int) (r * r * 0.4), r * 0.5, 0.5, r * 0.5, 0.0);
 				world.spawnParticles(ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 1.2, c.z, (int) (r * 4), r * 0.5, 0.6, r * 0.5, 0.0);
 				MycelidFx.vortex(world, c, r, now - cloud.start());
 				// The edge of the cloud, so it's clear where it ends

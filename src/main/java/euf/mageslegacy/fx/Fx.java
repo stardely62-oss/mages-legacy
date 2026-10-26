@@ -38,8 +38,10 @@ public final class Fx {
 	public static final int VOID_SCREEN = 19;
 	public static final int PHASE = 20;
 	public static final int CRYSTALS = 21;
-	public static final int MUSHROOM = 22;
 	public static final int AURORA = 23;
+	public static final int NEBULA = 24;
+	public static final int COMET = 25;
+	public static final int THREADS = 26;
 	/**
 	 * A flag on a colour: lay it on as real colour under its glow, the way blood should look, rather than glow alone
 	 * (which a bright day washes to pink, and which can't show a dark colour at all).
@@ -146,15 +148,14 @@ public final class Fx {
 		send(world, from.getPos(), buf);
 	}
 
-	/** Marks on the ground, one for each race's manner: blood, time, a fairy ring of mushrooms, a voice. */
+	/** Marks on the ground in a race's manner: blood, time, a voice, the void. */
 	public static final int POOL = 0;
 	public static final int CLOCK = 1;
-	public static final int FAIRY_RING = 2;
 	public static final int RIPPLES = 3;
 	public static final int CRACKS = 4;
 
 	/**
-	 * A mark on the ground in a race's own manner ({@link #POOL}, {@link #CLOCK}, {@link #FAIRY_RING}, {@link #RIPPLES}):
+	 * A mark on the ground in a race's own manner ({@link #POOL}, {@link #CLOCK}, {@link #RIPPLES}, {@link #CRACKS}):
 	 * it opens, holds (riding with {@code follow} if given, or staying where it was made) and fades.
 	 */
 	public static void mark(ServerWorld world, Vec3d at, Entity follow, float radius, int ticks, int rgb, int style) {
@@ -271,11 +272,37 @@ public final class Fx {
 		send(world, at, buf);
 	}
 
-	/** A great glowing mushroom springing up out of the ground at {@code at}, {@code size} blocks tall, then sinking. */
-	public static void mushroom(ServerWorld world, Vec3d at, float size, int ticks, int rgb) {
-		PacketByteBuf buf = start(MUSHROOM, ticks, rgb);
+	/**
+	 * A cloud of spores like a glowing nebula: soft billows turning slowly around {@code at}, breathing, dark haze
+	 * under the light and motes twinkling inside, riding with {@code follow} if given.
+	 */
+	public static void nebula(ServerWorld world, Vec3d at, Entity follow, float radius, int ticks, int rgb, int rgb2) {
+		PacketByteBuf buf = start(NEBULA, ticks, rgb);
+		buf.writeInt(rgb2);
 		writeVec(buf, at);
-		buf.writeFloat(size);
+		buf.writeVarInt(follow == null ? -1 : follow.getId());
+		buf.writeFloat(radius);
+		send(world, at, buf);
+	}
+
+	/** A glowing head of spores flying in an arc from {@code from} to {@code to} over {@code ticks}, trailing a tail. */
+	public static void comet(ServerWorld world, Vec3d from, Vec3d to, int ticks, int rgb) {
+		PacketByteBuf buf = start(COMET, ticks, rgb);
+		writeVec(buf, from);
+		writeVec(buf, to);
+		send(world, from, buf);
+	}
+
+	/**
+	 * Threads of mycelium tearing up out of the ground in a ring of {@code radius} and curling in to a point
+	 * {@code height} above {@code at}, a bud of light at each tip; they grow, sway, and draw back into the ground.
+	 */
+	public static void threads(ServerWorld world, Vec3d at, float radius, float height, int count, int ticks, int rgb) {
+		PacketByteBuf buf = start(THREADS, ticks, rgb);
+		writeVec(buf, at);
+		buf.writeFloat(radius);
+		buf.writeFloat(height);
+		buf.writeVarInt(count);
 		send(world, at, buf);
 	}
 
