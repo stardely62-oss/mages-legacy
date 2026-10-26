@@ -705,10 +705,6 @@ public final class Voidborn {
 		Vec3d end = eye.add(look.multiply(reach));
 		Box box = player.getBoundingBox().stretch(look.multiply(reach)).expand(1);
 		EntityHitResult hit = ProjectileUtil.raycast(player, eye, end, box, e -> e instanceof LivingEntity l && l.isAlive() && e != player, reach * reach);
-		if (hit == null) {
-			euf.mageslegacy.MagesLegacy.LOGGER.info("[void-debug] lookedAt miss: eye {} look {} wall {} {} reach {} in box {}", eye, look, wall.getType(),
-					wall.getPos(), reach, player.getWorld().getOtherEntities(player, box, e -> true));
-		}
 		return hit != null && hit.getEntity() instanceof LivingEntity living ? living : null;
 	}
 

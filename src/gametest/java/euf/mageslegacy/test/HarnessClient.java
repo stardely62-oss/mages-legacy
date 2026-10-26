@@ -741,6 +741,11 @@ public class HarnessClient implements ClientModInitializer {
 			LOGGER.info("[harness] pocket: back in {} at {} from the start", c.world.getRegistryKey().getValue(), away);
 			check("pocket_out", c.world.getRegistryKey() == World.OVERWORLD && away < 1.5);
 		});
+		step(10, false, c -> c.setScreen(new TalentScreen()));
+		step(20, false, c -> {
+			screenshot(c, "talents_voidborn");
+			c.setScreen(null);
+		});
 		step(20, false, this::finish);
 
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
