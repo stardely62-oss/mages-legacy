@@ -1226,9 +1226,17 @@ public class RaceGameTests implements FabricGameTest {
 		RaceData data = RaceState.of(player);
 		ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(0, 0, 4));
 		UUID id = zombie.getUuid();
-		AbilityResult result = Voidborn.excise(player, data);
-		check(result == AbilityResult.OK, "the Excision: " + result + ", pocket world " + Pocket.world(world.getServer()));
 		ServerWorld pocket = Pocket.world(world.getServer());
+		AbilityResult result = Voidborn.excise(player, data);
+		// The test server is made from a preset without datapack dimensions: there the Excision just refuses (the
+		// client harness, in a real world, tries the pocket itself)
+		if (pocket == null) {
+			check(result == AbilityResult.LOCKED && world.getEntity(id) != null && data.resource == 100, "no pocket: nothing happens, nothing spent");
+			zombie.discard();
+			done(ctx, player);
+			return;
+		}
+		check(result == AbilityResult.OK, "the Excision: " + result);
 		check(world.getEntity(id) == null && pocket.getEntity(id) != null, "the zombie is in the pocket now");
 		check(pocket.getBlockState(BlockPos.ofFloored(Pocket.center(data.voidborn.room)).down()).isOf(Blocks.AMETHYST_BLOCK), "the room was laid");
 		// Leaving the race lets go of whatever it held: it comes back where it was

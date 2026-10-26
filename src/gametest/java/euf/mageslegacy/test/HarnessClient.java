@@ -19,6 +19,7 @@ import euf.mageslegacy.race.Talents;
 import euf.mageslegacy.shepherd.Bonds;
 import euf.mageslegacy.shepherd.EchoType;
 import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.voidborn.Pocket;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -60,6 +61,7 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.Heightmap;
+import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -638,6 +640,108 @@ public class HarnessClient implements ClientModInitializer {
 		step(20, false, c -> {
 			screenshot(c, "traits_bloodkin");
 			c.setScreen(null);
+		});
+		// ---- The Voidborn: a Void Step through a wall, the Well, the Excision, into the Pocket and back ----
+		step(10, false, c -> {
+			commands(c, "race set @a voidborn", "race resource @a 100", "kill @e[type=!player]", "weather clear", "time set 6000");
+			onServer(c, s -> {
+				ServerWorld world = s.getOverworld();
+				for (int dx = -4; dx <= 4; dx++) {
+					for (int dy = 0; dy <= 3; dy++) {
+						for (int dz = 2; dz <= 4; dz++) {
+							world.setBlockState(arena.add(dx, dy, dz), Blocks.STONE_BRICKS.getDefaultState());
+						}
+					}
+				}
+				return null;
+			});
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+			tp(c, Vec3d.ofBottomCenter(arena).add(0, 0, -3), Vec3d.ofBottomCenter(arena).add(0, 1.6, 6));
+		});
+		step(10, false, c -> check("voidborn_chosen", serverRace(c) == Race.VOIDBORN && ClientRaceState.race == Race.VOIDBORN));
+		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
+		step(14, false, c -> {
+			LOGGER.info("[harness] void step fx: {}", FxRenderer.describe());
+			screenshot(c, "void_step_mid");
+		});
+		step(4, false, c -> {
+			double z = c.player.getZ() - arena.getZ();
+			LOGGER.info("[harness] void step: now at z+{}", z);
+			check("void_step_through", z > 4.5 && c.world.isSpaceEmpty(c.player, c.player.getBoundingBox()));
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+		});
+		step(4, false, c -> screenshot(c, "void_step_end"));
+		// The Well, opened on the ground ahead, with three zombies around it
+		step(40, false, c -> {
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+			resetCooldowns(c);
+			commands(c, "race resource @a 100");
+			onServer(c, s -> {
+				ServerWorld world = s.getOverworld();
+				for (int dx = -4; dx <= 4; dx++) {
+					for (int dy = 0; dy <= 3; dy++) {
+						for (int dz = 2; dz <= 4; dz++) {
+							world.removeBlock(arena.add(dx, dy, dz), false);
+						}
+					}
+				}
+				spawnStill(world, EntityType.ZOMBIE, arena.add(-3, 0, 4));
+				spawnStill(world, EntityType.ZOMBIE, arena.add(3, 0, 4));
+				spawnStill(world, EntityType.ZOMBIE, arena.add(0, 0, 6));
+				return null;
+			});
+			tp(c, Vec3d.ofBottomCenter(arena).add(0, 0, -5), Vec3d.ofBottomCenter(arena).add(0, 0, 3));
+		});
+		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[1].getDefaultKey()));
+		step(20, false, c -> {
+			LOGGER.info("[harness] well fx: {}", FxRenderer.describe());
+			screenshot(c, "void_well");
+		});
+		step(80, false, c -> {
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+			commands(c, "kill @e[type=!player]");
+			resetCooldowns(c);
+			commands(c, "race resource @a 100");
+			onServer(c, s -> {
+				spawnStill(s.getOverworld(), EntityType.ZOMBIE, arena.add(0, 0, 3));
+				return null;
+			});
+			tp(c, Vec3d.ofBottomCenter(arena).add(0, 0, -3), Vec3d.ofBottomCenter(arena).add(0, 1.2, 3));
+		});
+		// The Excision: the zombie is gone into the pocket for six seconds, then back
+		step(6, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[2].getDefaultKey()));
+		step(4, false, c -> {
+			screenshot(c, "void_excise");
+			int here = onServer(c, s -> s.getOverworld().getEntitiesByClass(ZombieEntity.class, new Box(arena).expand(12), z -> true).size());
+			LOGGER.info("[harness] excision: zombies left here {}", here);
+			check("excise_away", here == 0);
+		});
+		step(130, false, c -> {
+			int here = onServer(c, s -> s.getOverworld().getEntitiesByClass(ZombieEntity.class, new Box(arena).expand(12), z -> true).size());
+			LOGGER.info("[harness] excision: zombies back {}", here);
+			check("excise_back", here == 1);
+			screenshot(c, "hud_voidborn");
+			commands(c, "kill @e[type=!player]");
+			resetCooldowns(c);
+			commands(c, "race resource @a 100");
+		});
+		// Into the Pocket through a rift, and back out to the same spot
+		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[3].getDefaultKey()));
+		step(4, false, c -> screenshot(c, "pocket_rift"));
+		step(30, false, c -> {
+			LOGGER.info("[harness] pocket: client world {}", c.world.getRegistryKey().getValue());
+			check("pocket_in", c.world.getRegistryKey() == Pocket.WORLD);
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+		});
+		step(10, false, c -> {
+			screenshot(c, "pocket");
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+		});
+		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[3].getDefaultKey()));
+		step(30, false, c -> {
+			double away = c.player.getPos().distanceTo(Vec3d.ofBottomCenter(arena).add(0, 0, -3));
+			LOGGER.info("[harness] pocket: back in {} at {} from the start", c.world.getRegistryKey().getValue(), away);
+			check("pocket_out", c.world.getRegistryKey() == World.OVERWORLD && away < 1.5);
 		});
 		step(20, false, this::finish);
 
