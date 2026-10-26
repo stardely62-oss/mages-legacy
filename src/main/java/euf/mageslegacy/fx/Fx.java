@@ -21,6 +21,7 @@ public final class Fx {
 	public static final int RIBBON = 2;
 	public static final int PILLAR = 3;
 	public static final int SCREEN = 4;
+	public static final int FLIGHT = 5;
 	/** How far away players still see an effect. */
 	private static final double RANGE = 64;
 
@@ -84,6 +85,16 @@ public final class Fx {
 	public static void screen(ServerPlayerEntity player, int ticks, int rgb) {
 		if (ServerPlayNetworking.canSend(player, RacePackets.FX)) {
 			ServerPlayNetworking.send(player, RacePackets.FX, start(SCREEN, ticks, rgb));
+		}
+	}
+
+	/**
+	 * This player is about to be carried along a path by the server for {@code ticks}: its client smooths the
+	 * movement between the server's steps instead of snapping to each.
+	 */
+	public static void flight(ServerPlayerEntity player, int ticks) {
+		if (ServerPlayNetworking.canSend(player, RacePackets.FX)) {
+			ServerPlayNetworking.send(player, RacePackets.FX, start(FLIGHT, ticks, 0));
 		}
 	}
 

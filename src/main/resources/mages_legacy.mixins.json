@@ -12,6 +12,7 @@
 		"PlayerEntityMixin"
 	],
 	"client": [
+		"client.ClientPlayNetworkHandlerMixin",
 		"client.LivingEntityRendererMixin"
 	],
 	"injectors": {

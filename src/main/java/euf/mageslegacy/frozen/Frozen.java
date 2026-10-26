@@ -1,6 +1,7 @@
 package euf.mageslegacy.frozen;
 
 import euf.mageslegacy.fx.Fx;
+import euf.mageslegacy.fx.ModParticles;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Progression;
@@ -36,6 +37,7 @@ import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.entity.projectile.ProjectileUtil;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.particle.DustParticleEffect;
+import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
@@ -106,9 +108,10 @@ public final class Frozen {
 	private static final int ICE_RGB = 0x9FCBF2;
 	private static final int SAND_RGB = 0xE8C98A;
 	private static final int STILL_RGB = 0xE8F4FF;
-	/** Pale ice and golden sand: the colours of the Rewind's trail. */
-	private static final DustParticleEffect ICE = new DustParticleEffect(new Vector3f(0.62f, 0.80f, 0.95f), 1.2f);
-	private static final DustParticleEffect SAND = new DustParticleEffect(new Vector3f(0.91f, 0.79f, 0.54f), 1.0f);
+	/** Ice shards and grains of sand (the race's own particles); fine ice dust for the frozen silhouette. */
+	private static final ParticleEffect ICE = ModParticles.ICE_SHARD;
+	private static final ParticleEffect SAND = ModParticles.SAND;
+	private static final DustParticleEffect ICE_DUST = new DustParticleEffect(new Vector3f(0.62f, 0.80f, 0.95f), 1.2f);
 
 	/** Where every player was, newest last: one point a tick, a few seconds deep. */
 	private record Point(Vec3d pos, float health, RegistryKey<World> world) {}
@@ -589,6 +592,7 @@ public final class Frozen {
 
 	/** The flight seen by all: a streak of light from ice to sand along the way; for the flier, the screen's edges glow. */
 	private static void flightFx(ServerPlayerEntity player, List<Vec3d> path) {
+		Fx.flight(player, REWIND_TICKS);
 		Fx.ribbon(player.getServerWorld(), path, 26, ICE_RGB, SAND_RGB, 1.3f);
 		Fx.screen(player, 16, ICE_RGB);
 	}
@@ -696,8 +700,8 @@ public final class Frozen {
 			}
 			// A body-shaped glint of frost: a column of ice light, shoulders and head
 			if (now % 2 == 0) {
-				h.world().spawnParticles(ICE, at.x, at.y + 0.9, at.z, 6, 0.18, 0.45, 0.18, 0);
-				h.world().spawnParticles(ICE, at.x, at.y + 1.6, at.z, 3, 0.12, 0.1, 0.12, 0);
+				h.world().spawnParticles(ICE_DUST, at.x, at.y + 0.9, at.z, 6, 0.18, 0.45, 0.18, 0);
+				h.world().spawnParticles(ICE_DUST, at.x, at.y + 1.6, at.z, 3, 0.12, 0.1, 0.12, 0);
 				h.world().spawnParticles(ParticleTypes.END_ROD, at.x, at.y + 1.1, at.z, 1, 0.2, 0.5, 0.2, 0);
 			}
 		}
@@ -808,21 +812,17 @@ public final class Frozen {
 		e.velocityModified = true;
 	}
 
-	/** The Dome's shell: pale ice light on a sphere, and a ring of sand on the ground. */
+	/** Inside the Dome time stands: grains of sand hang still in the air, glinting (the shell itself is drawn by the clients). */
 	private static void shell(Dome d) {
 		var random = d.world.getRandom();
-		int points = d.stop ? 60 : 36;
-		for (int i = 0; i < points; i++) {
+		int grains = d.stop ? 24 : 8;
+		for (int i = 0; i < grains; i++) {
 			double theta = random.nextDouble() * Math.PI * 2;
-			double y = random.nextDouble();
-			double r = Math.sqrt(1 - y * y) * d.radius;
-			d.world.spawnParticles(ICE, d.center.x + Math.cos(theta) * r, d.center.y + y * d.radius, d.center.z + Math.sin(theta) * r, 1, 0, 0, 0, 0);
+			double r = Math.sqrt(random.nextDouble()) * d.radius * 0.9;
+			double y = random.nextDouble() * d.radius * 0.7;
+			d.world.spawnParticles(ModParticles.STILL_SAND, d.center.x + Math.cos(theta) * r, d.center.y + 0.2 + y, d.center.z + Math.sin(theta) * r, 1, 0, 0,
+					0, 0);
 		}
-		for (int i = 0; i < 16; i++) {
-			double theta = Math.PI * 2 * i / 16;
-			d.world.spawnParticles(SAND, d.center.x + Math.cos(theta) * d.radius, d.center.y + 0.1, d.center.z + Math.sin(theta) * d.radius, 1, 0, 0, 0, 0);
-		}
-		d.world.spawnParticles(ParticleTypes.END_ROD, d.center.x, d.center.y + d.radius * 0.6, d.center.z, 2, d.radius * 0.4, d.radius * 0.3, d.radius * 0.4, 0);
 	}
 
 	/**

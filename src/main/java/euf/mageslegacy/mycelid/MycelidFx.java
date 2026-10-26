@@ -1,5 +1,6 @@
 package euf.mageslegacy.mycelid;
 
+import euf.mageslegacy.fx.ModParticles;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -23,8 +24,9 @@ public final class MycelidFx {
 	private static final Vector3f BONE = new Vector3f(0.88f, 0.84f, 0.74f);
 
 	/** Bright spores that wither to violet as they fall. */
-	public static final ParticleEffect SPORE = new DustColorTransitionParticleEffect(SPORE_GREEN, ROT_VIOLET, 1.0f);
-	public static final ParticleEffect SPORE_BIG = new DustColorTransitionParticleEffect(SPORE_GREEN, MOSS, 1.6f);
+	/** Glowing spores (the race's own particle): they float up, sway and burst. */
+	public static final ParticleEffect SPORE = ModParticles.SPORE;
+	public static final ParticleEffect SPORE_BIG = ModParticles.SPORE;
 	public static final ParticleEffect MOSS_DUST = new DustParticleEffect(MOSS, 1.2f);
 	public static final ParticleEffect BONE_DUST = new DustParticleEffect(BONE, 0.8f);
 

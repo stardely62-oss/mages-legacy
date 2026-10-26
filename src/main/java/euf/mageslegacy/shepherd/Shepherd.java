@@ -365,8 +365,9 @@ public final class Shepherd {
 		if (summoned == 0) {
 			return lackVoice ? AbilityResult.NO_RESOURCE : lackRoom ? AbilityResult.NO_CAPACITY : AbilityResult.NO_SPACE;
 		}
-		Fx.ring(player.getServerWorld(), base, 0.3f, 3.5f, 14, SPIRIT_RGB);
-		Fx.pillar(player.getServerWorld(), base, 1.4f, 4, 16, SPIRIT_RGB);
+		// Souls answer: a faint spirit ring on the ground and wisps welling up out of it
+		Fx.ring(player.getServerWorld(), base, 0.3f, 3.5f, 16, SPIRIT_RGB);
+		player.getServerWorld().spawnParticles(Echoes.SPIRIT, base.x, base.y + 0.2, base.z, 30, 1.2, 0.1, 1.2, 0.02);
 		if (summoned < missing.size()) {
 			player.sendMessage(Text.translatable("mages_legacy.echo.partial", summoned, missing.size(),
 					Text.translatable(lackVoice ? "mages_legacy.echo.lack_voice" : "mages_legacy.echo.lack_room")), true);

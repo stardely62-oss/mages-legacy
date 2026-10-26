@@ -24,6 +24,8 @@ import org.joml.Matrix4f;
 public final class FxRenderer {
 	private static final List<Effect> EFFECTS = new ArrayList<>();
 	private static final List<Effect> SCREENS = new ArrayList<>();
+	/** Until when (client ticks) the server is carrying this player along a path. */
+	private static long flightUntil;
 
 	private FxRenderer() {
 	}
@@ -64,6 +66,7 @@ public final class FxRenderer {
 				EFFECTS.add(new Ribbon(ticks, rgb, rgb2, height, points));
 			}
 			case Fx.PILLAR -> EFFECTS.add(new Pillar(ticks, rgb, readVec(buf), buf.readFloat(), buf.readFloat()));
+			case Fx.FLIGHT -> flightUntil = ClientRaceState.clientTicks() + ticks + 3;
 			case Fx.SCREEN -> SCREENS.add(new Effect(ticks, rgb) {
 				@Override
 				void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
@@ -92,6 +95,12 @@ public final class FxRenderer {
 	public static void clear() {
 		EFFECTS.clear();
 		SCREENS.clear();
+		flightUntil = 0;
+	}
+
+	/** Whether the server is carrying this player along a path right now (its steps are then smoothed). */
+	public static boolean inFlight() {
+		return ClientRaceState.clientTicks() <= flightUntil;
 	}
 
 	public static void render(WorldRenderContext context) {

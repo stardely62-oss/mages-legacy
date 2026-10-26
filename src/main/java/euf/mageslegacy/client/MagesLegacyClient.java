@@ -56,6 +56,7 @@ public class MagesLegacyClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		BlockRenderLayerMap.INSTANCE.putBlock(MagesLegacy.MYCELIUM_NODE, RenderLayer.getCutout());
+		RaceParticles.register();
 		ClientPlayNetworking.registerGlobalReceiver(RacePackets.SYNC, (client, handler, buf, sender) -> {
 			PacketByteBuf copy = PacketByteBufs.copy(buf);
 			client.execute(() -> {

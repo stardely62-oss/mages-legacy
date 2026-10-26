@@ -1,5 +1,6 @@
 package euf.mageslegacy.shepherd;
 
+import euf.mageslegacy.fx.ModParticles;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
@@ -25,7 +26,7 @@ import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.Monster;
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.particle.DustParticleEffect;
+import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
@@ -42,7 +43,6 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Vector3f;
 
 /**
  * Echoes of the fallen: real mobs of the learned kind that fight for their Shepherd, wrapped in pale spirit light.
@@ -53,7 +53,8 @@ public final class Echoes {
 	public static final String TAG = "mages_legacy_echo";
 	private static final UUID STURDY = UUID.fromString("3c9d2b7e-6a14-4f0b-9e2d-5b8c1a7f4e33");
 	private static final UUID WEAPONS = UUID.fromString("8e1f4a2c-7b35-4d9e-a6c0-2f5b9d3e1a44");
-	public static final DustParticleEffect SPIRIT = new DustParticleEffect(new Vector3f(0.62f, 0.91f, 0.88f), 1.0f);
+	/** Spirit wisps (the race's own particle): pale cyan flames that rise and flicker. */
+	public static final ParticleEffect SPIRIT = ModParticles.WISP;
 
 	/** A living echo: whose, what kind, in which world, until when (world time), and what it cost. */
 	public record Echo(UUID owner, String type, RegistryKey<World> world, long expiresAt, boolean temporary, int voice) {}
@@ -320,9 +321,9 @@ public final class Echoes {
 
 	/** Pale light rising out of the ground where an echo answers. */
 	static void rise(ServerWorld world, Vec3d at) {
-		for (int i = 0; i < 24; i++) {
+		for (int i = 0; i < 16; i++) {
 			double a = i * 0.8;
-			double h = i / 24.0 * 2.0;
+			double h = i / 16.0 * 1.6;
 			world.spawnParticles(SPIRIT, at.x + Math.cos(a) * 0.5, at.y + h, at.z + Math.sin(a) * 0.5, 1, 0, 0, 0, 0);
 		}
 		world.spawnParticles(ParticleTypes.SOUL, at.x, at.y + 0.5, at.z, 12, 0.3, 0.3, 0.3, 0.02);
@@ -434,7 +435,7 @@ public final class Echoes {
 				}
 				continue;
 			}
-			world.spawnParticles(SPIRIT, entity.getX(), entity.getY() + entity.getHeight() * 0.6, entity.getZ(), 3,
+			world.spawnParticles(SPIRIT, entity.getX(), entity.getY() + entity.getHeight() * 0.6, entity.getZ(), 1,
 					entity.getWidth() * 0.4, entity.getHeight() * 0.3, entity.getWidth() * 0.4, 0);
 			if (entity instanceof MobEntity mob) {
 				aura(echo, mob, owner);

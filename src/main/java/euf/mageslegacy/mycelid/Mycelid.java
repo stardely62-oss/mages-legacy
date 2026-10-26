@@ -1,7 +1,7 @@
 package euf.mageslegacy.mycelid;
 
 import euf.mageslegacy.MagesLegacy;
-import euf.mageslegacy.fx.Fx;
+import euf.mageslegacy.fx.ModParticles;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Progression;
@@ -74,9 +74,6 @@ public final class Mycelid {
 	private static final int REBIRTH_COOLDOWN = 24000;
 	private static final int MIND_RADIUS = 24;
 	private static final int NODE_COOLDOWN = 100;
-	/** Colours of the glowing effects: spore green and moss. */
-	private static final int SPORE_RGB = 0x9CFF8A;
-	private static final int MOSS_RGB = 0x5E8C4A;
 	private static final UUID CAP_ARMOR = UUID.fromString("6d3f8a52-2a7e-4f0e-9a51-3c1b6f0e7c11");
 	private static final UUID HEARTY_HEALTH = UUID.fromString("0b8e4c1d-5f2a-4c7e-8d31-9a6f2e4b7c22");
 
@@ -419,10 +416,6 @@ public final class Mycelid {
 		spawnCloud(player.getServerWorld(), player.getPos(), player.getUuid(), radius,
 				data.has(Talents.SWARM_POTENT) ? 1 : 0, data.has(Talents.SWARM_LINGERING) ? 240 : 120, data.has(Talents.SWARM_FOLLOW));
 		MycelidFx.cloudBurst(player.getServerWorld(), player.getPos(), radius);
-		// A faint dome of spores over the cloud for its whole life, and a green wave as it bursts out
-		int life = data.has(Talents.SWARM_LINGERING) ? 240 : 120;
-		Fx.sphere(player.getServerWorld(), player.getPos(), (float) radius, life, SPORE_RGB, data.has(Talents.SWARM_FOLLOW) ? player : null, false);
-		Fx.ring(player.getServerWorld(), player.getPos(), 0.5f, (float) radius + 1.5f, 12, SPORE_RGB);
 		if (data.has(Talents.SWARM_BURST)) {
 			burst(player, radius);
 		}
@@ -431,7 +424,7 @@ public final class Mycelid {
 		return AbilityResult.OK;
 	}
 
-	/** The spore jump's arc, start to landing, for its streak of light. */
+	/** The spore jump's arc, start to landing, for its trail of spores. */
 	private static List<Vec3d> arcPath(Vec3d from, Vec3d to) {
 		List<Vec3d> path = new ArrayList<>();
 		double apex = 1.5 + from.distanceTo(to) * 0.15;
@@ -554,8 +547,7 @@ public final class Mycelid {
 				player.fallDistance = 0;
 				MycelidFx.column(world, to);
 				MycelidFx.ring(world, to, 0.3, 1.8, 6, MycelidFx.SPORE);
-				Fx.pillar(world, to, 0.7f, 6, 16, SPORE_RGB);
-				Fx.ring(world, to, 0.3f, 3, 12, SPORE_RGB);
+				world.spawnParticles(ModParticles.SPORE, to.x, to.y + 0.5, to.z, 40, 0.5, 1.0, 0.5, 0.02);
 				world.playSound(null, next.getPos(), SoundEvents.BLOCK_FUNGUS_PLACE, SoundCategory.BLOCKS, 1.0f, 0.6f);
 				RaceData travellerData = RaceState.of(player);
 				// No race experience for travelling: walking back and forth between two nodes would farm it. For the
@@ -606,9 +598,10 @@ public final class Mycelid {
 			player.teleport(world, jump.target().x, jump.target().y, jump.target().z, player.getYaw(), player.getPitch());
 			player.fallDistance = 0;
 			MycelidFx.sprout(world, jump.target());
-			// The arc of the jump lingers as a green streak; the landing spreads a ring of spores
-			Fx.ribbon(world, arcPath(jump.from(), jump.target()), 14, MOSS_RGB, SPORE_RGB, 0.5f);
-			Fx.ring(world, jump.target(), 0.2f, 2.5f, 10, SPORE_RGB);
+			// The arc of the jump stays a moment as a trail of spores drifting down
+			for (Vec3d p : arcPath(jump.from(), jump.target())) {
+				world.spawnParticles(ModParticles.SPORE, p.x, p.y + 1, p.z, 2, 0.12, 0.12, 0.12, 0.01);
+			}
 			world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_FUNGUS_PLACE, SoundCategory.PLAYERS, 1.0f, 1.2f);
 			world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_MOSS_PLACE, SoundCategory.PLAYERS, 0.8f, 0.8f);
 			if (data != null) {
@@ -639,7 +632,9 @@ public final class Mycelid {
 			Vec3d c = centerOf(cloud);
 			if (now % 3 == 0) {
 				double r = cloud.radius();
-				world.spawnParticles(SPORE_DUST, c.x, c.y + 0.7, c.z, (int) (r * r * 2), r * 0.55, 0.5, r * 0.55, 0.0);
+				// Glowing spores drift up through the cloud (they live a few seconds, so a few at a time are plenty)
+				world.spawnParticles(ModParticles.SPORE, c.x, c.y + 0.5, c.z, (int) (r * r * 0.6), r * 0.5, 0.5, r * 0.5, 0.0);
+				world.spawnParticles(SPORE_DUST, c.x, c.y + 0.7, c.z, (int) (r * r), r * 0.55, 0.5, r * 0.55, 0.0);
 				world.spawnParticles(SPORE_DUST_DARK, c.x, c.y + 0.3, c.z, (int) (r * r), r * 0.55, 0.25, r * 0.55, 0.0);
 				world.spawnParticles(ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 1.2, c.z, (int) (r * 4), r * 0.5, 0.6, r * 0.5, 0.0);
 				MycelidFx.vortex(world, c, r, now - cloud.start());

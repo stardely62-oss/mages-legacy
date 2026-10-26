@@ -2,6 +2,7 @@ package euf.mageslegacy;
 
 import euf.mageslegacy.block.MyceliumNodeBlock;
 import euf.mageslegacy.frozen.Frozen;
+import euf.mageslegacy.fx.ModParticles;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.ClientRaceView;
@@ -59,6 +60,7 @@ public class MagesLegacy implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		Talents.init();
+		ModParticles.register();
 		RacePackets.registerServerReceivers();
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> RaceCommand.register(dispatcher));
 		ServerTickEvents.END_SERVER_TICK.register(MagesLegacy::tick);
