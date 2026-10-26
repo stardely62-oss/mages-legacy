@@ -11,8 +11,8 @@ import net.minecraft.world.World;
 public class VoidData {
 	/** The room's number (it lies at x = number * Pocket.SPACING); -1 until the first visit. */
 	public int room = -1;
-	/** Whether the room's platform has been laid. */
-	public boolean built;
+	/** How far the room's island has been laid from its middle (0: not yet). */
+	public int builtHalf;
 	/** Where to come back out to: the world, the spot and the facing. Null when not in the pocket. */
 	public RegistryKey<World> returnWorld;
 	public Vec3d returnPos;
@@ -22,7 +22,7 @@ public class VoidData {
 	public NbtCompound toNbt() {
 		NbtCompound nbt = new NbtCompound();
 		nbt.putInt("room", room);
-		nbt.putBoolean("built", built);
+		nbt.putInt("builtHalf", builtHalf);
 		if (returnWorld != null && returnPos != null) {
 			nbt.putString("returnWorld", returnWorld.getValue().toString());
 			nbt.putDouble("rx", returnPos.x);
@@ -36,7 +36,7 @@ public class VoidData {
 
 	public void readNbt(NbtCompound nbt) {
 		room = nbt.contains("room") ? nbt.getInt("room") : -1;
-		built = nbt.getBoolean("built");
+		builtHalf = nbt.getInt("builtHalf");
 		if (nbt.contains("returnWorld")) {
 			Identifier id = Identifier.tryParse(nbt.getString("returnWorld"));
 			returnWorld = id == null ? null : RegistryKey.of(RegistryKeys.WORLD, id);

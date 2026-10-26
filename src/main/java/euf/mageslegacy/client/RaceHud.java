@@ -41,8 +41,8 @@ public final class RaceHud {
 	public static final String[] BLOODKIN_ABILITY_ICONS = {"ability_dash", "ability_harvest", "ability_sacrifice", "fang_feast", "night_bats"};
 	public static final Item[] FROZEN_ICONS = {Items.CLOCK, Items.PACKED_ICE, Items.SAND, Items.HEART_OF_THE_SEA, Items.ICE};
 	public static final String[] FROZEN_ABILITY_ICONS = {"ability_rewind", "ability_dome", "ability_quicken", "flow_current", "stasis_freeze"};
-	public static final Item[] VOIDBORN_ICONS = {Items.ENDER_PEARL, Items.CRYING_OBSIDIAN, Items.CHORUS_FRUIT, Items.ENDER_CHEST};
-	public static final String[] VOIDBORN_ABILITY_ICONS = {"ability_void_step", "ability_well", "ability_excise", "ability_pocket"};
+	public static final Item[] VOIDBORN_ICONS = {Items.ENDER_PEARL, Items.CRYING_OBSIDIAN, Items.CHORUS_FRUIT, Items.ENDER_CHEST, Items.NETHER_STAR};
+	public static final String[] VOIDBORN_ABILITY_ICONS = {"ability_void_step", "ability_well", "ability_excise", "ability_pocket", "abyss_gaze"};
 	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.FEATHER, Items.NOTE_BLOCK, Items.LEAD};
 	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_whistle", "ability_song", "ability_gather"};
 
@@ -107,10 +107,11 @@ public final class RaceHud {
 		}
 		if (race == Race.VOIDBORN) {
 			return switch (slot) {
-				case 0 -> Voidborn.STEP_COST;
+				case 0 -> Voidborn.stepCost(ClientRaceState.talents.contains(Talents.STEP_CHEAP));
 				case 1 -> Voidborn.WELL_COST;
-				case 2 -> Voidborn.EXCISE_COST;
-				default -> Voidborn.POCKET_COST;
+				case 2 -> Voidborn.exciseCost(ClientRaceState.talents.contains(Talents.EXCISE_CHEAP));
+				case 4 -> Voidborn.GAZE_COST;
+				default -> Voidborn.pocketCost(ClientRaceState.talents.contains(Talents.POCKET_CHEAP));
 			};
 		}
 		if (race == Race.FROZEN) {

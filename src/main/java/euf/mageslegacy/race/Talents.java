@@ -166,6 +166,43 @@ public final class Talents {
 	public static final String NIGHT_BLOOD = add("night_blood", Race.BLOODKIN, 2, 3, 3, NIGHT_CLOAK, Items.CLOCK);
 	public static final String NIGHT_PRINCE = add("night_prince", Race.BLOODKIN, 2, 4, 5, NIGHT_SWARM, Items.WITHER_ROSE);
 
+	// The Voidborn: Step (passing through), Abyss (the Well and the Excision), Pocket (the world of their own).
+	public static final String STEP_FAR = add("step_far", Race.VOIDBORN, 0, 1, 1, null, Items.ENDER_PEARL);
+	public static final String STEP_CHEAP = add("step_cheap", Race.VOIDBORN, 0, 1, 1, null, Items.AMETHYST_SHARD);
+	public static final String STEP_QUICK = add("step_quick", Race.VOIDBORN, 0, 1, 1, null, Items.FEATHER);
+	public static final String STEP_CUT = add("step_cut", Race.VOIDBORN, 0, 2, 2, STEP_FAR, Items.IRON_SWORD);
+	public static final String STEP_REND = add("step_rend", Race.VOIDBORN, 0, 2, 2, STEP_CUT, Items.FERMENTED_SPIDER_EYE);
+	public static final String STEP_TWICE = add("step_twice", Race.VOIDBORN, 0, 2, 2, STEP_QUICK, Items.RABBIT_FOOT);
+	public static final String STEP_VEIL = add("step_veil", Race.VOIDBORN, 0, 2, 2, STEP_CHEAP, Items.GLASS);
+	public static final String STEP_MEND = add("step_mend", Race.VOIDBORN, 0, 3, 3, STEP_REND, Items.GLISTERING_MELON_SLICE);
+	public static final String STEP_RIFT = add("step_rift", Race.VOIDBORN, 0, 3, 3, STEP_TWICE, Items.ENDER_EYE);
+	public static final String STEP_ALLY = add("step_ally", Race.VOIDBORN, 0, 3, 3, STEP_VEIL, Items.LEAD);
+	public static final String STEP_SEVER = add("step_sever", Race.VOIDBORN, 0, 4, 5, STEP_MEND, Items.NETHERITE_SWORD);
+
+	public static final String WELL_WIDE = add("well_wide", Race.VOIDBORN, 1, 1, 1, null, Items.CRYING_OBSIDIAN);
+	public static final String WELL_LONG = add("well_long", Race.VOIDBORN, 1, 1, 1, null, Items.CLOCK);
+	public static final String EXCISE_LONG = add("excise_long", Race.VOIDBORN, 1, 1, 1, null, Items.CHORUS_FRUIT);
+	public static final String WELL_HEART = add("well_heart", Race.VOIDBORN, 1, 2, 2, WELL_WIDE, Items.MAGMA_CREAM);
+	public static final String WELL_COLLAPSE = add("well_collapse", Race.VOIDBORN, 1, 2, 2, WELL_HEART, Items.TNT);
+	public static final String WELL_EAT = add("well_eat", Race.VOIDBORN, 1, 2, 2, WELL_LONG, Items.ARROW);
+	public static final String EXCISE_CHEAP = add("excise_cheap", Race.VOIDBORN, 1, 2, 2, EXCISE_LONG, Items.GOLD_NUGGET);
+	public static final String WELL_HOLD = add("well_hold", Race.VOIDBORN, 1, 3, 3, WELL_COLLAPSE, Items.COBWEB);
+	public static final String WELL_HUNGER = add("well_hunger", Race.VOIDBORN, 1, 3, 3, WELL_EAT, Items.ECHO_SHARD);
+	public static final String EXCISE_DROP = add("excise_drop", Race.VOIDBORN, 1, 3, 3, EXCISE_CHEAP, Items.ANVIL);
+	public static final String ABYSS_GAZE = add("abyss_gaze", Race.VOIDBORN, 1, 4, 5, WELL_HOLD, Items.NETHER_STAR);
+
+	public static final String POCKET_CHEAP = add("pocket_cheap", Race.VOIDBORN, 2, 1, 1, null, Items.ENDER_CHEST);
+	public static final String POCKET_QUICK = add("pocket_quick", Race.VOIDBORN, 2, 1, 1, null, Items.COMPASS);
+	public static final String POCKET_REST = add("pocket_rest", Race.VOIDBORN, 2, 1, 1, null, Items.RED_BED);
+	public static final String POCKET_WIDE = add("pocket_wide", Race.VOIDBORN, 2, 2, 2, POCKET_REST, Items.PURPUR_BLOCK);
+	public static final String POCKET_WATER = add("pocket_water", Race.VOIDBORN, 2, 2, 2, POCKET_WIDE, Items.WATER_BUCKET);
+	public static final String POCKET_GUESTS = add("pocket_guests", Race.VOIDBORN, 2, 2, 2, POCKET_CHEAP, Items.CAKE);
+	public static final String POCKET_WARD = add("pocket_ward", Race.VOIDBORN, 2, 2, 2, POCKET_QUICK, Items.SHIELD);
+	public static final String POCKET_GARDEN = add("pocket_garden", Race.VOIDBORN, 2, 3, 3, POCKET_WATER, Items.WHEAT);
+	public static final String POCKET_STORM = add("pocket_storm", Race.VOIDBORN, 2, 3, 3, POCKET_GUESTS, Items.LEATHER_HELMET);
+	public static final String POCKET_HOME = add("pocket_home", Race.VOIDBORN, 2, 3, 3, POCKET_WARD, Items.RECOVERY_COMPASS);
+	public static final String POCKET_HEARTH = add("pocket_hearth", Race.VOIDBORN, 2, 4, 5, POCKET_GARDEN, Items.RESPAWN_ANCHOR);
+
 	private Talents() {
 	}
 

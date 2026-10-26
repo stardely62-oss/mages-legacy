@@ -122,14 +122,8 @@ public class HarnessClient implements ClientModInitializer {
 				screen.select(Race.VOIDBORN);
 			}
 		});
-		step(10, false, c -> {
-			screenshot(c, "choose_voidborn");
-			if (c.currentScreen instanceof RaceSelectScreen screen) {
-				screen.choose();
-			}
-		});
+		step(10, false, c -> screenshot(c, "choose_voidborn"));
 		step(20, false, c -> {
-			check("sleeping_race_refused", serverRace(c) == null);
 			if (c.currentScreen instanceof RaceSelectScreen screen) {
 				screen.select(Race.MYCELID);
 				screen.choose();
@@ -692,12 +686,12 @@ public class HarnessClient implements ClientModInitializer {
 			});
 			tp(c, Vec3d.ofBottomCenter(arena).add(0, 0, -5), Vec3d.ofBottomCenter(arena).add(0, 0, 3));
 		});
-		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[1].getDefaultKey()));
-		step(20, false, c -> {
+		step(20, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[1].getDefaultKey()));
+		step(80, false, c -> {
 			LOGGER.info("[harness] well fx: {}", FxRenderer.describe());
 			screenshot(c, "void_well");
 		});
-		step(80, false, c -> {
+		step(10, false, c -> {
 			c.options.setPerspective(Perspective.FIRST_PERSON);
 			commands(c, "kill @e[type=!player]");
 			resetCooldowns(c);
@@ -709,14 +703,14 @@ public class HarnessClient implements ClientModInitializer {
 			tp(c, Vec3d.ofBottomCenter(arena).add(0, 0, -3), Vec3d.ofBottomCenter(arena).add(0, 1.2, 3));
 		});
 		// The Excision: the zombie is gone into the pocket for six seconds, then back
-		step(6, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[2].getDefaultKey()));
-		step(4, false, c -> {
+		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[2].getDefaultKey()));
+		step(140, false, c -> {
 			screenshot(c, "void_excise");
 			int here = onServer(c, s -> s.getOverworld().getEntitiesByClass(ZombieEntity.class, new Box(arena).expand(12), z -> true).size());
 			LOGGER.info("[harness] excision: zombies left here {}", here);
 			check("excise_away", here == 0);
 		});
-		step(130, false, c -> {
+		step(10, false, c -> {
 			int here = onServer(c, s -> s.getOverworld().getEntitiesByClass(ZombieEntity.class, new Box(arena).expand(12), z -> true).size());
 			LOGGER.info("[harness] excision: zombies back {}", here);
 			check("excise_back", here == 1);
@@ -727,8 +721,8 @@ public class HarnessClient implements ClientModInitializer {
 		});
 		// Into the Pocket through a rift, and back out to the same spot
 		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[3].getDefaultKey()));
-		step(4, false, c -> screenshot(c, "pocket_rift"));
-		step(30, false, c -> {
+		step(40, false, c -> screenshot(c, "pocket_rift"));
+		step(10, false, c -> {
 			LOGGER.info("[harness] pocket: client world {}", c.world.getRegistryKey().getValue());
 			check("pocket_in", c.world.getRegistryKey() == Pocket.WORLD);
 			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
@@ -737,8 +731,8 @@ public class HarnessClient implements ClientModInitializer {
 			screenshot(c, "pocket");
 			c.options.setPerspective(Perspective.FIRST_PERSON);
 		});
-		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[3].getDefaultKey()));
-		step(30, false, c -> {
+		step(40, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[3].getDefaultKey()));
+		step(10, false, c -> {
 			double away = c.player.getPos().distanceTo(Vec3d.ofBottomCenter(arena).add(0, 0, -3));
 			LOGGER.info("[harness] pocket: back in {} at {} from the start", c.world.getRegistryKey().getValue(), away);
 			check("pocket_out", c.world.getRegistryKey() == World.OVERWORLD && away < 1.5);
