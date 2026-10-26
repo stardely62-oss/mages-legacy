@@ -884,6 +884,43 @@ public final class FxRenderer {
 			flatRing(vc, m, c, r * 0.06, 0.08, rgb, a, 12);
 		}
 
+		/**
+		 * The ground cracked open onto the void: black fissures zigzagging out from the middle, glowing violet at their
+		 * lips, stars glinting deep in them. They split open in a few ticks, as ground does under a blow.
+		 */
+		private void cracks(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
+			float grow = easeOut(Math.min(1, life / 6f));
+			Vec3d up = new Vec3d(0, 1, 0);
+			int count = 7;
+			for (int i = 0; i < count; i++) {
+				double angle = Math.PI * 2 * i / count + hash(seed, i) * 0.6;
+				double length = radius * (0.55 + 0.45 * hash(seed, i + 50)) * grow;
+				int steps = 5;
+				Vec3d p = c;
+				for (int s = 0; s < steps; s++) {
+					angle += (hash(seed, i * 10 + s + 100) - 0.5) * 1.2;
+					Vec3d next = p.add(Math.cos(angle) * length / steps, 0, Math.sin(angle) * length / steps);
+					double width = 0.24 * (1 - (double) s / steps) + 0.04;
+					if (inkPass) {
+						Vec3d dir = next.subtract(p).normalize();
+						Vec3d side = new Vec3d(-dir.z, 0, dir.x).multiply(width / 2);
+						quad(vc, m, p.subtract(side), next.subtract(side.multiply(0.7)), next.add(side.multiply(0.7)), p.add(side), 0x05020A, fade, fade, fade, fade);
+					} else {
+						glowLine(vc, m, p, next, up, width * 2.4, rgb, 0.5f * fade);
+						glowLine(vc, m, p, next, up, width * 0.35, 0xE8E0FF, 0.5f * fade);
+						if (hash(seed, i * 10 + s + 700) < 0.5) {
+							float twinkle = fade * (0.5f + 0.5f * MathHelper.sin(life * 0.6f + i * 3 + s));
+							double size = 0.04;
+							Vec3d q = p.lerp(next, 0.5).add(0, 0.01, 0);
+							quad(vc, m, q.add(-size, 0, -size), q.add(size, 0, -size), q.add(size, 0, size), q.add(-size, 0, size), 0xFFFFFF, twinkle, twinkle,
+									twinkle, twinkle);
+						}
+					}
+					p = next;
+				}
+			}
+		}
+
 		/** A voice on the ground: soft rings rolling out from the middle one after another, fading as they go. */
 		private void ripples(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
 			for (int k = 0; k < 3; k++) {
