@@ -115,11 +115,11 @@ public class HarnessClient implements ClientModInitializer {
 			check("choice_screen", c.currentScreen instanceof RaceSelectScreen);
 			screenshot(c, "choose_mycelid");
 			if (c.currentScreen instanceof RaceSelectScreen screen) {
-				screen.select(Race.BLOODKIN);
+				screen.select(Race.VOIDBORN);
 			}
 		});
 		step(10, false, c -> {
-			screenshot(c, "choose_bloodkin");
+			screenshot(c, "choose_voidborn");
 			if (c.currentScreen instanceof RaceSelectScreen screen) {
 				screen.choose();
 			}
