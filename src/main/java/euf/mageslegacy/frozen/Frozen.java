@@ -4,6 +4,7 @@ import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.fx.ModParticles;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilityResult;
+import euf.mageslegacy.race.AbilitySlots;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceData;
@@ -86,7 +87,7 @@ public final class Frozen {
 	private static final int QUICKEN_SPEED = 10;
 	private static final int QUICKEN_MAX = 27;
 	private static final double QUICKEN_RANGE = 8;
-	private static final int FREEZE_SLOT = 4;
+	private static final int FREEZE_SLOT = AbilitySlots.cooldownSlot(Race.FROZEN, 4);
 	private static final int FREEZE_COOLDOWN = 400;
 	private static final int FREEZE_TICKS = 60;
 	private static final int STOP_SLOT = 5;
@@ -96,7 +97,7 @@ public final class Frozen {
 	private static final int STRIKE_TICKS = 80;
 	private static final int ETERNAL_SLOT = 7;
 	private static final int ETERNAL_TICKS = 120;
-	private static final int CURRENT_SLOT = 8;
+	private static final int CURRENT_SLOT = AbilitySlots.cooldownSlot(Race.FROZEN, 3);
 	private static final int CURRENT_TICKS = 600;
 	private static final int CURRENT_COOLDOWN = 6000;
 	private static final int LONG_COOLDOWN = 12000;
@@ -495,10 +496,10 @@ public final class Frozen {
 	public static AbilityResult use(ServerPlayerEntity player, RaceData data, int slot) {
 		return switch (slot) {
 			case 0 -> rewind(player, data);
-			case 1 -> !player.isSneaking() ? dome(player, data) : data.has(Talents.STASIS_FREEZE) ? freeze(player, data)
-					: RaceData.shiftLocked(player, Talents.STASIS_FREEZE);
-			case 2 -> !player.isSneaking() ? quicken(player, data) : data.has(Talents.FLOW_CURRENT) ? current(player, data)
-					: RaceData.shiftLocked(player, Talents.FLOW_CURRENT);
+			case 1 -> dome(player, data);
+			case 2 -> quicken(player, data);
+			case 3 -> data.has(Talents.FLOW_CURRENT) ? current(player, data) : RaceData.talentLocked(player, Talents.FLOW_CURRENT);
+			case 4 -> data.has(Talents.STASIS_FREEZE) ? freeze(player, data) : RaceData.talentLocked(player, Talents.STASIS_FREEZE);
 			default -> AbilityResult.LOCKED;
 		};
 	}
@@ -529,7 +530,7 @@ public final class Frozen {
 		}
 		long now = now(player.getServer());
 		Way way = WAYS.remove(player.getUuid());
-		if (way != null && way.until() >= now && !player.isSneaking()) {
+		if (way != null && way.until() >= now && !data.alt) {
 			FLIGHTS.add(new Flight(player, player, way.path(), player.getHealth(), true));
 			startFx(player);
 			flightFx(player, way.path());
@@ -540,9 +541,9 @@ public final class Frozen {
 		}
 		ServerPlayerEntity target = player;
 		int cost = rewindCost(data.has(Talents.LOOP_CHEAP));
-		if (player.isSneaking()) {
+		if (data.alt) {
 			if (!data.has(Talents.LOOP_ALLY)) {
-				return RaceData.shiftLocked(player, Talents.LOOP_ALLY);
+				return RaceData.talentLocked(player, Talents.LOOP_ALLY);
 			}
 			target = lookedAtPlayer(player, 16);
 			if (target == null) {

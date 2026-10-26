@@ -4,6 +4,7 @@ import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.client.screen.LegacyUi;
 import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
+import euf.mageslegacy.race.AbilitySlots;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.Talents;
 import euf.mageslegacy.shepherd.Bonds;
@@ -34,12 +35,13 @@ public final class RaceHud {
 	public static final int[] MYCELID_COSTS = {15, 30, 40};
 	/** The Whistle's orders as marks on its slot: Follow, Guard, Hunt. */
 	public static final String[] STANCE_MARKS = {"↩", "◈", "⚔"};
-	public static final Item[] BLOODKIN_ICONS = {Items.REDSTONE, Items.NETHER_WART, Items.IRON_SWORD};
-	public static final String[] BLOODKIN_ABILITY_ICONS = {"ability_dash", "ability_harvest", "ability_sacrifice"};
-	public static final Item[] FROZEN_ICONS = {Items.CLOCK, Items.PACKED_ICE, Items.SAND};
-	public static final String[] FROZEN_ABILITY_ICONS = {"ability_rewind", "ability_dome", "ability_quicken"};
-	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.FEATHER, Items.NOTE_BLOCK};
-	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_whistle", "ability_song"};
+	// Keys H and X: the abilities talents open show their talent's icon
+	public static final Item[] BLOODKIN_ICONS = {Items.REDSTONE, Items.NETHER_WART, Items.IRON_SWORD, Items.ENCHANTED_GOLDEN_APPLE, Items.BAT_SPAWN_EGG};
+	public static final String[] BLOODKIN_ABILITY_ICONS = {"ability_dash", "ability_harvest", "ability_sacrifice", "fang_feast", "night_bats"};
+	public static final Item[] FROZEN_ICONS = {Items.CLOCK, Items.PACKED_ICE, Items.SAND, Items.HEART_OF_THE_SEA, Items.ICE};
+	public static final String[] FROZEN_ABILITY_ICONS = {"ability_rewind", "ability_dome", "ability_quicken", "flow_current", "stasis_freeze"};
+	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.FEATHER, Items.NOTE_BLOCK, Items.LEAD};
+	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_whistle", "ability_song", "ability_gather"};
 
 	private RaceHud() {
 	}
@@ -48,12 +50,22 @@ public final class RaceHud {
 		return race == Race.MYCELID || race == Race.SHEPHERD || race == Race.FROZEN || race == Race.BLOODKIN;
 	}
 
-	/** Three abilities each; the Shepherds have a fourth, the Song of Bonds. */
+	/** The main abilities: three each; the Shepherds have a fourth, the Song of Bonds. Keys past these: {@link #shown}. */
 	public static int abilityCount(Race race) {
 		return race == Race.SHEPHERD ? 4 : hasAbilities(race) ? 3 : 0;
 	}
 
-	/** The Codex icon of an ability slot (0..3), or null if the race has none yet. */
+	/** Whether key {@code slot} has an ability for this player now (one a talent opens shows once it's learnt). */
+	public static boolean shown(Race race, int slot) {
+		return hasAbilities(race) && AbilitySlots.has(race, slot, ClientRaceState.talents);
+	}
+
+	/** Ticks until the ability on key {@code slot} is ready. */
+	public static int cooldown(Race race, int slot) {
+		return ClientRaceState.cooldown(AbilitySlots.cooldownSlot(race, slot));
+	}
+
+	/** The Codex icon of an ability key (0..4), or null if the race has none yet. */
 	@Nullable
 	public static String abilityIcon(Race race, int slot) {
 		return switch (race) {
@@ -75,17 +87,26 @@ public final class RaceHud {
 				case 0 -> squadCost(false);
 				case 1 -> Shepherd.RALLY_COST;
 				case 3 -> Bonds.SONG_COST;
+				case 4 -> Shepherd.GATHER_COST;
 				default -> 0;
 			};
 		}
 		if (race == Race.BLOODKIN) {
 			// The Sacrifice costs health, not blood
-			return slot == 0 ? Bloodkin.DASH_COST : slot == 1 ? Bloodkin.HARVEST_COST : 0;
+			return switch (slot) {
+				case 0 -> Bloodkin.DASH_COST;
+				case 1 -> Bloodkin.HARVEST_COST;
+				case 3 -> Bloodkin.FEAST_COST;
+				case 4 -> Bloodkin.SWARM_COST;
+				default -> 0;
+			};
 		}
 		if (race == Race.FROZEN) {
 			return switch (slot) {
 				case 0 -> Frozen.rewindCost(ClientRaceState.talents.contains(Talents.LOOP_CHEAP));
 				case 1 -> Frozen.domeCost(ClientRaceState.talents.contains(Talents.STASIS_CHEAP));
+				case 3 -> Frozen.CURRENT_COST;
+				case 4 -> Frozen.FREEZE_COST;
 				default -> Frozen.QUICKEN_COST;
 			};
 		}
@@ -168,6 +189,46 @@ public final class RaceHud {
 		}
 	}
 
+	/** When each key was last pressed (client ticks), for the slot's answer: a bright pulse, or a red shake. */
+	private static final long[] PRESSED = new long[AbilitySlots.KEYS];
+	/** Whether the slot looked ready when it was pressed (after that it is cooling, so it can't be asked then). */
+	private static final boolean[] PRESSED_READY = new boolean[AbilitySlots.KEYS];
+
+	public static void pressed(int slot) {
+		Race race = ClientRaceState.race;
+		PRESSED[slot] = ClientRaceState.clientTicks();
+		PRESSED_READY[slot] = race != null && shown(race, slot) && (cooldown(race, slot) == 0 || chain(race, slot))
+				&& slotCost(race, slot) >= 0 && ClientRaceState.resource >= slotCost(race, slot);
+	}
+
+	/** A Mycelid's spore jump chaining on: free of its cooldown for now. */
+	private static boolean chain(Race race, int slot) {
+		return race == Race.MYCELID && slot == 0 && ClientRaceState.chainLeft > 0;
+	}
+
+	/** What the slot asks for right now: a chained jump, or only the squad members still missing for the Call. */
+	private static int slotCost(Race race, int slot) {
+		return chain(race, slot) ? Mycelid.CHAIN_COST : race == Race.SHEPHERD && slot == 0 ? squadCost(true) : cost(race, slot);
+	}
+
+	/** A pressed slot answers at once: a pulse in the race's colour when it fires, a red blink when it can't. */
+	private static void pressFlash(DrawContext ctx, int slot, int sx, int sy, int color) {
+		long since = ClientRaceState.clientTicks() - PRESSED[slot];
+		if (PRESSED[slot] == 0 || since > 8) {
+			return;
+		}
+		float t = since / 8f;
+		int a = (int) ((1 - t) * 200);
+		if (PRESSED_READY[slot]) {
+			// The pulse spreads past the frame as it fades
+			int grow = (int) (t * 5);
+			LegacyUi.outline(ctx, sx - 2 - grow, sy - 2 - grow, sx + 20 + grow, sy + 20 + grow, (a << 24) | (color & 0xFFFFFF));
+			ctx.fill(sx, sy, sx + 18, sy + 18, ((a / 2) << 24) | 0xFFFFFF);
+		} else {
+			ctx.fill(sx, sy, sx + 18, sy + 18, ((a / 2) << 24) | 0xE02020);
+		}
+	}
+
 	public static void render(DrawContext ctx, float tickDelta) {
 		MinecraftClient client = MinecraftClient.getInstance();
 		Race race = ClientRaceState.race;
@@ -215,13 +276,17 @@ public final class RaceHud {
 			return;
 		}
 		int x = w / 2 + 91 + 8;
-		for (int slot = 0; slot < abilityCount(race); slot++) {
-			int sx = x + slot * 23;
+		int place = 0;
+		for (int slot = 0; slot < AbilitySlots.KEYS; slot++) {
+			if (!shown(race, slot)) {
+				continue;
+			}
+			int sx = x + place++ * 23;
 			int sy = h - 22;
-			int cooldown = ClientRaceState.cooldown(slot);
-			boolean chain = race == Race.MYCELID && slot == 0 && ClientRaceState.chainLeft > 0;
+			int cooldown = cooldown(race, slot);
+			boolean chain = chain(race, slot);
 			boolean cooling = cooldown > 0 && !chain;
-			int cost = chain ? Mycelid.CHAIN_COST : race == Race.SHEPHERD && slot == 0 ? squadCost(true) : cost(race, slot);
+			int cost = slotCost(race, slot);
 			boolean short_ = cost < 0 || ClientRaceState.resource < cost;
 			boolean ready = !cooling && !short_;
 			ctx.fill(sx - 2, sy - 2, sx + 20, sy + 20, LegacyUi.BLACK);
@@ -246,6 +311,7 @@ public final class RaceHud {
 			}
 			ctx.getMatrices().push();
 			ctx.getMatrices().translate(0, 0, 200);
+			pressFlash(ctx, slot, sx, sy, color);
 			if (cooling) {
 				ctx.fill(sx, sy, sx + 18, sy + 18, 0x90000000);
 				String secs = String.valueOf((cooldown + 19) / 20);

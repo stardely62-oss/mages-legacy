@@ -5,6 +5,7 @@ import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.race.AbilityResult;
+import euf.mageslegacy.race.AbilitySlots;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceData;
@@ -17,6 +18,8 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
@@ -38,7 +41,6 @@ public final class RacePackets {
 	public static final Identifier QUICKENED = MagesLegacy.id("quickened");
 	/** Server to client: an ability effect to draw (see {@link euf.mageslegacy.fx.Fx}). */
 	public static final Identifier FX = MagesLegacy.id("fx");
-	public static final int SLOTS = 4;
 
 	private RacePackets() {
 	}
@@ -50,7 +52,8 @@ public final class RacePackets {
 		});
 		ServerPlayNetworking.registerGlobalReceiver(ABILITY, (server, player, handler, buf, sender) -> {
 			int slot = buf.readVarInt();
-			server.execute(() -> useAbility(player, slot));
+			boolean alt = buf.readBoolean();
+			server.execute(() -> useAbility(player, slot, alt));
 		});
 		ServerPlayNetworking.registerGlobalReceiver(PRESET, (server, player, handler, buf, sender) -> {
 			int action = buf.readVarInt();
@@ -114,11 +117,13 @@ public final class RacePackets {
 		return true;
 	}
 
-	public static void useAbility(ServerPlayerEntity player, int slot) {
+	/** A key pressed: {@code alt} is whether the client held sneak with it (it changes some abilities, never picks one). */
+	public static void useAbility(ServerPlayerEntity player, int slot, boolean alt) {
 		RaceData data = RaceState.of(player);
-		if (data == null || data.race == null || slot < 0 || slot >= SLOTS || player.isSpectator()) {
+		if (data == null || data.race == null || slot < 0 || slot >= AbilitySlots.KEYS || player.isSpectator()) {
 			return;
 		}
+		data.alt = alt;
 		AbilityResult result = switch (data.race) {
 			case MYCELID -> Mycelid.use(player, data, slot);
 			case SHEPHERD -> Shepherd.use(player, data, slot);
@@ -126,6 +131,10 @@ public final class RacePackets {
 			case BLOODKIN -> Bloodkin.use(player, data, slot);
 			default -> AbilityResult.LOCKED;
 		};
+		if (result != AbilityResult.OK) {
+			// A low knock, so a refusal is heard even when the line above the hotbar goes unread
+			player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), SoundCategory.PLAYERS, 0.7f, 0.5f);
+		}
 		if (result != AbilityResult.OK && result != AbilityResult.HINTED) {
 			// Lacking the resource names it: spores, voice...
 			String key = "mages_legacy.ability." + result.name().toLowerCase(Locale.ROOT);
@@ -161,7 +170,7 @@ public final class RacePackets {
 		buf.writeVarInt(data.talents.size());
 		data.talents.forEach(buf::writeString);
 		long now = player.server.getTicks();
-		for (int slot = 0; slot < SLOTS; slot++) {
+		for (int slot = 0; slot < AbilitySlots.COOLDOWNS; slot++) {
 			buf.writeVarInt((int) Math.max(0, data.readyAt.getOrDefault(slot, 0L) - now));
 		}
 		buf.writeVarInt(data.chainLeft > 0 && now <= data.chainUntil ? data.chainLeft : 0);

@@ -6,7 +6,11 @@ import euf.mageslegacy.client.screen.LoreScreen;
 import euf.mageslegacy.client.screen.RaceSelectScreen;
 import euf.mageslegacy.client.screen.TalentScreen;
 import euf.mageslegacy.net.RacePackets;
+import euf.mageslegacy.race.AbilitySlots;
 import euf.mageslegacy.race.Race;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -21,15 +25,13 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.network.PacketByteBuf;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 import org.lwjgl.glfw.GLFW;
 
 public class MagesLegacyClient implements ClientModInitializer {
 	public static final String CATEGORY = "category.mages_legacy";
 	public static final KeyBinding[] ABILITY_KEYS = {
-			key("ability_1", GLFW.GLFW_KEY_R), key("ability_2", GLFW.GLFW_KEY_V), key("ability_3", GLFW.GLFW_KEY_Z), key("ability_4", GLFW.GLFW_KEY_H)};
+			key("ability_1", GLFW.GLFW_KEY_R), key("ability_2", GLFW.GLFW_KEY_V), key("ability_3", GLFW.GLFW_KEY_Z), key("ability_4", GLFW.GLFW_KEY_H),
+			key("ability_5", GLFW.GLFW_KEY_X)};
 	// Defaults clear of vanilla and of JourneyMap (which takes G, B, N, J, C, O, F, [, \, - and =)
 	public static final KeyBinding TREE_KEY = key("talents", GLFW.GLFW_KEY_K);
 	public static final KeyBinding BESTIARY_KEY = key("bestiary", GLFW.GLFW_KEY_U);
@@ -105,8 +107,9 @@ public class MagesLegacyClient implements ClientModInitializer {
 			return;
 		}
 		for (int slot = 0; slot < ABILITY_KEYS.length; slot++) {
-			// The fourth key is the Shepherd's Song; other races have three abilities
-			if (pressed(client, ABILITY_KEYS[slot], slot) && ClientRaceState.race != null && slot < RaceHud.abilityCount(ClientRaceState.race)) {
+			// H and X only where the race has something there (a talent not learnt yet still gets an answer)
+			if (pressed(client, ABILITY_KEYS[slot], slot) && ClientRaceState.race != null && RaceHud.hasAbilities(ClientRaceState.race)
+					&& AbilitySlots.talent(ClientRaceState.race, slot) != null) {
 				useAbility(slot);
 			}
 		}
@@ -186,8 +189,12 @@ public class MagesLegacyClient implements ClientModInitializer {
 	}
 
 	public static void useAbility(int slot) {
+		MinecraftClient client = MinecraftClient.getInstance();
+		RaceHud.pressed(slot);
 		PacketByteBuf buf = PacketByteBufs.create();
 		buf.writeVarInt(slot);
+		// Sneak as this client sees it, sent along: the server's idea of a crouch can lag behind the key
+		buf.writeBoolean(client.options.sneakKey.isPressed() || client.player != null && client.player.isSneaking());
 		ClientPlayNetworking.send(RacePackets.ABILITY, buf);
 	}
 

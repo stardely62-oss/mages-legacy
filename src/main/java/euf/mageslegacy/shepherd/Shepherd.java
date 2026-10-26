@@ -2,6 +2,7 @@ package euf.mageslegacy.shepherd;
 
 import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.race.AbilityResult;
+import euf.mageslegacy.race.AbilitySlots;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceData;
@@ -62,7 +63,7 @@ public final class Shepherd {
 	private static final int CALL_COOLDOWN = 20;
 	private static final int RALLY_COOLDOWN = 600;
 	private static final int WHISTLE_COOLDOWN = 10;
-	private static final int GATHER_SLOT = 5;
+	private static final int GATHER_SLOT = AbilitySlots.cooldownSlot(Race.SHEPHERD, 4);
 	private static final int GATHER_COOLDOWN = 160;
 	private static final int ARMY_SLOT = 7;
 	private static final int ARMY_COOLDOWN = 12000;
@@ -277,6 +278,7 @@ public final class Shepherd {
 			case 1 -> rally(player, data);
 			case 2 -> whistle(player, data);
 			case 3 -> Bonds.song(player, data);
+			case 4 -> gather(player, data);
 			default -> AbilityResult.LOCKED;
 		};
 	}
@@ -316,7 +318,7 @@ public final class Shepherd {
 	 * ones come, as many as the voice and the bond slots allow. Sneaking sends all your echoes back.
 	 */
 	public static AbilityResult call(ServerPlayerEntity player, RaceData data) {
-		if (player.isSneaking()) {
+		if (data.alt) {
 			int gone = Echoes.dismiss(player.getServer(), player.getUuid());
 			player.sendMessage(Text.translatable("mages_legacy.echo.dismissed", gone), true);
 			return AbilityResult.OK;
@@ -468,42 +470,45 @@ public final class Shepherd {
 		return AbilityResult.OK;
 	}
 
+	/** The Gather (X): your creatures within 64 blocks come to your side, on their own cooldown. */
+	public static AbilityResult gather(ServerPlayerEntity player, RaceData data) {
+		ServerWorld world = player.getServerWorld();
+		if (!ready(player, data, GATHER_SLOT)) {
+			return AbilityResult.COOLDOWN;
+		}
+		if (data.resource < GATHER_COST) {
+			return AbilityResult.NO_RESOURCE;
+		}
+		// Beasts told to stay keep their post
+		List<LivingEntity> creatures = Creatures.around(player, 64);
+		creatures.removeIf(c -> c.getCommandTags().contains(Creatures.STAY_TAG));
+		if (creatures.isEmpty()) {
+			return AbilityResult.NO_CREATURE;
+		}
+		for (int i = 0; i < creatures.size(); i++) {
+			LivingEntity c = creatures.get(i);
+			world.spawnParticles(Echoes.SPIRIT, c.getX(), c.getY() + 1, c.getZ(), 10, 0.3, 0.5, 0.3, 0);
+			Vec3d spot = Echoes.around(world, Creatures.near(player), i);
+			c.refreshPositionAndAngles(spot.x, spot.y, spot.z, c.getYaw(), c.getPitch());
+			if (c instanceof MobEntity mob) {
+				mob.setTarget(null);
+				mob.getNavigation().stop();
+			}
+		}
+		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 0.7f, 1.2f);
+		Fx.ring(world, player.getPos(), 10, 1, 12, SPIRIT_RGB);
+		data.addResource(-GATHER_COST);
+		cooldown(player, data, GATHER_SLOT, GATHER_COOLDOWN);
+		return AbilityResult.OK;
+	}
+
 	/**
 	 * The Whistle: the pack's order changes, Follow (close, fighting only back), Guard (in a ring around you, picking
 	 * off what comes near, taking less damage) or Hunt (going after every monster within 24 blocks). It costs no
-	 * voice. Sneaking gathers instead: your creatures within 64 blocks come to your side, on their own cooldown.
+	 * voice.
 	 */
 	public static AbilityResult whistle(ServerPlayerEntity player, RaceData data) {
 		ServerWorld world = player.getServerWorld();
-		if (player.isSneaking()) {
-			if (!ready(player, data, GATHER_SLOT)) {
-				return AbilityResult.COOLDOWN;
-			}
-			if (data.resource < GATHER_COST) {
-				return AbilityResult.NO_RESOURCE;
-			}
-			// Beasts told to stay keep their post
-			List<LivingEntity> creatures = Creatures.around(player, 64);
-			creatures.removeIf(c -> c.getCommandTags().contains(Creatures.STAY_TAG));
-			if (creatures.isEmpty()) {
-				return AbilityResult.NO_CREATURE;
-			}
-			for (int i = 0; i < creatures.size(); i++) {
-				LivingEntity c = creatures.get(i);
-				world.spawnParticles(Echoes.SPIRIT, c.getX(), c.getY() + 1, c.getZ(), 10, 0.3, 0.5, 0.3, 0);
-				Vec3d spot = Echoes.around(world, Creatures.near(player), i);
-				c.refreshPositionAndAngles(spot.x, spot.y, spot.z, c.getYaw(), c.getPitch());
-				if (c instanceof MobEntity mob) {
-					mob.setTarget(null);
-					mob.getNavigation().stop();
-				}
-			}
-			world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 0.7f, 1.2f);
-			Fx.ring(world, player.getPos(), 10, 1, 12, SPIRIT_RGB);
-			data.addResource(-GATHER_COST);
-			cooldown(player, data, GATHER_SLOT, GATHER_COOLDOWN);
-			return AbilityResult.OK;
-		}
 		if (!ready(player, data, 2)) {
 			return AbilityResult.COOLDOWN;
 		}

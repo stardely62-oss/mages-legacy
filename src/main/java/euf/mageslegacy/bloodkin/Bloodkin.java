@@ -3,6 +3,7 @@ package euf.mageslegacy.bloodkin;
 import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.fx.ModParticles;
 import euf.mageslegacy.race.AbilityResult;
+import euf.mageslegacy.race.AbilitySlots;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceData;
@@ -64,10 +65,10 @@ public final class Bloodkin {
 	private static final int DOUBLE_WINDOW = 60;
 	private static final int HARVEST_COOLDOWN = 400;
 	private static final int SACRIFICE_COOLDOWN = 200;
-	private static final int SWARM_SLOT = 4;
+	private static final int SWARM_SLOT = AbilitySlots.cooldownSlot(Race.BLOODKIN, 4);
 	private static final int SWARM_COOLDOWN = 600;
 	private static final int SWARM_TICKS = 60;
-	private static final int FEAST_SLOT = 5;
+	private static final int FEAST_SLOT = AbilitySlots.cooldownSlot(Race.BLOODKIN, 3);
 	private static final int FEAST_TICKS = 160;
 	private static final int PRINCE_SLOT = 6;
 	private static final int LONG_COOLDOWN = 24000;
@@ -391,10 +392,10 @@ public final class Bloodkin {
 	public static AbilityResult use(ServerPlayerEntity player, RaceData data, int slot) {
 		return switch (slot) {
 			case 0 -> dash(player, data);
-			case 1 -> !player.isSneaking() ? harvest(player, data) : data.has(Talents.FANG_FEAST) ? feast(player, data)
-					: RaceData.shiftLocked(player, Talents.FANG_FEAST);
-			case 2 -> !player.isSneaking() ? sacrifice(player, data) : data.has(Talents.NIGHT_BATS) ? swarm(player, data)
-					: RaceData.shiftLocked(player, Talents.NIGHT_BATS);
+			case 1 -> harvest(player, data);
+			case 2 -> sacrifice(player, data);
+			case 3 -> data.has(Talents.FANG_FEAST) ? feast(player, data) : RaceData.talentLocked(player, Talents.FANG_FEAST);
+			case 4 -> data.has(Talents.NIGHT_BATS) ? swarm(player, data) : RaceData.talentLocked(player, Talents.NIGHT_BATS);
 			default -> AbilityResult.LOCKED;
 		};
 	}
@@ -602,7 +603,7 @@ public final class Bloodkin {
 		return AbilityResult.OK;
 	}
 
-	/** The Feast crown (sneak + V): for 8 seconds every blow heals in full. Once in 5 minutes. */
+	/** The Feast crown (H): for 8 seconds every blow heals in full. Once in 5 minutes. */
 	public static AbilityResult feast(ServerPlayerEntity player, RaceData data) {
 		if (!ready(player, data, FEAST_SLOT)) {
 			return AbilityResult.COOLDOWN;
@@ -621,7 +622,7 @@ public final class Bloodkin {
 	}
 
 	/**
-	 * Bat Swarm (sneak + Z): the Bloodkin scatters into bats for 3 seconds, flying where it looks, untouchable;
+	 * Bat Swarm (X): the Bloodkin scatters into bats for 3 seconds, flying where it looks, untouchable;
 	 * with the Biting Swarm whatever it flies through bleeds.
 	 */
 	public static AbilityResult swarm(ServerPlayerEntity player, RaceData data) {

@@ -513,8 +513,9 @@ public class RaceGameTests implements FabricGameTest {
 		check(Shepherd.call(player, data) == AbilityResult.OK && Echoes.count(player.getUuid()) == 1, "one skeleton fits (2 of 3 slots), the other doesn't");
 		data.readyAt.clear();
 		check(Shepherd.call(player, data) == AbilityResult.NO_CAPACITY, "no room for the second one"); 
-		player.setSneaking(true);
+		data.alt = true;
 		check(Shepherd.call(player, data) == AbilityResult.OK && Echoes.count(player.getUuid()) == 0, "sneak + Call sends them back");
+		data.alt = false;
 		done(ctx, player);
 	}
 
@@ -880,11 +881,9 @@ public class RaceGameTests implements FabricGameTest {
 		check(Math.abs(player.getHealth() - 10) < 0.01f, "the Shepherd heals 2 hearts, now " + player.getHealth());
 		foe.discard();
 
-		// Sneak + G gathers the creatures to the Shepherd, on its own cooldown
+		// The Gather (X) brings the creatures to the Shepherd, on its own cooldown
 		echo.refreshPositionAndAngles(at.getX() + 3.5, at.getY(), at.getZ() - 3.5, 0, 0);
-		player.setSneaking(true);
-		check(Shepherd.whistle(player, data) == AbilityResult.OK && echo.squaredDistanceTo(player) < 16, "the Gather brings the echo close");
-		player.setSneaking(false);
+		check(Shepherd.use(player, data, 4) == AbilityResult.OK && echo.squaredDistanceTo(player) < 16, "the Gather brings the echo close");
 
 		// Light Bonds: a wolf takes one slot instead of two
 		RaceData light = data;
@@ -1115,12 +1114,13 @@ public class RaceGameTests implements FabricGameTest {
 		data.readyAt.clear();
 		player.setHealth(4);
 		check(Bloodkin.sacrifice(player, data) == AbilityResult.HINTED && player.getHealth() == 4, "the Sacrifice never kills");
-		// Sneak + Z before the Swarm talent: a hint, never a silent Sacrifice
+		// X before the Swarm talent: a hint naming the talent; sneaking never changes which ability a key casts
 		data.readyAt.clear();
 		player.setHealth(20);
-		player.setSneaking(true);
-		check(Bloodkin.use(player, data, 2) == AbilityResult.HINTED && player.getHealth() == 20, "sneak + Z without the Swarm only hints");
-		player.setSneaking(false);
+		check(Bloodkin.use(player, data, 4) == AbilityResult.HINTED && player.getHealth() == 20, "X without the Swarm only hints");
+		data.alt = true;
+		check(Bloodkin.use(player, data, 2) == AbilityResult.OK && player.getHealth() < 20, "sneak + Z is still the Sacrifice");
+		data.alt = false;
 		spider.discard();
 		other.discard();
 		done(ctx, player);

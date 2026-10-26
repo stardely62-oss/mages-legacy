@@ -562,7 +562,7 @@ public class HarnessClient implements ClientModInitializer {
 				return null;
 			});
 		});
-		// Sneak + Z with the Swarm talent: the bat swarm, not the Sacrifice, the way a player presses it
+		// X with the Swarm talent: the bat swarm, the way a player presses it
 		step(5, false, c -> {
 			resetCooldowns(c);
 			UUID me = c.player.getUuid();
@@ -575,17 +575,15 @@ public class HarnessClient implements ClientModInitializer {
 				RacePackets.sync(player, data);
 				return null;
 			});
-			c.options.sneakKey.setPressed(true);
 		});
-		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[2].getDefaultKey()));
+		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[4].getDefaultKey()));
 		step(5, false, c -> {
-			c.options.sneakKey.setPressed(false);
 			UUID me = c.player.getUuid();
 			boolean sneakSeen = onServer(c, s -> RaceState.get(s).data(me).readyAt.getOrDefault(4, 0L) > s.getTicks());
 			boolean sacrificed = onServer(c, s -> s.getPlayerManager().getPlayer(me).getHealth() < s.getPlayerManager().getPlayer(me).getMaxHealth());
 			int bats = onServer(c, s -> s.getOverworld().getEntitiesByClass(BatEntity.class, new Box(arena).expand(24), b -> true).size());
-			LOGGER.info("[harness] sneak+Z: swarm cooldown {}, sacrificed {}, bats {}", sneakSeen, sacrificed, bats);
-			check("sneak_z_swarm", sneakSeen && !sacrificed && bats > 0);
+			LOGGER.info("[harness] X: swarm cooldown {}, sacrificed {}, bats {}", sneakSeen, sacrificed, bats);
+			check("x_swarm", sneakSeen && !sacrificed && bats > 0);
 			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 		});
 		step(10, false, c -> {

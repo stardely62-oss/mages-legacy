@@ -131,6 +131,7 @@ declare -A P=(
   [pack_fed]="$ICON $SHEP Subject: a brown paw print next to a juicy meat bone with a small golden sparkle."
   [pack_not_today]="$ICON $SHEP Subject: a golden shield with a brown paw print on it, in front of a red heart."
   [ability_whistle]="$ICON $SHEP Subject: a small carved bone whistle with three bold golden sound lines flying out of it."
+  [ability_gather]="$ICON $SHEP Subject: three small beast silhouettes (a wolf, a fox, a cat) leaping inward toward a golden shepherd crook in the centre, golden motion arcs behind them."
   [voice_mend]="$ICON $SHEP Subject: two open cupped hands glowing with warm golden-green healing light."
   [ability_rewind]="$ICON $FRZ Subject: a glowing silhouette of a person dissolving into a streak of pale light that curves back along a dotted path, with a small hourglass at the end of the path."
   [ability_dome]="$ICON $FRZ Subject: a translucent pale blue dome of frozen time with an arrow hanging motionless inside it."

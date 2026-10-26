@@ -34,6 +34,8 @@ public class RaceData {
 	public int chainLeft;
 	public long chainUntil;
 	public boolean dirty = true;
+	/** Whether sneak was held with the key being handled now (the Call's recall, the Rewind of an ally). Not saved. */
+	public boolean alt;
 	/** The legend and the choice of race were sent to the client this session. */
 	public boolean prompted;
 
@@ -41,12 +43,9 @@ public class RaceData {
 		return talents.contains(talent);
 	}
 
-	/**
-	 * Sneak + key without the talent that opens that variant: say which talent it is, rather than quietly doing the
-	 * plain ability (which looks as if sneaking were ignored).
-	 */
-	public static AbilityResult shiftLocked(ServerPlayerEntity player, String talent) {
-		player.sendMessage(Text.translatable("mages_legacy.ability.shift_locked", Text.translatable("mages_legacy.talent." + talent)), true);
+	/** A key whose ability a talent opens, pressed before it: say which talent, rather than nothing at all. */
+	public static AbilityResult talentLocked(ServerPlayerEntity player, String talent) {
+		player.sendMessage(Text.translatable("mages_legacy.ability.talent_locked", Text.translatable("mages_legacy.talent." + talent)), true);
 		return AbilityResult.HINTED;
 	}
 

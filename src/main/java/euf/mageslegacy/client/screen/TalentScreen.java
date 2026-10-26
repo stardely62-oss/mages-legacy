@@ -3,6 +3,7 @@ package euf.mageslegacy.client.screen;
 import euf.mageslegacy.client.ClientRaceState;
 import euf.mageslegacy.client.MagesLegacyClient;
 import euf.mageslegacy.client.RaceHud;
+import euf.mageslegacy.race.AbilitySlots;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.Talent;
@@ -489,14 +490,21 @@ public class TalentScreen extends Screen {
 		if (!RaceHud.hasAbilities(race)) {
 			return -1;
 		}
-		int count = RaceHud.abilityCount(race);
+		List<Integer> slots = new ArrayList<>();
+		for (int slot = 0; slot < AbilitySlots.KEYS; slot++) {
+			if (RaceHud.shown(race, slot)) {
+				slots.add(slot);
+			}
+		}
+		int count = slots.size();
 		int tileW = Math.min(150, (width - 40 - (count - 1) * 8) / count);
 		int total = count * tileW + (count - 1) * 8;
 		int y = height - 30;
 		int hovered = -1;
 		String resourceIcon = RaceHud.resourceIcon(race);
-		for (int slot = 0; slot < count; slot++) {
-			int x = (width - total) / 2 + slot * (tileW + 8);
+		for (int place = 0; place < count; place++) {
+			int slot = slots.get(place);
+			int x = (width - total) / 2 + place * (tileW + 8);
 			boolean hot = mouseX >= x && mouseX < x + tileW && mouseY >= y && mouseY < y + 24;
 			if (hot) {
 				hovered = slot;

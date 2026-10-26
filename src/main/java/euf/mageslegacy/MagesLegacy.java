@@ -6,6 +6,7 @@ import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.fx.ModParticles;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
+import euf.mageslegacy.race.AbilitySlots;
 import euf.mageslegacy.race.ClientRaceView;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceCommand;
@@ -179,7 +180,7 @@ public class MagesLegacy implements ModInitializer {
 				data.prompted = RacePackets.openChoice(player);
 			}
 			// Only the ability slots show on the client; talent timers (Rebirth, Fed Network) don't need a sync every tick
-			boolean coolingDown = data.readyAt.entrySet().stream().anyMatch(e -> e.getKey() < RacePackets.SLOTS && e.getValue() > ticks)
+			boolean coolingDown = data.readyAt.entrySet().stream().anyMatch(e -> AbilitySlots.onKey(data.race, e.getKey()) && e.getValue() > ticks)
 					|| data.chainLeft > 0;
 			if (data.dirty || coolingDown) {
 				RacePackets.sync(player, data);

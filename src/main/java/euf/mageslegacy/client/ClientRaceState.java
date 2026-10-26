@@ -1,6 +1,6 @@
 package euf.mageslegacy.client;
 
-import euf.mageslegacy.net.RacePackets;
+import euf.mageslegacy.race.AbilitySlots;
 import euf.mageslegacy.race.ClientRaceView;
 import euf.mageslegacy.race.Race;
 import java.util.HashSet;
@@ -18,7 +18,7 @@ public final class ClientRaceState {
 	public static int freePoints;
 	public static int openTiers = 1;
 	public static final Set<String> talents = new HashSet<>();
-	private static final int[] cooldowns = new int[RacePackets.SLOTS];
+	private static final int[] cooldowns = new int[AbilitySlots.COOLDOWNS];
 	public static int chainLeft;
 	/** Race extras from the sync: for Shepherds the capacity, bestiary kills, picked echo and bonds. */
 	public static NbtCompound extra = new NbtCompound();
@@ -43,7 +43,7 @@ public final class ClientRaceState {
 		for (int i = 0; i < count; i++) {
 			talents.add(buf.readString());
 		}
-		for (int slot = 0; slot < RacePackets.SLOTS; slot++) {
+		for (int slot = 0; slot < AbilitySlots.COOLDOWNS; slot++) {
 			cooldowns[slot] = buf.readVarInt();
 		}
 		chainLeft = buf.readVarInt();
