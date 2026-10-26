@@ -530,7 +530,7 @@ public final class Voidborn {
 		int ticks = data.has(Talents.WELL_LONG) ? 120 : WELL_TICKS;
 		double radius = wellRadius(data);
 		WELLS.add(new Well(world, center, radius, now(player.getServer()) + ticks, player, new HashSet<>()));
-		Fx.vortex(world, center, (float) radius * 0.3f, ticks, VOID_RGB);
+		Fx.vortex(world, center, (float) radius * 0.45f, ticks, VOID_RGB);
 		Fx.mark(world, ground(world, center), null, (float) radius * 0.45f, ticks + 10, VOID_INK, Fx.CRACKS);
 		Fx.shake(player, 0.8f, 8);
 		world.playSound(null, BlockPos.ofFloored(center), SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 1.2f, 0.5f);
@@ -705,6 +705,10 @@ public final class Voidborn {
 		Vec3d end = eye.add(look.multiply(reach));
 		Box box = player.getBoundingBox().stretch(look.multiply(reach)).expand(1);
 		EntityHitResult hit = ProjectileUtil.raycast(player, eye, end, box, e -> e instanceof LivingEntity l && l.isAlive() && e != player, reach * reach);
+		if (hit == null) {
+			euf.mageslegacy.MagesLegacy.LOGGER.info("[void-debug] lookedAt miss: eye {} look {} wall {} {} reach {} in box {}", eye, look, wall.getType(),
+					wall.getPos(), reach, player.getWorld().getOtherEntities(player, box, e -> true));
+		}
 		return hit != null && hit.getEntity() instanceof LivingEntity living ? living : null;
 	}
 

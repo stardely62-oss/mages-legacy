@@ -1473,11 +1473,11 @@ public final class FxRenderer {
 
 		void paint(DrawContext ctx, int w, int h, float delta) {
 			float life = age + delta;
-			float a = Math.min(1, life / 3f) * Math.min(1, (ticks - life) / 4f);
+			float a = Math.min(1, life / 2f) * Math.min(1, (ticks - life) / 4f);
 			if (a <= 0) {
 				return;
 			}
-			ctx.fill(0, 0, w, h, argb(0x0A0418, 0.8f * a));
+			ctx.fill(0, 0, w, h, argb(0x07020F, 0.92f * a));
 			edges(ctx, w, h, 0x7050C0, 0.55f * a, 4);
 			int cx = w / 2;
 			int cy = h / 2;
