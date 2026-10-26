@@ -163,7 +163,7 @@ public final class Voidborn {
 			player.damage(world.getDamageSources().magic(), 2);
 			world.spawnParticles(ModParticles.VOID_MOTE, player.getX(), player.getY() + 1, player.getZ(), 8, 0.3, 0.5, 0.3, 0.02);
 			world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.PLAYERS, 0.5f, 1.4f);
-		} else if (player.isBeingRainedOn()) {
+		} else if (world.hasRain(BlockPos.ofFloored(player.getEyePos()))) {
 			refresh(player, StatusEffects.WEAKNESS, 60);
 			refresh(player, StatusEffects.SLOWNESS, 60);
 		}
@@ -449,9 +449,15 @@ public final class Voidborn {
 
 	/** The ground under a point (up to 12 blocks down), or the point itself over a drop. */
 	private static Vec3d ground(ServerWorld world, Vec3d p) {
-		BlockHitResult hit = world.raycast(new RaycastContext(p, p.add(0, -12, 0), RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE,
-				net.minecraft.block.ShapeContext.absent()));
-		return hit.getType() == HitResult.Type.MISS ? p : hit.getPos();
+		BlockPos.Mutable pos = BlockPos.ofFloored(p).mutableCopy();
+		for (int i = 0; i < 12; i++) {
+			net.minecraft.util.shape.VoxelShape shape = world.getBlockState(pos).getCollisionShape(world, pos);
+			if (!shape.isEmpty() && pos.getY() + shape.getMax(net.minecraft.util.math.Direction.Axis.Y) <= p.y) {
+				return new Vec3d(p.x, pos.getY() + shape.getMax(net.minecraft.util.math.Direction.Axis.Y), p.z);
+			}
+			pos.move(net.minecraft.util.math.Direction.DOWN);
+		}
+		return p;
 	}
 
 	private static void tickWells(MinecraftServer server, long now) {
