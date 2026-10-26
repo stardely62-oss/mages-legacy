@@ -43,9 +43,14 @@ public record EchoType(EntityType<?> type, int kills, int capacity, int voice, I
 		return Registries.ENTITY_TYPE.getId(type).toString();
 	}
 
-	/** Kills needed; Memory of the Fallen lowers it by 40%. */
-	public int killsNeeded(boolean memory) {
-		return memory ? Math.max(1, Math.round(kills * 0.6f)) : kills;
+	/** The id without its namespace ("zombie"): portraits and trait texts go by it. */
+	public String path() {
+		return Registries.ENTITY_TYPE.getId(type).getPath();
+	}
+
+	/** Kills needed to learn it. */
+	public int killsNeeded() {
+		return kills;
 	}
 
 	/** Voice the Call costs; Quiet Call takes a quarter off. */

@@ -13,6 +13,7 @@ import euf.mageslegacy.race.Talent;
 import euf.mageslegacy.race.Talents;
 import euf.mageslegacy.shepherd.BeastKind;
 import euf.mageslegacy.shepherd.Bonds;
+import euf.mageslegacy.shepherd.Creatures;
 import euf.mageslegacy.shepherd.EchoType;
 import euf.mageslegacy.shepherd.Echoes;
 import euf.mageslegacy.shepherd.Shepherd;
@@ -449,9 +450,6 @@ public class RaceGameTests implements FabricGameTest {
 		check(Shepherd.learned(data, zombie), "the 20th zombie teaches its echo");
 		check(data.shepherd.presets.get(0).getOrDefault(zombie.id(), 0) == 1, "the first learned echo goes into the first squad");
 		check(data.xp + data.level * 1000 > xp, "learning an echo gives race experience");
-		data.talents.add(Talents.LEGION_THRESHOLDS);
-		EchoType skeleton = EchoType.of(EntityType.SKELETON).orElseThrow();
-		check(skeleton.killsNeeded(true) == 15, "Memory of the Fallen: 25 skeletons become 15");
 		RaceData copy = RaceData.fromNbt(data.toNbt());
 		check(copy.shepherd.kills(zombie.id()) == 20 && copy.shepherd.presets.get(0).getOrDefault(zombie.id(), 0) == 1, "the bestiary survives a save");
 		done(ctx, player);
@@ -527,10 +525,19 @@ public class RaceGameTests implements FabricGameTest {
 
 		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.BEEF, 8));
 		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.PASS, "food before the Song does nothing special");
+		// The Song is its own ability now: on the beast in sight (yaw 0 looks south, +Z), then a cooldown
 		player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
-		player.setSneaking(true);
-		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.SUCCESS, "the Song of Bonds");
+		check(Bonds.song(player, data) == AbilityResult.NO_BEAST, "no beast in sight, no Song");
+		wolf.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 2.5, 0, 0);
+		// A wolf is low: look down at it
+		player.setPitch(30);
+		check(Bonds.song(player, data) == AbilityResult.OK, "the Song of Bonds on the wolf ahead");
+		player.setPitch(0);
 		check(Math.abs(data.resource - 80) < 0.01f, "the Song costs 20 voice");
+		check(Bonds.song(player, data) == AbilityResult.COOLDOWN, "and then waits 30 seconds");
+		player.setSneaking(true);
+		player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
+		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.PASS, "sneak + right click no longer sings");
 		player.setSneaking(false);
 		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.BEEF, 8));
 		check(Bonds.interact(player, data, wolf, Hand.MAIN_HAND) == ActionResult.SUCCESS, "first feeding");
@@ -570,10 +577,7 @@ public class RaceGameTests implements FabricGameTest {
 	}
 
 	static void sing(ServerPlayerEntity player, RaceData data, MobEntity mob) {
-		player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
-		player.setSneaking(true);
-		Bonds.interact(player, data, mob, Hand.MAIN_HAND);
-		player.setSneaking(false);
+		Bonds.singTo(player, data, mob);
 	}
 
 	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "taming", tickLimit = 200)
@@ -620,9 +624,7 @@ public class RaceGameTests implements FabricGameTest {
 		// The parrot: three songs a minute apart, with music playing
 		ParrotEntity parrot = beast(ctx, EntityType.PARROT, at.add(0, 0, 2));
 		data.addResource(100);
-		player.setSneaking(true);
-		check(Bonds.interact(player, data, parrot, Hand.MAIN_HAND) == ActionResult.FAIL, "no music, no listening");
-		player.setSneaking(false);
+		check(Bonds.singTo(player, data, parrot) == AbilityResult.HINTED, "no music, no listening");
 		world.setBlockState(at.add(0, 0, 4), Blocks.JUKEBOX.getDefaultState().with(JukeboxBlock.HAS_RECORD, true));
 		for (int i = 0; i < 3; i++) {
 			data.addResource(100);
@@ -660,12 +662,81 @@ public class RaceGameTests implements FabricGameTest {
 		// The fox only listens while she sleeps
 		FoxEntity fox = beast(ctx, EntityType.FOX, at.add(3, 0, 3));
 		data.addResource(100);
-		player.setSneaking(true);
-		check(Bonds.interact(player, data, fox, Hand.MAIN_HAND) == ActionResult.FAIL, "an awake fox won't listen");
-		player.setSneaking(false);
+		check(Bonds.singTo(player, data, fox) == AbilityResult.HINTED, "an awake fox won't listen");
 		for (MobEntity m : List.of(bee, goat, parrot, cat, bear, fox)) {
 			m.discard();
 		}
+		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "care", tickLimit = 200)
+	public void bondedBeastsArePettedFedAndToldToStay(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(4, 2, 4));
+		floor(world, at.add(-4, 0, -4), 9, 9);
+		ServerPlayerEntity player = shepherd(ctx, at);
+		RaceData data = RaceState.of(player);
+		data.addResource(100);
+		RabbitEntity rabbit = beast(ctx, EntityType.RABBIT, at.add(2, 0, 0));
+		sing(player, data, rabbit);
+		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.GOLDEN_CARROT, 2));
+		Bonds.interact(player, data, rabbit, Hand.MAIN_HAND);
+		data.shepherd.rituals.get(rabbit.getUuid()).lastFeed -= Bonds.FEED_GAP;
+		Bonds.interact(player, data, rabbit, Hand.MAIN_HAND);
+		ShepherdData.Bond bond = data.shepherd.bond(rabbit.getUuid()).orElseThrow();
+		check(Bonds.singTo(player, data, rabbit) == AbilityResult.HINTED, "singing to your own beast only reminds how to care for it");
+
+		// Petting: hearts always, the reward once in two minutes
+		player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
+		float voice = data.resource;
+		int xp = bond.xp + bond.level * 1000;
+		check(Bonds.interact(player, data, rabbit, Hand.MAIN_HAND) == ActionResult.SUCCESS, "petting");
+		check(data.resource > voice && bond.xp + bond.level * 1000 > xp, "petting warms the voice and teaches the beast");
+		voice = data.resource;
+		Bonds.interact(player, data, rabbit, Hand.MAIN_HAND);
+		check(data.resource == voice, "petting again right away gives nothing more");
+
+		// Feeding: its treat heals it and keeps it fed; a fed, healthy beast refuses more
+		rabbit.setHealth(1);
+		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.CARROT, 3));
+		check(Bonds.interact(player, data, rabbit, Hand.MAIN_HAND) == ActionResult.SUCCESS && rabbit.getHealth() > 1, "a carrot heals the rabbit");
+		long now = world.getTime();
+		check(bond.fedUntil > now && Bonds.fedBonus(data, bond, now) > 1, "the rabbit is fed and bites harder");
+		rabbit.setHealth(rabbit.getMaxHealth());
+		check(Bonds.interact(player, data, rabbit, Hand.MAIN_HAND) == ActionResult.FAIL && player.getMainHandStack().getCount() == 2,
+				"a fed, healthy beast won't eat more");
+
+		// Sneak + right click: it stays, and doesn't jump back to its Shepherd
+		player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
+		player.setSneaking(true);
+		Bonds.interact(player, data, rabbit, Hand.MAIN_HAND);
+		player.setSneaking(false);
+		check(bond.staying && rabbit.getCommandTags().contains(Creatures.STAY_TAG), "told to stay");
+		check(RaceData.fromNbt(data.toNbt()).shepherd.bonds.get(0).staying, "staying survives a save");
+
+		// Not Today: the first killing blow is shrugged off, the next one sends it to rest
+		data.talents.add(Talents.PACK_NOT_TODAY);
+		rabbit.timeUntilRegen = 0;
+		rabbit.damage(world.getDamageSources().generic(), 1000);
+		check(rabbit.isAlive() && !bond.resting() && rabbit.getHealth() > 0, "Not Today keeps the rabbit in the fight");
+		rabbit.timeUntilRegen = 0;
+		rabbit.clearStatusEffects();
+		rabbit.damage(world.getDamageSources().generic(), 1000);
+		check(bond.resting(), "but only once in five minutes");
+		bond.body = null;
+
+		// Last Breath: a falling echo bursts into frost
+		data.talents.add(Talents.LEGION_LAST_BREATH);
+		EchoType zombieType = EchoType.of(EntityType.ZOMBIE).orElseThrow();
+		learn(player, data, zombieType);
+		MobEntity echo = Echoes.summon(player, data, zombieType, Vec3d.ofBottomCenter(at.add(-2, 0, 0)), false, 0, 0);
+		ZombieEntity foe = beast(ctx, EntityType.ZOMBIE, at.add(-3, 0, 1));
+		float before = foe.getHealth();
+		echo.timeUntilRegen = 0;
+		echo.damage(world.getDamageSources().generic(), 1000);
+		check(foe.getHealth() < before && foe.hasStatusEffect(StatusEffects.SLOWNESS), "the frost hurts and slows the zombie nearby");
+		foe.discard();
+		Echoes.dismiss(world.getServer(), player.getUuid());
 		done(ctx, player);
 	}
 

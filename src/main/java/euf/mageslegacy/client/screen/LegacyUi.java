@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 
@@ -201,6 +203,19 @@ public final class LegacyUi {
 
 	public static void icon(DrawContext context, Identifier icon, int x, int y, int size, boolean bright) {
 		texture(context, icon, x, y, size, 32, bright);
+	}
+
+	/**
+	 * A creature's portrait from the bestiary art (textures/gui/beast or gui/echo, 32 px), or its spawn egg while the
+	 * portrait isn't drawn yet.
+	 */
+	public static void portrait(DrawContext context, String folder, String id, Item fallback, int x, int y, boolean bright) {
+		Identifier texture = gui(folder + "/" + id);
+		if (exists(texture)) {
+			texture(context, texture, x, y, 16, 32, bright);
+		} else {
+			context.drawItem(new ItemStack(fallback), x, y);
+		}
 	}
 
 	public static void emblem(DrawContext context, Race race, int x, int y, int size, boolean bright) {

@@ -313,7 +313,7 @@ public class HarnessClient implements ClientModInitializer {
 		step(5, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
 		step(20, false, c -> c.options.sneakKey.setPressed(false));
 
-		// A wolf, the Song (sneak + empty hand), three feedings, the last by a campfire
+		// A wolf, the Song (its own key, H, on the wolf in sight), three feedings, the last by a campfire
 		step(10, false, c -> {
 			c.options.hudHidden = false;
 			commands(c, "race resource @a 100", "clear @a", "give @a minecraft:beef 8");
@@ -329,10 +329,10 @@ public class HarnessClient implements ClientModInitializer {
 			tp(c, Vec3d.ofBottomCenter(arena).add(1.5, 0, 2.5), Vec3d.ofBottomCenter(arena).add(3.5, 0.5, 2.5));
 			c.player.getInventory().selectedSlot = 8;
 		});
-		step(5, false, c -> c.options.sneakKey.setPressed(true));
-		step(10, false, c -> interactWolf(c));
+		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[3].getDefaultKey()));
 		step(10, false, c -> {
-			c.options.sneakKey.setPressed(false);
+			UUID me = c.player.getUuid();
+			check("song_key", onServer(c, s -> !RaceState.get(s).data(me).shepherd.rituals.isEmpty()));
 			selectItem(c, Items.BEEF);
 		});
 		for (int i = 0; i < 4; i++) {
@@ -353,6 +353,13 @@ public class HarnessClient implements ClientModInitializer {
 			check("wolf_bonded", ClientRaceState.extra.getList("bonds", 10).size() == 1);
 			screenshot(c, "bonded");
 			resetCooldowns(c);
+			c.player.getInventory().selectedSlot = 8;
+		});
+		// Petting the wolf with a real right click, empty-handed
+		step(10, false, c -> interactWolf(c));
+		step(10, false, c -> {
+			UUID me = c.player.getUuid();
+			check("wolf_petted", onServer(c, s -> RaceState.get(s).data(me).shepherd.bonds.get(0).pettedAt > 0));
 		});
 		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[1].getDefaultKey()));
 		step(20, false, c -> {

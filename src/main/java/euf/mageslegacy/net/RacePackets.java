@@ -32,7 +32,7 @@ public final class RacePackets {
 	public static final Identifier BEAST = MagesLegacy.id("beast");
 	/** Server to client: entity ids of the echoes in the player's world, so they are drawn as spirits. */
 	public static final Identifier ECHOES = MagesLegacy.id("echoes");
-	public static final int SLOTS = 3;
+	public static final int SLOTS = 4;
 
 	private RacePackets() {
 	}
@@ -118,7 +118,7 @@ public final class RacePackets {
 			case SHEPHERD -> Shepherd.use(player, data, slot);
 			default -> AbilityResult.LOCKED;
 		};
-		if (result != AbilityResult.OK) {
+		if (result != AbilityResult.OK && result != AbilityResult.HINTED) {
 			// Lacking the resource names it: spores, voice...
 			String key = "mages_legacy.ability." + result.name().toLowerCase(Locale.ROOT);
 			player.sendMessage(Text.translatable(result == AbilityResult.NO_RESOURCE ? key + "." + data.race.id() : key), true);

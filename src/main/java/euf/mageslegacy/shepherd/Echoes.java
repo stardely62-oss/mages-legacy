@@ -380,8 +380,23 @@ public final class Echoes {
 		if (data != null && !echo.temporary()) {
 			Shepherd.onLoss(owner, data);
 		}
+		if (data != null && data.has(Talents.LEGION_LAST_BREATH)) {
+			lastBreath(owner, entity);
+		}
 		fade(entity);
 		return false;
+	}
+
+	/** Last Breath: a falling echo bursts into frost, hurting and slowing the monsters around it. */
+	private static void lastBreath(ServerPlayerEntity owner, Entity echo) {
+		ServerWorld world = owner.getServerWorld();
+		for (LivingEntity m : world.getEntitiesByClass(LivingEntity.class, echo.getBoundingBox().expand(4),
+				e -> e.isAlive() && e != echo && e instanceof Monster && Creatures.ownerOf(e) == null)) {
+			m.damage(world.getDamageSources().indirectMagic(echo, owner), 4);
+			m.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 1));
+		}
+		world.spawnParticles(ParticleTypes.SNOWFLAKE, echo.getX(), echo.getY() + 1, echo.getZ(), 40, 1.5, 0.6, 1.5, 0.05);
+		world.playSound(null, echo.getBlockPos(), SoundEvents.BLOCK_GLASS_BREAK, SoundCategory.NEUTRAL, 0.8f, 0.6f);
 	}
 
 	/** A mob with the echo tag came out of a saved chunk: its Shepherd's session is over, so it goes. */

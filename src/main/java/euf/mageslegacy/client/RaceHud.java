@@ -4,6 +4,7 @@ import euf.mageslegacy.client.screen.LegacyUi;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.Talents;
+import euf.mageslegacy.shepherd.Bonds;
 import euf.mageslegacy.shepherd.EchoType;
 import euf.mageslegacy.shepherd.Shepherd;
 import java.util.LinkedHashMap;
@@ -29,8 +30,8 @@ public final class RaceHud {
 	public static final Item[] MYCELID_ICONS = {Items.RED_MUSHROOM, Items.SPORE_BLOSSOM, Items.MYCELIUM};
 	public static final String[] MYCELID_ABILITY_ICONS = {"ability_spore_jump", "ability_spore_cloud", "ability_network"};
 	public static final int[] MYCELID_COSTS = {15, 30, 40};
-	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.SPYGLASS};
-	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_focus"};
+	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.SPYGLASS, Items.NOTE_BLOCK};
+	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_focus", "ability_song"};
 
 	private RaceHud() {
 	}
@@ -39,7 +40,12 @@ public final class RaceHud {
 		return race == Race.MYCELID || race == Race.SHEPHERD;
 	}
 
-	/** The Codex icon of an ability slot (0..2), or null if the race has none yet. */
+	/** Three abilities each; the Shepherds have a fourth, the Song of Bonds. */
+	public static int abilityCount(Race race) {
+		return race == Race.SHEPHERD ? 4 : hasAbilities(race) ? 3 : 0;
+	}
+
+	/** The Codex icon of an ability slot (0..3), or null if the race has none yet. */
 	@Nullable
 	public static String abilityIcon(Race race, int slot) {
 		return switch (race) {
@@ -58,6 +64,7 @@ public final class RaceHud {
 			return switch (slot) {
 				case 0 -> squadCost(false);
 				case 1 -> Shepherd.RALLY_COST;
+				case 3 -> Bonds.SONG_COST;
 				default -> Shepherd.FOCUS_COST;
 			};
 		}
@@ -126,7 +133,11 @@ public final class RaceHud {
 		} else if (race == Race.SHEPHERD) {
 			// The Call shows the first echo of its squad
 			EchoType echo = slot == 0 ? activeSquad().keySet().stream().findFirst().flatMap(EchoType::byId).orElse(null) : null;
-			ctx.drawItem(new ItemStack(echo != null ? echo.icon() : SHEPHERD_ICONS[slot]), x, y);
+			if (echo != null) {
+				LegacyUi.portrait(ctx, "echo", echo.path(), echo.icon(), x, y, bright);
+			} else {
+				ctx.drawItem(new ItemStack(SHEPHERD_ICONS[slot]), x, y);
+			}
 		}
 	}
 
@@ -177,7 +188,7 @@ public final class RaceHud {
 			return;
 		}
 		int x = w / 2 + 91 + 8;
-		for (int slot = 0; slot < 3; slot++) {
+		for (int slot = 0; slot < abilityCount(race); slot++) {
 			int sx = x + slot * 23;
 			int sy = h - 22;
 			int cooldown = ClientRaceState.cooldown(slot);

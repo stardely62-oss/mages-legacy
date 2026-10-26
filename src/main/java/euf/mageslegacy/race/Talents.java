@@ -55,28 +55,28 @@ public final class Talents {
 	// Shepherds: Legion (echoes of the fallen), Pack (bonded beasts), Voice (the Shepherd itself). Same shape and
 	// prices as the Mycelid tree.
 	public static final String LEGION_CHEAP = add("legion_cheap", Race.SHEPHERD, 0, 1, 1, null, Items.BONE);
-	public static final String LEGION_THRESHOLDS = add("legion_thresholds", Race.SHEPHERD, 0, 1, 1, null, Items.SKELETON_SKULL);
+	public static final String LEGION_LAST_BREATH = add("legion_last_breath", Race.SHEPHERD, 0, 1, 1, null, Items.PACKED_ICE);
 	public static final String LEGION_STURDY = add("legion_sturdy", Race.SHEPHERD, 0, 1, 1, null, Items.SHIELD);
 	public static final String LEGION_CAPACITY = add("legion_capacity", Race.SHEPHERD, 0, 2, 2, LEGION_CHEAP, Items.ZOMBIE_HEAD);
 	public static final String LEGION_SLEEPLESS = add("legion_sleepless", Race.SHEPHERD, 0, 2, 2, LEGION_CAPACITY, Items.CLOCK);
-	public static final String LEGION_RETURN = add("legion_return", Race.SHEPHERD, 0, 2, 2, LEGION_THRESHOLDS, Items.SOUL_LANTERN);
+	public static final String LEGION_RETURN = add("legion_return", Race.SHEPHERD, 0, 2, 2, LEGION_LAST_BREATH, Items.SOUL_LANTERN);
 	public static final String LEGION_WEAPONS = add("legion_weapons", Race.SHEPHERD, 0, 2, 2, LEGION_STURDY, Items.IRON_SWORD);
 	public static final String LEGION_MORE = add("legion_more", Race.SHEPHERD, 0, 3, 3, LEGION_SLEEPLESS, Items.WITHER_SKELETON_SKULL);
 	public static final String LEGION_LEECH = add("legion_leech", Race.SHEPHERD, 0, 3, 3, LEGION_RETURN, Items.SOUL_SAND);
 	public static final String LEGION_RESONANCE = add("legion_resonance", Race.SHEPHERD, 0, 3, 3, LEGION_WEAPONS, Items.ECHO_SHARD);
 	public static final String LEGION_ARMY = add("legion_army", Race.SHEPHERD, 0, 4, 5, LEGION_MORE, Items.WHITE_BANNER);
 
-	public static final String PACK_FRIENDLY = add("pack_friendly", Race.SHEPHERD, 1, 1, 1, null, Items.BONE_MEAL);
+	public static final String PACK_FED = add("pack_fed", Race.SHEPHERD, 1, 1, 1, null, Items.COOKED_BEEF);
 	public static final String PACK_THICK = add("pack_thick", Race.SHEPHERD, 1, 1, 1, null, Items.RABBIT_HIDE);
 	public static final String PACK_FAST = add("pack_fast", Race.SHEPHERD, 1, 1, 1, null, Items.RABBIT_FOOT);
-	public static final String PACK_LIGHT = add("pack_light", Race.SHEPHERD, 1, 2, 2, PACK_FRIENDLY, Items.LEAD);
+	public static final String PACK_LIGHT = add("pack_light", Race.SHEPHERD, 1, 2, 2, PACK_FED, Items.LEAD);
 	public static final String PACK_LEVELS = add("pack_levels", Race.SHEPHERD, 1, 2, 2, PACK_LIGHT, Items.EXPERIENCE_BOTTLE);
 	public static final String PACK_ARMOR = add("pack_armor", Race.SHEPHERD, 1, 2, 2, PACK_THICK, Items.LEATHER_HORSE_ARMOR);
 	public static final String PACK_SKILL = add("pack_skill", Race.SHEPHERD, 1, 2, 2, PACK_FAST, Items.NETHER_STAR);
-	public static final String PACK_HEAL = add("pack_heal", Race.SHEPHERD, 1, 3, 3, PACK_LEVELS, Items.GLISTERING_MELON_SLICE);
+	public static final String PACK_NOT_TODAY = add("pack_not_today", Race.SHEPHERD, 1, 3, 3, PACK_LEVELS, Items.TOTEM_OF_UNDYING);
 	public static final String PACK_FURY = add("pack_fury", Race.SHEPHERD, 1, 3, 3, PACK_ARMOR, Items.BLAZE_POWDER);
 	public static final String PACK_INSTANT = add("pack_instant", Race.SHEPHERD, 1, 3, 3, PACK_SKILL, Items.FEATHER);
-	public static final String PACK_ALPHA = add("pack_alpha", Race.SHEPHERD, 1, 4, 5, PACK_HEAL, Items.GOLDEN_HELMET);
+	public static final String PACK_ALPHA = add("pack_alpha", Race.SHEPHERD, 1, 4, 5, PACK_NOT_TODAY, Items.GOLDEN_HELMET);
 
 	public static final String VOICE_DEEP = add("voice_deep", Race.SHEPHERD, 2, 1, 1, null, Items.NOTE_BLOCK);
 	public static final String VOICE_CAPACITY = add("voice_capacity", Race.SHEPHERD, 2, 1, 1, null, Items.LEAD);

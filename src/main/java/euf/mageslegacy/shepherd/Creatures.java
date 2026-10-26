@@ -35,6 +35,8 @@ public final class Creatures {
 	/** Bonded beasts carry this tag plus "mages_legacy_owner:<uuid>", so the bond survives saves and restarts. */
 	public static final String BOND_TAG = "mages_legacy_bond";
 	public static final String OWNER_TAG = "mages_legacy_owner:";
+	/** A bonded beast told to stay put. */
+	public static final String STAY_TAG = "mages_legacy_stay";
 
 	/** Creature uuid -> its Shepherd, for loaded bonded beasts (echoes live in {@link Echoes}). */
 	private static final Map<UUID, UUID> BEAST_OWNERS = new HashMap<>();
@@ -177,7 +179,7 @@ public final class Creatures {
 		@Override
 		public boolean canStart() {
 			owner = owner(mob);
-			if (owner == null || owner.isSpectator() || mob.getTarget() != null) {
+			if (owner == null || owner.isSpectator() || mob.getTarget() != null || mob.getCommandTags().contains(STAY_TAG)) {
 				return false;
 			}
 			// An axolotl dries out on land: it only follows a Shepherd who swims
@@ -189,7 +191,8 @@ public final class Creatures {
 
 		@Override
 		public boolean shouldContinue() {
-			return owner != null && owner.isAlive() && mob.getTarget() == null && mob.squaredDistanceTo(owner) > 9;
+			return owner != null && owner.isAlive() && mob.getTarget() == null && mob.squaredDistanceTo(owner) > 9
+					&& !mob.getCommandTags().contains(STAY_TAG);
 		}
 
 		@Override

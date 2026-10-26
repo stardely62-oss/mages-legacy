@@ -43,8 +43,8 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Everything the Shepherds do that isn't the echoes or the bonds themselves: the voice (their resource) and the bond
- * capacity, their weaknesses (less health, a weak hand, heavy armour crowds the bonds), the three abilities (Call,
- * Rally, Swap), the auras of the Voice branch, and race experience from what their creatures do.
+ * capacity, their weaknesses (less health, a weak hand, heavy armour crowds the bonds), the abilities (Call, Rally,
+ * Hunter's Mark; the Song of Bonds lives in {@link Bonds}), the auras of the Voice branch, and race experience from what their creatures do.
  */
 public final class Shepherd {
 	public static final int BASE_CAPACITY = 4;
@@ -130,9 +130,6 @@ public final class Shepherd {
 				c.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 60, 0, true, false));
 			}
 		}
-		if (data.has(Talents.PACK_HEAL) && Creatures.around(player, 6).stream().filter(e -> !Echoes.isEcho(e)).count() >= 2) {
-			player.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 60, 0, true, false, true));
-		}
 		if (data.has(Talents.PACK_FURY) && player.getHealth() < player.getMaxHealth() / 2) {
 			for (LivingEntity c : near) {
 				if (!Echoes.isEcho(c)) {
@@ -206,6 +203,11 @@ public final class Shepherd {
 			if (data.has(Talents.VOICE_BANNER) && attacker.squaredDistanceTo(master) < 16 * 16) {
 				amount *= 1.2f;
 			}
+			// A fed beast bites harder
+			Optional<Bond> bond = data.shepherd.bond(attacker.getUuid());
+			if (bond.isPresent()) {
+				amount *= Bonds.fedBonus(data, bond.get(), master.getServerWorld().getTime());
+			}
 		}
 		if (attacker != null && attacker.getCommandTags().contains(Creatures.BOND_TAG)) {
 			Bonds.onBeastHit(attacker, victim);
@@ -255,6 +257,7 @@ public final class Shepherd {
 			case 0 -> call(player, data);
 			case 1 -> rally(player, data);
 			case 2 -> focus(player, data);
+			case 3 -> Bonds.song(player, data);
 			default -> AbilityResult.LOCKED;
 		};
 	}
@@ -263,17 +266,17 @@ public final class Shepherd {
 		return player.getServer().getTicks();
 	}
 
-	private static boolean ready(ServerPlayerEntity player, RaceData data, int slot) {
+	static boolean ready(ServerPlayerEntity player, RaceData data, int slot) {
 		return data.readyAt.getOrDefault(slot, 0L) <= now(player);
 	}
 
-	private static void cooldown(ServerPlayerEntity player, RaceData data, int slot, int ticks) {
+	static void cooldown(ServerPlayerEntity player, RaceData data, int slot, int ticks) {
 		data.readyAt.put(slot, now(player) + ticks);
 		data.dirty = true;
 	}
 
 	public static boolean learned(RaceData data, EchoType type) {
-		return data.shepherd.kills(type.id()) >= type.killsNeeded(data.has(Talents.LEGION_THRESHOLDS));
+		return data.shepherd.kills(type.id()) >= type.killsNeeded();
 	}
 
 	public static final int PRESET_MAX = 12;
@@ -443,7 +446,9 @@ public final class Shepherd {
 			if (data.resource < GATHER_COST) {
 				return AbilityResult.NO_RESOURCE;
 			}
+			// Beasts told to stay keep their post
 			List<LivingEntity> creatures = Creatures.around(player, 64);
+			creatures.removeIf(c -> c.getCommandTags().contains(Creatures.STAY_TAG));
 			if (creatures.isEmpty()) {
 				return AbilityResult.NO_CREATURE;
 			}
@@ -493,7 +498,7 @@ public final class Shepherd {
 	}
 
 	@Nullable
-	private static LivingEntity lookedAt(ServerPlayerEntity player, double range, java.util.function.Predicate<LivingEntity> filter) {
+	static LivingEntity lookedAt(ServerPlayerEntity player, double range, java.util.function.Predicate<LivingEntity> filter) {
 		Vec3d eye = player.getEyePos();
 		Vec3d look = player.getRotationVec(1.0f);
 		Vec3d end = eye.add(look.multiply(range));
@@ -567,6 +572,8 @@ public final class Shepherd {
 			NbtCompound b = bonds.getCompound(i);
 			b.remove("body");
 			b.putInt("restSeconds", (int) Math.max(0, (b.getLong("restingUntil") - time) / 20));
+			b.putInt("fedSeconds", (int) Math.max(0, (b.getLong("fedUntil") - time) / 20));
+			b.putBoolean("petReady", b.getLong("pettedAt") == 0 || time - b.getLong("pettedAt") >= Bonds.PET_GAP);
 		}
 		nbt.putInt("capUsed", capacityUsed(data, player.getUuid()));
 		nbt.putInt("capMax", capacityMax(player, data));

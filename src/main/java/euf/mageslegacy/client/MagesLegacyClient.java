@@ -26,13 +26,13 @@ import org.lwjgl.glfw.GLFW;
 public class MagesLegacyClient implements ClientModInitializer {
 	public static final String CATEGORY = "category.mages_legacy";
 	public static final KeyBinding[] ABILITY_KEYS = {
-			key("ability_1", GLFW.GLFW_KEY_R), key("ability_2", GLFW.GLFW_KEY_V), key("ability_3", GLFW.GLFW_KEY_G)};
+			key("ability_1", GLFW.GLFW_KEY_R), key("ability_2", GLFW.GLFW_KEY_V), key("ability_3", GLFW.GLFW_KEY_G), key("ability_4", GLFW.GLFW_KEY_H)};
 	public static final KeyBinding TREE_KEY = key("talents", GLFW.GLFW_KEY_K);
 	public static final KeyBinding BESTIARY_KEY = key("bestiary", GLFW.GLFW_KEY_B);
 	public static final KeyBinding SQUAD_KEY = key("next_squad", GLFW.GLFW_KEY_N);
 
 	/**
-	 * The key as printed on an English keyboard (R, V, G), whatever layout the system has switched to: GLFW names
+	 * The key as printed on an English keyboard (R, V, G, H), whatever layout the system has switched to: GLFW names
 	 * letter keys by the active layout, which turned R into К. Other keys keep their localized names.
 	 */
 	public static String keyLabel(KeyBinding binding) {
@@ -82,7 +82,10 @@ public class MagesLegacyClient implements ClientModInitializer {
 		}
 		for (int slot = 0; slot < ABILITY_KEYS.length; slot++) {
 			while (ABILITY_KEYS[slot].wasPressed()) {
-				useAbility(slot);
+				// The fourth key is the Shepherd's Song; other races have three abilities
+				if (ClientRaceState.race != null && slot < RaceHud.abilityCount(ClientRaceState.race)) {
+					useAbility(slot);
+				}
 			}
 		}
 		while (TREE_KEY.wasPressed()) {

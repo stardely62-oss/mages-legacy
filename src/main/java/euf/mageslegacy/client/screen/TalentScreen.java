@@ -484,17 +484,18 @@ public class TalentScreen extends Screen {
 		return hovered;
 	}
 
-	/** The three abilities: icon, name, key cap and cost. Returns the hovered slot, or -1. */
+	/** The abilities: icon, name, key cap and cost. Returns the hovered slot, or -1. */
 	private int drawAbilities(DrawContext ctx, Race race, int color, int mouseX, int mouseY) {
 		if (!RaceHud.hasAbilities(race)) {
 			return -1;
 		}
-		int tileW = Math.min(150, (width - 40) / 3);
-		int total = 3 * tileW + 2 * 8;
+		int count = RaceHud.abilityCount(race);
+		int tileW = Math.min(150, (width - 40 - (count - 1) * 8) / count);
+		int total = count * tileW + (count - 1) * 8;
 		int y = height - 30;
 		int hovered = -1;
 		String resourceIcon = RaceHud.resourceIcon(race);
-		for (int slot = 0; slot < 3; slot++) {
+		for (int slot = 0; slot < count; slot++) {
 			int x = (width - total) / 2 + slot * (tileW + 8);
 			boolean hot = mouseX >= x && mouseX < x + tileW && mouseY >= y && mouseY < y + 24;
 			if (hot) {

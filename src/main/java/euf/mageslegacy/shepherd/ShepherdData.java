@@ -43,6 +43,13 @@ public class ShepherdData {
 		public NbtCompound body;
 		/** Chosen in the bestiary to lead the pack (the Alpha crown). */
 		public boolean leader;
+		/** World time its last meal wears off (fed beasts heal and hit harder), when it was last petted. */
+		public long fedUntil;
+		public long pettedAt;
+		/** World time Not Today last saved it from a killing blow. */
+		public long savedAt;
+		/** Told to stay put (sneak + right click): it doesn't follow until called again. */
+		public boolean staying;
 
 		public boolean resting() {
 			return body != null;
@@ -57,6 +64,10 @@ public class ShepherdData {
 			nbt.putInt("xp", xp);
 			nbt.putLong("restingUntil", restingUntil);
 			nbt.putBoolean("leader", leader);
+			nbt.putLong("fedUntil", fedUntil);
+			nbt.putLong("pettedAt", pettedAt);
+			nbt.putLong("savedAt", savedAt);
+			nbt.putBoolean("staying", staying);
 			if (body != null) {
 				nbt.put("body", body);
 			}
@@ -72,6 +83,10 @@ public class ShepherdData {
 			bond.xp = nbt.getInt("xp");
 			bond.restingUntil = nbt.getLong("restingUntil");
 			bond.leader = nbt.getBoolean("leader");
+			bond.fedUntil = nbt.getLong("fedUntil");
+			bond.pettedAt = nbt.getLong("pettedAt");
+			bond.savedAt = nbt.getLong("savedAt");
+			bond.staying = nbt.getBoolean("staying");
 			bond.body = nbt.contains("body") ? nbt.getCompound("body") : null;
 			return bond;
 		}

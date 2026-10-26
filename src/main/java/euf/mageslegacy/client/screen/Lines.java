@@ -10,10 +10,11 @@ final class Lines {
 	private Lines() {
 	}
 
-	static List<Text> of(String key) {
+	/** {@code args} fill the lines' %s, the same for every line. */
+	static List<Text> of(String key, Object... args) {
 		List<Text> lines = new ArrayList<>();
 		for (int i = 1; I18n.hasTranslation(key + "." + i); i++) {
-			lines.add(Text.translatable(key + "." + i));
+			lines.add(Text.translatable(key + "." + i, args));
 		}
 		return lines;
 	}
