@@ -14,7 +14,8 @@ import net.minecraft.util.Formatting;
 
 /**
  * Five race cards with their emblems on top; below, the chosen race: emblem, name and legend on the left, strengths,
- * weaknesses and ability tiles on the right. What an ability does is in its tooltip.
+ * weaknesses and ability tiles on the right. What an ability does is in its tooltip. The legend and the traits
+ * scroll with the wheel when a large GUI scale leaves them too little room.
  */
 public class RaceSelectScreen extends Screen {
 	private static final int CARD_Y = 24;
@@ -23,6 +24,11 @@ public class RaceSelectScreen extends Screen {
 
 	private Race selected = Race.MYCELID;
 	private LegacyButton chooseButton;
+	/** Scroll offsets of the legend and the traits, and how far each can go (set while drawing). */
+	private int legendScroll;
+	private int traitsScroll;
+	private int legendMax;
+	private int traitsMax;
 
 	public RaceSelectScreen() {
 		super(Text.translatable("mages_legacy.screen.choose_title"));
@@ -46,7 +52,34 @@ public class RaceSelectScreen extends Screen {
 
 	public void select(Race race) {
 		selected = race;
+		legendScroll = 0;
+		traitsScroll = 0;
 		updateButton();
+	}
+
+	@Override
+	public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+		if (mouseY >= detailTop() && mouseY < detailBottom()) {
+			if (mouseX < width / 2.0) {
+				legendScroll = Math.max(0, Math.min(legendMax, legendScroll - (int) (amount * 12)));
+			} else {
+				traitsScroll = Math.max(0, Math.min(traitsMax, traitsScroll - (int) (amount * 12)));
+			}
+			return true;
+		}
+		return super.mouseScrolled(mouseX, mouseY, amount);
+	}
+
+	/** A thin scrollbar along the right edge of a scrolled area. */
+	private void scrollbar(DrawContext ctx, int x, int top, int bottom, int scroll, int max, int color) {
+		if (max <= 0) {
+			return;
+		}
+		int track = bottom - top;
+		int thumb = Math.max(10, track * track / (track + max));
+		int ty = top + (track - thumb) * scroll / max;
+		ctx.fill(x, top, x + 2, bottom, LegacyUi.BLACK);
+		ctx.fill(x, ty, x + 2, ty + thumb, color);
 	}
 
 	public Race selected() {
@@ -157,17 +190,22 @@ public class RaceSelectScreen extends Screen {
 
 		int y = top + emblem + 6;
 		LegacyUi.divider(ctx, x, x + w, y, color);
-		y += 8;
+		// The legend scrolls inside the rest of the column
+		int areaTop = y + 8;
+		int areaBottom = bottom - 4;
+		ctx.enableScissor(x - 2, areaTop, x + w + 2, areaBottom);
+		y = areaTop - legendScroll;
 		for (Text line : Lines.of(selected.key() + ".lore")) {
-			for (OrderedText row : textRenderer.wrapLines(line.copy().formatted(Formatting.ITALIC), w)) {
-				if (y + 9 > bottom - 4) {
-					return;
-				}
+			for (OrderedText row : textRenderer.wrapLines(line.copy().formatted(Formatting.ITALIC), w - 4)) {
 				ctx.drawText(textRenderer, row, x, y, LegacyUi.PARCHMENT, true);
 				y += 10;
 			}
 			y += 4;
 		}
+		ctx.disableScissor();
+		legendMax = Math.max(0, y + legendScroll - areaBottom);
+		legendScroll = Math.min(legendScroll, legendMax);
+		scrollbar(ctx, x + w + 2, areaTop, areaBottom, legendScroll, legendMax, color);
 	}
 
 	/** Right column: strengths and weaknesses as gem lists, then the ability tiles. Returns the hovered ability slot. */
@@ -179,12 +217,18 @@ public class RaceSelectScreen extends Screen {
 		boolean abilities = I18n.hasTranslation("mages_legacy.ability." + selected.id() + ".1.name");
 		int listBottom = bottom - (abilities ? TILE_H + 18 : 22);
 
-		int y = top;
+		// Strengths and weaknesses scroll above the ability tiles
+		ctx.enableScissor(x - 2, top, x + w + 2, listBottom);
+		int y = top - traitsScroll;
 		y = section(ctx, Text.translatable("mages_legacy.screen.strengths"), x, y, LegacyUi.GREEN);
-		y = gems(ctx, Lines.of(selected.key() + ".perk"), x, y, w, LegacyUi.GREEN, 0xFFD6EBD0, listBottom);
+		y = gems(ctx, Lines.of(selected.key() + ".perk"), x, y, w - 4, LegacyUi.GREEN, 0xFFD6EBD0, Integer.MAX_VALUE);
 		y += 4;
 		y = section(ctx, Text.translatable("mages_legacy.screen.weaknesses"), x, y, LegacyUi.RED);
-		gems(ctx, Lines.of(selected.key() + ".weak"), x, y, w, LegacyUi.RED, 0xFFEBD0D0, listBottom);
+		y = gems(ctx, Lines.of(selected.key() + ".weak"), x, y, w - 4, LegacyUi.RED, 0xFFEBD0D0, Integer.MAX_VALUE);
+		ctx.disableScissor();
+		traitsMax = Math.max(0, y + traitsScroll - listBottom);
+		traitsScroll = Math.min(traitsScroll, traitsMax);
+		scrollbar(ctx, x + w + 2, top, listBottom, traitsScroll, traitsMax, LegacyUi.argb(selected.color));
 
 		if (!abilities) {
 			// A race not awakened yet: a sleeping seal instead of abilities
