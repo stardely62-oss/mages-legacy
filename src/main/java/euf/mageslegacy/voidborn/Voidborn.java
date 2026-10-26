@@ -66,7 +66,6 @@ public final class Voidborn {
 	private static final int WELL_TICKS = 80;
 	private static final int WELL_COOLDOWN = 500;
 	private static final double WELL_RADIUS = 8;
-	private static final int EXCISE_TICKS = 120;
 	private static final int EXCISE_COOLDOWN = 300;
 	private static final double EXCISE_RANGE = 24;
 	private static final int POCKET_COOLDOWN = 200;
@@ -90,8 +89,11 @@ public final class Voidborn {
 	/** An open way left by a Rift Step: whoever walks into its start comes out at its end. */
 	private record Door(ServerWorld world, Vec3d from, Vec3d to, long until) {}
 
-	/** A creature held in its puller's pocket: where it came from, and when it goes back. */
-	private record Held(Entity entity, UUID owner, ServerWorld origin, Vec3d pos, float yaw, long until, boolean ally) {}
+	/**
+	 * A creature held in its puller's pocket: where it came from, and when it goes back. One taken by the Excision
+	 * stays until its Voidborn presses the key again ({@code until} is then far off); the Gaze's come back by themselves.
+	 */
+	private record Held(Entity entity, UUID owner, ServerWorld origin, Vec3d pos, float yaw, long until, boolean ally, boolean excised) {}
 
 	/** A step into (or out of) the pocket, made a moment after the rift opens; {@code home}: out to one's spawn. */
 	private record Passage(ServerPlayerEntity player, long at, boolean in, boolean home) {}
@@ -435,7 +437,7 @@ public final class Voidborn {
 				s.hit().add(e.getUuid());
 				RaceData data = RaceState.of(player);
 				boolean sever = data.has(Talents.STEP_SEVER);
-				e.damage(world.getDamageSources().indirectMagic(player, player), sever ? 12 : data.has(Talents.STEP_CUT) ? 7 : 4);
+				e.damage(world.getDamageSources().indirectMagic(player, player), sever ? 9 : data.has(Talents.STEP_CUT) ? 6 : 4);
 				e.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, sever ? 2 : 1));
 				if (data.has(Talents.STEP_REND)) {
 					e.addStatusEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 80, 1));
@@ -480,8 +482,11 @@ public final class Voidborn {
 	private static void emerge(ServerPlayerEntity player, Vec3d at, boolean through) {
 		ServerWorld world = player.getServerWorld();
 		player.removeStatusEffect(StatusEffects.INVISIBILITY);
+		// Veil: monsters that hunted the Voidborn lose it in the void
 		if (RaceState.of(player).has(Talents.STEP_VEIL)) {
-			player.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY, 60, 0, true, false, true));
+			for (MobEntity m : world.getEntitiesByClass(MobEntity.class, player.getBoundingBox().expand(32), m -> m.getTarget() == player)) {
+				m.setTarget(null);
+			}
 		}
 		player.setVelocity(Vec3d.ZERO);
 		player.velocityModified = true;
@@ -561,8 +566,8 @@ public final class Voidborn {
 				for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, reach, e -> enemy(e, owner))) {
 					pull(e, w.center(), 0.16, w.radius());
 					w.pulled().add(e.getUuid());
-					if (now % 10 == 0 && e.getBoundingBox().getCenter().distanceTo(w.center()) < 1.8) {
-						e.damage(world.getDamageSources().indirectMagic(owner, owner), data.has(Talents.WELL_HEART) ? 5 : 3);
+					if (now % 20 == 0 && e.getBoundingBox().getCenter().distanceTo(w.center()) < 1.8) {
+						e.damage(world.getDamageSources().indirectMagic(owner, owner), data.has(Talents.WELL_HEART) ? 3 : 2);
 					}
 				}
 			}
@@ -606,7 +611,7 @@ public final class Voidborn {
 		if (owner != null) {
 			RaceData data = RaceState.of(owner);
 			for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, new Box(c, c).expand(4), e -> enemy(e, owner))) {
-				e.damage(world.getDamageSources().indirectMagic(owner, owner), data.has(Talents.WELL_COLLAPSE) ? 10 : 6);
+				e.damage(world.getDamageSources().indirectMagic(owner, owner), data.has(Talents.WELL_COLLAPSE) ? 8 : 6);
 			}
 			if (data.has(Talents.WELL_HOLD)) {
 				for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, new Box(c, c).expand(w.radius()), e -> enemy(e, owner))) {
@@ -636,6 +641,14 @@ public final class Voidborn {
 
 	/** The Excision of a given creature (the one looked at, or one a test picks). */
 	public static AbilityResult excise(ServerPlayerEntity player, RaceData data, LivingEntity target) {
+		// Pressed while holding someone: they go back now, and only then does the Excision start to recharge
+		if (holding(player)) {
+			long now = now(player.getServer());
+			HELD.replaceAll(h -> h.excised() && h.owner().equals(player.getUuid())
+					? new Held(h.entity(), h.owner(), h.origin(), h.pos(), h.yaw(), now, h.ally(), true) : h);
+			cooldown(player, data, 2, EXCISE_COOLDOWN);
+			return AbilityResult.OK;
+		}
 		if (!ready(player, data, 2)) {
 			return AbilityResult.COOLDOWN;
 		}
@@ -644,14 +657,14 @@ public final class Voidborn {
 			return AbilityResult.NO_RESOURCE;
 		}
 		if (target == null || tooBig(target) || HELD.stream().anyMatch(h -> h.entity() == target)) {
-			return AbilityResult.NO_TARGET;
+			return AbilityResult.NO_SIGHT;
 		}
 		ServerWorld pocket = Pocket.world(player.getServer());
 		if (pocket == null) {
 			return AbilityResult.LOCKED;
 		}
 		data.addResource(-cost);
-		cooldown(player, data, 2, EXCISE_COOLDOWN);
+		data.dirty = true;
 		ServerWorld world = player.getServerWorld();
 		boolean ally = !enemy(target, player);
 		int room = Pocket.room(player, data);
@@ -677,7 +690,7 @@ public final class Voidborn {
 				back = up;
 			}
 		}
-		HELD.add(new Held(moved, player.getUuid(), world, back, yaw, now(player.getServer()) + (data.has(Talents.EXCISE_LONG) ? 200 : EXCISE_TICKS), ally));
+		HELD.add(new Held(moved, player.getUuid(), world, back, yaw, Long.MAX_VALUE, ally, true));
 		if (!ally) {
 			Progression.addXp(player, data, 3);
 		}
@@ -708,14 +721,41 @@ public final class Voidborn {
 		return hit != null && hit.getEntity() instanceof LivingEntity living ? living : null;
 	}
 
+	/** Whether this Voidborn holds someone in its pocket by the Excision now. */
+	public static boolean holding(ServerPlayerEntity player) {
+		return HELD.stream().anyMatch(h -> h.excised() && h.owner().equals(player.getUuid()));
+	}
+
+	/** What the client shows of a Voidborn beyond the shared data: whether its Excision holds someone. */
+	public static net.minecraft.nbt.NbtCompound clientInfo(ServerPlayerEntity player) {
+		net.minecraft.nbt.NbtCompound nbt = new net.minecraft.nbt.NbtCompound();
+		nbt.putBoolean("holding", holding(player));
+		return nbt;
+	}
+
 	private static void tickHeld(MinecraftServer server, long now) {
 		for (Iterator<Held> it = HELD.iterator(); it.hasNext(); ) {
 			Held h = it.next();
-			boolean ownerGone = server.getPlayerManager().getPlayer(h.owner()) == null;
+			ServerPlayerEntity owner = server.getPlayerManager().getPlayer(h.owner());
+			// A held one is let go when its Voidborn lets go, leaves or dies
+			boolean ownerGone = owner == null || !owner.isAlive();
 			if (h.until() > now && !ownerGone && !h.entity().isRemoved()) {
+				// Gnawing Void: an enemy held by the Excision wears away, down to a third of its health
+				if (h.excised() && !h.ally() && now % 20 == 0 && h.entity() instanceof LivingEntity living
+						&& RaceState.of(owner).has(Talents.EXCISE_LONG) && living.getHealth() > living.getMaxHealth() / 3) {
+					living.damage(living.getDamageSources().magic(), 2);
+				}
 				continue;
 			}
 			it.remove();
+			if (owner != null && h.excised()) {
+				// However it ended (let go, or gone inside), the Excision now starts to recharge
+				RaceData data = RaceState.of(owner);
+				if (ready(owner, data, 2)) {
+					cooldown(owner, data, 2, EXCISE_COOLDOWN);
+				}
+				data.dirty = true;
+			}
 			Entity e = h.entity();
 			ServerWorld pocket = Pocket.world(server);
 			if (pocket != null && HELD.stream().noneMatch(o -> o.owner().equals(h.owner()))) {
@@ -860,8 +900,11 @@ public final class Voidborn {
 		ServerWorld world = player.getServerWorld();
 		List<LivingEntity> enemies = world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(16),
 				e -> enemy(e, player) && !tooBig(e) && e.squaredDistanceTo(player) < 256).stream().limit(12).toList();
-		if (pocket == null || enemies.isEmpty()) {
-			return AbilityResult.NO_TARGET;
+		if (pocket == null) {
+			return AbilityResult.LOCKED;
+		}
+		if (enemies.isEmpty()) {
+			return AbilityResult.NO_ENEMIES;
 		}
 		data.addResource(-GAZE_COST);
 		cooldown(player, data, GAZE_SLOT, GAZE_COOLDOWN);
@@ -877,7 +920,7 @@ public final class Voidborn {
 			e.stopRiding();
 			e.removeAllPassengers();
 			Entity moved = Pocket.move(e, pocket, cell, e.getYaw());
-			HELD.add(new Held(moved, player.getUuid(), world, from, e.getYaw(), until, false));
+			HELD.add(new Held(moved, player.getUuid(), world, from, e.getYaw(), until, false, false));
 		}
 		// The mage's eye opens over the Voidborn for a moment
 		Fx.vortex(world, player.getPos().add(0, 4, 0), 1.6f, 30, VOID_RGB);
@@ -936,6 +979,6 @@ public final class Voidborn {
 		FREE_STEP.remove(player.getUuid());
 		WELLS.removeIf(w -> w.owner() == player);
 		STEPS.removeIf(s -> s.player() == player);
-		HELD.replaceAll(h -> h.owner().equals(player.getUuid()) ? new Held(h.entity(), h.owner(), h.origin(), h.pos(), h.yaw(), 0, h.ally()) : h);
+		HELD.replaceAll(h -> h.owner().equals(player.getUuid()) ? new Held(h.entity(), h.owner(), h.origin(), h.pos(), h.yaw(), 0, h.ally(), h.excised()) : h);
 	}
 }

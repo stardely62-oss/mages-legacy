@@ -217,6 +217,11 @@ public final class RaceHud {
 				&& slotCost(race, slot) >= 0 && ClientRaceState.resource >= slotCost(race, slot);
 	}
 
+	/** A Voidborn's Excision holding someone: pressing it lets go, for free. */
+	private static boolean releases(Race race, int slot) {
+		return race == Race.VOIDBORN && slot == 2 && ClientRaceState.extra.getBoolean("holding");
+	}
+
 	/** A Mycelid's spore jump chaining on: free of its cooldown for now. */
 	private static boolean chain(Race race, int slot) {
 		return race == Race.MYCELID && slot == 0 && ClientRaceState.chainLeft > 0;
@@ -224,6 +229,9 @@ public final class RaceHud {
 
 	/** What the slot asks for right now: a chained jump, or only the squad members still missing for the Call. */
 	private static int slotCost(Race race, int slot) {
+		if (releases(race, slot)) {
+			return 0;
+		}
 		return chain(race, slot) ? Mycelid.CHAIN_COST : race == Race.SHEPHERD && slot == 0 ? squadCost(true) : cost(race, slot);
 	}
 
@@ -315,6 +323,14 @@ public final class RaceHud {
 				ctx.getMatrices().push();
 				ctx.getMatrices().translate(0, 0, 250);
 				ctx.drawText(tr, order, sx, sy - 1, LegacyUi.GOLD, true);
+				ctx.getMatrices().pop();
+			}
+			if (releases(race, slot)) {
+				// Someone is held in the pocket: the slot glows, a mark says the key brings them back
+				LegacyUi.outline(ctx, sx - 2, sy - 2, sx + 20, sy + 20, 0xFFB89BFF);
+				ctx.getMatrices().push();
+				ctx.getMatrices().translate(0, 0, 250);
+				ctx.drawText(tr, "↩", sx, sy - 1, 0xFFD8C8FF, true);
 				ctx.getMatrices().pop();
 			}
 			if (race == Race.SHEPHERD && slot == 0) {

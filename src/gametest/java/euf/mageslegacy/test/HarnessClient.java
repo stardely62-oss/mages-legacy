@@ -714,6 +714,13 @@ public class HarnessClient implements ClientModInitializer {
 			LOGGER.info("[harness] excision: zombies left here {}", here);
 			check("excise_away", here == 0);
 		});
+		// It waits in the pocket until Z is pressed again
+		step(20, false, c -> {
+			UUID me = c.player.getUuid();
+			check("excise_holds", ClientRaceState.extra.getBoolean("holding")
+					&& onServer(c, s -> RaceState.get(s).data(me).readyAt.getOrDefault(2, 0L) <= s.getTicks()));
+			KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[2].getDefaultKey());
+		});
 		step(10, false, c -> {
 			int here = onServer(c, s -> s.getOverworld().getEntitiesByClass(ZombieEntity.class, new Box(arena).expand(12), z -> z.isAlive()).size());
 			LOGGER.info("[harness] excision: zombies back {}", here);

@@ -560,7 +560,7 @@ public final class Frozen {
 			}
 			target = lookedAtPlayer(player, 16);
 			if (target == null) {
-				return AbilityResult.NO_TARGET;
+				return AbilityResult.NO_SIGHT;
 			}
 			cost = ALLY_COST;
 		}
@@ -915,7 +915,7 @@ public final class Frozen {
 		}
 		LivingEntity target = lookedAt(player, 16, Frozen::enemy);
 		if (target == null) {
-			return AbilityResult.NO_TARGET;
+			return AbilityResult.NO_SIGHT;
 		}
 		spend(player, data, FREEZE_COST);
 		cooldown(player, data, FREEZE_SLOT, FREEZE_COOLDOWN);

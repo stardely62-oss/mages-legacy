@@ -177,7 +177,7 @@ public final class RacePackets {
 		}
 		buf.writeVarInt(data.chainLeft > 0 && now <= data.chainUntil ? data.chainLeft : 0);
 		// Race-specific extras: the Shepherd's capacity, bestiary and bonds
-		buf.writeNbt(data.race == Race.SHEPHERD ? Shepherd.clientInfo(player, data) : new NbtCompound());
+		buf.writeNbt(data.race == Race.SHEPHERD ? Shepherd.clientInfo(player, data) : data.race == Race.VOIDBORN ? Voidborn.clientInfo(player) : new NbtCompound());
 		ServerPlayNetworking.send(player, SYNC, buf);
 	}
 }

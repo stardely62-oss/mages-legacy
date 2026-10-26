@@ -11,6 +11,10 @@ public enum AbilityResult {
 	NO_CREATURE,
 	/** Shepherds: the Song of Bonds needs a beast that can be bonded in sight. */
 	NO_BEAST,
+	/** No creature in sight where one was needed (the Excision, the Stopping Gaze). */
+	NO_SIGHT,
+	/** No enemy near enough for an ability that takes them all. */
+	NO_ENEMIES,
 	/** It didn't happen, and the player was already told why. */
 	HINTED
 }
