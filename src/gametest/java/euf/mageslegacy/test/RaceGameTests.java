@@ -997,8 +997,16 @@ public class RaceGameTests implements FabricGameTest {
 		check(Frozen.naturalHealing(player) == 0.5f, "natural healing at half speed");
 		StatusEffectInstance speed = Frozen.shorten(player, new StatusEffectInstance(StatusEffects.SPEED, 600));
 		check(speed.getDuration() == 420, "a potion lasts 30% shorter, got " + speed.getDuration());
-		data.talents.add(Talents.FLOW_POTIONS);
-		check(Frozen.shorten(player, new StatusEffectInstance(StatusEffects.SPEED, 600)).getDuration() == 510, "Lasting Memory: only 15% shorter");
+		// Doubled Moment: every third blow lands half again as hard; Viscous Time slows
+		data.talents.add(Talents.FLOW_ECHO);
+		data.talents.add(Talents.FLOW_VISCOUS);
+		ZombieEntity zombie = EntityType.ZOMBIE.create(ctx.getWorld());
+		float[] blows = new float[3];
+		for (int i = 0; i < 3; i++) {
+			blows[i] = Frozen.onHit(zombie, player.getDamageSources().playerAttack(player), 4);
+		}
+		check(blows[0] == 4 && blows[1] == 4 && blows[2] == 6, "the third blow is doubled by half: " + blows[2]);
+		check(zombie.hasStatusEffect(StatusEffects.SLOWNESS), "the zombie's time thickens");
 		data.talents.add(Talents.LOOP_ETERNAL);
 		player.setHealth(player.getMaxHealth());
 		float first = Frozen.modifyDamage(player, player.getDamageSources().generic(), player.getMaxHealth() - 2);

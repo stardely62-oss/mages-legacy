@@ -27,7 +27,6 @@ import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.Monster;
-import net.minecraft.entity.passive.PassiveEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.entity.projectile.ProjectileUtil;
@@ -63,7 +62,6 @@ public final class Frozen {
 	public static final int DOME_COST = 45;
 	public static final int DOME_COST_CHEAP = 35;
 	public static final int QUICKEN_COST = 20;
-	public static final int QUICKEN_COST_CHEAP = 10;
 	public static final int FREEZE_COST = 25;
 	public static final int CURRENT_COST = 30;
 	private static final int REWIND_COOLDOWN = 240;
@@ -96,6 +94,7 @@ public final class Frozen {
 	private static final int LONG_COOLDOWN = 12000;
 	private static final int NUMB_AFTER = 12000;
 	public static final float BLUR_CHANCE = 0.1f;
+	public static final float BLUR_CHANCE_OVERTAKE = 0.2f;
 
 	/** Pale ice and golden sand: the colours of the Rewind's trail. */
 	private static final DustParticleEffect ICE = new DustParticleEffect(new Vector3f(0.62f, 0.80f, 0.95f), 1.2f);
@@ -170,6 +169,8 @@ public final class Frozen {
 	private static final Map<UUID, Eternal> ETERNAL = new HashMap<>();
 	/** Strike from the Past: until when the next blow of a Frozen is doubled. */
 	private static final Map<UUID, Long> STRIKE = new HashMap<>();
+	/** Doubled Moment: blows landed since the last doubled one. */
+	private static final Map<UUID, Integer> HITS = new HashMap<>();
 	/** The Current: until when a Frozen's abilities recharge twice as fast. */
 	private static final Map<UUID, Long> CURRENT = new HashMap<>();
 	/** Silhouettes left where a Rewind began: the frozen shape glints for a second. */
@@ -191,6 +192,7 @@ public final class Frozen {
 		HELD_MOBS.clear();
 		ETERNAL.clear();
 		STRIKE.clear();
+		HITS.clear();
 		CURRENT.clear();
 		SHAPES_AT.clear();
 		SHAPES.clear();
@@ -216,6 +218,10 @@ public final class Frozen {
 		if (slot <= 2 && current != null && current > now(player.getServer())) {
 			ticks /= 2;
 		}
+		// Fast Hourglass: the Rewind and the Dome recharge a quarter faster
+		if (slot <= 1 && data.has(Talents.FLOW_RECHARGE)) {
+			ticks = ticks * 3 / 4;
+		}
 		data.readyAt.put(slot, now(player.getServer()) + ticks);
 		data.dirty = true;
 	}
@@ -240,9 +246,6 @@ public final class Frozen {
 		return cheap ? DOME_COST_CHEAP : DOME_COST;
 	}
 
-	public static int quickenCost(boolean cheap) {
-		return cheap ? QUICKEN_COST_CHEAP : QUICKEN_COST;
-	}
 
 	// ---- every tick ----
 
@@ -306,7 +309,7 @@ public final class Frozen {
 		data.addResource(data.has(Talents.FLOW_SAND) ? 1.0f : 0.5f);
 		long now = now(player.getServer());
 		long spent = SPENT_AT.computeIfAbsent(player.getUuid(), id -> now);
-		if (!data.has(Talents.FLOW_NUMB) && now - spent > NUMB_AFTER) {
+		if (now - spent > NUMB_AFTER) {
 			refresh(player, StatusEffects.SLOWNESS, 0, 60, 30);
 		}
 		if (data.has(Talents.FLOW_HASTE)) {
@@ -345,7 +348,7 @@ public final class Frozen {
 	}
 
 	/**
-	 * Potions and other good effects last 30% shorter on the Frozen (time slips past them), 15% with Lasting Memory.
+	 * Potions and other good effects last 30% shorter on the Frozen (time slips past them).
 	 * Ambient effects (beacons, the races' own passives) and short ones are left alone.
 	 */
 	public static StatusEffectInstance shorten(LivingEntity entity, StatusEffectInstance effect) {
@@ -353,8 +356,7 @@ public final class Frozen {
 				|| !effect.getEffectType().isBeneficial() || !is(player)) {
 			return effect;
 		}
-		float keep = RaceState.of(player).has(Talents.FLOW_POTIONS) ? 0.85f : 0.7f;
-		return new StatusEffectInstance(effect.getEffectType(), (int) (effect.getDuration() * keep), effect.getAmplifier(), false,
+		return new StatusEffectInstance(effect.getEffectType(), (int) (effect.getDuration() * 0.7f), effect.getAmplifier(), false,
 				effect.shouldShowParticles(), effect.shouldShowIcon());
 	}
 
@@ -372,10 +374,16 @@ public final class Frozen {
 			return true;
 		}
 		Entity attacker = source.getAttacker();
-		if (attacker == null || attacker == player || !is(player) || player.getRandom().nextFloat() >= BLUR_CHANCE) {
+		if (attacker == null || attacker == player || !is(player)) {
 			return false;
 		}
 		RaceData data = RaceState.of(player);
+		if (player.getRandom().nextFloat() >= (data.has(Talents.FLOW_OVERTAKE) ? BLUR_CHANCE_OVERTAKE : BLUR_CHANCE)) {
+			return false;
+		}
+		if (data.has(Talents.FLOW_OVERTAKE)) {
+			player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 40, 1, true, false, true));
+		}
 		ServerWorld world = player.getServerWorld();
 		world.spawnParticles(ICE, player.getX(), player.getY() + 1, player.getZ(), 14, 0.3, 0.6, 0.3, 0);
 		world.spawnParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 1, player.getZ(), 4, 0.3, 0.5, 0.3, 0.02);
@@ -427,19 +435,38 @@ public final class Frozen {
 		return true;
 	}
 
-	/** Strike from the Past: a Frozen's own blow soon after a Rewind deals double damage, once. */
-	public static float strike(DamageSource source, float amount) {
-		if (STRIKE.isEmpty() || !(source.getAttacker() instanceof ServerPlayerEntity player) || source.getSource() != player) {
+	/**
+	 * A Frozen's own blow. Strike from the Past doubles the first one after a Rewind; Viscous Time slows the one hit;
+	 * Doubled Moment lands every third blow twice (half again the damage); Sand in the Wounds draws sand from monsters.
+	 */
+	public static float onHit(LivingEntity victim, DamageSource source, float amount) {
+		if (!(source.getAttacker() instanceof ServerPlayerEntity player) || source.getSource() != player || victim == player || !is(player)) {
 			return amount;
 		}
-		Long until = STRIKE.remove(player.getUuid());
-		if (until == null || until < now(player.getServer())) {
-			return amount;
-		}
+		RaceData data = RaceState.of(player);
 		ServerWorld world = player.getServerWorld();
-		world.spawnParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 1.2, player.getZ(), 12, 0.4, 0.3, 0.4, 0.1);
-		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_BREAK, SoundCategory.PLAYERS, 1.0f, 1.5f);
-		return amount * 2;
+		Long until = STRIKE.remove(player.getUuid());
+		if (until != null && until >= now(player.getServer())) {
+			amount *= 2;
+			world.spawnParticles(ParticleTypes.END_ROD, victim.getX(), victim.getY() + victim.getHeight() / 2, victim.getZ(), 12, 0.3, 0.3, 0.3, 0.1);
+			world.playSound(null, victim.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_BREAK, SoundCategory.PLAYERS, 1.0f, 1.5f);
+		}
+		if (data.has(Talents.FLOW_VISCOUS)) {
+			victim.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 40, 1));
+		}
+		if (data.has(Talents.FLOW_ECHO)) {
+			int hits = HITS.merge(player.getUuid(), 1, Integer::sum);
+			if (hits >= 3) {
+				HITS.remove(player.getUuid());
+				amount *= 1.5f;
+				world.spawnParticles(ICE, victim.getX(), victim.getY() + victim.getHeight() / 2, victim.getZ(), 10, 0.3, 0.3, 0.3, 0);
+				world.playSound(null, victim.getBlockPos(), SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, 0.8f, 1.6f);
+			}
+		}
+		if (data.has(Talents.FLOW_FEED) && victim instanceof Monster) {
+			data.addResource(2);
+		}
+		return amount;
 	}
 
 	// ---- abilities ----
@@ -847,27 +874,17 @@ public final class Frozen {
 
 	/**
 	 * Quickening: the block you look at works ten times faster for 30 seconds: furnaces, brewing stands, campfires,
-	 * and anything that grows. Wide Flow takes the blocks around it too; Ripening makes a young animal grow up (or an
-	 * adult ready to breed again).
+	 * and anything that grows. Wide Flow takes the blocks around it too, for a minute.
 	 */
 	public static AbilityResult quicken(ServerPlayerEntity player, RaceData data) {
 		if (!ready(player, data, 2)) {
 			return AbilityResult.COOLDOWN;
 		}
-		int cost = quickenCost(data.has(Talents.FLOW_CHEAP));
+		int cost = QUICKEN_COST;
 		if (data.resource < cost) {
 			return AbilityResult.NO_RESOURCE;
 		}
 		ServerWorld world = player.getServerWorld();
-		if (data.has(Talents.FLOW_GROW) && lookedAt(player, 6, e -> e instanceof PassiveEntity) instanceof PassiveEntity animal) {
-			animal.setBreedingAge(0);
-			world.spawnParticles(ParticleTypes.HAPPY_VILLAGER, animal.getX(), animal.getY() + animal.getHeight(), animal.getZ(), 10, 0.4, 0.3, 0.4, 0);
-			world.spawnParticles(SAND, animal.getX(), animal.getY() + 0.5, animal.getZ(), 12, 0.4, 0.3, 0.4, 0);
-			spend(player, data, cost);
-			cooldown(player, data, 2, QUICKEN_COOLDOWN);
-			Progression.addXp(player, data, 3);
-			return AbilityResult.OK;
-		}
 		HitResult hit = player.raycast(6, 1.0f, false);
 		if (!(hit instanceof BlockHitResult blockHit) || hit.getType() != HitResult.Type.BLOCK) {
 			player.sendMessage(Text.translatable("mages_legacy.frozen.nothing_to_quicken"), true);
@@ -875,7 +892,7 @@ public final class Frozen {
 		}
 		BlockPos center = blockHit.getBlockPos();
 		int r = data.has(Talents.FLOW_AREA) ? 1 : 0;
-		long until = now(player.getServer()) + (data.has(Talents.FLOW_LONG) ? QUICKEN_TICKS_LONG : QUICKEN_TICKS);
+		long until = now(player.getServer()) + (data.has(Talents.FLOW_AREA) ? QUICKEN_TICKS_LONG : QUICKEN_TICKS);
 		int added = 0;
 		for (BlockPos pos : BlockPos.iterate(center.add(-r, -r, -r), center.add(r, r, r))) {
 			if (quickenable(world, pos)) {

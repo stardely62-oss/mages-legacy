@@ -34,7 +34,7 @@ public abstract class LivingEntityMixin {
 		} else if (race == Race.FROZEN) {
 			amount = Frozen.modifyDamage((ServerPlayerEntity) self, source, amount);
 		}
-		amount = Frozen.strike(source, amount);
+		amount = Frozen.onHit(self, source, amount);
 		return Shepherd.modifyDamage(self, source, amount);
 	}
 

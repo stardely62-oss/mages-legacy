@@ -78,7 +78,7 @@ public final class RaceHud {
 			return switch (slot) {
 				case 0 -> Frozen.rewindCost(ClientRaceState.talents.contains(Talents.LOOP_CHEAP));
 				case 1 -> Frozen.domeCost(ClientRaceState.talents.contains(Talents.STASIS_CHEAP));
-				default -> Frozen.quickenCost(ClientRaceState.talents.contains(Talents.FLOW_CHEAP));
+				default -> Frozen.QUICKEN_COST;
 			};
 		}
 		if (slot == 0 && ClientRaceState.talents.contains(Talents.NET_CHEAP)) {

@@ -90,7 +90,7 @@ public final class Talents {
 	public static final String VOICE_LOSS = add("voice_loss", Race.SHEPHERD, 2, 3, 3, VOICE_LIFE, Items.TOTEM_OF_UNDYING);
 	public static final String VOICE_HEART = add("voice_heart", Race.SHEPHERD, 2, 4, 5, VOICE_AURA, Items.HEART_OF_THE_SEA);
 
-	// The Frozen: Loop (the Rewind), Stasis (the Dome), Flow (quickening, and the Frozen themselves). Same shape and
+	// The Frozen: Loop (the Rewind), Stasis (the Dome), Flow (time running faster for the Frozen themselves). Same shape and
 	// prices as the other trees.
 	public static final String LOOP_HEAL = add("loop_heal", Race.FROZEN, 0, 1, 1, null, Items.GLISTERING_MELON_SLICE);
 	public static final String LOOP_CHEAP = add("loop_cheap", Race.FROZEN, 0, 1, 1, null, Items.SAND);
@@ -116,17 +116,17 @@ public final class Talents {
 	public static final String STASIS_WARD = add("stasis_ward", Race.FROZEN, 1, 3, 3, STASIS_MEND, Items.SHIELD);
 	public static final String STASIS_STOP = add("stasis_stop", Race.FROZEN, 1, 4, 5, STASIS_FREEZE, Items.PAINTING);
 
-	public static final String FLOW_AREA = add("flow_area", Race.FROZEN, 2, 1, 1, null, Items.FURNACE);
-	public static final String FLOW_LONG = add("flow_long", Race.FROZEN, 2, 1, 1, null, Items.CLOCK);
 	public static final String FLOW_HASTE = add("flow_haste", Race.FROZEN, 2, 1, 1, null, Items.IRON_PICKAXE);
-	public static final String FLOW_GROW = add("flow_grow", Race.FROZEN, 2, 2, 2, FLOW_AREA, Items.WHEAT);
-	public static final String FLOW_CHEAP = add("flow_cheap", Race.FROZEN, 2, 2, 2, FLOW_GROW, Items.SUGAR);
-	public static final String FLOW_REGEN = add("flow_regen", Race.FROZEN, 2, 2, 2, FLOW_LONG, Items.APPLE);
-	public static final String FLOW_POTIONS = add("flow_potions", Race.FROZEN, 2, 2, 2, FLOW_HASTE, Items.POTION);
-	public static final String FLOW_SWIFT = add("flow_swift", Race.FROZEN, 2, 3, 3, FLOW_CHEAP, Items.RABBIT_FOOT);
-	public static final String FLOW_SAND = add("flow_sand", Race.FROZEN, 2, 3, 3, FLOW_REGEN, Items.SANDSTONE);
-	public static final String FLOW_NUMB = add("flow_numb", Race.FROZEN, 2, 3, 3, FLOW_POTIONS, Items.BLAZE_POWDER);
-	public static final String FLOW_CURRENT = add("flow_current", Race.FROZEN, 2, 4, 5, FLOW_SWIFT, Items.HEART_OF_THE_SEA);
+	public static final String FLOW_SWIFT = add("flow_swift", Race.FROZEN, 2, 1, 1, null, Items.RABBIT_FOOT);
+	public static final String FLOW_AREA = add("flow_area", Race.FROZEN, 2, 1, 1, null, Items.FURNACE);
+	public static final String FLOW_VISCOUS = add("flow_viscous", Race.FROZEN, 2, 2, 2, FLOW_HASTE, Items.SLIME_BALL);
+	public static final String FLOW_ECHO = add("flow_echo", Race.FROZEN, 2, 2, 2, FLOW_VISCOUS, Items.IRON_SWORD);
+	public static final String FLOW_FEED = add("flow_feed", Race.FROZEN, 2, 2, 2, FLOW_SWIFT, Items.SAND);
+	public static final String FLOW_REGEN = add("flow_regen", Race.FROZEN, 2, 2, 2, FLOW_AREA, Items.APPLE);
+	public static final String FLOW_OVERTAKE = add("flow_overtake", Race.FROZEN, 2, 3, 3, FLOW_ECHO, Items.FEATHER);
+	public static final String FLOW_SAND = add("flow_sand", Race.FROZEN, 2, 3, 3, FLOW_FEED, Items.SANDSTONE);
+	public static final String FLOW_RECHARGE = add("flow_recharge", Race.FROZEN, 2, 3, 3, FLOW_REGEN, Items.CLOCK);
+	public static final String FLOW_CURRENT = add("flow_current", Race.FROZEN, 2, 4, 5, FLOW_OVERTAKE, Items.HEART_OF_THE_SEA);
 
 	private Talents() {
 	}
