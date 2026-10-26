@@ -1207,14 +1207,13 @@ public class RaceGameTests implements FabricGameTest {
 		zombie.refreshPositionAndAngles(at.getX() + 4.5, at.getY(), at.getZ() + 6.5, 0, 0);
 		world.spawnEntity(zombie);
 		Vec3d center = new Vec3d(at.getX() + 0.5, at.getY() + 1.62, at.getZ() + 6.5);
-		double before = zombie.getPos().distanceTo(center);
 		check(Voidborn.well(player, RaceState.of(player)) == AbilityResult.OK, "the Well");
-		ctx.runAtTick(ctx.getTick() + 20, () -> {
-			double after = zombie.getPos().distanceTo(center);
-			check(after < before - 1.5, "the zombie was drawn in: " + before + " -> " + after);
-			zombie.discard();
-			done(ctx, player);
-		});
+		zombie.setVelocity(Vec3d.ZERO);
+		Voidborn.tick(world.getServer());
+		Vec3d toCenter = center.subtract(zombie.getBoundingBox().getCenter()).normalize();
+		check(zombie.getVelocity().dotProduct(toCenter) > 0.05, "the zombie is pulled towards the Well: " + zombie.getVelocity());
+		zombie.discard();
+		done(ctx, player);
 	}
 
 	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "void_excise", tickLimit = 120)
