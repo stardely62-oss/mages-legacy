@@ -23,6 +23,7 @@ import java.util.List;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.advancement.Advancement;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.block.JukeboxBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -986,6 +987,21 @@ public class RaceGameTests implements FabricGameTest {
 		data.addResource(100);
 		player.setPitch(90);
 		check(Frozen.quicken(player, data) == AbilityResult.OK && Frozen.quickened(world, at), "looking down at the wheat quickens it");
+		// A burning furnace, quickened: 25 ticks of the Quickening smelt as much as 250 plain ones (one item)
+		if (world.getBlockEntity(at.east()) instanceof AbstractFurnaceBlockEntity furnace) {
+			furnace.setStack(0, new ItemStack(Items.RAW_IRON, 8));
+			furnace.setStack(1, new ItemStack(Items.COAL, 4));
+			// Facing east and down at the furnace beside the wheat
+			player.setPitch(45);
+			player.setYaw(-90);
+			data.readyAt.clear();
+			AbilityResult quickened = Frozen.quicken(player, data);
+			for (int i = 0; i < 25; i++) {
+				Frozen.tick(world.getServer());
+			}
+			check(furnace.getStack(2).getCount() >= 1, "the quickened furnace smelts: " + quickened + ", quickened " + Frozen.quickened(world, at.east())
+					+ ", furnace " + furnace.createNbt());
+		}
 		world.removeBlock(at.east(), false);
 		done(ctx, player);
 	}
