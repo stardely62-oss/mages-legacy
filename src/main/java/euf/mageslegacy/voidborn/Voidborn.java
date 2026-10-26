@@ -520,8 +520,13 @@ public final class Voidborn {
 		}
 		data.addResource(-WELL_COST);
 		cooldown(player, data, 1, WELL_COOLDOWN);
+		openWell(player, data, aim(player, 20));
+		return AbilityResult.OK;
+	}
+
+	/** A Well of this player's opens at {@code center}. */
+	public static void openWell(ServerPlayerEntity player, RaceData data, Vec3d center) {
 		ServerWorld world = player.getServerWorld();
-		Vec3d center = aim(player, 20);
 		int ticks = data.has(Talents.WELL_LONG) ? 120 : WELL_TICKS;
 		double radius = wellRadius(data);
 		WELLS.add(new Well(world, center, radius, now(player.getServer()) + ticks, player, new HashSet<>()));
@@ -530,7 +535,6 @@ public final class Voidborn {
 		Fx.shake(player, 0.8f, 8);
 		world.playSound(null, BlockPos.ofFloored(center), SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 1.2f, 0.5f);
 		world.playSound(null, BlockPos.ofFloored(center), SoundEvents.BLOCK_PORTAL_TRIGGER, SoundCategory.PLAYERS, 0.5f, 1.6f);
-		return AbilityResult.OK;
 	}
 
 	/** The ground under a point (up to 12 blocks down), or the point itself over a drop. */
@@ -627,6 +631,11 @@ public final class Voidborn {
 	 * then put back where it was. An enemy comes back dazed; a friend comes back mended. Bosses are too big for it.
 	 */
 	public static AbilityResult excise(ServerPlayerEntity player, RaceData data) {
+		return excise(player, data, lookedAt(player, EXCISE_RANGE));
+	}
+
+	/** The Excision of a given creature (the one looked at, or one a test picks). */
+	public static AbilityResult excise(ServerPlayerEntity player, RaceData data, LivingEntity target) {
 		if (!ready(player, data, 2)) {
 			return AbilityResult.COOLDOWN;
 		}
@@ -634,7 +643,6 @@ public final class Voidborn {
 		if (data.resource < cost) {
 			return AbilityResult.NO_RESOURCE;
 		}
-		LivingEntity target = lookedAt(player, EXCISE_RANGE);
 		if (target == null || tooBig(target) || HELD.stream().anyMatch(h -> h.entity() == target)) {
 			return AbilityResult.NO_TARGET;
 		}

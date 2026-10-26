@@ -1226,7 +1226,8 @@ public class RaceGameTests implements FabricGameTest {
 		holdChunks(world, at);
 		ctx.runAtTick(ctx.getTick() + 5, () -> {
 			Vec3d center = new Vec3d(at.getX() + 0.5, at.getY() + 1.62, at.getZ() + 6.5);
-			check(Voidborn.well(player, RaceState.of(player)) == AbilityResult.OK, "the Well");
+			// Opened at a known spot; aiming it is the client harness's part
+			Voidborn.openWell(player, RaceState.of(player), center);
 			zombie.setVelocity(Vec3d.ZERO);
 			Voidborn.tick(world.getServer());
 			Vec3d toCenter = center.subtract(zombie.getBoundingBox().getCenter()).normalize();
@@ -1252,7 +1253,8 @@ public class RaceGameTests implements FabricGameTest {
 		ctx.runAtTick(ctx.getTick() + 5, () -> {
 			UUID id = zombie.getUuid();
 			ServerWorld pocket = Pocket.world(world.getServer());
-			AbilityResult result = Voidborn.excise(player, data);
+			// The zombie itself; aiming at it is the client harness's part
+			AbilityResult result = Voidborn.excise(player, data, zombie);
 			// The test server is made from a preset without datapack dimensions: there the Excision just refuses (the
 			// client harness, in a real world, tries the pocket itself)
 			if (pocket == null) {
