@@ -805,15 +805,16 @@ public final class Voidborn {
 			// A held one is let go when its Voidborn lets go, leaves or dies
 			boolean ownerGone = owner == null || !owner.isAlive();
 			// An enemy held costs its Voidborn 1 void a second; when the void runs out, it falls back out
+			boolean dry = false;
 			if (h.excised() && !h.ally() && !ownerGone && h.until() > now && now % 20 == 0) {
 				RaceData upkeep = RaceState.of(owner);
 				if (upkeep.resource < 1) {
-					h = new Held(h.entity(), h.owner(), h.origin(), h.pos(), h.yaw(), now, false, true);
+					dry = true;
 				} else {
 					upkeep.addResource(-1);
 				}
 			}
-			if (h.until() > now && !ownerGone && !h.entity().isRemoved()) {
+			if (h.until() > now && !dry && !ownerGone && !h.entity().isRemoved()) {
 				// Gnawing Void: an enemy held by the Excision wears away, down to a third of its health
 				if (h.excised() && !h.ally() && now % 20 == 0 && h.entity() instanceof LivingEntity living
 						&& RaceState.of(owner).has(Talents.EXCISE_LONG) && living.getHealth() > living.getMaxHealth() / 3) {
