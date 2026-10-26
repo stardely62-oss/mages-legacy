@@ -267,8 +267,8 @@ public final class FxRenderer {
 	private static void vertex(VertexConsumer vc, Matrix4f m, double x, double y, double z, int rgb, float alpha) {
 		// Right at the eye any shape would fill the view: it thins away there
 		double d = Math.sqrt(eye.squaredDistanceTo(x, y, z));
-		if (d < 1.5) {
-			alpha *= (float) MathHelper.clamp(d - 0.5, 0, 1);
+		if (d < 1.0) {
+			alpha *= (float) MathHelper.clamp((d - 0.35) / 0.65, 0, 1);
 		}
 		vc.vertex(m, (float) x, (float) y, (float) z).color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF,
 				(int) (MathHelper.clamp(alpha, 0, 1) * 255)).next();
@@ -450,7 +450,7 @@ public final class FxRenderer {
 
 		@Override
 		float inkStrength() {
-			return 0.6f;
+			return 0.45f;
 		}
 
 		@Override

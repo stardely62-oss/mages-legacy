@@ -159,7 +159,10 @@ public final class Fx {
 		send(world, around.getPos(), buf);
 	}
 
-	/** Glowing afterimages of a body left along {@code path}, facing {@code yaw}, the oldest fading first. */
+	/**
+	 * Glowing afterimages of a body left along {@code path}, facing {@code yaw}, the oldest fading first. They stay
+	 * behind the body: none where it ends up.
+	 */
 	public static void ghosts(ServerWorld world, List<Vec3d> path, float yaw, int count, int ticks, int rgb) {
 		if (path.size() < 2) {
 			return;
@@ -168,7 +171,7 @@ public final class Fx {
 		buf.writeFloat(yaw);
 		buf.writeVarInt(count);
 		for (int i = 0; i < count; i++) {
-			writeVec(buf, path.get(Math.min(path.size() - 1, (int) ((path.size() - 1) * (i + 0.5) / count))));
+			writeVec(buf, path.get((int) ((path.size() - 1) * 0.75 * (i + 0.5) / count)));
 		}
 		send(world, path.get(0), buf);
 	}

@@ -448,7 +448,7 @@ public final class Bloodkin {
 		DASH_STEP.put(player.getUuid(), 0);
 		ServerWorld world = player.getServerWorld();
 		Fx.flight(player, DASH_TICKS);
-		Fx.ribbon(world, path, 20, WINE_INK, BLOOD_INK, 1.3f);
+		Fx.ribbon(world, path, 20, WINE_INK, BLOOD_INK, 0.9f);
 		// Blood shades of the body left along the way, and the view rushing wide
 		Fx.ghosts(world, path, player.getYaw(), 4, 16, BLOOD_INK);
 		Fx.fov(player, 0.22f, 12);
@@ -546,7 +546,7 @@ public final class Bloodkin {
 				}
 				world.spawnParticles(ModParticles.BLOOD, b.x, b.y + 0.5, b.z, 16, 0.4, 0.3, 0.4, 0.1);
 				world.spawnParticles(ModParticles.BLOOD_MIST, b.x, b.y + 0.8, b.z, 10, 0.4, 0.4, 0.4, 0.04);
-				Fx.burst(world, b.add(0, 1, 0), 1.6f, 6, BLOOD_INK);
+				Fx.burst(world, b.add(0, 1, 0), 1.1f, 6, BLOOD_INK);
 				Fx.ring(world, b, 0.3f, 2.2f, 10, BLOOD_INK);
 			}
 		}
