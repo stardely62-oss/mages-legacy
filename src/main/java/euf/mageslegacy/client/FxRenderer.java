@@ -100,7 +100,7 @@ public final class FxRenderer {
 			});
 			case Fx.SLASH -> EFFECTS.add(new Slash(ticks, rgb, readVec(buf), readVec(buf), buf.readFloat(), buf.readFloat()));
 			case Fx.TENDRIL -> EFFECTS.add(new Tendril(ticks, rgb, buf.readInt(), buf.readVarInt(), buf.readVarInt()));
-			case Fx.SIGIL -> EFFECTS.add(new Sigil(ticks, rgb, readVec(buf), buf.readVarInt(), buf.readFloat()));
+			case Fx.MARK -> EFFECTS.add(new Mark(ticks, rgb, readVec(buf), buf.readVarInt(), buf.readFloat(), buf.readVarInt()));
 			case Fx.HELIX -> EFFECTS.add(new Helix(ticks, rgb, buf.readVarInt(), buf.readFloat(), buf.readFloat(), buf.readVarInt(), buf.readBoolean()));
 			case Fx.GHOSTS -> {
 				float yaw = buf.readFloat();
@@ -727,22 +727,30 @@ public final class FxRenderer {
 		}
 	}
 
-	/** A circle of runes on the ground: springs open, turns, beats with light like a heart, and fades. */
-	private static final class Sigil extends Effect {
+	/**
+	 * A mark on the ground in a race's own manner: a pool of blood, a clock face, roots of mycelium, ripples of a voice.
+	 * It opens, holds (riding with an entity if it has one) and fades.
+	 */
+	private static final class Mark extends Effect {
 		final Vec3d at;
 		final int follow;
 		final float radius;
+		final int style;
+		/** Fixed per mark, so its roots and spatters keep their shape from frame to frame. */
+		final long seed;
 
-		Sigil(int ticks, int rgb, Vec3d at, int follow, float radius) {
+		Mark(int ticks, int rgb, Vec3d at, int follow, float radius, int style) {
 			super(ticks, rgb);
 			this.at = at;
 			this.follow = follow;
 			this.radius = radius;
+			this.style = style;
+			this.seed = Double.doubleToLongBits(at.x * 31 + at.z * 17 + radius);
 		}
 
 		@Override
 		float inkStrength() {
-			return 0.9f;
+			return style == Fx.POOL ? 1.0f : 0.7f;
 		}
 
 		@Override
@@ -756,47 +764,116 @@ public final class FxRenderer {
 			}
 			center = center.add(0, 0.04, 0);
 			float life = age + delta;
+			float fade = Math.min(1, (ticks - life) / 10f) * Math.min(1, life / 2f);
+			switch (style) {
+				case Fx.POOL -> pool(m, vc, center, life, fade);
+				case Fx.CLOCK -> clock(m, vc, center, life, fade);
+				case Fx.ROOTS -> roots(m, vc, center, life, fade);
+				default -> ripples(m, vc, center, life, fade);
+			}
+		}
+
+		/** Blood spreading on the ground: an uneven pool with a glossy rim, spatters around it, beating if it rides a body. */
+		private void pool(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
+			float spread = easeOut(Math.min(1, life / 10f));
+			float beat = follow >= 0 ? 0.9f + 0.1f * heartbeat((life % 20) / 20f) : 1;
+			// Blood lies on the ground as colour; only its rim catches the light
+			float body = inkPass ? 1 : 0.15f;
+			int n = 40;
+			Vec3d prev = null;
+			for (int i = 0; i <= n; i++) {
+				double a = Math.PI * 2 * i / n;
+				// An uneven edge: a few slow lobes, the same every frame
+				double lobes = 1 + 0.18 * Math.sin(a * 3 + seed % 7) + 0.1 * Math.sin(a * 5 + seed % 11) + 0.06 * Math.sin(a * 9 + seed % 13);
+				double r = radius * spread * beat * lobes;
+				Vec3d p = c.add(Math.cos(a) * r, 0, Math.sin(a) * r);
+				if (prev != null) {
+					quad(vc, m, c, c, p, prev, rgb, 0.7f * fade * body, 0.7f * fade * body, 0.55f * fade * body, 0.55f * fade * body);
+					// The glossy rim where the pool runs out
+					glowLine(vc, m, prev, p, new Vec3d(0, 1, 0), 0.08, lerpColor(rgb, 0xFF8080, 0.3f), 0.45f * fade);
+				}
+				prev = p;
+			}
+			// Spatters thrown past its edge
+			java.util.Random random = new java.util.Random(seed);
+			for (int k = 0; k < 9; k++) {
+				double a = random.nextDouble() * Math.PI * 2;
+				double d = radius * (1.15 + random.nextDouble() * 0.5) * spread;
+				double s = 0.08 + random.nextDouble() * 0.12;
+				Vec3d p = c.add(Math.cos(a) * d, 0, Math.sin(a) * d);
+				float spot = 0.7f * fade * body;
+				quad(vc, m, p.add(-s, 0, -s), p.add(s, 0, -s), p.add(s, 0, s), p.add(-s, 0, s), rgb, spot, spot, spot, spot);
+			}
+		}
+
+		/** A clock face: a ring, twelve marks (long at the quarters), and two hands going round, the long one fast. */
+		private void clock(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
 			float open = easeOutBack(Math.min(1, life / 8f));
-			float fade = Math.min(1, (ticks - life) / 10f) * Math.min(1, life / 3f);
-			float beat = 0.55f + 0.45f * heartbeat((life % 20) / 20f);
-			float a = fade * beat;
 			double r = radius * open;
-			double spin = life * 0.035;
 			Vec3d up = new Vec3d(0, 1, 0);
-			// A faint glow over the whole circle, under the lines
-			int segments = 64;
-			for (int i = 0; i < segments; i++) {
-				double a0 = Math.PI * 2 * i / segments;
-				double a1 = Math.PI * 2 * (i + 1) / segments;
-				quad(vc, m, center, center, center.add(Math.cos(a1) * r, 0, Math.sin(a1) * r), center.add(Math.cos(a0) * r, 0, Math.sin(a0) * r),
-						rgb, a * 0.18f, a * 0.18f, 0, 0);
-			}
-			flatRing(vc, m, center, r, 0.16, rgb, a, segments);
-			flatRing(vc, m, center, r * 0.93, 0.05, 0xFFFFFF, a * 0.35f, segments);
-			flatRing(vc, m, center, r * 0.72, 0.1, rgb, a * 0.85f, segments);
-			flatRing(vc, m, center, r * 0.28, 0.08, rgb, a * 0.8f, 32);
-			// A six-pointed star in the inner circle, turning
-			for (int tri = 0; tri < 2; tri++) {
-				for (int k = 0; k < 3; k++) {
-					double p0 = spin + tri * Math.PI / 3 + k * Math.PI * 2 / 3;
-					double p1 = spin + tri * Math.PI / 3 + (k + 1) * Math.PI * 2 / 3;
-					glowLine(vc, m, center.add(Math.cos(p0) * r * 0.72, 0, Math.sin(p0) * r * 0.72),
-							center.add(Math.cos(p1) * r * 0.72, 0, Math.sin(p1) * r * 0.72), up, 0.09, rgb, a * 0.9f);
-				}
-			}
-			// Runes: marks between the rings, turning the other way
-			for (int k = 0; k < 18; k++) {
-				double p = -spin * 0.6 + k * Math.PI * 2 / 18;
-				double inner = r * (k % 3 == 0 ? 0.76 : 0.8);
-				double outer = r * (k % 3 == 0 ? 0.9 : 0.86);
+			float a = 0.9f * fade;
+			flatRing(vc, m, c, r, 0.14, rgb, a, 64);
+			flatRing(vc, m, c, r * 0.9, 0.04, rgb, a * 0.5f, 64);
+			for (int k = 0; k < 12; k++) {
+				double p = k * Math.PI / 6;
 				Vec3d dir = new Vec3d(Math.cos(p), 0, Math.sin(p));
-				glowLine(vc, m, center.add(dir.multiply(inner)), center.add(dir.multiply(outer)), up, 0.07, rgb, a);
-				if (k % 3 == 0) {
-					Vec3d across = new Vec3d(-dir.z, 0, dir.x).multiply(r * 0.05);
-					Vec3d mid = center.add(dir.multiply((inner + outer) / 2));
-					glowLine(vc, m, mid.subtract(across), mid.add(across), up, 0.06, rgb, a * 0.9f);
+				double inner = r * (k % 3 == 0 ? 0.7 : 0.8);
+				glowLine(vc, m, c.add(dir.multiply(inner)), c.add(dir.multiply(r * 0.88)), up, k % 3 == 0 ? 0.12 : 0.07, rgb, a);
+			}
+			double minute = life * 0.25;
+			double hour = life * 0.02;
+			glowLine(vc, m, c, c.add(Math.cos(minute) * r * 0.78, 0, Math.sin(minute) * r * 0.78), up, 0.08, rgb, a);
+			glowLine(vc, m, c, c.add(Math.cos(hour) * r * 0.5, 0, Math.sin(hour) * r * 0.5), up, 0.13, rgb, a);
+			flatRing(vc, m, c, r * 0.06, 0.08, rgb, a, 12);
+		}
+
+		/** Roots of mycelium creeping out from the middle: crooked threads that fork, with glowing tips where they grow. */
+		private void roots(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
+			float grow = easeOut(Math.min(1, life / 14f));
+			Vec3d up = new Vec3d(0, 1, 0);
+			java.util.Random random = new java.util.Random(seed);
+			int threads = 9;
+			for (int i = 0; i < threads; i++) {
+				double angle = Math.PI * 2 * i / threads + random.nextDouble() * 0.5;
+				thread(m, vc, c, angle, radius * (0.7 + random.nextDouble() * 0.3), grow, fade, 0.1, random, 2, up);
+			}
+			// A faint glow in the middle where it all starts
+			flatRing(vc, m, c, radius * 0.12 * grow, 0.2, rgb, 0.5f * fade, 16);
+		}
+
+		/** One root: a few crooked steps outwards, now and then a smaller root branching off. */
+		private void thread(Matrix4f m, VertexConsumer vc, Vec3d from, double angle, double length, float grow, float fade, double width,
+				java.util.Random random, int depth, Vec3d up) {
+			int steps = 6;
+			Vec3d p = from;
+			double shown = length * grow;
+			double walked = 0;
+			for (int s = 0; s < steps && walked < shown; s++) {
+				angle += (random.nextDouble() - 0.5) * 0.7;
+				double step = Math.min(length / steps, shown - walked);
+				Vec3d next = p.add(Math.cos(angle) * step, 0, Math.sin(angle) * step);
+				float a = fade * (0.9f - 0.5f * (float) (walked / length));
+				glowLine(vc, m, p, next, up, width * (1 - 0.6 * walked / length), rgb, a);
+				walked += step;
+				p = next;
+				if (depth > 0 && random.nextDouble() < 0.35) {
+					thread(m, vc, p, angle + (random.nextBoolean() ? 0.8 : -0.8), length * 0.4, grow, fade * 0.8f, width * 0.6, random, depth - 1, up);
 				}
 			}
+			// The growing tip glows
+			if (grow < 1) {
+				flatRing(vc, m, p, 0.06, 0.08, 0xFFFFFF, fade * 0.8f, 8);
+			}
+		}
+
+		/** A voice on the ground: soft rings rolling out from the middle one after another, fading as they go. */
+		private void ripples(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
+			for (int k = 0; k < 3; k++) {
+				float phase = ((life / 22f) + k / 3f) % 1;
+				float a = fade * (1 - phase) * (1 - phase);
+				flatRing(vc, m, c, radius * (0.15 + 0.85 * phase), 0.16, rgb, a, 48);
+			}
+			flatRing(vc, m, c, radius * 0.1, 0.25, rgb, 0.5f * fade, 16);
 		}
 	}
 

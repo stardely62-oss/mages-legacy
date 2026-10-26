@@ -24,7 +24,7 @@ public final class Fx {
 	public static final int FLIGHT = 5;
 	public static final int SLASH = 6;
 	public static final int TENDRIL = 7;
-	public static final int SIGIL = 8;
+	public static final int MARK = 8;
 	public static final int HELIX = 9;
 	public static final int GHOSTS = 10;
 	public static final int SHAKE = 11;
@@ -139,12 +139,22 @@ public final class Fx {
 		send(world, from.getPos(), buf);
 	}
 
-	/** A circle of runes on the ground that springs open, slowly turns and beats with light, riding with {@code follow} if given. */
-	public static void sigil(ServerWorld world, Vec3d at, Entity follow, float radius, int ticks, int rgb) {
-		PacketByteBuf buf = start(SIGIL, ticks, rgb);
+	/** Marks on the ground, one for each race's manner: blood, time, mycelium, a voice. */
+	public static final int POOL = 0;
+	public static final int CLOCK = 1;
+	public static final int ROOTS = 2;
+	public static final int RIPPLES = 3;
+
+	/**
+	 * A mark on the ground in a race's own manner ({@link #POOL}, {@link #CLOCK}, {@link #ROOTS}, {@link #RIPPLES}):
+	 * it opens, holds riding with {@code follow} if given, and fades.
+	 */
+	public static void mark(ServerWorld world, Vec3d at, Entity follow, float radius, int ticks, int rgb, int style) {
+		PacketByteBuf buf = start(MARK, ticks, rgb);
 		writeVec(buf, at);
 		buf.writeVarInt(follow == null ? -1 : follow.getId());
 		buf.writeFloat(radius);
+		buf.writeVarInt(style);
 		send(world, at, buf);
 	}
 

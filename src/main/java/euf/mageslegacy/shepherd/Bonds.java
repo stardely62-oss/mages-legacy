@@ -213,7 +213,7 @@ public final class Bonds {
 		world.playSound(null, mob.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.0f, 0.8f);
 		world.playSound(null, mob.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.0f, 1.2f);
 		Fx.ring(world, mob.getPos(), 0.2f, 2.5f, 16, Shepherd.GOLD_RGB);
-		Fx.sigil(world, mob.getPos(), mob, Math.max(1.0f, mob.getWidth() + 0.6f), 30, Shepherd.GOLD_RGB);
+		Fx.mark(world, mob.getPos(), mob, Math.max(1.0f, mob.getWidth() + 0.6f), 30, Shepherd.GOLD_RGB, Fx.RIPPLES);
 		// Only a new listener teaches the Shepherd anything: singing to the same beast again is no practice
 		if (fresh) {
 			Progression.addXp(player, data, 2);
@@ -528,7 +528,7 @@ public final class Bonds {
 		Fx.pillar(world, mob.getPos(), Math.max(0.6f, mob.getWidth()), 4, 24, Shepherd.GOLD_RGB);
 		Fx.ring(world, mob.getPos(), 0.3f, 4, 18, Shepherd.GOLD_RGB);
 		Fx.helix(world, mob, Math.max(0.8f, mob.getWidth()), mob.getHeight() + 1, 3, true, 24, Shepherd.GOLD_RGB);
-		Fx.sigil(world, mob.getPos(), mob, 1.8f, 40, Shepherd.GOLD_RGB);
+		Fx.mark(world, mob.getPos(), mob, 1.8f, 40, Shepherd.GOLD_RGB, Fx.RIPPLES);
 		Fx.burst(world, mob.getPos().add(0, mob.getHeight() / 2, 0), 2.5f, 8, Shepherd.GOLD_RGB);
 		Fx.screen(player, 20, Shepherd.GOLD_RGB);
 		world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.6f, 1.4f);

@@ -293,7 +293,7 @@ public final class Mycelid {
 		MycelidFx.rebirth(world, fell, to);
 		// The mycelium gives the body back: spores wind in, a seal of roots opens, a column of light
 		Fx.helix(world, player, 1.4f, 2.6f, 4, true, 26, SPORE_RGB);
-		Fx.sigil(world, to, player, 2.6f, 40, SPORE_RGB);
+		Fx.mark(world, to, player, 2.6f, 40, SPORE_RGB, Fx.ROOTS);
 		Fx.pillar(world, to, 0.7f, 5, 24, SPORE_RGB);
 		Fx.burst(world, to.add(0, 1, 0), 3.0f, 9, MOSS_INK);
 		Fx.screen(player, 30, SPORE_RGB);
@@ -367,7 +367,7 @@ public final class Mycelid {
 		MycelidFx.crumble(world, player.getPos());
 		MycelidFx.landingMark(world, target, 0);
 		Fx.burst(world, player.getPos().add(0, 1, 0), 1.3f, 6, MOSS_INK);
-		Fx.sigil(world, target, null, 1.3f, JUMP_DELAY + 14, SPORE_RGB);
+		Fx.mark(world, target, null, 1.3f, JUMP_DELAY + 14, SPORE_RGB, Fx.ROOTS);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_FUNGUS_BREAK, SoundCategory.PLAYERS, 1.0f, 0.7f);
 		JUMPS.add(new PendingJump(player.getUuid(), target, now + JUMP_DELAY, player.getPos()));
 		data.dirty = true;
@@ -432,7 +432,7 @@ public final class Mycelid {
 		// A circle of mycelium under the cloud for as long as it lasts, and the spores thrown out in a puff
 		ServerWorld here = player.getServerWorld();
 		int lasts = data.has(Talents.SWARM_LINGERING) ? 240 : 120;
-		Fx.sigil(here, player.getPos(), data.has(Talents.SWARM_FOLLOW) ? player : null, (float) radius * 0.9f, lasts, SPORE_RGB);
+		Fx.mark(here, player.getPos(), data.has(Talents.SWARM_FOLLOW) ? player : null, (float) radius * 0.9f, lasts, SPORE_RGB, Fx.ROOTS);
 		Fx.burst(here, player.getPos().add(0, 1, 0), (float) radius, 9, MOSS_INK);
 		Fx.shake(player, 0.8f, 8);
 		if (data.has(Talents.SWARM_BURST)) {
@@ -542,7 +542,7 @@ public final class Mycelid {
 		state.markDirty();
 		MycelidFx.nodeGrow(world, Vec3d.ofBottomCenter(pos));
 		Fx.pillar(world, Vec3d.ofBottomCenter(pos), 0.4f, 2.5f, 16, SPORE_RGB);
-		Fx.sigil(world, Vec3d.ofBottomCenter(pos.up()), null, 1.3f, 30, SPORE_RGB);
+		Fx.mark(world, Vec3d.ofBottomCenter(pos.up()), null, 1.3f, 30, SPORE_RGB, Fx.ROOTS);
 		world.playSound(null, pos, SoundEvents.BLOCK_FUNGUS_PLACE, SoundCategory.BLOCKS, 1.0f, 0.8f);
 		world.playSound(null, pos, SoundEvents.BLOCK_ROOTS_PLACE, SoundCategory.BLOCKS, 1.0f, 0.6f);
 	}

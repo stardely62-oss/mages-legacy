@@ -371,7 +371,7 @@ public final class Shepherd {
 		Fx.ring(player.getServerWorld(), base, 0.3f, 3.5f, 16, SPIRIT_RGB);
 		player.getServerWorld().spawnParticles(Echoes.SPIRIT, base.x, base.y + 0.2, base.z, 30, 1.2, 0.1, 1.2, 0.02);
 		// A summoning circle burns where they rise
-		Fx.sigil(player.getServerWorld(), base, null, 3.0f, 40, SPIRIT_RGB);
+		Fx.mark(player.getServerWorld(), base, null, 3.0f, 40, SPIRIT_RGB, Fx.RIPPLES);
 		Fx.burst(player.getServerWorld(), base.add(0, 1, 0), 2.5f, 8, SPIRIT_RGB);
 		if (summoned < missing.size()) {
 			player.sendMessage(Text.translatable("mages_legacy.echo.partial", summoned, missing.size(),
@@ -473,7 +473,7 @@ public final class Shepherd {
 		Fx.ring(world, player.getPos(), 0.3f, 16, 22, SPIRIT_RGB);
 		world.spawnParticles(Echoes.SPIRIT, player.getX(), player.getY() + 1.6, player.getZ(), 30, 1.0, 0.4, 1.0, 0.05);
 		Fx.burst(world, player.getPos().add(0, 1, 0), 3.0f, 8, GOLD_RGB);
-		Fx.sigil(world, player.getPos(), player, 2.5f, 30, GOLD_RGB);
+		Fx.mark(world, player.getPos(), player, 2.5f, 30, GOLD_RGB, Fx.RIPPLES);
 		Fx.shake(player, 1.5f, 10);
 		return AbilityResult.OK;
 	}

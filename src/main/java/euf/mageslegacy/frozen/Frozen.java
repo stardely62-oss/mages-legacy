@@ -441,7 +441,7 @@ public final class Frozen {
 			Fx.screen(player, ETERNAL_TICKS, SAND_RGB);
 			// The moment closes around the body: sand winds in, a clock face burns under it
 			Fx.helix(world, player, 1.3f, 2.6f, 3, true, 24, SAND_RGB);
-			Fx.sigil(world, player.getPos(), player, 2.0f, ETERNAL_TICKS, SAND_RGB);
+			Fx.mark(world, player.getPos(), player, 2.0f, ETERNAL_TICKS, SAND_RGB, Fx.CLOCK);
 			Fx.burst(world, player.getPos().add(0, 1, 0), 2.6f, 8, STILL_RGB);
 			Fx.shake(player, 2.0f, 10);
 		}
@@ -673,7 +673,7 @@ public final class Frozen {
 		Fx.ring(world, player.getPos(), 0.3f, 3, 12, ICE_RGB);
 		// Time sets again: a flash, and a clock face of sand under the feet
 		Fx.burst(world, player.getPos().add(0, 1, 0), 1.6f, 7, STILL_RGB);
-		Fx.sigil(world, player.getPos(), null, 1.8f, 24, SAND_RGB);
+		Fx.mark(world, player.getPos(), null, 1.8f, 24, SAND_RGB, Fx.CLOCK);
 		Fx.shake(player, 1.2f, 6);
 		world.spawnParticles(SAND, player.getX(), player.getY() + 0.5, player.getZ(), 20, 0.5, 0.3, 0.5, 0);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_CLUSTER_BREAK, SoundCategory.PLAYERS, 1.0f, 1.4f);
@@ -770,7 +770,7 @@ public final class Frozen {
 		// A dome of frosted glass (real colour, so it shows by day), a clock face of sand on the ground under it
 		ServerPlayerEntity follow = data.has(Talents.STASIS_FOLLOW) ? player : null;
 		Fx.sphere(world, player.getPos(), (float) domeRadius(data), domeTicks, Fx.INK | ICE_RGB, follow, false);
-		Fx.sigil(world, player.getPos(), follow, (float) domeRadius(data) * 0.92f, domeTicks, SAND_RGB);
+		Fx.mark(world, player.getPos(), follow, (float) domeRadius(data) * 0.92f, domeTicks, SAND_RGB, Fx.CLOCK);
 		Fx.ring(world, player.getPos(), 0.5f, (float) domeRadius(data), 8, SAND_RGB);
 		Fx.burst(world, player.getPos().add(0, 1, 0), (float) domeRadius(data), 8, STILL_RGB);
 		Fx.shake(player, 1.0f, 8);
@@ -780,7 +780,7 @@ public final class Frozen {
 			Fx.sphere(world, player.getPos(), STOP_RADIUS, STOP_TICKS, STILL_RGB, null, true);
 			Fx.screen(player, STOP_TICKS, STILL_RGB);
 			Fx.burst(world, player.getPos().add(0, 1, 0), STOP_RADIUS, 10, STILL_RGB);
-			Fx.sigil(world, player.getPos(), null, STOP_RADIUS * 0.6f, STOP_TICKS, STILL_RGB);
+			Fx.mark(world, player.getPos(), null, STOP_RADIUS * 0.6f, STOP_TICKS, STILL_RGB, Fx.CLOCK);
 			Fx.shake(player, 2.5f, 12);
 			cooldown(player, data, STOP_SLOT, STOP_COOLDOWN);
 			world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_END_PORTAL_SPAWN, SoundCategory.PLAYERS, 0.5f, 2.0f);
@@ -995,7 +995,7 @@ public final class Frozen {
 		world.playSound(null, center, SoundEvents.BLOCK_SAND_FALL, SoundCategory.PLAYERS, 1.0f, 1.6f);
 		Fx.ring(world, Vec3d.ofBottomCenter(center.up()), 0.2f, 1.6f + r, 12, SAND_RGB);
 		Fx.pillar(world, Vec3d.ofBottomCenter(center.up()), 0.45f, 1.5f, 10, SAND_RGB);
-		Fx.sigil(world, Vec3d.ofBottomCenter(center.up()), null, 1.1f + (float) r, 30, SAND_RGB);
+		Fx.mark(world, Vec3d.ofBottomCenter(center.up()), null, 1.1f + (float) r, 30, SAND_RGB, Fx.CLOCK);
 		world.playSound(null, center, SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 0.8f, 1.8f);
 		return AbilityResult.OK;
 	}
@@ -1087,7 +1087,7 @@ public final class Frozen {
 		// Time pours through the body: sand winds up and out, and grains stream off it all the Current long
 		Fx.aura(world, player, CURRENT_TICKS, SAND_RGB, Fx.GRAINS);
 		Fx.helix(world, player, 1.2f, 2.8f, 4, false, 24, SAND_RGB);
-		Fx.sigil(world, player.getPos(), player, 2.2f, 40, SAND_RGB);
+		Fx.mark(world, player.getPos(), player, 2.2f, 40, SAND_RGB, Fx.CLOCK);
 		Fx.burst(world, player.getPos().add(0, 1, 0), 2.6f, 8, SAND_RGB);
 		Fx.fov(player, 0.12f, 20);
 		Fx.shake(player, 1.5f, 10);
