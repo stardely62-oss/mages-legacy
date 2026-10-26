@@ -1,5 +1,6 @@
 package euf.mageslegacy.shepherd;
 
+import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.mixin.FoxEntityInvoker;
 import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Progression;
@@ -199,6 +200,7 @@ public final class Bonds {
 		}
 		world.playSound(null, mob.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.0f, 0.8f);
 		world.playSound(null, mob.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.0f, 1.2f);
+		Fx.ring(world, mob.getPos(), 0.2f, 2.5f, 16, Shepherd.GOLD_RGB);
 		// Only a new listener teaches the Shepherd anything: singing to the same beast again is no practice
 		if (fresh) {
 			Progression.addXp(player, data, 2);
@@ -509,6 +511,9 @@ public final class Bonds {
 		ServerWorld world = player.getServerWorld();
 		world.spawnParticles(ParticleTypes.HEART, mob.getX(), mob.getY() + mob.getHeight() + 0.2, mob.getZ(), 8, 0.4, 0.3, 0.4, 0);
 		world.spawnParticles(ParticleTypes.FLAME, mob.getX(), mob.getY() + 0.2, mob.getZ(), 20, 0.5, 0.1, 0.5, 0.01);
+		// The bond is sealed: a pillar of warm light over the beast
+		Fx.pillar(world, mob.getPos(), Math.max(0.6f, mob.getWidth()), 4, 24, Shepherd.GOLD_RGB);
+		Fx.ring(world, mob.getPos(), 0.3f, 4, 18, Shepherd.GOLD_RGB);
 		world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.6f, 1.4f);
 		player.sendMessage(Text.translatable("mages_legacy.bond.done", mob.getDisplayName(),
 				Text.translatable("mages_legacy.beast." + kind.id() + ".skill_desc")).formatted(Formatting.GOLD), false);

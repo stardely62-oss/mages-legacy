@@ -35,6 +35,8 @@ public final class RacePackets {
 	public static final Identifier ECHOES = MagesLegacy.id("echoes");
 	/** Server to client: the quickened blocks of the client's world and the ticks each has left. */
 	public static final Identifier QUICKENED = MagesLegacy.id("quickened");
+	/** Server to client: an ability effect to draw (see {@link euf.mageslegacy.fx.Fx}). */
+	public static final Identifier FX = MagesLegacy.id("fx");
 	public static final int SLOTS = 4;
 
 	private RacePackets() {

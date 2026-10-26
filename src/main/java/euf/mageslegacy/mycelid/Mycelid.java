@@ -1,6 +1,7 @@
 package euf.mageslegacy.mycelid;
 
 import euf.mageslegacy.MagesLegacy;
+import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Progression;
@@ -73,6 +74,9 @@ public final class Mycelid {
 	private static final int REBIRTH_COOLDOWN = 24000;
 	private static final int MIND_RADIUS = 24;
 	private static final int NODE_COOLDOWN = 100;
+	/** Colours of the glowing effects: spore green and moss. */
+	private static final int SPORE_RGB = 0x9CFF8A;
+	private static final int MOSS_RGB = 0x5E8C4A;
 	private static final UUID CAP_ARMOR = UUID.fromString("6d3f8a52-2a7e-4f0e-9a51-3c1b6f0e7c11");
 	private static final UUID HEARTY_HEALTH = UUID.fromString("0b8e4c1d-5f2a-4c7e-8d31-9a6f2e4b7c22");
 
@@ -415,12 +419,27 @@ public final class Mycelid {
 		spawnCloud(player.getServerWorld(), player.getPos(), player.getUuid(), radius,
 				data.has(Talents.SWARM_POTENT) ? 1 : 0, data.has(Talents.SWARM_LINGERING) ? 240 : 120, data.has(Talents.SWARM_FOLLOW));
 		MycelidFx.cloudBurst(player.getServerWorld(), player.getPos(), radius);
+		// A faint dome of spores over the cloud for its whole life, and a green wave as it bursts out
+		int life = data.has(Talents.SWARM_LINGERING) ? 240 : 120;
+		Fx.sphere(player.getServerWorld(), player.getPos(), (float) radius, life, SPORE_RGB, data.has(Talents.SWARM_FOLLOW) ? player : null, false);
+		Fx.ring(player.getServerWorld(), player.getPos(), 0.5f, (float) radius + 1.5f, 12, SPORE_RGB);
 		if (data.has(Talents.SWARM_BURST)) {
 			burst(player, radius);
 		}
 		player.getWorld().playSound(null, player.getBlockPos(), SoundEvents.BLOCK_SPORE_BLOSSOM_BREAK, SoundCategory.PLAYERS, 1.2f, 0.6f);
 		Progression.addXp(player, data, 3);
 		return AbilityResult.OK;
+	}
+
+	/** The spore jump's arc, start to landing, for its streak of light. */
+	private static List<Vec3d> arcPath(Vec3d from, Vec3d to) {
+		List<Vec3d> path = new ArrayList<>();
+		double apex = 1.5 + from.distanceTo(to) * 0.15;
+		for (int i = 0; i <= 16; i++) {
+			double t = i / 16.0;
+			path.add(from.lerp(to, t).add(0, 4 * apex * t * (1 - t) - 0.6, 0));
+		}
+		return path;
 	}
 
 	public static void spawnCloud(ServerWorld world, Vec3d center, UUID owner, double radius, int potency, int ticks) {
@@ -535,6 +554,8 @@ public final class Mycelid {
 				player.fallDistance = 0;
 				MycelidFx.column(world, to);
 				MycelidFx.ring(world, to, 0.3, 1.8, 6, MycelidFx.SPORE);
+				Fx.pillar(world, to, 0.7f, 6, 16, SPORE_RGB);
+				Fx.ring(world, to, 0.3f, 3, 12, SPORE_RGB);
 				world.playSound(null, next.getPos(), SoundEvents.BLOCK_FUNGUS_PLACE, SoundCategory.BLOCKS, 1.0f, 0.6f);
 				RaceData travellerData = RaceState.of(player);
 				// No race experience for travelling: walking back and forth between two nodes would farm it. For the
@@ -585,6 +606,9 @@ public final class Mycelid {
 			player.teleport(world, jump.target().x, jump.target().y, jump.target().z, player.getYaw(), player.getPitch());
 			player.fallDistance = 0;
 			MycelidFx.sprout(world, jump.target());
+			// The arc of the jump lingers as a green streak; the landing spreads a ring of spores
+			Fx.ribbon(world, arcPath(jump.from(), jump.target()), 14, MOSS_RGB, SPORE_RGB, 0.5f);
+			Fx.ring(world, jump.target(), 0.2f, 2.5f, 10, SPORE_RGB);
 			world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_FUNGUS_PLACE, SoundCategory.PLAYERS, 1.0f, 1.2f);
 			world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_MOSS_PLACE, SoundCategory.PLAYERS, 0.8f, 0.8f);
 			if (data != null) {

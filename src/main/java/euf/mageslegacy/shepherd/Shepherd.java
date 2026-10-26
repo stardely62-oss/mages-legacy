@@ -1,5 +1,6 @@
 package euf.mageslegacy.shepherd;
 
+import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
@@ -48,6 +49,10 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class Shepherd {
 	public static final int BASE_CAPACITY = 4;
+	/** Colours of the glowing effects: horn gold, spirit cyan, and one per Whistle order (heel, guard, hunt). */
+	static final int GOLD_RGB = 0xE8C27A;
+	static final int SPIRIT_RGB = 0x9FE8E0;
+	private static final int[] STANCE_RGB = {0x9FE8E0, 0xE8C27A, 0xFF8A6A};
 	public static final int RALLY_COST = 25;
 	public static final float RALLY_HEAL = 0.3f;
 	public static final float RALLY_HEAL_WARM = 0.5f;
@@ -360,6 +365,8 @@ public final class Shepherd {
 		if (summoned == 0) {
 			return lackVoice ? AbilityResult.NO_RESOURCE : lackRoom ? AbilityResult.NO_CAPACITY : AbilityResult.NO_SPACE;
 		}
+		Fx.ring(player.getServerWorld(), base, 0.3f, 3.5f, 14, SPIRIT_RGB);
+		Fx.pillar(player.getServerWorld(), base, 1.4f, 4, 16, SPIRIT_RGB);
 		if (summoned < missing.size()) {
 			player.sendMessage(Text.translatable("mages_legacy.echo.partial", summoned, missing.size(),
 					Text.translatable(lackVoice ? "mages_legacy.echo.lack_voice" : "mages_legacy.echo.lack_room")), true);
@@ -453,6 +460,9 @@ public final class Shepherd {
 			p.heal(4);
 		}
 		world.playSound(null, player.getBlockPos(), SoundEvents.EVENT_RAID_HORN.value(), SoundCategory.PLAYERS, 0.8f, 1.3f);
+		// The horn's call rolls out as a golden wave to the edge of its reach, a spirit one just behind
+		Fx.ring(world, player.getPos(), 0.5f, 24, 18, GOLD_RGB);
+		Fx.ring(world, player.getPos(), 0.3f, 16, 22, SPIRIT_RGB);
 		world.spawnParticles(Echoes.SPIRIT, player.getX(), player.getY() + 1.6, player.getZ(), 30, 1.0, 0.4, 1.0, 0.05);
 		return AbilityResult.OK;
 	}
@@ -488,6 +498,7 @@ public final class Shepherd {
 				}
 			}
 			world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 0.7f, 1.2f);
+			Fx.ring(world, player.getPos(), 10, 1, 12, SPIRIT_RGB);
 			data.addResource(-GATHER_COST);
 			cooldown(player, data, GATHER_SLOT, GATHER_COOLDOWN);
 			return AbilityResult.OK;
@@ -507,6 +518,8 @@ public final class Shepherd {
 			world.spawnParticles(ParticleTypes.NOTE, c.getX(), c.getY() + c.getHeight() + 0.3, c.getZ(), 0, shepherd.stance / 2.0, 0, 0, 1);
 		}
 		float pitch = shepherd.stance == ShepherdData.HUNT ? 2.0f : shepherd.stance == ShepherdData.GUARD ? 1.6f : 1.2f;
+		// The whistle's ripple: a quick small wave, coloured by the order (heel, guard, hunt)
+		Fx.ring(world, player.getPos(), 0.3f, 7, 10, STANCE_RGB[shepherd.stance]);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.2f, pitch);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.0f, pitch * 0.85f);
 		player.sendMessage(Text.translatable("mages_legacy.whistle." + shepherd.stance).formatted(Formatting.GOLD), true);

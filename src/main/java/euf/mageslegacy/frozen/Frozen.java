@@ -1,5 +1,6 @@
 package euf.mageslegacy.frozen;
 
+import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Progression;
@@ -101,6 +102,10 @@ public final class Frozen {
 	public static final float BLUR_CHANCE = 0.1f;
 	public static final float BLUR_CHANCE_OVERTAKE = 0.2f;
 
+	/** Colours of the glowing effects: pale ice, golden sand, the white of a stopped moment. */
+	private static final int ICE_RGB = 0x9FCBF2;
+	private static final int SAND_RGB = 0xE8C98A;
+	private static final int STILL_RGB = 0xE8F4FF;
 	/** Pale ice and golden sand: the colours of the Rewind's trail. */
 	private static final DustParticleEffect ICE = new DustParticleEffect(new Vector3f(0.62f, 0.80f, 0.95f), 1.2f);
 	private static final DustParticleEffect SAND = new DustParticleEffect(new Vector3f(0.91f, 0.79f, 0.54f), 1.0f);
@@ -426,6 +431,8 @@ public final class Frozen {
 			world.spawnParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 1, player.getZ(), 40, 0.5, 0.9, 0.5, 0.1);
 			world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundCategory.PLAYERS, 1.0f, 1.8f);
 			player.sendMessage(Text.translatable("mages_legacy.frozen.eternal").formatted(Formatting.AQUA), true);
+			Fx.sphere(world, player.getPos(), 1.4f, ETERNAL_TICKS, SAND_RGB, player, false);
+			Fx.screen(player, ETERNAL_TICKS, SAND_RGB);
 		}
 		if (ETERNAL.containsKey(id)) {
 			amount = Math.max(0, Math.min(amount, player.getHealth() - 1));
@@ -520,6 +527,7 @@ public final class Frozen {
 		if (way != null && way.until() >= now && !player.isSneaking()) {
 			FLIGHTS.add(new Flight(player, player, way.path(), player.getHealth(), true));
 			startFx(player);
+			flightFx(player, way.path());
 			return AbilityResult.OK;
 		}
 		if (!ready(player, data, 0)) {
@@ -562,6 +570,7 @@ public final class Frozen {
 		target.stopRiding();
 		FLIGHTS.add(new Flight(target, caster, path, oldest.health(), false));
 		startFx(target);
+		flightFx(target, path);
 		if (shards && target == caster && data.has(Talents.LOOP_SHARDS)) {
 			shards(caster, target.getPos());
 		}
@@ -578,6 +587,12 @@ public final class Frozen {
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.2f, 0.6f);
 	}
 
+	/** The flight seen by all: a streak of light from ice to sand along the way; for the flier, the screen's edges glow. */
+	private static void flightFx(ServerPlayerEntity player, List<Vec3d> path) {
+		Fx.ribbon(player.getServerWorld(), path, 26, ICE_RGB, SAND_RGB, 1.3f);
+		Fx.screen(player, 16, ICE_RGB);
+	}
+
 	/** Shards of the Moment: where the Rewind began bursts into frost. */
 	private static void shards(ServerPlayerEntity owner, Vec3d at) {
 		ServerWorld world = owner.getServerWorld();
@@ -588,6 +603,7 @@ public final class Frozen {
 		}
 		world.spawnParticles(ParticleTypes.SNOWFLAKE, at.x, at.y + 1, at.z, 40, 1.2, 0.6, 1.2, 0.08);
 		world.spawnParticles(ICE, at.x, at.y + 1, at.z, 30, 1.0, 0.6, 1.0, 0);
+		Fx.ring(world, at, 0.2f, 3.5f, 10, ICE_RGB);
 		world.playSound(null, BlockPos.ofFloored(at), SoundEvents.BLOCK_GLASS_BREAK, SoundCategory.PLAYERS, 1.0f, 0.7f);
 	}
 
@@ -631,6 +647,8 @@ public final class Frozen {
 		player.velocityModified = true;
 		world.spawnParticles(ParticleTypes.FLASH, player.getX(), player.getY() + 1, player.getZ(), 1, 0, 0, 0, 0);
 		world.spawnParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 1, player.getZ(), 24, 0.3, 0.6, 0.3, 0.12);
+		Fx.pillar(world, player.getPos(), 0.55f, 3.5f, 14, SAND_RGB);
+		Fx.ring(world, player.getPos(), 0.3f, 3, 12, ICE_RGB);
 		world.spawnParticles(SAND, player.getX(), player.getY() + 0.5, player.getZ(), 20, 0.5, 0.3, 0.5, 0);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_CLUSTER_BREAK, SoundCategory.PLAYERS, 1.0f, 1.4f);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_BELL_RESONATE, SoundCategory.PLAYERS, 0.5f, 2.0f);
@@ -721,11 +739,15 @@ public final class Frozen {
 		cooldown(player, data, 1, DOME_COOLDOWN);
 		ServerWorld world = player.getServerWorld();
 		long now = now(player.getServer());
-		DOMES.add(new Dome(player, world, player.getPos(), domeRadius(data), now + (data.has(Talents.STASIS_LONG) ? DOME_TICKS_LONG : DOME_TICKS),
-				false));
+		int domeTicks = data.has(Talents.STASIS_LONG) ? DOME_TICKS_LONG : DOME_TICKS;
+		DOMES.add(new Dome(player, world, player.getPos(), domeRadius(data), now + domeTicks, false));
+		Fx.sphere(world, player.getPos(), (float) domeRadius(data), domeTicks, ICE_RGB, data.has(Talents.STASIS_FOLLOW) ? player : null, false);
+		Fx.ring(world, player.getPos(), 0.5f, (float) domeRadius(data), 8, SAND_RGB);
 		// The Still Frame crown: now and then the Dome stops the whole world around for a moment
 		if (data.has(Talents.STASIS_STOP) && ready(player, data, STOP_SLOT)) {
 			DOMES.add(new Dome(player, world, player.getPos(), STOP_RADIUS, now + STOP_TICKS, true));
+			Fx.sphere(world, player.getPos(), STOP_RADIUS, STOP_TICKS, STILL_RGB, null, true);
+			Fx.screen(player, STOP_TICKS, STILL_RGB);
 			cooldown(player, data, STOP_SLOT, STOP_COOLDOWN);
 			world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_END_PORTAL_SPAWN, SoundCategory.PLAYERS, 0.5f, 2.0f);
 			player.sendMessage(Text.translatable("mages_legacy.frozen.still_frame").formatted(Formatting.AQUA), true);
@@ -862,6 +884,8 @@ public final class Frozen {
 		spend(player, data, FREEZE_COST);
 		cooldown(player, data, FREEZE_SLOT, FREEZE_COOLDOWN);
 		HELD_MOBS.put(target.getUuid(), new Hold(player.getServerWorld(), now(player.getServer()) + FREEZE_TICKS));
+		Fx.sphere(player.getServerWorld(), target.getPos().add(0, target.getHeight() / 2, 0), Math.max(target.getWidth(), target.getHeight()) * 0.75f,
+				FREEZE_TICKS, ICE_RGB, null, true);
 		player.getServerWorld().playSound(null, target.getBlockPos(), SoundEvents.BLOCK_GLASS_PLACE, SoundCategory.PLAYERS, 1.0f, 0.5f);
 		return AbilityResult.OK;
 	}
@@ -934,6 +958,8 @@ public final class Frozen {
 		player.sendMessage(Text.translatable("mages_legacy.frozen.quickened", what, seconds).formatted(Formatting.GOLD), true);
 		world.spawnParticles(ParticleTypes.END_ROD, center.getX() + 0.5, center.getY() + 1.1, center.getZ() + 0.5, 8, 0.3, 0.2, 0.3, 0.02);
 		world.playSound(null, center, SoundEvents.BLOCK_SAND_FALL, SoundCategory.PLAYERS, 1.0f, 1.6f);
+		Fx.ring(world, Vec3d.ofBottomCenter(center.up()), 0.2f, 1.6f + r, 12, SAND_RGB);
+		Fx.pillar(world, Vec3d.ofBottomCenter(center.up()), 0.45f, 1.5f, 10, SAND_RGB);
 		world.playSound(null, center, SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 0.8f, 1.8f);
 		return AbilityResult.OK;
 	}
@@ -1020,6 +1046,8 @@ public final class Frozen {
 		ServerWorld world = player.getServerWorld();
 		world.spawnParticles(SAND, player.getX(), player.getY() + 1, player.getZ(), 40, 0.6, 0.8, 0.6, 0);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundCategory.PLAYERS, 1.0f, 2.0f);
+		Fx.ring(world, player.getPos(), 0.5f, 6, 14, SAND_RGB);
+		Fx.screen(player, CURRENT_TICKS, SAND_RGB);
 		return AbilityResult.OK;
 	}
 

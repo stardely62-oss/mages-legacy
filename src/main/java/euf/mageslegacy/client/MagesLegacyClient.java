@@ -74,20 +74,28 @@ public class MagesLegacyClient implements ClientModInitializer {
 			PacketByteBuf copy = PacketByteBufs.copy(buf);
 			client.execute(() -> QuickenVisuals.read(copy));
 		});
+		ClientPlayNetworking.registerGlobalReceiver(RacePackets.FX, (client, handler, buf, sender) -> {
+			PacketByteBuf copy = PacketByteBufs.copy(buf);
+			client.execute(() -> FxRenderer.read(copy));
+		});
 		ClientPlayNetworking.registerGlobalReceiver(RacePackets.OPEN_CHOICE, (client, handler, buf, sender) ->
 				client.execute(() -> client.setScreen(new LoreScreen())));
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
 			ClientRaceState.clear();
 			EchoVisuals.clear();
 			QuickenVisuals.clear();
+			FxRenderer.clear();
 		}));
 		HudRenderCallback.EVENT.register(RaceHud::render);
 		WorldRenderEvents.AFTER_ENTITIES.register(QuickenVisuals::render);
+		WorldRenderEvents.AFTER_TRANSLUCENT.register(FxRenderer::render);
+		HudRenderCallback.EVENT.register(FxRenderer::renderScreen);
 		ClientTickEvents.END_CLIENT_TICK.register(MagesLegacyClient::tick);
 	}
 
 	private static void tick(MinecraftClient client) {
 		ClientRaceState.tick();
+		FxRenderer.tick();
 		if (!keysSettled && client.options != null) {
 			keysSettled = true;
 			settleKeys(client);
