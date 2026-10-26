@@ -98,11 +98,12 @@ def convert(path):
         return reduce(sample(img, 144, 96, False), 32), GUI / f"{name}.png"
     if name.startswith("emblem_"):
         return add_rim(reduce(sample(crop_to_symbol(img), 64, 64, True), 24)), GUI / "emblem" / f"{name[7:]}.png"
-    # Bestiary portraits: beasts in their own colours, echoes washed in the spirit cyan they wear in the world
+    # Bestiary portraits: beasts in their own colours, echoes washed in the spirit cyan they wear in the world. Codex
+    # already outlines them in black, so beasts get no rim; echoes a faint cyan glow that keeps dark ones readable
     if name.startswith("beast_"):
-        return add_rim(reduce(sample(crop_to_symbol(img), 32, 32, True), 16)), GUI / "beast" / f"{name[6:]}.png"
+        return reduce(sample(crop_to_symbol(img), 32, 32, True), 16), GUI / "beast" / f"{name[6:]}.png"
     if name.startswith("echo_"):
-        return add_rim(spectral(reduce(sample(crop_to_symbol(img), 32, 32, True), 16))), GUI / "echo" / f"{name[5:]}.png"
+        return add_rim(spectral(reduce(sample(crop_to_symbol(img), 32, 32, True), 16)), (159, 232, 224, 60)), GUI / "echo" / f"{name[5:]}.png"
     return add_rim(reduce(sample(crop_to_symbol(img), 32, 32, True), 16)), GUI / "icon" / f"{name}.png"
 
 
