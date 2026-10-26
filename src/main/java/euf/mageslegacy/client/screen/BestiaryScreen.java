@@ -303,7 +303,8 @@ public class BestiaryScreen extends Screen {
 			int rim = inSquad > 0 ? SPIRIT : hot && known ? color : known ? LegacyUi.RIM : LegacyUi.RIM_DARK;
 			LegacyUi.panel(ctx, p[0], p[1], p[0] + cardW(), p[1] + CARD_H, rim);
 			LegacyUi.portrait(ctx, "echo", type.path(), type.icon(), p[0] + 3, p[1] + 3, known);
-			if (!known) {
+			// A portrait dims by itself; only a spawn egg standing in for one needs the veil
+			if (!known && !LegacyUi.exists(LegacyUi.gui("echo/" + type.path()))) {
 				ctx.getMatrices().push();
 				ctx.getMatrices().translate(0, 0, 200);
 				ctx.fill(p[0] + 3, p[1] + 3, p[0] + 19, p[1] + 19, 0xA0000000);
