@@ -60,7 +60,7 @@ public final class Bloodkin {
 	public static final int SENSE = 12;
 	public static final int SENSE_WIDE = 24;
 	private static final int DASH_COOLDOWN = 120;
-	private static final int DASH_TICKS = 4;
+	private static final int DASH_TICKS = 5;
 	private static final int DOUBLE_WINDOW = 60;
 	private static final int HARVEST_COOLDOWN = 400;
 	private static final int SACRIFICE_COOLDOWN = 200;
@@ -415,11 +415,11 @@ public final class Bloodkin {
 	}
 
 	public static double dashRange(RaceData data) {
-		return data.has(Talents.FANG_REACH) ? 9 : 6;
+		return data.has(Talents.FANG_REACH) ? 14 : 10;
 	}
 
 	/**
-	 * Blood Dash: a rush along your look, stopped only by walls, through everything in the way: each one hit takes 6
+	 * Blood Dash: a rush of 10 blocks along your look, stopped only by walls, through everything in the way: each one hit takes 6
 	 * and bleeds. With Double Rush a second dash follows free within 3 seconds.
 	 */
 	public static AbilityResult dash(ServerPlayerEntity player, RaceData data) {
@@ -553,11 +553,11 @@ public final class Bloodkin {
 	}
 
 	public static double harvestRadius(RaceData data) {
-		return data.has(Talents.THIRST_HARVEST) ? 8 : 6;
+		return data.has(Talents.THIRST_HARVEST) ? 12 : 9;
 	}
 
 	/**
-	 * Harvest: blood is drawn out of every enemy around: each takes 4, and you heal 2 (4 with Greedy Harvest) and drink 5
+	 * Harvest: blood is drawn out of every enemy within 9 blocks: each takes 4, and you heal 2 (4 with Greedy Harvest) and drink 5
 	 * from each. Mark of the Harvest leaves them taking more from you; the Blood Storm crown pulls twice more.
 	 */
 	public static AbilityResult harvest(ServerPlayerEntity player, RaceData data) {

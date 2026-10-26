@@ -15,6 +15,7 @@ import java.util.Map;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -40,6 +41,10 @@ public class TalentScreen extends Screen {
 	private int treeScroll;
 	private int guideScroll;
 	private int guideMaxScroll;
+	/** The traits page: the race's strengths and weaknesses, and what the learned talents give. */
+	private boolean showTraits;
+	private int traitsScroll;
+	private int traitsMaxScroll;
 
 	public TalentScreen() {
 		super(Text.translatable("mages_legacy.screen.talents"));
@@ -91,6 +96,10 @@ public class TalentScreen extends Screen {
 			guideScroll = Math.max(0, Math.min(guideMaxScroll, guideScroll - (int) (amount * 20)));
 			return true;
 		}
+		if (showTraits) {
+			traitsScroll = Math.max(0, Math.min(traitsMaxScroll, traitsScroll - (int) (amount * 20)));
+			return true;
+		}
 		if (inTree(mouseY)) {
 			treeScroll = Math.max(0, Math.min(treeMaxScroll(), treeScroll - (int) (amount * 20)));
 			return true;
@@ -109,6 +118,11 @@ public class TalentScreen extends Screen {
 
 	private int guideButtonX() {
 		return (width + 260) / 2 + 6;
+	}
+
+	/** The traits button sits left of the header, the guide's twin. */
+	private int traitsButtonX() {
+		return (width - 260) / 2 - 26;
 	}
 
 	private int tiers() {
@@ -167,6 +181,11 @@ public class TalentScreen extends Screen {
 		return true;
 	}
 
+	public void toggleTraits() {
+		showGuide = false;
+		showTraits = !showTraits;
+	}
+
 	public void toggleGuide() {
 		showGuide = !showGuide;
 		guideSeen = true;
@@ -176,11 +195,18 @@ public class TalentScreen extends Screen {
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		int gx = guideButtonX();
 		if (mouseX >= gx && mouseX < gx + 20 && mouseY >= 8 && mouseY < 28) {
+			showTraits = false;
 			toggleGuide();
 			return true;
 		}
-		if (showGuide) {
+		int tx = traitsButtonX();
+		if (mouseX >= tx && mouseX < tx + 20 && mouseY >= 8 && mouseY < 28) {
+			toggleTraits();
+			return true;
+		}
+		if (showGuide || showTraits) {
 			showGuide = false;
+			showTraits = false;
 			return true;
 		}
 		double treeY = mouseY + treeScroll;
@@ -250,9 +276,14 @@ public class TalentScreen extends Screen {
 		int abilityHovered = drawAbilities(ctx, race, color, mouseX, mouseY);
 
 		drawGuideButton(ctx, color, mouseX, mouseY);
+		drawTraitsButton(ctx, race, color, mouseX, mouseY);
 		super.render(ctx, mouseX, mouseY, delta);
 		if (showGuide) {
 			drawGuide(ctx, race, color);
+			return;
+		}
+		if (showTraits) {
+			drawTraits(ctx, race, color);
 			return;
 		}
 		if (hovered != null) {
@@ -329,6 +360,115 @@ public class TalentScreen extends Screen {
 		}
 		LegacyUi.button(ctx, x, 8, 20, 20, true, hot || showGuide, false, color);
 		ctx.drawCenteredTextWithShadow(textRenderer, "?", x + 10, 14, LegacyUi.GOLD);
+	}
+
+	/** The traits button: the race's emblem-coloured book, left of the header. */
+	private void drawTraitsButton(DrawContext ctx, Race race, int color, int mouseX, int mouseY) {
+		int x = traitsButtonX();
+		boolean hot = mouseX >= x && mouseX < x + 20 && mouseY >= 8 && mouseY < 28;
+		LegacyUi.button(ctx, x, 8, 20, 20, true, hot || showTraits, false, color);
+		ctx.drawItem(new ItemStack(Items.KNOWLEDGE_BOOK), x + 2, 10);
+		if (hot && !showTraits) {
+			ctx.drawTooltip(textRenderer, Text.translatable("mages_legacy.traits.title"), x, 44);
+		}
+	}
+
+	/**
+	 * Everything that works for this player without a key: the race's strengths and weaknesses (the same lines as on
+	 * the choice screen) and every learned talent with what it gives, in the tree's order. Scrolls when long.
+	 */
+	private void drawTraits(DrawContext ctx, Race race, int color) {
+		ctx.getMatrices().push();
+		ctx.getMatrices().translate(0, 0, 300);
+		ctx.fill(0, 0, width, height, 0xA0000000);
+		int w = Math.min(360, width - 30);
+		int x0 = (width - w) / 2;
+		int h = traitsBody(ctx, race, color, x0, 0, w, true);
+		int shown = Math.min(h, height - 8);
+		traitsMaxScroll = h - shown;
+		traitsScroll = Math.max(0, Math.min(traitsMaxScroll, traitsScroll));
+		int y0 = (height - shown) / 2;
+		LegacyUi.panel(ctx, x0, y0, x0 + w, y0 + shown);
+		if (traitsMaxScroll > 0) {
+			scrollbar(ctx, x0 + w - 6, y0 + 4, y0 + shown - 4, traitsScroll, traitsMaxScroll, color);
+		}
+		ctx.enableScissor(x0 + 1, y0 + 2, x0 + w - 1, y0 + shown - 2);
+		traitsBody(ctx, race, color, x0, y0 - traitsScroll, w, false);
+		ctx.disableScissor();
+		ctx.getMatrices().pop();
+	}
+
+	/** Lays out (and unless {@code measure}, draws) the traits page from {@code y0}; returns its height. */
+	private int traitsBody(DrawContext ctx, Race race, int color, int x0, int y0, int w, boolean measure) {
+		int x = x0 + 12;
+		int right = x0 + w - 12;
+		int y = y0 + 8;
+		if (!measure) {
+			LegacyUi.heading(ctx, Text.translatable("mages_legacy.traits.title").formatted(Formatting.BOLD), width / 2, y, LegacyUi.GOLD);
+		}
+		y += 20;
+		y = traitList(ctx, Text.translatable("mages_legacy.screen.strengths"), Lines.of(race.key() + ".perk"), LegacyUi.GREEN, x, right, y, measure);
+		y = traitList(ctx, Text.translatable("mages_legacy.screen.weaknesses"), Lines.of(race.key() + ".weak"), LegacyUi.RED, x, right, y, measure);
+		if (!measure) {
+			ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.traits.talents").formatted(Formatting.BOLD), x, y, LegacyUi.GOLD);
+		}
+		y += 14;
+		boolean any = false;
+		for (Talent t : Talents.of(race)) {
+			if (!ClientRaceState.talents.contains(t.id())) {
+				continue;
+			}
+			any = true;
+			if (!measure) {
+				Identifier icon = LegacyUi.icon(t.id());
+				if (LegacyUi.exists(icon)) {
+					LegacyUi.icon(ctx, icon, x, y, 16, true);
+				} else {
+					ctx.drawItem(new ItemStack(t.icon()), x, y);
+				}
+				ctx.drawTextWithShadow(textRenderer, Text.translatable(t.key()), x + 22, y, LegacyUi.GOLD);
+			}
+			y += 10;
+			for (OrderedText row : textRenderer.wrapLines(Text.translatable(t.key() + ".desc"), right - x - 22)) {
+				if (!measure) {
+					ctx.drawText(textRenderer, row, x + 22, y, LegacyUi.PARCHMENT, true);
+				}
+				y += 10;
+			}
+			y += 6;
+		}
+		if (!any) {
+			if (!measure) {
+				ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.traits.none"), x + 10, y, LegacyUi.MUTED);
+			}
+			y += 12;
+		}
+		return y + 4 - y0;
+	}
+
+	/** A heading and its lines as gems of one colour, wrapped; then a divider. Returns where the next part starts. */
+	private int traitList(DrawContext ctx, Text title, List<Text> lines, int color, int x, int right, int y, boolean measure) {
+		if (!measure) {
+			ctx.drawTextWithShadow(textRenderer, title.copy().formatted(Formatting.BOLD), x, y, color);
+		}
+		y += 14;
+		for (Text line : lines) {
+			if (!measure) {
+				LegacyUi.diamond(ctx, x + 3, y + 3, 2, color);
+			}
+			for (OrderedText row : textRenderer.wrapLines(line, right - x - 10)) {
+				if (!measure) {
+					ctx.drawText(textRenderer, row, x + 10, y, LegacyUi.TEXT, true);
+				}
+				y += 10;
+			}
+			y += 2;
+		}
+		y += 4;
+		if (!measure) {
+			LegacyUi.divider(ctx, x, right, y, color);
+		}
+		return y + 8;
 	}
 
 	/**

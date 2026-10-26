@@ -631,6 +631,13 @@ public class HarnessClient implements ClientModInitializer {
 		step(6, false, c -> {
 			screenshot(c, "blood_feast");
 			c.options.setPerspective(Perspective.FIRST_PERSON);
+			TalentScreen screen = new TalentScreen();
+			c.setScreen(screen);
+			screen.toggleTraits();
+		});
+		step(20, false, c -> {
+			screenshot(c, "traits_bloodkin");
+			c.setScreen(null);
 		});
 		step(20, false, this::finish);
 
