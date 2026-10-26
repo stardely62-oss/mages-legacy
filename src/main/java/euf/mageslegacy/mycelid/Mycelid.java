@@ -90,8 +90,8 @@ public final class Mycelid {
 	private record Cloud(ServerWorld world, Vec3d center, UUID owner, double radius, int potency, long start, long until, boolean follows) {}
 
 	/** Greenish-grey and dark violet spore dust for the cloud. */
-	private static final DustParticleEffect SPORE_DUST = new DustParticleEffect(new Vector3f(0.62f, 0.72f, 0.48f), 1.6f);
-	private static final DustParticleEffect SPORE_DUST_DARK = new DustParticleEffect(new Vector3f(0.42f, 0.28f, 0.40f), 2.0f);
+	private static final DustParticleEffect SPORE_DUST = new DustParticleEffect(new Vector3f(0.62f, 0.72f, 0.48f), 0.9f);
+	private static final DustParticleEffect SPORE_DUST_DARK = new DustParticleEffect(new Vector3f(0.42f, 0.28f, 0.40f), 1.0f);
 
 	private static final List<PendingJump> JUMPS = new ArrayList<>();
 	private static final List<Cloud> CLOUDS = new ArrayList<>();
@@ -634,8 +634,8 @@ public final class Mycelid {
 				double r = cloud.radius();
 				// Glowing spores drift up through the cloud (they live a few seconds, so a few at a time are plenty)
 				world.spawnParticles(ModParticles.SPORE, c.x, c.y + 0.5, c.z, (int) (r * r * 0.6), r * 0.5, 0.5, r * 0.5, 0.0);
-				world.spawnParticles(SPORE_DUST, c.x, c.y + 0.7, c.z, (int) (r * r), r * 0.55, 0.5, r * 0.55, 0.0);
-				world.spawnParticles(SPORE_DUST_DARK, c.x, c.y + 0.3, c.z, (int) (r * r), r * 0.55, 0.25, r * 0.55, 0.0);
+				world.spawnParticles(SPORE_DUST, c.x, c.y + 0.7, c.z, (int) (r * r * 0.6), r * 0.55, 0.5, r * 0.55, 0.0);
+				world.spawnParticles(SPORE_DUST_DARK, c.x, c.y + 0.3, c.z, (int) (r * r * 0.5), r * 0.55, 0.25, r * 0.55, 0.0);
 				world.spawnParticles(ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 1.2, c.z, (int) (r * 4), r * 0.5, 0.6, r * 0.5, 0.0);
 				MycelidFx.vortex(world, c, r, now - cloud.start());
 				// The edge of the cloud, so it's clear where it ends
