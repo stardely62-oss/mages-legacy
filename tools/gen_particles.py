@@ -1,6 +1,6 @@
 """Draws the particle sprites of Mage's Legacy (8x8 pixel art) and their particle definitions.
 
-Sand grains, ice shards, spores, spirit wisps and the Song's golden motes, a few variants or frames each.
+Sand grains, ice shards, spores, spirit wisps, the Song's golden motes and drops of blood, a few variants or frames each.
 Needs Pillow:  python3 tools/gen_particles.py
 """
 import json
@@ -62,6 +62,14 @@ MOTES = [
     ["........", "...f....", "..fof...", ".fowgf..", "..fgwof.", "...fof..", "....f...", "........"],
 ]
 
+BLOOD = {"h": (255, 120, 120, 255), "r": (196, 24, 40, 255), "d": (110, 8, 20, 255), "p": (130, 10, 24, 200)}
+DROPS = [
+    ["........", "........", "...h....", "...rr...", "..rrrd..", "..rrdd..", "...dd...", "........"],
+    ["........", "........", "........", "...hr...", "...rd...", "........", "........", "........"],
+    ["........", "........", "........", "........", "..p..p..", ".prrrdp.", "..pddp..", "........"],
+]
+BLOOD_GLOW = {"w": (255, 200, 200, 255), "g": (230, 40, 60, 255), "o": (150, 15, 30, 180), "f": (110, 10, 25, 80)}
+
 KINDS = {
     "sand": (GRAINS, SAND),
     "still_sand": (GRAINS, SAND),
@@ -69,6 +77,8 @@ KINDS = {
     "spore": (SPORES, SPORE),
     "wisp": (WISPS, WISP),
     "mote": (MOTES, MOTE),
+    "blood": (DROPS, BLOOD),
+    "blood_mote": (MOTES, BLOOD_GLOW),
 }
 
 

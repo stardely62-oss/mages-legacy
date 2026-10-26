@@ -13,7 +13,9 @@
 	],
 	"client": [
 		"client.ClientPlayNetworkHandlerMixin",
-		"client.LivingEntityRendererMixin"
+		"client.EntityOutlineMixin",
+		"client.LivingEntityRendererMixin",
+		"client.MinecraftClientMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

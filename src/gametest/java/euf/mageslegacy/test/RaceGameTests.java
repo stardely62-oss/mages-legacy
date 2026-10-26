@@ -1,6 +1,7 @@
 package euf.mageslegacy.test;
 
 import euf.mageslegacy.MagesLegacy;
+import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
@@ -32,6 +33,7 @@ import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.mob.SpiderEntity;
 import net.minecraft.entity.mob.ZombieEntity;
 import net.minecraft.entity.passive.BeeEntity;
 import net.minecraft.entity.passive.CatEntity;
@@ -39,6 +41,7 @@ import net.minecraft.entity.passive.FoxEntity;
 import net.minecraft.entity.passive.GoatEntity;
 import net.minecraft.entity.passive.LlamaEntity;
 import net.minecraft.entity.passive.ParrotEntity;
+import net.minecraft.entity.passive.PigEntity;
 import net.minecraft.entity.passive.PolarBearEntity;
 import net.minecraft.entity.passive.RabbitEntity;
 import net.minecraft.entity.passive.WolfEntity;
@@ -105,7 +108,7 @@ public class RaceGameTests implements FabricGameTest {
 		ServerPlayerEntity player = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
 		RaceData data = RaceState.of(player);
 		check(data.race == null, "a new player has no race");
-		check(!RacePackets.choose(player, Race.BLOODKIN), "a sleeping race can't be picked yet");
+		check(!RacePackets.choose(player, Race.VOIDBORN), "a sleeping race can't be picked yet");
 		check(RacePackets.choose(player, Race.MYCELID) && data.race == Race.MYCELID, "picking the Mycelids should work");
 		check(!RacePackets.choose(player, Race.MYCELID), "the choice is made once");
 		check(RaceState.get(ctx.getWorld().getServer()).data(player.getUuid()) == data, "the data lives in the saved state");
@@ -142,6 +145,7 @@ public class RaceGameTests implements FabricGameTest {
 		treeShape(Race.MYCELID);
 		treeShape(Race.SHEPHERD);
 		treeShape(Race.FROZEN);
+		treeShape(Race.BLOODKIN);
 		ctx.complete();
 	}
 
@@ -1033,6 +1037,84 @@ public class RaceGameTests implements FabricGameTest {
 		player.setHealth(player.getHealth() - first);
 		check(Frozen.modifyDamage(player, player.getDamageSources().generic(), 100) <= player.getHealth() - 1,
 				"the Eternal Moment began on the low blow: nothing kills now");
+		done(ctx, player);
+	}
+
+	static ServerPlayerEntity bloodkin(TestContext ctx, BlockPos at) {
+		ServerPlayerEntity player = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
+		player.changeGameMode(GameMode.SURVIVAL);
+		player.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
+		RaceState.of(player).reset(Race.BLOODKIN);
+		// A helmet against the sun, unless a test wants it bare
+		player.equipStack(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+		return player;
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "blood", tickLimit = 100)
+	public void bloodComesOnlyFromTheLiving(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(2, 2, 2));
+		ServerPlayerEntity player = bloodkin(ctx, at);
+		RaceData data = RaceState.of(player);
+		data.addResource(50);
+		player.setHealth(10);
+		PigEntity pig = beast(ctx, EntityType.PIG, at.add(1, 0, 0));
+		float dealt = Bloodkin.onHit(pig, world.getDamageSources().playerAttack(player), 6);
+		check(dealt == 6 && Math.abs(player.getHealth() - 10.6f) < 0.01f, "a blow on a pig heals 10%: health " + player.getHealth());
+		check(Math.abs(data.resource - 56) < 0.01f, "and gives its damage in blood: " + data.resource);
+		ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(-1, 0, 0));
+		Bloodkin.onHit(zombie, world.getDamageSources().playerAttack(player), 6);
+		check(Math.abs(data.resource - 56) < 0.01f && Math.abs(player.getHealth() - 10.6f) < 0.01f, "the undead have no blood to drink");
+		// Thirst: low blood, harder blows, no natural healing
+		data.addResource(-100);
+		check(Bloodkin.onHit(zombie, world.getDamageSources().playerAttack(player), 10) == 12, "in Thirst blows are 20% harder");
+		check(Bloodkin.naturalHealing(player) == 0, "in Thirst natural healing stops");
+		data.addResource(50);
+		Bloodkin.tickSecond(player, data);
+		check(data.resource < 50, "blood drains away by itself");
+		pig.discard();
+		zombie.discard();
+		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "blood_dash", tickLimit = 100)
+	public void theDashCutsThroughAndTheHarvestDrinks(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(4, 2, 1));
+		floor(world, at.add(-4, 0, -1), 9, 9);
+		ServerPlayerEntity player = bloodkin(ctx, at);
+		RaceData data = RaceState.of(player);
+		data.addResource(100);
+		// A spider three blocks ahead (yaw 0 looks south, +Z)
+		SpiderEntity spider = beast(ctx, EntityType.SPIDER, at.add(0, 0, 3));
+		check(Bloodkin.dash(player, data) == AbilityResult.OK, "the Blood Dash");
+		for (int i = 0; i < 6; i++) {
+			Bloodkin.tick(world.getServer());
+		}
+		check(player.getZ() - (at.getZ() + 0.5) > 4, "the dash carried the Bloodkin on, now at z+" + (player.getZ() - at.getZ() - 0.5));
+		check(spider.getHealth() < spider.getMaxHealth(), "and cut the spider on its way");
+		check(Bloodkin.dash(player, data) == AbilityResult.COOLDOWN, "then it waits");
+
+		// The Harvest: two spiders around, both bleed into the Bloodkin
+		SpiderEntity other = beast(ctx, EntityType.SPIDER, at.add(2, 0, 5));
+		spider.setHealth(spider.getMaxHealth());
+		player.setHealth(10);
+		float blood = data.resource;
+		check(Bloodkin.harvest(player, data) == AbilityResult.OK, "the Harvest");
+		check(spider.getHealth() < spider.getMaxHealth() && other.getHealth() < other.getMaxHealth(), "both spiders lose blood");
+		check(Math.abs(player.getHealth() - 14) < 0.01f, "2 health from each, now " + player.getHealth());
+		check(Math.abs(data.resource - (blood - 40 + 10)) < 0.01f, "40 spent, 5 drunk from each: " + data.resource);
+
+		// The Sacrifice: health for blood, never deadly
+		player.setHealth(20);
+		data.addResource(-100);
+		check(Bloodkin.sacrifice(player, data) == AbilityResult.OK && Math.abs(player.getHealth() - 16) < 0.01f && data.resource == 40,
+				"4 health for 40 blood");
+		data.readyAt.clear();
+		player.setHealth(4);
+		check(Bloodkin.sacrifice(player, data) == AbilityResult.HINTED && player.getHealth() == 4, "the Sacrifice never kills");
+		spider.discard();
+		other.discard();
 		done(ctx, player);
 	}
 

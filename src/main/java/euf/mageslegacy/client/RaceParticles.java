@@ -23,6 +23,8 @@ public final class RaceParticles {
 		registry.register(ModParticles.SPORE, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Spore(world, x, y, z, vx, vy, vz, sprites));
 		registry.register(ModParticles.WISP, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Wisp(world, x, y, z, vx, vy, vz, sprites));
 		registry.register(ModParticles.MOTE, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Mote(world, x, y, z, vx, vy, vz, sprites));
+		registry.register(ModParticles.BLOOD, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Drop(world, x, y, z, vx, vy, vz, sprites));
+		registry.register(ModParticles.BLOOD_MOTE, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Mote(world, x, y, z, vx, vy, vz, sprites));
 	}
 
 	/** Fades in over the first few ticks and out over the last third. */
@@ -183,6 +185,42 @@ public final class RaceParticles {
 		@Override
 		public int getBrightness(float tint) {
 			return FULL_BRIGHT;
+		}
+
+		@Override
+		public ParticleTextureSheet getType() {
+			return ParticleTextureSheet.PARTICLE_SHEET_TRANSLUCENT;
+		}
+	}
+
+	/** A drop of blood: flung out, falls, and lies a moment on the ground as a small stain before it fades. */
+	static final class Drop extends SpriteBillboardParticle {
+		private final SpriteProvider sprites;
+		private boolean landed;
+
+		Drop(ClientWorld world, double x, double y, double z, double vx, double vy, double vz, SpriteProvider sprites) {
+			super(world, x, y, z);
+			this.sprites = sprites;
+			velocityX = vx + (random.nextDouble() - 0.5) * 0.08;
+			velocityY = vy + 0.05 + random.nextDouble() * 0.08;
+			velocityZ = vz + (random.nextDouble() - 0.5) * 0.08;
+			gravityStrength = 1.0f;
+			velocityMultiplier = 0.96f;
+			scale = 0.06f + random.nextFloat() * 0.06f;
+			maxAge = 30 + random.nextInt(20);
+			setSprite(sprites.getSprite(random.nextInt(2), 2));
+		}
+
+		@Override
+		public void tick() {
+			super.tick();
+			if (onGround && !landed) {
+				landed = true;
+				setSprite(sprites.getSprite(2, 2));
+				scale *= 1.6f;
+				maxAge = Math.min(maxAge, age + 25);
+			}
+			alpha = lifeAlpha(age, maxAge, 0);
 		}
 
 		@Override

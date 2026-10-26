@@ -1,5 +1,6 @@
 package euf.mageslegacy.mixin;
 
+import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceData;
@@ -39,6 +40,9 @@ public abstract class PlayerEntityMixin {
 		FoodComponent food = item.getFoodComponent();
 		if (data != null && data.race == Race.MYCELID && food != null) {
 			Mycelid.afterEating(player, data, item, food);
+		}
+		if (data != null && data.race == Race.BLOODKIN && food != null) {
+			Bloodkin.afterEating(player, food);
 		}
 	}
 }

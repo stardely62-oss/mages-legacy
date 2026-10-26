@@ -1,5 +1,6 @@
 package euf.mageslegacy.client;
 
+import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.client.screen.LegacyUi;
 import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
@@ -33,6 +34,8 @@ public final class RaceHud {
 	public static final int[] MYCELID_COSTS = {15, 30, 40};
 	/** The Whistle's orders as marks on its slot: Follow, Guard, Hunt. */
 	public static final String[] STANCE_MARKS = {"↩", "◈", "⚔"};
+	public static final Item[] BLOODKIN_ICONS = {Items.REDSTONE, Items.NETHER_WART, Items.IRON_SWORD};
+	public static final String[] BLOODKIN_ABILITY_ICONS = {"ability_dash", "ability_harvest", "ability_sacrifice"};
 	public static final Item[] FROZEN_ICONS = {Items.CLOCK, Items.PACKED_ICE, Items.SAND};
 	public static final String[] FROZEN_ABILITY_ICONS = {"ability_rewind", "ability_dome", "ability_quicken"};
 	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.FEATHER, Items.NOTE_BLOCK};
@@ -42,7 +45,7 @@ public final class RaceHud {
 	}
 
 	public static boolean hasAbilities(Race race) {
-		return race == Race.MYCELID || race == Race.SHEPHERD || race == Race.FROZEN;
+		return race == Race.MYCELID || race == Race.SHEPHERD || race == Race.FROZEN || race == Race.BLOODKIN;
 	}
 
 	/** Three abilities each; the Shepherds have a fourth, the Song of Bonds. */
@@ -57,6 +60,7 @@ public final class RaceHud {
 			case MYCELID -> MYCELID_ABILITY_ICONS[slot];
 			case SHEPHERD -> SHEPHERD_ABILITY_ICONS[slot];
 			case FROZEN -> FROZEN_ABILITY_ICONS[slot];
+			case BLOODKIN -> BLOODKIN_ABILITY_ICONS[slot];
 			default -> null;
 		};
 	}
@@ -73,6 +77,10 @@ public final class RaceHud {
 				case 3 -> Bonds.SONG_COST;
 				default -> 0;
 			};
+		}
+		if (race == Race.BLOODKIN) {
+			// The Sacrifice costs health, not blood
+			return slot == 0 ? Bloodkin.DASH_COST : slot == 1 ? Bloodkin.HARVEST_COST : 0;
 		}
 		if (race == Race.FROZEN) {
 			return switch (slot) {
@@ -132,6 +140,7 @@ public final class RaceHud {
 			case MYCELID -> "res_spores";
 			case SHEPHERD -> "res_voice";
 			case FROZEN -> "res_sand";
+			case BLOODKIN -> "res_blood";
 			default -> null;
 		};
 	}
@@ -146,6 +155,8 @@ public final class RaceHud {
 			ctx.drawItem(new ItemStack(MYCELID_ICONS[slot]), x, y);
 		} else if (race == Race.FROZEN) {
 			ctx.drawItem(new ItemStack(FROZEN_ICONS[slot]), x, y);
+		} else if (race == Race.BLOODKIN) {
+			ctx.drawItem(new ItemStack(BLOODKIN_ICONS[slot]), x, y);
 		} else if (race == Race.SHEPHERD) {
 			// The Call shows the first echo of its squad
 			EchoType echo = slot == 0 ? activeSquad().keySet().stream().findFirst().flatMap(EchoType::byId).orElse(null) : null;

@@ -1,5 +1,6 @@
 package euf.mageslegacy.mixin;
 
+import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.race.Race;
@@ -35,6 +36,7 @@ public abstract class LivingEntityMixin {
 			amount = Frozen.modifyDamage((ServerPlayerEntity) self, source, amount);
 		}
 		amount = Frozen.onHit(self, source, amount);
+		amount = Bloodkin.onHit(self, source, amount);
 		return Shepherd.modifyDamage(self, source, amount);
 	}
 
@@ -42,7 +44,7 @@ public abstract class LivingEntityMixin {
 	@Inject(method = "damage", at = @At("HEAD"), cancellable = true)
 	private void mages_legacy$friendlyFire(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
 		LivingEntity self = (LivingEntity) (Object) this;
-		if (!self.getWorld().isClient() && (Shepherd.friendlyFire(self, source) || Frozen.avoids(self, source))) {
+		if (!self.getWorld().isClient() && (Shepherd.friendlyFire(self, source) || Frozen.avoids(self, source) || Bloodkin.avoids(self))) {
 			cir.setReturnValue(false);
 		}
 	}

@@ -128,6 +128,44 @@ public final class Talents {
 	public static final String FLOW_RECHARGE = add("flow_recharge", Race.FROZEN, 2, 3, 3, FLOW_REGEN, Items.CLOCK);
 	public static final String FLOW_CURRENT = add("flow_current", Race.FROZEN, 2, 4, 5, FLOW_OVERTAKE, Items.HEART_OF_THE_SEA);
 
+	// The Bloodkin: Fang (the dash and the bite), Thirst (the blood itself, the Harvest, the Sacrifice), Night (senses,
+	// the dark, the bat swarm). Same shape and prices as the other trees.
+	public static final String FANG_LEECH = add("fang_leech", Race.BLOODKIN, 0, 1, 1, null, Items.GHAST_TEAR);
+	public static final String FANG_BLEED = add("fang_bleed", Race.BLOODKIN, 0, 1, 1, null, Items.REDSTONE);
+	public static final String FANG_REACH = add("fang_reach", Race.BLOODKIN, 0, 1, 1, null, Items.FEATHER);
+	public static final String FANG_BITE = add("fang_bite", Race.BLOODKIN, 0, 2, 2, FANG_LEECH, Items.BONE);
+	public static final String FANG_EXECUTE = add("fang_execute", Race.BLOODKIN, 0, 2, 2, FANG_BITE, Items.SKELETON_SKULL);
+	public static final String FANG_DEEP = add("fang_deep", Race.BLOODKIN, 0, 2, 2, FANG_BLEED, Items.FERMENTED_SPIDER_EYE);
+	public static final String FANG_DOUBLE = add("fang_double", Race.BLOODKIN, 0, 2, 2, FANG_REACH, Items.RABBIT_FOOT);
+	public static final String FANG_FRENZY = add("fang_frenzy", Race.BLOODKIN, 0, 3, 3, FANG_EXECUTE, Items.BLAZE_POWDER);
+	public static final String FANG_OPEN = add("fang_open", Race.BLOODKIN, 0, 3, 3, FANG_DEEP, Items.RED_DYE);
+	public static final String FANG_TRAIL = add("fang_trail", Race.BLOODKIN, 0, 3, 3, FANG_DOUBLE, Items.GLISTERING_MELON_SLICE);
+	public static final String FANG_FEAST = add("fang_feast", Race.BLOODKIN, 0, 4, 5, FANG_FRENZY, Items.ENCHANTED_GOLDEN_APPLE);
+
+	public static final String THIRST_SLOW = add("thirst_slow", Race.BLOODKIN, 1, 1, 1, null, Items.GLASS_BOTTLE);
+	public static final String THIRST_HARVEST = add("thirst_harvest", Race.BLOODKIN, 1, 1, 1, null, Items.NETHER_WART);
+	public static final String THIRST_SACRIFICE = add("thirst_sacrifice", Race.BLOODKIN, 1, 1, 1, null, Items.IRON_SWORD);
+	public static final String THIRST_HUNGER = add("thirst_hunger", Race.BLOODKIN, 1, 2, 2, THIRST_SLOW, Items.ROTTEN_FLESH);
+	public static final String THIRST_EDGE = add("thirst_edge", Race.BLOODKIN, 1, 2, 2, THIRST_HUNGER, Items.GOLDEN_APPLE);
+	public static final String THIRST_DRAIN = add("thirst_drain", Race.BLOODKIN, 1, 2, 2, THIRST_HARVEST, Items.CRIMSON_FUNGUS);
+	public static final String THIRST_OFFERING = add("thirst_offering", Race.BLOODKIN, 1, 2, 2, THIRST_SACRIFICE, Items.TOTEM_OF_UNDYING);
+	public static final String THIRST_RAGE = add("thirst_rage", Race.BLOODKIN, 1, 3, 3, THIRST_EDGE, Items.MAGMA_CREAM);
+	public static final String THIRST_MARK = add("thirst_mark", Race.BLOODKIN, 1, 3, 3, THIRST_DRAIN, Items.TARGET);
+	public static final String THIRST_VESSEL = add("thirst_vessel", Race.BLOODKIN, 1, 3, 3, THIRST_OFFERING, Items.CAULDRON);
+	public static final String THIRST_STORM = add("thirst_storm", Race.BLOODKIN, 1, 4, 5, THIRST_RAGE, Items.CRIMSON_ROOTS);
+
+	public static final String NIGHT_EYES = add("night_eyes", Race.BLOODKIN, 2, 1, 1, null, Items.ENDER_EYE);
+	public static final String NIGHT_SENSE = add("night_sense", Race.BLOODKIN, 2, 1, 1, null, Items.SCULK_SENSOR);
+	public static final String NIGHT_SHADE = add("night_shade", Race.BLOODKIN, 2, 1, 1, null, Items.LEATHER_HELMET);
+	public static final String NIGHT_HUNTER = add("night_hunter", Race.BLOODKIN, 2, 2, 2, NIGHT_EYES, Items.IRON_SWORD);
+	public static final String NIGHT_BATS = add("night_bats", Race.BLOODKIN, 2, 2, 2, NIGHT_HUNTER, Items.BAT_SPAWN_EGG);
+	public static final String NIGHT_HUSH = add("night_hush", Race.BLOODKIN, 2, 2, 2, NIGHT_SENSE, Items.LEATHER_BOOTS);
+	public static final String NIGHT_CLOAK = add("night_cloak", Race.BLOODKIN, 2, 2, 2, NIGHT_SHADE, Items.BLACK_BANNER);
+	public static final String NIGHT_SWARM = add("night_swarm", Race.BLOODKIN, 2, 3, 3, NIGHT_BATS, Items.SPIDER_EYE);
+	public static final String NIGHT_AMBUSH = add("night_ambush", Race.BLOODKIN, 2, 3, 3, NIGHT_HUSH, Items.STONE_SWORD);
+	public static final String NIGHT_BLOOD = add("night_blood", Race.BLOODKIN, 2, 3, 3, NIGHT_CLOAK, Items.CLOCK);
+	public static final String NIGHT_PRINCE = add("night_prince", Race.BLOODKIN, 2, 4, 5, NIGHT_SWARM, Items.WITHER_ROSE);
+
 	private Talents() {
 	}
 

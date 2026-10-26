@@ -41,6 +41,8 @@ import net.minecraft.client.util.ScreenshotRecorder;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.mob.SpiderEntity;
 import net.minecraft.entity.mob.ZombieEntity;
 import net.minecraft.entity.passive.WolfEntity;
 import net.minecraft.item.Item;
@@ -489,6 +491,76 @@ public class HarnessClient implements ClientModInitializer {
 			screenshot(c, "talents_frozen");
 			c.setScreen(null);
 		});
+		// ---- The Bloodkin: a real Dash through a spider, the Harvest, a pig heard through a wall, the Sacrifice ----
+		step(10, false, c -> {
+			commands(c, "race set @a bloodkin", "race xp @a 3000", "race resource @a 100", "kill @e[type=!player]",
+					"item replace entity @a armor.head with minecraft:leather_helmet");
+			c.options.hudHidden = false;
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+			onServer(c, s -> {
+				spawnStill(s.getOverworld(), EntityType.SPIDER, arena.add(-3, 0, 0));
+				return null;
+			});
+			tp(c, Vec3d.ofBottomCenter(arena).add(-7, 0, 0), Vec3d.ofBottomCenter(arena).add(0, 1.0, 0));
+		});
+		step(10, false, c -> check("bloodkin_chosen", serverRace(c) == Race.BLOODKIN && ClientRaceState.race == Race.BLOODKIN));
+		step(3, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
+		step(10, false, c -> screenshot(c, "blood_dash"));
+		step(5, false, c -> {
+			check("dash_cuts", onServer(c, s -> s.getOverworld().getEntitiesByClass(SpiderEntity.class, new Box(arena).expand(12),
+					sp -> sp.getHealth() < sp.getMaxHealth()).size() == 1));
+			resetCooldowns(c);
+			UUID me = c.player.getUuid();
+			onServer(c, s -> {
+				Vec3d here = s.getPlayerManager().getPlayer(me).getPos();
+				spawnStill(s.getOverworld(), EntityType.SPIDER, BlockPos.ofFloored(here).add(3, 0, 2));
+				spawnStill(s.getOverworld(), EntityType.SPIDER, BlockPos.ofFloored(here).add(3, 0, -2));
+				return null;
+			});
+		});
+		step(5, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[1].getDefaultKey()));
+		step(6, false, c -> screenshot(c, "blood_harvest"));
+		step(5, false, c -> {
+			check("harvest_drinks", onServer(c, s -> s.getOverworld().getEntitiesByClass(SpiderEntity.class, new Box(arena).expand(16),
+					sp -> sp.getHealth() < sp.getMaxHealth()).size() >= 2));
+			commands(c, "kill @e[type=!player]");
+			// A pig behind a stone wall: a Bloodkin hears its heart through it
+			onServer(c, s -> {
+				ServerWorld world = s.getOverworld();
+				for (int dz = -2; dz <= 2; dz++) {
+					for (int dy = 0; dy < 3; dy++) {
+						world.setBlockState(arena.add(-2, dy, dz), Blocks.STONE.getDefaultState());
+					}
+				}
+				spawnStill(world, EntityType.PIG, arena.add(0, 0, 0));
+				return null;
+			});
+			tp(c, Vec3d.ofBottomCenter(arena).add(-6, 0, 0), Vec3d.ofBottomCenter(arena).add(0, 0.8, 0));
+		});
+		step(20, true, c -> screenshot(c, "heartbeat"));
+		step(5, false, c -> {
+			resetCooldowns(c);
+			KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[2].getDefaultKey());
+		});
+		step(4, false, c -> screenshot(c, "blood_sacrifice"));
+		step(10, false, c -> {
+			UUID me = c.player.getUuid();
+			check("sacrifice_pays", onServer(c, s -> s.getPlayerManager().getPlayer(me).getHealth() < s.getPlayerManager().getPlayer(me).getMaxHealth()));
+			screenshot(c, "hud_bloodkin");
+			c.setScreen(new TalentScreen());
+		});
+		step(20, false, c -> {
+			screenshot(c, "talents_bloodkin");
+			c.setScreen(null);
+			onServer(c, s -> {
+				for (int dz = -2; dz <= 2; dz++) {
+					for (int dy = 0; dy < 3; dy++) {
+						s.getOverworld().removeBlock(arena.add(-2, dy, dz), false);
+					}
+				}
+				return null;
+			});
+		});
 		step(20, false, this::finish);
 
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
@@ -514,6 +586,16 @@ public class HarnessClient implements ClientModInitializer {
 		world.setBlockState(top.add(-3, 0, 4), Blocks.RED_MUSHROOM.getDefaultState());
 		world.setBlockState(top.add(4, 0, 5), Blocks.BROWN_MUSHROOM.getDefaultState());
 		return top;
+	}
+
+	/** A mob that stands still where it's put (no AI), for the scenario to aim at. */
+	private static void spawnStill(ServerWorld world, EntityType<? extends MobEntity> type, BlockPos at) {
+		MobEntity mob = type.create(world);
+		if (mob != null) {
+			mob.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
+			mob.setAiDisabled(true);
+			world.spawnEntity(mob);
+		}
 	}
 
 	/** A real right click on the nearest wolf, the way a player would. */

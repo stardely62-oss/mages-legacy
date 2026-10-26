@@ -20,6 +20,10 @@ public final class ModParticles {
 	public static final DefaultParticleType WISP = FabricParticleTypes.simple();
 	/** A golden mote of the Song of Bonds: drifts where it's sent, glowing warm. */
 	public static final DefaultParticleType MOTE = FabricParticleTypes.simple();
+	/** A drop of blood: falls and splashes into a stain on the ground. */
+	public static final DefaultParticleType BLOOD = FabricParticleTypes.simple();
+	/** A glowing drop of drawn blood: drifts where it's sent (the Harvest's streams). */
+	public static final DefaultParticleType BLOOD_MOTE = FabricParticleTypes.simple();
 
 	private ModParticles() {
 	}
@@ -31,5 +35,7 @@ public final class ModParticles {
 		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("spore"), SPORE);
 		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("wisp"), WISP);
 		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("mote"), MOTE);
+		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("blood"), BLOOD);
+		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("blood_mote"), BLOOD_MOTE);
 	}
 }

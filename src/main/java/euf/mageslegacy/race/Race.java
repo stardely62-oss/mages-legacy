@@ -8,7 +8,7 @@ public enum Race {
 	MYCELID(0x7FB069, true),
 	SHEPHERD(0xD9B26F, true),
 	FROZEN(0x8FB8DE, true),
-	BLOODKIN(0xB23A48, false),
+	BLOODKIN(0xB23A48, true),
 	VOIDBORN(0x9B7FD4, false);
 
 	public final int color;

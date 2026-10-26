@@ -1,6 +1,7 @@
 package euf.mageslegacy;
 
 import euf.mageslegacy.block.MyceliumNodeBlock;
+import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.fx.ModParticles;
 import euf.mageslegacy.mycelid.Mycelid;
@@ -67,6 +68,7 @@ public class MagesLegacy implements ModInitializer {
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
 			Mycelid.reset();
 			Frozen.reset();
+			Bloodkin.reset();
 			Echoes.reset();
 			Creatures.reset();
 		});
@@ -107,7 +109,7 @@ public class MagesLegacy implements ModInitializer {
 		});
 		ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
 			if (entity instanceof ServerPlayerEntity player) {
-				return Mycelid.allowDeath(player) && Frozen.allowDeath(player);
+				return Mycelid.allowDeath(player) && Frozen.allowDeath(player) && Bloodkin.allowDeath(player);
 			}
 			// Echoes fade and bonded beasts go to rest instead of dying
 			return Echoes.allowDeath(entity) && Bonds.allowDeath(entity);
@@ -115,6 +117,7 @@ public class MagesLegacy implements ModInitializer {
 		ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY.register((world, killer, victim) -> {
 			if (killer instanceof ServerPlayerEntity player) {
 				Mycelid.onKill(player, victim);
+				Bloodkin.onKill(player, victim);
 			}
 			Shepherd.onKill(killer, victim);
 		});
@@ -149,6 +152,7 @@ public class MagesLegacy implements ModInitializer {
 	private static void tick(MinecraftServer server) {
 		Mycelid.tick(server);
 		Frozen.tick(server);
+		Bloodkin.tick(server);
 		int ticks = server.getTicks();
 		if (ticks % 20 == 0) {
 			Echoes.tickSecond(server);
@@ -166,6 +170,8 @@ public class MagesLegacy implements ModInitializer {
 					Shepherd.tickSecond(player, data);
 				} else if (data.race == Race.FROZEN) {
 					Frozen.tickSecond(player, data);
+				} else if (data.race == Race.BLOODKIN) {
+					Bloodkin.tickSecond(player, data);
 				}
 			}
 			// The client registers our channels a moment after joining, so the prompt waits for the tick

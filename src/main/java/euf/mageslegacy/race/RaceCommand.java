@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.shepherd.Shepherd;
@@ -96,6 +97,9 @@ public final class RaceCommand {
 		}
 		if (data.race == Race.FROZEN) {
 			Frozen.cleanup(player);
+		}
+		if (data.race == Race.BLOODKIN) {
+			Bloodkin.cleanup(player);
 		}
 	}
 }
