@@ -728,7 +728,7 @@ public final class FxRenderer {
 	}
 
 	/**
-	 * A mark on the ground in a race's own manner: a pool of blood, a clock face, a carpet of mycelium, ripples of a voice.
+	 * A mark on the ground in a race's own manner: a pool of blood, a clock face, a fairy ring of mushrooms, ripples of a voice.
 	 * It opens, holds (riding with an entity if it has one) and fades.
 	 */
 	private static final class Mark extends Effect {
@@ -750,7 +750,7 @@ public final class FxRenderer {
 
 		@Override
 		float inkStrength() {
-			return style == Fx.POOL || style == Fx.MOSS ? 1.0f : 0.7f;
+			return style == Fx.POOL ? 1.0f : 0.7f;
 		}
 
 		@Override
@@ -768,7 +768,7 @@ public final class FxRenderer {
 			switch (style) {
 				case Fx.POOL -> pool(m, vc, center, life, fade);
 				case Fx.CLOCK -> clock(m, vc, center, life, fade);
-				case Fx.MOSS -> moss(m, vc, center, life, fade);
+				case Fx.FAIRY_RING -> fairyRing(m, vc, center, life, fade);
 				default -> ripples(m, vc, center, life, fade);
 			}
 		}
@@ -831,33 +831,46 @@ public final class FxRenderer {
 		}
 
 		/**
-		 * A carpet of mycelium creeping over the ground: a dark mossy patch with an uneven edge, spores twinkling on it
-		 * and tiny glowing sprouts poking up here and there.
+		 * A fairy ring: small glowing mushrooms springing up one after another around the circle, each a pale stem
+		 * under a cap of spore light, with a faint glow on the ground at its foot.
 		 */
-		private void moss(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
-			float spread = easeOut(Math.min(1, life / 14f));
-			int glow = 0x9CFF8A;
-			blob(m, vc, c, radius * spread, inkPass ? 0.6f : 0.08f, glow, 0.4f, fade, 11);
-			if (inkPass) {
-				return;
-			}
+		private void fairyRing(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
 			java.util.Random random = new java.util.Random(seed);
-			Vec3d up = new Vec3d(0, 1, 0);
-			for (int k = 0; k < 30; k++) {
-				double a = random.nextDouble() * Math.PI * 2;
-				double d = Math.sqrt(random.nextDouble()) * radius * spread * 0.9;
-				Vec3d p = c.add(Math.cos(a) * d, 0.01, Math.sin(a) * d);
-				float twinkle = fade * (0.35f + 0.65f * (0.5f + 0.5f * MathHelper.sin(life * 0.25f + k * 1.7f)));
-				double s = 0.04 + random.nextDouble() * 0.05;
-				quad(vc, m, p.add(-s, 0, -s), p.add(s, 0, -s), p.add(s, 0, s), p.add(-s, 0, s), 0xC8FFB0, twinkle, twinkle, twinkle, twinkle);
-				// Every few, a sprout of light standing up out of the moss
-				if (k % 4 == 0) {
-					double h = (0.12 + random.nextDouble() * 0.15) * spread;
-					Vec3d side = new Vec3d(Math.cos(a + 1), 0, Math.sin(a + 1));
-					glowLine(vc, m, p, p.add(0, h, 0), side, 0.05, glow, twinkle);
-					glowLine(vc, m, p, p.add(0, h, 0), side.crossProduct(up), 0.05, glow, twinkle);
+			int count = Math.max(6, (int) (radius * Math.PI * 2 * 1.6));
+			for (int k = 0; k < count; k++) {
+				double a = Math.PI * 2 * k / count + (random.nextDouble() - 0.5) * 0.25;
+				double d = radius * (0.92 + random.nextDouble() * 0.16);
+				float size = 0.7f + random.nextFloat() * 0.6f;
+				// They come up around the ring in turn, each springing up with a little overshoot
+				float own = MathHelper.clamp((life - (float) k / count * 10) / 6f, 0, 1);
+				if (own <= 0) {
+					continue;
 				}
+				mushroom(m, vc, c.add(Math.cos(a) * d, 0, Math.sin(a) * d), size * easeOutBack(own), fade, (float) a);
 			}
+		}
+
+		/** One glowing mushroom of a fairy ring, {@code size} 1 being about a quarter of a block tall. */
+		private void mushroom(Matrix4f m, VertexConsumer vc, Vec3d foot, float size, float fade, float turn) {
+			double h = 0.24 * size;
+			double cap = 0.13 * size;
+			Vec3d top = foot.add(0, h, 0);
+			Vec3d side = new Vec3d(Math.cos(turn), 0, Math.sin(turn));
+			// The stem, pale, seen from any side
+			glowLine(vc, m, foot, top, side, 0.05 * size, 0xE8FFE0, 0.7f * fade);
+			glowLine(vc, m, foot, top, side.crossProduct(new Vec3d(0, 1, 0)), 0.05 * size, 0xE8FFE0, 0.7f * fade);
+			// The cap: a low cone of spore light, brightest at its crown
+			Vec3d crown = top.add(0, cap * 0.7, 0);
+			int segments = 8;
+			for (int i = 0; i < segments; i++) {
+				double a0 = Math.PI * 2 * i / segments;
+				double a1 = Math.PI * 2 * (i + 1) / segments;
+				Vec3d r0 = top.add(Math.cos(a0) * cap, -cap * 0.15, Math.sin(a0) * cap);
+				Vec3d r1 = top.add(Math.cos(a1) * cap, -cap * 0.15, Math.sin(a1) * cap);
+				quad(vc, m, crown, crown, r1, r0, rgb, 0.95f * fade, 0.95f * fade, 0.5f * fade, 0.5f * fade);
+			}
+			// A small glow on the ground where it stands
+			flatRing(vc, m, foot.add(0, 0.01, 0), cap * 1.2, cap, rgb, 0.25f * fade, 10);
 		}
 
 		/** A voice on the ground: soft rings rolling out from the middle one after another, fading as they go. */
