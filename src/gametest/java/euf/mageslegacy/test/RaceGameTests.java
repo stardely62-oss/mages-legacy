@@ -992,8 +992,10 @@ public class RaceGameTests implements FabricGameTest {
 			furnace.setStack(0, new ItemStack(Items.RAW_IRON, 8));
 			furnace.setStack(1, new ItemStack(Items.COAL, 4));
 			// Facing east and down at the furnace beside the wheat
+			// (a living entity looks where its head turns, so the head too)
 			player.setPitch(45);
 			player.setYaw(-90);
+			player.setHeadYaw(-90);
 			data.readyAt.clear();
 			AbilityResult quickened = Frozen.quicken(player, data);
 			for (int i = 0; i < 25; i++) {
