@@ -405,9 +405,11 @@ public class HarnessClient implements ClientModInitializer {
 			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 			screenshot(c, "frozen_before");
 		});
-		step(3, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
-		step(2, false, c -> screenshot(c, "rewind_mid"));
-		step(15, false, c -> {
+		// The key reaches the server a tick or two later; the flight itself takes half a second
+		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
+		step(3, false, c -> screenshot(c, "rewind_mid"));
+		step(12, false, c -> screenshot(c, "rewind_late"));
+		step(5, false, c -> {
 			UUID me = c.player.getUuid();
 			double x = onServer(c, s -> s.getPlayerManager().getPlayer(me).getX());
 			check("rewind_back", x < Vec3d.ofBottomCenter(arena).x - 2.5);
