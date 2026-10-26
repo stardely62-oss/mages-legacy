@@ -1230,7 +1230,9 @@ public class RaceGameTests implements FabricGameTest {
 			zombie.setVelocity(Vec3d.ZERO);
 			Voidborn.tick(world.getServer());
 			Vec3d toCenter = center.subtract(zombie.getBoundingBox().getCenter()).normalize();
-			check(zombie.getVelocity().dotProduct(toCenter) > 0.05, "the zombie is pulled towards the Well: " + zombie.getVelocity());
+			check(zombie.getVelocity().dotProduct(toCenter) > 0.05, "the zombie is pulled towards the Well: " + zombie.getVelocity() + ", zombie at "
+					+ zombie.getPos() + " removed " + zombie.isRemoved() + ", player at " + player.getPos() + " removed " + player.isRemoved()
+					+ ", zombies found near " + world.getEntitiesByClass(ZombieEntity.class, new Box(center, center).expand(8), z -> true).size());
 			zombie.discard();
 			releaseChunks(world, at);
 			done(ctx, player);
