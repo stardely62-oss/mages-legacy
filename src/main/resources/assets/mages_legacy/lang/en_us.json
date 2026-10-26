@@ -41,6 +41,7 @@
 	"mages_legacy.ability.cooldown": "The ability is still recovering",
 	"mages_legacy.ability.no_target": "Look at a block nearby",
 	"mages_legacy.ability.locked": "Opens once you have been to the Nether",
+	"mages_legacy.ability.shift_locked": "Sneak variant needs the talent \"%s\"",
 	"mages_legacy.ability.no_space": "Nowhere to sprout there",
 	"mages_legacy.mycelid.node_alone": "The mycelium has nowhere to lead: no other node nearby",
 	"mages_legacy.command.no_race": "You have not chosen a race yet",

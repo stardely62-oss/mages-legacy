@@ -1115,6 +1115,12 @@ public class RaceGameTests implements FabricGameTest {
 		data.readyAt.clear();
 		player.setHealth(4);
 		check(Bloodkin.sacrifice(player, data) == AbilityResult.HINTED && player.getHealth() == 4, "the Sacrifice never kills");
+		// Sneak + Z before the Swarm talent: a hint, never a silent Sacrifice
+		data.readyAt.clear();
+		player.setHealth(20);
+		player.setSneaking(true);
+		check(Bloodkin.use(player, data, 2) == AbilityResult.HINTED && player.getHealth() == 20, "sneak + Z without the Swarm only hints");
+		player.setSneaking(false);
 		spider.discard();
 		other.discard();
 		done(ctx, player);

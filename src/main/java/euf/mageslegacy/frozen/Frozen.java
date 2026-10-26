@@ -495,8 +495,10 @@ public final class Frozen {
 	public static AbilityResult use(ServerPlayerEntity player, RaceData data, int slot) {
 		return switch (slot) {
 			case 0 -> rewind(player, data);
-			case 1 -> player.isSneaking() && data.has(Talents.STASIS_FREEZE) ? freeze(player, data) : dome(player, data);
-			case 2 -> player.isSneaking() && data.has(Talents.FLOW_CURRENT) ? current(player, data) : quicken(player, data);
+			case 1 -> !player.isSneaking() ? dome(player, data) : data.has(Talents.STASIS_FREEZE) ? freeze(player, data)
+					: RaceData.shiftLocked(player, Talents.STASIS_FREEZE);
+			case 2 -> !player.isSneaking() ? quicken(player, data) : data.has(Talents.FLOW_CURRENT) ? current(player, data)
+					: RaceData.shiftLocked(player, Talents.FLOW_CURRENT);
 			default -> AbilityResult.LOCKED;
 		};
 	}
@@ -538,7 +540,10 @@ public final class Frozen {
 		}
 		ServerPlayerEntity target = player;
 		int cost = rewindCost(data.has(Talents.LOOP_CHEAP));
-		if (player.isSneaking() && data.has(Talents.LOOP_ALLY)) {
+		if (player.isSneaking()) {
+			if (!data.has(Talents.LOOP_ALLY)) {
+				return RaceData.shiftLocked(player, Talents.LOOP_ALLY);
+			}
 			target = lookedAtPlayer(player, 16);
 			if (target == null) {
 				return AbilityResult.NO_TARGET;

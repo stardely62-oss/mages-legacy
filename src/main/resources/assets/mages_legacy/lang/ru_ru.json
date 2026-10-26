@@ -41,6 +41,7 @@
 	"mages_legacy.ability.cooldown": "Способность ещё восстанавливается",
 	"mages_legacy.ability.no_target": "Посмотрите на блок рядом",
 	"mages_legacy.ability.locked": "Откроется, когда вы побываете в Незере",
+	"mages_legacy.ability.shift_locked": "Shift-вариант откроет талант «%s»",
 	"mages_legacy.ability.no_space": "Там негде прорасти",
 	"mages_legacy.mycelid.node_alone": "Грибнице некуда вести: других узлов рядом нет",
 	"mages_legacy.command.no_race": "Вы ещё не выбрали расу",

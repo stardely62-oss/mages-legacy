@@ -18,7 +18,8 @@ public final class HeartbeatSense {
 
 	public static boolean hears(Entity entity) {
 		MinecraftClient client = MinecraftClient.getInstance();
-		if (ClientRaceState.race != Race.BLOODKIN || client.player == null || entity == client.player || !Bloodkin.hasBlood(entity)) {
+		if (ClientRaceState.race != Race.BLOODKIN || client.player == null || entity == client.player || !Bloodkin.hasBlood(entity)
+				|| Bloodkin.swarmBat(entity)) {
 			return false;
 		}
 		int range = ClientRaceState.talents.contains(Talents.NIGHT_SENSE) ? Bloodkin.SENSE_WIDE : Bloodkin.SENSE;

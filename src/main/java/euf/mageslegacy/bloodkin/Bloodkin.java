@@ -140,6 +140,11 @@ public final class Bloodkin {
 	}
 
 	/** A living creature with blood to drink right now. */
+	/** A bat of some Bloodkin's swarm: part of a body, not prey, so heartbeat sense skips it. */
+	public static boolean swarmBat(Entity entity) {
+		return entity instanceof BatEntity && entity.isSilent();
+	}
+
 	public static boolean hasBlood(Entity entity) {
 		return bloodful(entity) && entity.isAlive();
 	}
@@ -386,8 +391,10 @@ public final class Bloodkin {
 	public static AbilityResult use(ServerPlayerEntity player, RaceData data, int slot) {
 		return switch (slot) {
 			case 0 -> dash(player, data);
-			case 1 -> player.isSneaking() && data.has(Talents.FANG_FEAST) ? feast(player, data) : harvest(player, data);
-			case 2 -> player.isSneaking() && data.has(Talents.NIGHT_BATS) ? swarm(player, data) : sacrifice(player, data);
+			case 1 -> !player.isSneaking() ? harvest(player, data) : data.has(Talents.FANG_FEAST) ? feast(player, data)
+					: RaceData.shiftLocked(player, Talents.FANG_FEAST);
+			case 2 -> !player.isSneaking() ? sacrifice(player, data) : data.has(Talents.NIGHT_BATS) ? swarm(player, data)
+					: RaceData.shiftLocked(player, Talents.NIGHT_BATS);
 			default -> AbilityResult.LOCKED;
 		};
 	}
@@ -642,6 +649,8 @@ public final class Bloodkin {
 					player.getZ() + (world.getRandom().nextDouble() - 0.5), world.getRandom().nextFloat() * 360, 0);
 			bat.setInvulnerable(true);
 			bat.addCommandTag("mages_legacy_swarm");
+			// Silence is synced, so clients can tell the swarm from wild bats (see swarmBat)
+			bat.setSilent(true);
 			world.spawnEntity(bat);
 			bats.add(bat);
 		}
@@ -672,8 +681,10 @@ public final class Bloodkin {
 			player.fallDistance = 0;
 			ServerWorld world = player.getServerWorld();
 			for (BatEntity bat : s.bats()) {
-				Vec3d spot = player.getPos().add((world.getRandom().nextDouble() - 0.5) * 2, 0.6 + world.getRandom().nextDouble() * 1.4,
-						(world.getRandom().nextDouble() - 0.5) * 2);
+				// A ring around the body, never in the Bloodkin's own face
+				double a = world.getRandom().nextDouble() * Math.PI * 2;
+				double r = 1.4 + world.getRandom().nextDouble();
+				Vec3d spot = player.getPos().add(Math.cos(a) * r, 0.2 + world.getRandom().nextDouble() * 1.4, Math.sin(a) * r);
 				bat.setVelocity(spot.subtract(bat.getPos()).multiply(0.4));
 				bat.velocityModified = true;
 			}

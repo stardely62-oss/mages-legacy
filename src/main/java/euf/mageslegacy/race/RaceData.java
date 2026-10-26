@@ -11,6 +11,8 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
 
 /** One player's race, resource, experience and talents. Cooldowns and chains are not saved. */
 public class RaceData {
@@ -37,6 +39,15 @@ public class RaceData {
 
 	public boolean has(String talent) {
 		return talents.contains(talent);
+	}
+
+	/**
+	 * Sneak + key without the talent that opens that variant: say which talent it is, rather than quietly doing the
+	 * plain ability (which looks as if sneaking were ignored).
+	 */
+	public static AbilityResult shiftLocked(ServerPlayerEntity player, String talent) {
+		player.sendMessage(Text.translatable("mages_legacy.ability.shift_locked", Text.translatable("mages_legacy.talent." + talent)), true);
+		return AbilityResult.HINTED;
 	}
 
 	public void addResource(float amount) {
