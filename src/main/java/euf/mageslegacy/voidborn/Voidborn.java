@@ -104,6 +104,9 @@ public final class Voidborn {
 	private static final List<Held> HELD = new ArrayList<>();
 	private static final List<Passage> PASSAGES = new ArrayList<>();
 	private static final List<Door> DOORS = new ArrayList<>();
+	/** When each Voidborn was last hurt (server ticks): the pocket doesn't open for one still under blows. */
+	private static final java.util.Map<UUID, Long> LAST_HURT = new java.util.HashMap<>();
+	private static final int POCKET_CALM = 100;
 	/** Until when (client world time) this client's own player phases through blocks; set by the effect packet. */
 	public static long clientPhaseUntil;
 
@@ -117,6 +120,14 @@ public final class Voidborn {
 		HELD.clear();
 		PASSAGES.clear();
 		DOORS.clear();
+		LAST_HURT.clear();
+	}
+
+	/** A Voidborn took a blow: for a few seconds its pocket won't open. */
+	public static void onHurt(LivingEntity self, float amount) {
+		if (amount > 0 && self instanceof ServerPlayerEntity player && is(player)) {
+			LAST_HURT.put(player.getUuid(), now(player.getServer()));
+		}
 	}
 
 	// ---- what the talents change ----
@@ -790,6 +801,11 @@ public final class Voidborn {
 			return AbilityResult.HINTED;
 		}
 		boolean in = !Pocket.inOwnRoom(player, data);
+		Long hurt = LAST_HURT.get(player.getUuid());
+		if (in && hurt != null && now(player.getServer()) - hurt < POCKET_CALM) {
+			player.sendMessage(Text.translatable("mages_legacy.voidborn.pocket_calm"), true);
+			return AbilityResult.HINTED;
+		}
 		if (in) {
 			if (!ready(player, data, 3)) {
 				return AbilityResult.COOLDOWN;

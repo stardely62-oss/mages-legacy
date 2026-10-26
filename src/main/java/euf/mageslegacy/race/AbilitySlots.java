@@ -51,11 +51,21 @@ public final class AbilitySlots {
 	 * almost at once, the others as the race grows; abilities a talent opens need only that talent.
 	 */
 	public static int unlockLevel(Race race, int slot) {
+		// The Voidborn start from their pocket: home first, the rest of the void after
+		if (race == Race.VOIDBORN) {
+			return switch (slot) {
+				case 0 -> 3;
+				case 1 -> 6;
+				case 2 -> 10;
+				case 3 -> 1;
+				default -> 0;
+			};
+		}
 		return switch (slot) {
 			case 0 -> 1;
 			case 1 -> 5;
 			case 2 -> 10;
-			case 3 -> race == Race.SHEPHERD ? 3 : race == Race.VOIDBORN ? 8 : 0;
+			case 3 -> race == Race.SHEPHERD ? 3 : 0;
 			default -> 0;
 		};
 	}

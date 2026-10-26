@@ -830,7 +830,7 @@
 	"mages_legacy.talent.night_prince.desc": "Crown. At night +25% damage and Speed, and a killing blow at night scatters you into a swarm with 30% health instead of killing you (once in 20 minutes).",
 	"mages_legacy.race.voidborn.weak.3": "The world's beds won't hold them: they sleep only in the Pocket",
 	"mages_legacy.ability.voidborn.4.name": "Pocket",
-	"mages_legacy.ability.voidborn.4.desc": "A rift opens before you, and a moment later you are in your Pocket. Pressed there, it takes you back to the very spot you left. Going in: 20 void, once in 10 seconds; coming out is free.",
+	"mages_legacy.ability.voidborn.4.desc": "A rift opens before you, and a moment later you are in your Pocket. Pressed there, it takes you back to the very spot you left. It won't open within 5 seconds of a blow. Going in: 20 void, once in 10 seconds; coming out is free.",
 	"mages_legacy.ability.voidborn.4.lore": "A home always one step away.",
 	"mages_legacy.ability.no_resource.voidborn": "Not enough void: it gathers in the dark and in the Pocket",
 	"mages_legacy.voidborn.no_sleep": "This world's beds won't hold you: you can sleep only in your Pocket",
@@ -964,5 +964,6 @@
 	"mages_legacy.xp.bloodkin.5": "Kill any monster",
 	"mages_legacy.xp.bloodkin.5.amount": "+1",
 	"mages_legacy.xp.voidborn.5": "Kill any monster",
-	"mages_legacy.xp.voidborn.5.amount": "+1"
+	"mages_legacy.xp.voidborn.5.amount": "+1",
+	"mages_legacy.voidborn.pocket_calm": "The void won't open under blows: catch your breath"
 }

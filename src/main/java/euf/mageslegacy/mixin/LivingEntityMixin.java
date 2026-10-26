@@ -36,6 +36,7 @@ public abstract class LivingEntityMixin {
 		} else if (race == Race.FROZEN) {
 			amount = Frozen.modifyDamage((ServerPlayerEntity) self, source, amount);
 		}
+		Voidborn.onHurt(self, amount);
 		amount = Frozen.onHit(self, source, amount);
 		amount = Bloodkin.onHit(self, source, amount);
 		return Shepherd.modifyDamage(self, source, amount);

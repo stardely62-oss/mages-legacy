@@ -830,7 +830,7 @@
 	"mages_legacy.talent.night_prince.desc": "Венец. Ночью +25% урона и Скорость, а смертельный удар ночью вместо смерти рассыпает вас роем с 30% здоровья (раз в 20 минут).",
 	"mages_legacy.race.voidborn.weak.3": "Кровати мира их не держат: спать можно только в Кармане",
 	"mages_legacy.ability.voidborn.4.name": "Карман",
-	"mages_legacy.ability.voidborn.4.desc": "Перед вами раскрывается разлом, и через миг вы в своём Кармане. Повторное нажатие там вернёт вас ровно туда, откуда вы ушли. Вход 20 пустоты, раз в 10 секунд; выход бесплатный.",
+	"mages_legacy.ability.voidborn.4.desc": "Перед вами раскрывается разлом, и через миг вы в своём Кармане. Повторное нажатие там вернёт вас ровно туда, откуда вы ушли. Войти нельзя 5 секунд после полученного урона. Вход 20 пустоты, раз в 10 секунд; выход бесплатный.",
 	"mages_legacy.ability.voidborn.4.lore": "Дом, который всегда в шаге от тебя.",
 	"mages_legacy.ability.no_resource.voidborn": "Не хватает пустоты: она копится во тьме и в Кармане",
 	"mages_legacy.voidborn.no_sleep": "Кровати этого мира вас не держат: спать можно только в Кармане",
@@ -964,5 +964,6 @@
 	"mages_legacy.xp.bloodkin.5": "Убить любого монстра",
 	"mages_legacy.xp.bloodkin.5.amount": "+1",
 	"mages_legacy.xp.voidborn.5": "Убить любого монстра",
-	"mages_legacy.xp.voidborn.5.amount": "+1"
+	"mages_legacy.xp.voidborn.5.amount": "+1",
+	"mages_legacy.voidborn.pocket_calm": "Пустота не раскрывается под ударами: переведите дух"
 }
