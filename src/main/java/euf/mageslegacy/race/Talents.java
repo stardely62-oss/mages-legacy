@@ -99,10 +99,10 @@ public final class Talents {
 	public static final String LOOP_CLEANSE = add("loop_cleanse", Race.FROZEN, 0, 2, 2, LOOP_LONG, Items.MILK_BUCKET);
 	public static final String LOOP_SHARDS = add("loop_shards", Race.FROZEN, 0, 2, 2, LOOP_CHEAP, Items.PACKED_ICE);
 	public static final String LOOP_HASTE = add("loop_haste", Race.FROZEN, 0, 2, 2, LOOP_QUICK, Items.FEATHER);
-	public static final String LOOP_LAST = add("loop_last", Race.FROZEN, 0, 3, 3, LOOP_CLEANSE, Items.TOTEM_OF_UNDYING);
+	public static final String LOOP_STRIKE = add("loop_strike", Race.FROZEN, 0, 3, 3, LOOP_CLEANSE, Items.DIAMOND_SWORD);
 	public static final String LOOP_RETURN = add("loop_return", Race.FROZEN, 0, 3, 3, LOOP_SHARDS, Items.ENDER_PEARL);
 	public static final String LOOP_ALLY = add("loop_ally", Race.FROZEN, 0, 3, 3, LOOP_HASTE, Items.LEAD);
-	public static final String LOOP_ETERNAL = add("loop_eternal", Race.FROZEN, 0, 4, 5, LOOP_LAST, Items.NETHER_STAR);
+	public static final String LOOP_ETERNAL = add("loop_eternal", Race.FROZEN, 0, 4, 5, LOOP_STRIKE, Items.NETHER_STAR);
 
 	public static final String STASIS_WIDE = add("stasis_wide", Race.FROZEN, 1, 1, 1, null, Items.BLUE_ICE);
 	public static final String STASIS_LONG = add("stasis_long", Race.FROZEN, 1, 1, 1, null, Items.CLOCK);

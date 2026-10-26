@@ -87,10 +87,12 @@ public final class Frozen {
 	private static final int STOP_COOLDOWN = 6000;
 	private static final int STOP_TICKS = 60;
 	private static final int STOP_RADIUS = 16;
-	private static final int LAST_SLOT = 6;
+	private static final int STRIKE_TICKS = 80;
 	private static final int ETERNAL_SLOT = 7;
 	private static final int ETERNAL_TICKS = 120;
 	private static final int CURRENT_SLOT = 8;
+	private static final int CURRENT_TICKS = 600;
+	private static final int CURRENT_COOLDOWN = 6000;
 	private static final int LONG_COOLDOWN = 12000;
 	private static final int NUMB_AFTER = 12000;
 	public static final float BLUR_CHANCE = 0.1f;
@@ -166,6 +168,10 @@ public final class Frozen {
 	private static final List<Quick> QUICK = new ArrayList<>();
 	private static final Map<UUID, Hold> HELD_MOBS = new HashMap<>();
 	private static final Map<UUID, Eternal> ETERNAL = new HashMap<>();
+	/** Strike from the Past: until when the next blow of a Frozen is doubled. */
+	private static final Map<UUID, Long> STRIKE = new HashMap<>();
+	/** The Current: until when a Frozen's abilities recharge twice as fast. */
+	private static final Map<UUID, Long> CURRENT = new HashMap<>();
 	/** Silhouettes left where a Rewind began: the frozen shape glints for a second. */
 	private static final List<Hold> SHAPES_AT = new ArrayList<>();
 	private static final List<Vec3d> SHAPES = new ArrayList<>();
@@ -184,6 +190,8 @@ public final class Frozen {
 		QUICK.clear();
 		HELD_MOBS.clear();
 		ETERNAL.clear();
+		STRIKE.clear();
+		CURRENT.clear();
 		SHAPES_AT.clear();
 		SHAPES.clear();
 		SPENT_AT.clear();
@@ -203,6 +211,11 @@ public final class Frozen {
 	}
 
 	private static void cooldown(ServerPlayerEntity player, RaceData data, int slot, int ticks) {
+		// In the Current time runs twice as fast for the Frozen: the three abilities recharge in half the time
+		Long current = CURRENT.get(player.getUuid());
+		if (slot <= 2 && current != null && current > now(player.getServer())) {
+			ticks /= 2;
+		}
 		data.readyAt.put(slot, now(player.getServer()) + ticks);
 		data.dirty = true;
 	}
@@ -290,7 +303,7 @@ public final class Frozen {
 	// ---- once a second ----
 
 	public static void tickSecond(ServerPlayerEntity player, RaceData data) {
-		data.addResource(data.has(Talents.FLOW_SAND) ? 0.8f : 0.4f);
+		data.addResource(data.has(Talents.FLOW_SAND) ? 1.0f : 0.5f);
 		long now = now(player.getServer());
 		long spent = SPENT_AT.computeIfAbsent(player.getUuid(), id -> now);
 		if (!data.has(Talents.FLOW_NUMB) && now - spent > NUMB_AFTER) {
@@ -332,15 +345,16 @@ public final class Frozen {
 	}
 
 	/**
-	 * Potions and other good effects last 30% shorter on the Frozen (time slips past them), unless Lasting Memory.
+	 * Potions and other good effects last 30% shorter on the Frozen (time slips past them), 15% with Lasting Memory.
 	 * Ambient effects (beacons, the races' own passives) and short ones are left alone.
 	 */
 	public static StatusEffectInstance shorten(LivingEntity entity, StatusEffectInstance effect) {
 		if (!(entity instanceof ServerPlayerEntity player) || effect.isAmbient() || effect.isInfinite() || effect.getDuration() <= 60
-				|| !effect.getEffectType().isBeneficial() || !is(player) || RaceState.of(player).has(Talents.FLOW_POTIONS)) {
+				|| !effect.getEffectType().isBeneficial() || !is(player)) {
 			return effect;
 		}
-		return new StatusEffectInstance(effect.getEffectType(), (int) (effect.getDuration() * 0.7f), effect.getAmplifier(), false,
+		float keep = RaceState.of(player).has(Talents.FLOW_POTIONS) ? 0.85f : 0.7f;
+		return new StatusEffectInstance(effect.getEffectType(), (int) (effect.getDuration() * keep), effect.getAmplifier(), false,
 				effect.shouldShowParticles(), effect.shouldShowIcon());
 	}
 
@@ -400,7 +414,7 @@ public final class Frozen {
 		return amount;
 	}
 
-	/** Last Rewind: a killing blow throws the Frozen back along its trail instead, once in 10 minutes. */
+	/** The Eternal Moment holds: no death while it lasts. */
 	public static boolean allowDeath(ServerPlayerEntity player) {
 		RaceData data = RaceState.of(player);
 		if (data == null || data.race != Race.FROZEN) {
@@ -410,18 +424,22 @@ public final class Frozen {
 			player.setHealth(1);
 			return false;
 		}
-		if (!data.has(Talents.LOOP_LAST) || !ready(player, data, LAST_SLOT)) {
-			return true;
+		return true;
+	}
+
+	/** Strike from the Past: a Frozen's own blow soon after a Rewind deals double damage, once. */
+	public static float strike(DamageSource source, float amount) {
+		if (STRIKE.isEmpty() || !(source.getAttacker() instanceof ServerPlayerEntity player) || source.getSource() != player) {
+			return amount;
 		}
-		List<Point> trail = trail(player, data);
-		if (trail.size() < 2) {
-			return true;
+		Long until = STRIKE.remove(player.getUuid());
+		if (until == null || until < now(player.getServer())) {
+			return amount;
 		}
-		player.setHealth(Math.max(trail.get(trail.size() - 1).health(), player.getMaxHealth() * 0.3f));
-		cooldown(player, data, LAST_SLOT, LONG_COOLDOWN);
-		fly(player, player, data, trail, false);
-		player.sendMessage(Text.translatable("mages_legacy.frozen.last").formatted(Formatting.AQUA), false);
-		return false;
+		ServerWorld world = player.getServerWorld();
+		world.spawnParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 1.2, player.getZ(), 12, 0.4, 0.3, 0.4, 0.1);
+		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_BREAK, SoundCategory.PLAYERS, 1.0f, 1.5f);
+		return amount * 2;
 	}
 
 	// ---- abilities ----
@@ -589,8 +607,13 @@ public final class Frozen {
 		if (data == null) {
 			return;
 		}
+		// Body's Memory: half of the health lost on the way comes back
 		if (data.has(Talents.LOOP_HEAL) && f.health > player.getHealth()) {
-			player.setHealth(Math.min(player.getMaxHealth(), f.health));
+			player.setHealth(Math.min(player.getMaxHealth(), player.getHealth() + (f.health - player.getHealth()) / 2));
+		}
+		// Strike from the Past: the first blow after landing hits twice as hard
+		if (caster == player && data.has(Talents.LOOP_STRIKE)) {
+			STRIKE.put(player.getUuid(), now(player.getServer()) + STRIKE_TICKS);
 		}
 		if (data.has(Talents.LOOP_CLEANSE)) {
 			player.getStatusEffects().stream().filter(e -> !e.getEffectType().isBeneficial()).map(StatusEffectInstance::getEffectType).toList()
@@ -923,7 +946,10 @@ public final class Frozen {
 		return QUICK.stream().anyMatch(q -> q.world() == world && q.pos().equals(pos));
 	}
 
-	/** The Current crown (sneak + G): for 20 seconds the Frozen does everything twice as fast. */
+	/**
+	 * The Current crown (sneak + G): for 30 seconds the Frozen does everything twice as fast, its abilities
+	 * recharging in half the time too. Once in 5 minutes.
+	 */
 	public static AbilityResult current(ServerPlayerEntity player, RaceData data) {
 		if (!ready(player, data, CURRENT_SLOT)) {
 			return AbilityResult.COOLDOWN;
@@ -932,10 +958,11 @@ public final class Frozen {
 			return AbilityResult.NO_RESOURCE;
 		}
 		spend(player, data, CURRENT_COST);
-		cooldown(player, data, CURRENT_SLOT, LONG_COOLDOWN);
-		player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 400, 1, true, true, true));
-		player.addStatusEffect(new StatusEffectInstance(StatusEffects.HASTE, 400, 1, true, true, true));
-		player.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 400, 0, true, true, true));
+		cooldown(player, data, CURRENT_SLOT, CURRENT_COOLDOWN);
+		CURRENT.put(player.getUuid(), now(player.getServer()) + CURRENT_TICKS);
+		player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, CURRENT_TICKS, 1, true, true, true));
+		player.addStatusEffect(new StatusEffectInstance(StatusEffects.HASTE, CURRENT_TICKS, 1, true, true, true));
+		player.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, CURRENT_TICKS, 0, true, true, true));
 		ServerWorld world = player.getServerWorld();
 		world.spawnParticles(SAND, player.getX(), player.getY() + 1, player.getZ(), 40, 0.6, 0.8, 0.6, 0);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundCategory.PLAYERS, 1.0f, 2.0f);
