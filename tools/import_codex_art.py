@@ -78,6 +78,19 @@ def add_rim(img, rim=(122, 100, 92, 255)):
     return out
 
 
+def spectral(img, tint=(159, 232, 224)):
+    """Half the mob's own colour, half the pale spirit cyan: still recognisable, clearly a ghost."""
+    out = img.copy()
+    px = out.load()
+    for y in range(img.size[1]):
+        for x in range(img.size[0]):
+            r, g, b, a = px[x, y]
+            if a:
+                lum = (r * 3 + g * 6 + b) / 10 / 255
+                px[x, y] = tuple(min(255, int(c * 0.45 + t * lum * 0.75 + 20)) for c, t in zip((r, g, b), tint)) + (a,)
+    return out
+
+
 def convert(path):
     name = path.stem
     img = Image.open(path).convert("RGB")
@@ -85,6 +98,11 @@ def convert(path):
         return reduce(sample(img, 144, 96, False), 32), GUI / f"{name}.png"
     if name.startswith("emblem_"):
         return add_rim(reduce(sample(crop_to_symbol(img), 64, 64, True), 24)), GUI / "emblem" / f"{name[7:]}.png"
+    # Bestiary portraits: beasts in their own colours, echoes washed in the spirit cyan they wear in the world
+    if name.startswith("beast_"):
+        return add_rim(reduce(sample(crop_to_symbol(img), 32, 32, True), 16)), GUI / "beast" / f"{name[6:]}.png"
+    if name.startswith("echo_"):
+        return add_rim(spectral(reduce(sample(crop_to_symbol(img), 32, 32, True), 16))), GUI / "echo" / f"{name[5:]}.png"
     return add_rim(reduce(sample(crop_to_symbol(img), 32, 32, True), 16)), GUI / "icon" / f"{name}.png"
 
 
