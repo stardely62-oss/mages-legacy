@@ -1,5 +1,6 @@
 package euf.mageslegacy.block;
 
+import euf.mageslegacy.fx.ModParticles;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.race.RaceState;
 import net.minecraft.block.Block;
@@ -50,8 +51,13 @@ public class MyceliumNodeBlock extends Block {
 		super.onStateReplaced(state, world, pos, newState, moved);
 	}
 
+	/** A living node breathes: glowing spores keep drifting up from it, now and then a blossom's speck. */
 	@Override
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		for (int i = 0; i < 4; i++) {
+			world.addParticle(ModParticles.SPORE, pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 0.8, pos.getY() + 0.4 + random.nextDouble() * 0.6,
+					pos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 0.8, 0, 0.02, 0);
+		}
 		if (random.nextInt(3) == 0) {
 			world.addParticle(ParticleTypes.SPORE_BLOSSOM_AIR, pos.getX() + random.nextDouble(), pos.getY() + 0.8,
 					pos.getZ() + random.nextDouble(), 0, 0.01, 0);

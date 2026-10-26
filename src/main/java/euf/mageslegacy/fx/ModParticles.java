@@ -18,6 +18,8 @@ public final class ModParticles {
 	public static final DefaultParticleType SPORE = FabricParticleTypes.simple();
 	/** A spirit wisp: rises flickering, glowing. */
 	public static final DefaultParticleType WISP = FabricParticleTypes.simple();
+	/** A golden mote of the Song of Bonds: drifts where it's sent, glowing warm. */
+	public static final DefaultParticleType MOTE = FabricParticleTypes.simple();
 
 	private ModParticles() {
 	}
@@ -28,5 +30,6 @@ public final class ModParticles {
 		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("ice_shard"), ICE_SHARD);
 		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("spore"), SPORE);
 		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("wisp"), WISP);
+		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("mote"), MOTE);
 	}
 }

@@ -22,6 +22,7 @@ public final class RaceParticles {
 		registry.register(ModParticles.ICE_SHARD, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Shard(world, x, y, z, vx, vy, vz, sprites));
 		registry.register(ModParticles.SPORE, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Spore(world, x, y, z, vx, vy, vz, sprites));
 		registry.register(ModParticles.WISP, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Wisp(world, x, y, z, vx, vy, vz, sprites));
+		registry.register(ModParticles.MOTE, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Mote(world, x, y, z, vx, vy, vz, sprites));
 	}
 
 	/** Fades in over the first few ticks and out over the last third. */
@@ -139,6 +140,44 @@ public final class RaceParticles {
 			velocityZ += MathHelper.cos(age * 0.13f + sway) * 0.002;
 			setSpriteForAge(sprites);
 			alpha = lifeAlpha(age, maxAge, 6) * 0.9f;
+		}
+
+		@Override
+		public int getBrightness(float tint) {
+			return FULL_BRIGHT;
+		}
+
+		@Override
+		public ParticleTextureSheet getType() {
+			return ParticleTextureSheet.PARTICLE_SHEET_TRANSLUCENT;
+		}
+	}
+
+	/** A golden mote of the Song: carried along its velocity with a gentle wave, glowing warm, pulsing as it goes. */
+	static final class Mote extends SpriteBillboardParticle {
+		private final SpriteProvider sprites;
+		private final float phase;
+
+		Mote(ClientWorld world, double x, double y, double z, double vx, double vy, double vz, SpriteProvider sprites) {
+			super(world, x, y, z);
+			this.sprites = sprites;
+			velocityX = vx;
+			velocityY = vy;
+			velocityZ = vz;
+			gravityStrength = 0;
+			velocityMultiplier = 0.9f;
+			scale = 0.08f + random.nextFloat() * 0.05f;
+			maxAge = 26 + random.nextInt(14);
+			phase = random.nextFloat() * MathHelper.TAU;
+			setSpriteForAge(sprites);
+		}
+
+		@Override
+		public void tick() {
+			super.tick();
+			velocityY += MathHelper.sin(age * 0.4f + phase) * 0.004;
+			setSpriteForAge(sprites);
+			alpha = lifeAlpha(age, maxAge, 4);
 		}
 
 		@Override

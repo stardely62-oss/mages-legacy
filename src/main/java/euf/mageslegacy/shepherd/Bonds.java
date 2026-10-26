@@ -1,6 +1,7 @@
 package euf.mageslegacy.shepherd;
 
 import euf.mageslegacy.fx.Fx;
+import euf.mageslegacy.fx.ModParticles;
 import euf.mageslegacy.mixin.FoxEntityInvoker;
 import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Progression;
@@ -194,9 +195,20 @@ public final class Bonds {
 		ritual.kind = kind.id();
 		data.dirty = true;
 		ServerWorld world = player.getServerWorld();
-		for (int i = 0; i < 8; i++) {
-			world.spawnParticles(ParticleTypes.NOTE, mob.getX() + (i - 4) * 0.15, mob.getY() + mob.getHeight() + 0.3 + (i % 3) * 0.2, mob.getZ(),
-					0, i / 24.0, 0, 0, 1);
+		// The voice made visible: a stream of golden motes flows from the Shepherd to the beast and settles around it
+		Vec3d from = player.getEyePos().subtract(0, 0.3, 0);
+		Vec3d to = mob.getPos().add(0, mob.getHeight() * 0.6, 0);
+		Vec3d way = to.subtract(from);
+		for (int i = 0; i < 18; i++) {
+			Vec3d at = from.add(way.multiply(i / 18.0 * 0.4));
+			Vec3d push = way.multiply(0.06 + world.getRandom().nextDouble() * 0.015);
+			world.spawnParticles(ModParticles.MOTE, at.x, at.y, at.z, 0, push.x, push.y, push.z, 1);
+		}
+		for (int i = 0; i < 10; i++) {
+			double a = Math.PI * 2 * i / 10;
+			double r = Math.max(0.6, mob.getWidth());
+			world.spawnParticles(ModParticles.MOTE, to.x + Math.cos(a) * r, to.y, to.z + Math.sin(a) * r, 0, -Math.sin(a) * 0.06, 0.02,
+					Math.cos(a) * 0.06, 1);
 		}
 		world.playSound(null, mob.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.0f, 0.8f);
 		world.playSound(null, mob.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.0f, 1.2f);

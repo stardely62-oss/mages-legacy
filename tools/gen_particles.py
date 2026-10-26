@@ -1,6 +1,6 @@
 """Draws the particle sprites of Mage's Legacy (8x8 pixel art) and their particle definitions.
 
-Sand grains, ice shards, spores and spirit wisps, a few variants or animation frames each.
+Sand grains, ice shards, spores, spirit wisps and the Song's golden motes, a few variants or frames each.
 Needs Pillow:  python3 tools/gen_particles.py
 """
 import json
@@ -55,12 +55,20 @@ WISPS = [
     ["...f....", "...bf...", "..bcb...", "..cwwc..", ".bcwwb..", ".bcwcb..", "..bcb...", "...f....", ],
 ]
 
+MOTE = {"w": (255, 248, 220, 255), "g": (240, 200, 120, 255), "o": (200, 150, 80, 180), "f": (170, 120, 60, 80)}
+MOTES = [
+    ["........", "........", "........", "...gw...", "...wg...", "........", "........", "........"],
+    ["........", "........", "...ff...", "..fgwf..", "..fwgf..", "...ff...", "........", "........"],
+    ["........", "...f....", "..fof...", ".fowgf..", "..fgwof.", "...fof..", "....f...", "........"],
+]
+
 KINDS = {
     "sand": (GRAINS, SAND),
     "still_sand": (GRAINS, SAND),
     "ice_shard": (SHARDS, ICE),
     "spore": (SPORES, SPORE),
     "wisp": (WISPS, WISP),
+    "mote": (MOTES, MOTE),
 }
 
 
