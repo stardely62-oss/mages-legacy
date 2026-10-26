@@ -346,7 +346,7 @@
 	"mages_legacy.talent.legion_army.desc": "Crown. Rally calls one echo of every learned kind for 30 seconds, free of capacity. Once in 10 minutes.",
 	"mages_legacy.talent.pack_fed": "Well-Fed Pack",
 	"mages_legacy.talent.pack_fed.lore": "A fed beast knows no weariness.",
-	"mages_legacy.talent.pack_fed.desc": "Feeding heals a beast fully. Being fed lasts 20 minutes instead of 10, gives +25% damage instead of +10% and heals a heart every 2 seconds instead of 5.",
+	"mages_legacy.talent.pack_fed.desc": "Feeding heals a beast fully. Being fed lasts 20 minutes instead of 10, gives +15% damage instead of +10% and heals a heart every 2 seconds instead of 5.",
 	"mages_legacy.talent.pack_thick": "Thick Fur",
 	"mages_legacy.talent.pack_thick.lore": "Bonded beasts grow sturdy beside you.",
 	"mages_legacy.talent.pack_thick.desc": "Bonded beasts get 30% more health.",

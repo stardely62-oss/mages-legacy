@@ -290,9 +290,9 @@ public final class Bonds {
 		return bond.pettedAt == 0 || now - bond.pettedAt >= PET_GAP;
 	}
 
-	/** A fed beast hits harder: +10%, +25% with Fed Pack. */
+	/** A fed beast hits harder: +10%, +15% with Fed Pack. */
 	public static float fedBonus(RaceData data, Bond bond, long now) {
-		return bond.fedUntil > now ? (data.has(Talents.PACK_FED) ? 1.25f : 1.1f) : 1.0f;
+		return bond.fedUntil > now ? (data.has(Talents.PACK_FED) ? 1.15f : 1.1f) : 1.0f;
 	}
 
 	/** Uses up what was given (a tropical fish bucket leaves its water bucket). */
