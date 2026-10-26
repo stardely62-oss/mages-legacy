@@ -1098,6 +1098,8 @@ public class RaceGameTests implements FabricGameTest {
 		// The Harvest: two spiders around, both bleed into the Bloodkin
 		SpiderEntity other = beast(ctx, EntityType.SPIDER, at.add(2, 0, 5));
 		spider.setHealth(spider.getMaxHealth());
+		// The dash's cut just landed: let its hurt frames pass, as a real moment would
+		spider.timeUntilRegen = 0;
 		player.setHealth(10);
 		float blood = data.resource;
 		check(Bloodkin.harvest(player, data) == AbilityResult.OK, "the Harvest");
