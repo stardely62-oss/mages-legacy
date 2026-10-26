@@ -453,8 +453,9 @@ public class HarnessClient implements ClientModInitializer {
 			});
 			tp(c, Vec3d.ofBottomCenter(arena).add(4, 0, -1), Vec3d.ofCenter(arena.add(4, 0, -3)));
 		});
-		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[2].getDefaultKey()));
-		step(60, false, c -> {
+		// The press, then three seconds (a step waits after its action)
+		step(60, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[2].getDefaultKey()));
+		step(10, false, c -> {
 			UUID me = c.player.getUuid();
 			float sand = onServer(c, s -> RaceState.get(s).data(me).resource);
 			int smelted = onServer(c, s -> s.getOverworld().getBlockEntity(arena.add(4, 0, -3)) instanceof AbstractFurnaceBlockEntity be

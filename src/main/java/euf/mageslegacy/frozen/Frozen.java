@@ -78,6 +78,7 @@ public final class Frozen {
 	private static final int QUICKEN_TICKS_LONG = 1200;
 	private static final int QUICKEN_SPEED = 10;
 	private static final int QUICKEN_MAX = 27;
+	private static final double QUICKEN_RANGE = 8;
 	private static final int FREEZE_SLOT = 4;
 	private static final int FREEZE_COOLDOWN = 400;
 	private static final int FREEZE_TICKS = 60;
@@ -885,7 +886,7 @@ public final class Frozen {
 			return AbilityResult.NO_RESOURCE;
 		}
 		ServerWorld world = player.getServerWorld();
-		HitResult hit = player.raycast(6, 1.0f, false);
+		HitResult hit = player.raycast(QUICKEN_RANGE, 1.0f, false);
 		if (!(hit instanceof BlockHitResult blockHit) || hit.getType() != HitResult.Type.BLOCK) {
 			player.sendMessage(Text.translatable("mages_legacy.frozen.nothing_to_quicken"), true);
 			return AbilityResult.HINTED;
@@ -915,6 +916,12 @@ public final class Frozen {
 		spend(player, data, cost);
 		cooldown(player, data, 2, QUICKEN_COOLDOWN);
 		Progression.addXp(player, data, 3);
+		// Say what was quickened and for how long: a furnace without fuel shows nothing by itself
+		long seconds = (until - now(player.getServer())) / 20;
+		Text what = added > 1 ? Text.translatable("mages_legacy.frozen.quickened_many", added)
+				: world.getBlockState(center).getBlock().getName();
+		player.sendMessage(Text.translatable("mages_legacy.frozen.quickened", what, seconds).formatted(Formatting.GOLD), true);
+		world.spawnParticles(ParticleTypes.END_ROD, center.getX() + 0.5, center.getY() + 1.1, center.getZ() + 0.5, 8, 0.3, 0.2, 0.3, 0.02);
 		world.playSound(null, center, SoundEvents.BLOCK_SAND_FALL, SoundCategory.PLAYERS, 1.0f, 1.6f);
 		world.playSound(null, center, SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 0.8f, 1.8f);
 		return AbilityResult.OK;
@@ -953,8 +960,9 @@ public final class Frozen {
 			if (state.hasRandomTicks() && now % 10 == 0) {
 				state.randomTick(q.world(), q.pos(), q.world().getRandom());
 			}
-			if (now % 10 == 0) {
-				q.world().spawnParticles(SAND, q.pos().getX() + 0.5, q.pos().getY() + 1.05, q.pos().getZ() + 0.5, 2, 0.3, 0.05, 0.3, 0);
+			if (now % 5 == 0) {
+				q.world().spawnParticles(SAND, q.pos().getX() + 0.5, q.pos().getY() + 1.05, q.pos().getZ() + 0.5, 3, 0.3, 0.05, 0.3, 0);
+				q.world().spawnParticles(ParticleTypes.WAX_OFF, q.pos().getX() + 0.5, q.pos().getY() + 0.5, q.pos().getZ() + 0.5, 1, 0.4, 0.4, 0.4, 0);
 			}
 		}
 	}

@@ -108,7 +108,7 @@
 	"mages_legacy.ability.frozen.2.desc": "Купол радиусом 5 на 6 секунд: враги внутри почти замирают, а стрелы и снаряды повисают в воздухе. 45 песка, раз в 25 секунд.",
 	"mages_legacy.ability.frozen.2.lore": "Внутри купола время дышит медленно, как спящий.",
 	"mages_legacy.ability.frozen.3.name": "Ток",
-	"mages_legacy.ability.frozen.3.desc": "Блок, на который смотрите, 30 секунд работает в 10 раз быстрее: печи, коптильни, варочные стойки, костры, а ростки и посевы растут на глазах. 20 песка.",
+	"mages_legacy.ability.frozen.3.desc": "Блок, на который смотрите (до 8 блоков), 30 секунд работает в 10 раз быстрее: печи, коптильни, доменные печи, варочные стойки, горящие костры, а ростки и посевы растут на глазах. 20 песка.",
 	"mages_legacy.ability.frozen.3.lore": "Песок пересыпается быстрее, если его подтолкнуть.",
 	"mages_legacy.race.bloodkin": "Кровники",
 	"mages_legacy.race.bloodkin.tagline": "Кровь за долгую жизнь",
@@ -687,5 +687,7 @@
 	"mages_legacy.talent.flow_overtake.desc": "Размытие срабатывает вдвое чаще (20%), и после уклонения у вас 2 секунды Скорость II.",
 	"mages_legacy.talent.flow_recharge": "Быстрые часы",
 	"mages_legacy.talent.flow_recharge.lore": "Твои часы идут быстрее чужих.",
-	"mages_legacy.talent.flow_recharge.desc": "Откат и купол перезаряжаются на 25% быстрее."
+	"mages_legacy.talent.flow_recharge.desc": "Откат и купол перезаряжаются на 25% быстрее.",
+	"mages_legacy.frozen.quickened": "Ускорено: %s, на %s с",
+	"mages_legacy.frozen.quickened_many": "%s блоков"
 }

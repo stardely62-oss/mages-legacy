@@ -108,7 +108,7 @@
 	"mages_legacy.ability.frozen.2.desc": "A dome of radius 5 for 6 seconds: enemies inside all but stop, and arrows and projectiles hang in the air. 45 sand, once in 25 seconds.",
 	"mages_legacy.ability.frozen.2.lore": "Under the dome time breathes slowly, like a sleeper.",
 	"mages_legacy.ability.frozen.3.name": "Quickening",
-	"mages_legacy.ability.frozen.3.desc": "The block you look at works ten times faster for 30 seconds: furnaces, smokers, brewing stands, campfires, and saplings and crops grow before your eyes. 20 sand.",
+	"mages_legacy.ability.frozen.3.desc": "The block you look at (up to 8 blocks away) works ten times faster for 30 seconds: furnaces, smokers, blast furnaces, brewing stands, lit campfires, and saplings and crops grow before your eyes. 20 sand.",
 	"mages_legacy.ability.frozen.3.lore": "Sand runs faster if you give it a push.",
 	"mages_legacy.race.bloodkin": "Bloodkin",
 	"mages_legacy.race.bloodkin.tagline": "Blood for a long life",
@@ -687,5 +687,7 @@
 	"mages_legacy.talent.flow_overtake.desc": "Blur triggers twice as often (20%), and after a dodge you get Speed II for 2 seconds.",
 	"mages_legacy.talent.flow_recharge": "Fast Hourglass",
 	"mages_legacy.talent.flow_recharge.lore": "Your hourglass runs faster than others.",
-	"mages_legacy.talent.flow_recharge.desc": "The Rewind and the Dome recharge 25% faster."
+	"mages_legacy.talent.flow_recharge.desc": "The Rewind and the Dome recharge 25% faster.",
+	"mages_legacy.frozen.quickened": "Quickened: %s, for %s s",
+	"mages_legacy.frozen.quickened_many": "%s blocks"
 }
