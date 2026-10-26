@@ -34,6 +34,8 @@ public final class FxRenderer {
 	private static final List<float[]> FOVS = new ArrayList<>();
 	/** Until when (client ticks) the server is carrying this player along a path. */
 	private static long flightUntil;
+	/** Whether the shapes now being drawn are the ink under the glow. */
+	private static boolean inkPass;
 
 	private FxRenderer() {
 	}
@@ -41,11 +43,14 @@ public final class FxRenderer {
 	private abstract static class Effect {
 		final int ticks;
 		final int rgb;
+		/** Drawn twice: as real colour first, then as glow (see {@link Fx#INK}). */
+		final boolean ink;
 		int age;
 
 		Effect(int ticks, int rgb) {
 			this.ticks = Math.max(1, ticks);
-			this.rgb = rgb;
+			this.rgb = rgb & 0xFFFFFF;
+			this.ink = (rgb & Fx.INK) != 0;
 		}
 
 		/** 0 at the start, 1 at the end, smooth between ticks. */
@@ -187,11 +192,21 @@ public final class FxRenderer {
 			return;
 		}
 		VertexConsumerProvider.Immediate immediate = MinecraftClient.getInstance().getBufferBuilders().getEntityVertexConsumers();
-		VertexConsumer vc = immediate.getBuffer(RenderLayer.getLightning());
 		Vec3d cam = context.camera().getPos();
 		context.matrixStack().push();
 		context.matrixStack().translate(-cam.x, -cam.y, -cam.z);
 		Matrix4f m = context.matrixStack().peek().getPositionMatrix();
+		// The ink first, so the glow lands on top of it
+		inkPass = true;
+		VertexConsumer ink = immediate.getBuffer(FxLayers.INK);
+		for (Effect e : EFFECTS) {
+			if (e.ink) {
+				e.draw(m, ink, cam, context.tickDelta());
+			}
+		}
+		immediate.draw(FxLayers.INK);
+		inkPass = false;
+		VertexConsumer vc = immediate.getBuffer(RenderLayer.getLightning());
 		for (Effect e : EFFECTS) {
 			e.draw(m, vc, cam, context.tickDelta());
 		}
@@ -244,8 +259,23 @@ public final class FxRenderer {
 				(int) (MathHelper.clamp(alpha, 0, 1) * 255)).next();
 	}
 
-	/** A quad seen from both sides (the glow layer culls back faces). */
+	/**
+	 * A quad seen from both sides (the glow layer culls back faces). As ink it is the colour a shade deeper and once
+	 * only (the ink layer shows both faces), and white-hot edges stay glow alone.
+	 */
 	private static void quad(VertexConsumer vc, Matrix4f m, Vec3d a, Vec3d b, Vec3d c, Vec3d d, int rgb, float aa, float ab, float ac, float ad) {
+		if (inkPass) {
+			if ((rgb & 0xFFFFFF) == 0xFFFFFF) {
+				return;
+			}
+			int deep = lerpColor(rgb, 0x000000, 0.3f);
+			float k = 0.85f;
+			vertex(vc, m, a.x, a.y, a.z, deep, aa * k);
+			vertex(vc, m, b.x, b.y, b.z, deep, ab * k);
+			vertex(vc, m, c.x, c.y, c.z, deep, ac * k);
+			vertex(vc, m, d.x, d.y, d.z, deep, ad * k);
+			return;
+		}
 		vertex(vc, m, a.x, a.y, a.z, rgb, aa);
 		vertex(vc, m, b.x, b.y, b.z, rgb, ab);
 		vertex(vc, m, c.x, c.y, c.z, rgb, ac);
@@ -646,7 +676,7 @@ public final class FxRenderer {
 					float at = (life * 0.07f + j / 3f) % 1;
 					pulse = Math.max(pulse, (float) Math.exp(-Math.pow((s - at) / 0.06, 2)));
 				}
-				widths[k] = (0.34f * (1 - s) + 0.06f) * (1 + 0.6f * pulse);
+				widths[k] = (0.5f * (1 - s) + 0.1f) * (1 + 0.6f * pulse);
 				colors[k] = lerpColor(rgb, rgb2, s);
 				alphas[k] = (0.45f + 0.55f * pulse) * fade;
 			}

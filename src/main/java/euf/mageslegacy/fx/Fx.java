@@ -33,6 +33,11 @@ public final class Fx {
 	public static final int AURA = 14;
 	public static final int SWARM = 15;
 	public static final int BURST = 16;
+	/**
+	 * A flag on a colour: lay it on as real colour under its glow, the way blood should look, rather than glow alone
+	 * (which a bright day washes to pink, and which can't show a dark colour at all).
+	 */
+	public static final int INK = 0x1000000;
 	/** How far away players still see an effect. */
 	private static final double RANGE = 64;
 
