@@ -56,7 +56,7 @@ timeout 600 xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew runHarness --stackt
 
 echo '--- harness result ---'
 cat "$CLIENT/harness-result.txt" 2>/dev/null || echo '(no result file: the client crashed or never reached the world)'
-for shot in lore choose_mycelid choose_bloodkin hud talents spore_jump spore_cloud node node_arrived; do
+for shot in lore choose_mycelid choose_voidborn hud talents spore_jump spore_cloud node node_arrived; do
   test -s "$CLIENT/screenshots/$shot.png" || { echo "screenshot $shot.png was not written"; exit 1; }
 done
 grep -qx 'RESULT PASS' "$CLIENT/harness-result.txt"
