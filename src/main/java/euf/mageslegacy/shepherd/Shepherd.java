@@ -131,7 +131,7 @@ public final class Shepherd {
 	public static void tickSecond(ServerPlayerEntity player, RaceData data) {
 		List<LivingEntity> near = Creatures.around(player, 16);
 		// The voice comes back by itself, faster with creatures around: about two minutes for a full bar alone
-		float regen = 0.5f + Math.min(1.0f, near.size() * 0.2f);
+		float regen = 0.7f + Math.min(1.0f, near.size() * 0.2f);
 		data.addResource(data.has(Talents.VOICE_DEEP) ? regen * 1.5f : regen);
 
 		frail(player, data.has(Talents.VOICE_LIFE) ? -2 : -4);
@@ -373,6 +373,14 @@ public final class Shepherd {
 		// A summoning circle burns where they rise
 		Fx.mark(player.getServerWorld(), base, null, 3.0f, 40, SPIRIT_RGB, Fx.RIPPLES);
 		Fx.burst(player.getServerWorld(), base.add(0, 1, 0), 2.5f, 8, SPIRIT_RGB);
+		Fx.aurora(player.getServerWorld(), base, 2.4f, 50, SPIRIT_RGB, GOLD_RGB);
+		// The souls rise with a blow: monsters standing where they come up are thrown back
+		for (LivingEntity m : player.getServerWorld().getEntitiesByClass(LivingEntity.class, new Box(base, base).expand(4),
+				e -> e instanceof Monster && e.isAlive() && !Echoes.isEcho(e))) {
+			m.damage(player.getServerWorld().getDamageSources().indirectMagic(player, player), 4);
+			Vec3d away = m.getPos().subtract(base);
+			m.takeKnockback(0.9, -away.x, -away.z);
+		}
 		if (summoned < missing.size()) {
 			player.sendMessage(Text.translatable("mages_legacy.echo.partial", summoned, missing.size(),
 					Text.translatable(lackVoice ? "mages_legacy.echo.lack_voice" : "mages_legacy.echo.lack_room")), true);
@@ -450,9 +458,7 @@ public final class Shepherd {
 		for (LivingEntity c : Creatures.around(player, 24)) {
 			c.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 200, loud ? 1 : 0, false, true));
 			c.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 200, 0, false, true));
-			if (loud) {
-				c.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 200, 0, false, true));
-			}
+			c.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 200, loud ? 1 : 0, false, true));
 			c.heal(c.getMaxHealth() * (warm ? RALLY_HEAL_WARM : RALLY_HEAL));
 			if (warm) {
 				c.getStatusEffects().stream().filter(e -> !e.getEffectType().isBeneficial()).map(StatusEffectInstance::getEffectType).toList()
@@ -473,6 +479,7 @@ public final class Shepherd {
 		Fx.ring(world, player.getPos(), 0.3f, 16, 22, SPIRIT_RGB);
 		world.spawnParticles(Echoes.SPIRIT, player.getX(), player.getY() + 1.6, player.getZ(), 30, 1.0, 0.4, 1.0, 0.05);
 		Fx.burst(world, player.getPos().add(0, 1, 0), 3.0f, 8, GOLD_RGB);
+		Fx.aurora(world, player.getPos(), 4.0f, 70, GOLD_RGB, SPIRIT_RGB);
 		Fx.mark(world, player.getPos(), player, 2.5f, 30, GOLD_RGB, Fx.RIPPLES);
 		Fx.shake(player, 1.5f, 10);
 		return AbilityResult.OK;

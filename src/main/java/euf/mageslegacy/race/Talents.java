@@ -172,11 +172,11 @@ public final class Talents {
 	public static final String STEP_QUICK = add("step_quick", Race.VOIDBORN, 0, 1, 1, null, Items.FEATHER);
 	public static final String STEP_CUT = add("step_cut", Race.VOIDBORN, 0, 2, 2, STEP_FAR, Items.IRON_SWORD);
 	public static final String STEP_REND = add("step_rend", Race.VOIDBORN, 0, 2, 2, STEP_CUT, Items.FERMENTED_SPIDER_EYE);
-	public static final String STEP_TWICE = add("step_twice", Race.VOIDBORN, 0, 2, 2, STEP_QUICK, Items.RABBIT_FOOT);
+	public static final String STEP_PULL = add("step_pull", Race.VOIDBORN, 0, 2, 2, STEP_QUICK, Items.LEAD);
 	public static final String STEP_VEIL = add("step_veil", Race.VOIDBORN, 0, 2, 2, STEP_CHEAP, Items.GLASS);
 	public static final String STEP_MEND = add("step_mend", Race.VOIDBORN, 0, 3, 3, STEP_REND, Items.GLISTERING_MELON_SLICE);
-	public static final String STEP_RIFT = add("step_rift", Race.VOIDBORN, 0, 3, 3, STEP_TWICE, Items.ENDER_EYE);
-	public static final String STEP_ALLY = add("step_ally", Race.VOIDBORN, 0, 3, 3, STEP_VEIL, Items.LEAD);
+	public static final String STEP_RIFT = add("step_rift", Race.VOIDBORN, 0, 3, 3, STEP_PULL, Items.ENDER_EYE);
+	public static final String STEP_ALLY = add("step_ally", Race.VOIDBORN, 0, 3, 3, STEP_VEIL, Items.SADDLE);
 	public static final String STEP_SEVER = add("step_sever", Race.VOIDBORN, 0, 4, 5, STEP_MEND, Items.NETHERITE_SWORD);
 
 	public static final String WELL_WIDE = add("well_wide", Race.VOIDBORN, 1, 1, 1, null, Items.CRYING_OBSIDIAN);

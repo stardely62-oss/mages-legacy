@@ -129,6 +129,12 @@ public final class FxRenderer {
 			case Fx.RIFT -> EFFECTS.add(new Rift(ticks, rgb, readVec(buf), buf.readFloat(), buf.readFloat()));
 			case Fx.VORTEX -> EFFECTS.add(new Vortex(ticks, rgb, readVec(buf), buf.readFloat()));
 			case Fx.VOID_SCREEN -> SCREENS.add(new VoidScreen(ticks));
+			case Fx.CRYSTALS -> EFFECTS.add(new Crystals(ticks, rgb, readVec(buf), buf.readFloat(), buf.readVarInt(), buf.readFloat()));
+			case Fx.MUSHROOM -> EFFECTS.add(new Mushroom(ticks, rgb, readVec(buf), buf.readFloat()));
+			case Fx.AURORA -> {
+				int rgb2 = buf.readInt();
+				EFFECTS.add(new Aurora(ticks, rgb, rgb2, readVec(buf), buf.readFloat()));
+			}
 			case Fx.PHASE -> {
 				MinecraftClient client = MinecraftClient.getInstance();
 				if (client.world != null) {
@@ -1498,6 +1504,236 @@ public final class FxRenderer {
 					int y = cy + (int) (Math.sin(angle) * r);
 					ctx.fill(x, y, x + size, y + size, argb(color, bright * (1 - (float) k / (len + 1))));
 				}
+			}
+		}
+	}
+
+	// ---- the races' great shapes ----
+
+	/** Two directions square to an axis, for building round things around it. */
+	private static Vec3d[] around(Vec3d axis) {
+		Vec3d u = axis.crossProduct(Math.abs(axis.y) < 0.9 ? new Vec3d(0, 1, 0) : new Vec3d(1, 0, 0)).normalize();
+		return new Vec3d[] {u, axis.crossProduct(u).normalize()};
+	}
+
+	/**
+	 * Crystals of ice bursting up out of the ground and leaning outwards: frosted faces, bright edges, a glint running
+	 * round each one. They snap up, hold, and at the end shatter, shrinking into the ground.
+	 */
+	private static final class Crystals extends Effect {
+		final Vec3d at;
+		final float radius;
+		final int count;
+		final float height;
+		final long seed;
+
+		Crystals(int ticks, int rgb, Vec3d at, float radius, int count, float height) {
+			super(ticks, rgb);
+			this.at = at;
+			this.radius = radius;
+			this.count = Math.max(1, count);
+			this.height = height;
+			this.seed = Double.doubleToLongBits(at.x * 7 + at.z * 13 + radius);
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		float inkStrength() {
+			return 0.45f;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			float life = age + delta;
+			float grow = easeOutBack(Math.min(1, life / 5f));
+			float shatter = Math.min(1, (ticks - life) / 8f);
+			for (int i = 0; i < count; i++) {
+				double angle = Math.PI * 2 * i / count + hash(seed, i) * 0.4;
+				Vec3d out = new Vec3d(Math.cos(angle), 0, Math.sin(angle));
+				Vec3d base = at.add(out.multiply(radius * (0.8 + 0.4 * hash(seed, i + 40))));
+				double h = height * (0.6 + 0.6 * hash(seed, i + 80)) * grow * shatter;
+				if (h < 0.02) {
+					continue;
+				}
+				Vec3d axis = out.multiply(0.25 + 0.3 * hash(seed, i + 120)).add(0, 1, 0).normalize();
+				Vec3d[] uv = around(axis);
+				double w = height * 0.12 * (0.7 + 0.6 * hash(seed, i + 160)) * Math.min(1, grow);
+				Vec3d[] bottom = new Vec3d[6];
+				Vec3d[] top = new Vec3d[6];
+				for (int k = 0; k < 6; k++) {
+					double a = Math.PI * 2 * k / 6;
+					Vec3d ring = uv[0].multiply(Math.cos(a)).add(uv[1].multiply(Math.sin(a)));
+					bottom[k] = base.add(ring.multiply(w));
+					top[k] = base.add(axis.multiply(h * 0.78)).add(ring.multiply(w * 0.8));
+				}
+				Vec3d tip = base.add(axis.multiply(h));
+				for (int k = 0; k < 6; k++) {
+					int n = (k + 1) % 6;
+					if (inkPass) {
+						quad(vc, m, bottom[k], bottom[n], top[n], top[k], 0xCFE8FF, 0.55f * shatter, 0.55f * shatter, 0.65f * shatter, 0.65f * shatter);
+						quad(vc, m, top[k], top[n], tip, tip, 0xE8F4FF, 0.7f * shatter, 0.7f * shatter, 0.8f * shatter, 0.8f * shatter);
+						continue;
+					}
+					quad(vc, m, bottom[k], bottom[n], top[n], top[k], rgb, 0.1f * shatter, 0.1f * shatter, 0.2f * shatter, 0.2f * shatter);
+					// The glint runs round the crystal, edge after edge
+					float glint = (int) (life / 2 + i) % 6 == k ? 1 : 0.55f;
+					glowLine(vc, m, bottom[k], top[k], cam.subtract(bottom[k]), 0.05, 0xFFFFFF, glint * shatter);
+					glowLine(vc, m, top[k], tip, cam.subtract(top[k]), 0.05, 0xFFFFFF, glint * shatter);
+				}
+			}
+		}
+	}
+
+	/**
+	 * A great glowing mushroom shooting up out of the ground: a pale stem, a cap of spore light with bright spots and
+	 * glowing gills under it, a little sway; it sinks back into the ground at the end.
+	 */
+	private static final class Mushroom extends Effect {
+		final Vec3d at;
+		final float size;
+		final long seed;
+
+		Mushroom(int ticks, int rgb, Vec3d at, float size) {
+			super(ticks, rgb);
+			this.at = at;
+			this.size = size;
+			this.seed = Double.doubleToLongBits(at.x * 3 + at.z * 5 + size);
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		float inkStrength() {
+			return 0.85f;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			float life = age + delta;
+			float scale = easeOutBack(Math.min(1, life / 8f)) * Math.min(1, (ticks - life) / 10f);
+			if (scale <= 0.02f) {
+				return;
+			}
+			double sway = Math.sin(life * 0.35) * 0.06 * size;
+			double stemH = size * 0.55 * scale;
+			double stemR = size * 0.09 * scale;
+			double capR = size * 0.42 * scale;
+			double capH = size * 0.3 * scale;
+			Vec3d top = at.add(sway, stemH, 0);
+			int lon = 16;
+			// The stem, a little wider at its foot
+			for (int i = 0; i < lon; i++) {
+				double a0 = Math.PI * 2 * i / lon;
+				double a1 = Math.PI * 2 * (i + 1) / lon;
+				Vec3d b0 = at.add(Math.cos(a0) * stemR * 1.3, 0, Math.sin(a0) * stemR * 1.3);
+				Vec3d b1 = at.add(Math.cos(a1) * stemR * 1.3, 0, Math.sin(a1) * stemR * 1.3);
+				Vec3d t0 = top.add(Math.cos(a0) * stemR, 0, Math.sin(a0) * stemR);
+				Vec3d t1 = top.add(Math.cos(a1) * stemR, 0, Math.sin(a1) * stemR);
+				if (inkPass) {
+					quad(vc, m, b0, b1, t1, t0, 0xEDE4CC, 0.95f, 0.95f, 0.95f, 0.95f);
+				} else {
+					quad(vc, m, b0, b1, t1, t0, 0xFFFFFF, 0.04f, 0.04f, 0.1f, 0.1f);
+				}
+			}
+			// The cap: a squashed dome
+			Vec3d capBase = top.add(0, -capH * 0.15, 0);
+			int lat = 6;
+			for (int j = 0; j < lat; j++) {
+				double p0 = Math.PI / 2 * j / lat;
+				double p1 = Math.PI / 2 * (j + 1) / lat;
+				for (int i = 0; i < lon; i++) {
+					double a0 = Math.PI * 2 * i / lon;
+					double a1 = Math.PI * 2 * (i + 1) / lon;
+					Vec3d v00 = capBase.add(Math.cos(a0) * Math.cos(p0) * capR, Math.sin(p0) * capH, Math.sin(a0) * Math.cos(p0) * capR);
+					Vec3d v01 = capBase.add(Math.cos(a1) * Math.cos(p0) * capR, Math.sin(p0) * capH, Math.sin(a1) * Math.cos(p0) * capR);
+					Vec3d v11 = capBase.add(Math.cos(a1) * Math.cos(p1) * capR, Math.sin(p1) * capH, Math.sin(a1) * Math.cos(p1) * capR);
+					Vec3d v10 = capBase.add(Math.cos(a0) * Math.cos(p1) * capR, Math.sin(p1) * capH, Math.sin(a0) * Math.cos(p1) * capR);
+					if (inkPass) {
+						quad(vc, m, v00, v01, v11, v10, rgb, 0.95f, 0.95f, 0.95f, 0.95f);
+					} else {
+						// Brightest at the rim, as if lit from inside
+						float glow = 0.35f * (1 - (float) j / lat);
+						quad(vc, m, v00, v01, v11, v10, rgb, glow, glow, glow * 0.6f, glow * 0.6f);
+					}
+				}
+			}
+			if (inkPass) {
+				return;
+			}
+			// Gills under the cap, and the rim
+			for (int i = 0; i < lon * 2; i++) {
+				double a = Math.PI * 2 * i / (lon * 2);
+				Vec3d in = capBase.add(Math.cos(a) * stemR, 0, Math.sin(a) * stemR);
+				Vec3d out = capBase.add(Math.cos(a) * capR * 0.95, 0, Math.sin(a) * capR * 0.95);
+				glowLine(vc, m, in, out, new Vec3d(0, 1, 0), 0.03 * size, 0xE6FFDC, 0.45f);
+			}
+			flatRing(vc, m, capBase, capR, 0.08 * size, 0xE6FFDC, 0.8f, 32);
+			// Bright spots on the cap
+			for (int k = 0; k < 7; k++) {
+				double a = hash(seed, k) * Math.PI * 2;
+				double p = 0.2 + hash(seed, k + 20) * 1.0;
+				Vec3d spot = capBase.add(Math.cos(a) * Math.cos(p) * capR * 1.01, Math.sin(p) * capH * 1.01, Math.sin(a) * Math.cos(p) * capR * 1.01);
+				Vec3d toCam = cam.subtract(spot).normalize();
+				Vec3d[] uv = around(toCam);
+				double s = 0.05 * size;
+				float tw = 0.6f + 0.4f * MathHelper.sin(life * 0.3f + k);
+				quad(vc, m, spot.add(uv[0].multiply(s)), spot.add(uv[1].multiply(s)), spot.subtract(uv[0].multiply(s)), spot.subtract(uv[1].multiply(s)),
+						0xF0FFE8, tw, tw, tw, tw);
+			}
+		}
+	}
+
+	/**
+	 * Curtains of light like the northern lights, waving in a ring overhead: bright at their lower hem, shading into
+	 * the second colour as they rise and thin out, with rays shimmering along them.
+	 */
+	private static final class Aurora extends Effect {
+		final int rgb2;
+		final Vec3d at;
+		final float radius;
+
+		Aurora(int ticks, int rgb, int rgb2, Vec3d at, float radius) {
+			super(ticks, rgb);
+			this.rgb2 = rgb2;
+			this.at = at;
+			this.radius = radius;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			float life = age + delta;
+			float fade = Math.min(1, life / 8f) * Math.min(1, (ticks - life) / 12f);
+			int n = 56;
+			double hem = 2.2 + radius * 0.2;
+			double tall = 1.6 + radius * 0.35;
+			for (int i = 0; i < n; i++) {
+				double a0 = Math.PI * 2 * i / n;
+				double a1 = Math.PI * 2 * (i + 1) / n;
+				Vec3d[] lo = new Vec3d[2];
+				Vec3d[] mid = new Vec3d[2];
+				Vec3d[] hi = new Vec3d[2];
+				double[] as = {a0, a1};
+				for (int k = 0; k < 2; k++) {
+					double a = as[k];
+					double r = radius * (1 + 0.12 * Math.sin(a * 3 + life * 0.15));
+					double y = hem + 0.4 * Math.sin(a * 2 - life * 0.1);
+					Vec3d foot = at.add(Math.cos(a) * r, y, Math.sin(a) * r);
+					lo[k] = foot;
+					mid[k] = foot.add(0, tall * 0.35, 0);
+					hi[k] = foot.add(Math.cos(a) * 0.3, tall, Math.sin(a) * 0.3);
+				}
+				// Rays shimmer along the curtain
+				float ray = (float) (0.55 + 0.45 * Math.sin(a0 * 9 + life * 0.25));
+				float al = 0.55f * fade * ray;
+				quad(vc, m, lo[0], lo[1], mid[1], mid[0], rgb, al, al, al * 0.7f, al * 0.7f);
+				quad(vc, m, mid[0], mid[1], hi[1], hi[0], rgb2, al * 0.7f, al * 0.7f, 0, 0);
 			}
 		}
 	}

@@ -37,6 +37,9 @@ public final class Fx {
 	public static final int VORTEX = 18;
 	public static final int VOID_SCREEN = 19;
 	public static final int PHASE = 20;
+	public static final int CRYSTALS = 21;
+	public static final int MUSHROOM = 22;
+	public static final int AURORA = 23;
 	/**
 	 * A flag on a colour: lay it on as real colour under its glow, the way blood should look, rather than glow alone
 	 * (which a bright day washes to pink, and which can't show a dark colour at all).
@@ -253,6 +256,36 @@ public final class Fx {
 		flight(player, ticks);
 		sendTo(player, start(PHASE, ticks, 0), buf -> {
 		});
+	}
+
+	/**
+	 * Crystals of ice bursting up out of the ground: {@code count} tapered prisms around {@code at} at
+	 * {@code radius}, leaning outwards, {@code height} tall; they grow with a snap, glint, and shatter at the end.
+	 */
+	public static void crystals(ServerWorld world, Vec3d at, float radius, int count, float height, int ticks, int rgb) {
+		PacketByteBuf buf = start(CRYSTALS, ticks, rgb);
+		writeVec(buf, at);
+		buf.writeFloat(radius);
+		buf.writeVarInt(count);
+		buf.writeFloat(height);
+		send(world, at, buf);
+	}
+
+	/** A great glowing mushroom springing up out of the ground at {@code at}, {@code size} blocks tall, then sinking. */
+	public static void mushroom(ServerWorld world, Vec3d at, float size, int ticks, int rgb) {
+		PacketByteBuf buf = start(MUSHROOM, ticks, rgb);
+		writeVec(buf, at);
+		buf.writeFloat(size);
+		send(world, at, buf);
+	}
+
+	/** Curtains of light like the northern lights, waving in a ring above {@code at}, shading to {@code rgb2} upwards. */
+	public static void aurora(ServerWorld world, Vec3d at, float radius, int ticks, int rgb, int rgb2) {
+		PacketByteBuf buf = start(AURORA, ticks, rgb);
+		buf.writeInt(rgb2);
+		writeVec(buf, at);
+		buf.writeFloat(radius);
+		send(world, at, buf);
 	}
 
 	/** This player's camera shakes, {@code strength} degrees at first, dying away over {@code ticks}. */

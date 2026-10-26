@@ -72,8 +72,8 @@ public final class Frozen {
 	public static final int QUICKEN_COST = 20;
 	public static final int FREEZE_COST = 25;
 	public static final int CURRENT_COST = 30;
-	private static final int REWIND_COOLDOWN = 240;
-	private static final int REWIND_COOLDOWN_QUICK = 160;
+	private static final int REWIND_COOLDOWN = 200;
+	private static final int REWIND_COOLDOWN_QUICK = 140;
 	private static final int REWIND_TICKS = 10;
 	private static final int TRAIL = 80;
 	private static final int TRAIL_LONG = 120;
@@ -680,6 +680,7 @@ public final class Frozen {
 		// Time sets again: a flash, and a clock face of sand under the feet
 		Fx.burst(world, player.getPos().add(0, 1, 0), 1.6f, 7, STILL_RGB);
 		Fx.mark(world, player.getPos(), null, 1.8f, 24, SAND_RGB, Fx.CLOCK);
+		Fx.crystals(world, player.getPos(), 1.3f, 7, 1.5f, 26, ICE_RGB);
 		Fx.shake(player, 1.2f, 6);
 		world.spawnParticles(SAND, player.getX(), player.getY() + 0.5, player.getZ(), 20, 0.5, 0.3, 0.5, 0);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_CLUSTER_BREAK, SoundCategory.PLAYERS, 1.0f, 1.4f);
@@ -780,6 +781,10 @@ public final class Frozen {
 		Fx.ring(world, player.getPos(), 0.5f, (float) domeRadius(data), 8, SAND_RGB);
 		Fx.burst(world, player.getPos().add(0, 1, 0), (float) domeRadius(data), 8, STILL_RGB);
 		Fx.shake(player, 1.0f, 8);
+		// Crystals of ice ring the Dome for as long as it stands
+		if (follow == null) {
+			Fx.crystals(world, player.getPos(), (float) domeRadius(data), (int) (domeRadius(data) * 2.4), 1.9f, domeTicks, ICE_RGB);
+		}
 		// The Still Frame crown: now and then the Dome stops the whole world around for a moment
 		if (data.has(Talents.STASIS_STOP) && ready(player, data, STOP_SLOT)) {
 			DOMES.add(new Dome(player, world, player.getPos(), STOP_RADIUS, now + STOP_TICKS, true));
@@ -880,6 +885,14 @@ public final class Frozen {
 			p.setVelocity(velocity);
 			p.velocityModified = true;
 		}
+		// As the Dome fades, the enemies inside are frozen solid for a moment
+		if (!d.stop) {
+			long until = now(d.world.getServer()) + 20;
+			for (LivingEntity e : d.world.getEntitiesByClass(LivingEntity.class, new Box(d.center, d.center).expand(d.radius), e -> enemy(e) && d.contains(e))) {
+				HELD_MOBS.put(e.getUuid(), new Hold(d.world, until));
+				Fx.crystals(d.world, e.getPos(), e.getWidth() * 0.55f + 0.2f, 6, e.getHeight() * 0.9f, 24, ICE_RGB);
+			}
+		}
 		if (!d.stop && owner != null && data.has(Talents.STASIS_SHATTER)) {
 			for (LivingEntity e : d.world.getEntitiesByClass(LivingEntity.class, new Box(d.center, d.center).expand(d.radius), e -> enemy(e) && d.contains(e))) {
 				e.damage(d.world.getDamageSources().indirectMagic(owner, owner), 6);
@@ -923,8 +936,7 @@ public final class Frozen {
 		// A beam of frozen time from the eye to the enemy, and the enemy sealed in ice
 		ServerWorld here = player.getServerWorld();
 		Fx.tendril(here, player, target, 12, STILL_RGB, ICE_RGB);
-		Fx.sphere(here, target.getPos().add(0, target.getHeight() / 2, 0), Math.max(target.getWidth(), target.getHeight()) * 0.75f,
-				FREEZE_TICKS, Fx.INK | ICE_RGB, null, true);
+		Fx.crystals(here, target.getPos(), target.getWidth() * 0.55f + 0.2f, 7, target.getHeight() * 0.95f, FREEZE_TICKS, ICE_RGB);
 		Fx.burst(here, target.getPos().add(0, target.getHeight() / 2, 0), 1.2f + target.getWidth(), 7, STILL_RGB);
 		here.spawnParticles(ICE, target.getX(), target.getY() + target.getHeight() / 2, target.getZ(), 16, 0.4, 0.4, 0.4, 0);
 		player.getServerWorld().playSound(null, target.getBlockPos(), SoundEvents.BLOCK_GLASS_PLACE, SoundCategory.PLAYERS, 1.0f, 0.5f);

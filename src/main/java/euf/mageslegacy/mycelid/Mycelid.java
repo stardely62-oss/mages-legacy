@@ -294,6 +294,7 @@ public final class Mycelid {
 		// The mycelium gives the body back: spores wind in, a column of light
 		Fx.helix(world, player, 1.4f, 2.6f, 4, true, 26, SPORE_RGB);
 		Fx.pillar(world, to, 0.7f, 5, 24, SPORE_RGB);
+		Fx.mushroom(world, to, 3.2f, 44, SPORE_RGB);
 		Fx.burst(world, to.add(0, 1, 0), 3.0f, 9, MOSS_INK);
 		Fx.screen(player, 30, SPORE_RGB);
 		Fx.shake(player, 2.0f, 12);
@@ -426,13 +427,14 @@ public final class Mycelid {
 		cooldown(player, data, 1, data.has(Talents.SWARM_QUICK) ? CLOUD_COOLDOWN_QUICK : CLOUD_COOLDOWN);
 		double radius = data.has(Talents.SWARM_WIDE) ? 6 : 4;
 		spawnCloud(player.getServerWorld(), player.getPos(), player.getUuid(), radius,
-				data.has(Talents.SWARM_POTENT) ? 1 : 0, data.has(Talents.SWARM_LINGERING) ? 240 : 120, data.has(Talents.SWARM_FOLLOW));
+				data.has(Talents.SWARM_POTENT) ? 2 : 1, data.has(Talents.SWARM_LINGERING) ? 240 : 120, data.has(Talents.SWARM_FOLLOW));
 		MycelidFx.cloudBurst(player.getServerWorld(), player.getPos(), radius);
 		// A circle of mycelium under the cloud for as long as it lasts, and the spores thrown out in a puff
 		ServerWorld here = player.getServerWorld();
 		int lasts = data.has(Talents.SWARM_LINGERING) ? 240 : 120;
 		Fx.mark(here, player.getPos(), data.has(Talents.SWARM_FOLLOW) ? player : null, (float) radius * 0.9f, lasts, SPORE_RGB, Fx.FAIRY_RING);
 		Fx.burst(here, player.getPos().add(0, 1, 0), (float) radius, 9, MOSS_INK);
+		Fx.mushroom(here, player.getPos(), (float) radius * 0.6f, 24, SPORE_RGB);
 		Fx.shake(player, 0.8f, 8);
 		if (data.has(Talents.SWARM_BURST)) {
 			burst(player, radius);
@@ -541,6 +543,7 @@ public final class Mycelid {
 		state.markDirty();
 		MycelidFx.nodeGrow(world, Vec3d.ofBottomCenter(pos));
 		Fx.pillar(world, Vec3d.ofBottomCenter(pos), 0.4f, 2.5f, 16, SPORE_RGB);
+		Fx.mushroom(world, Vec3d.ofBottomCenter(pos.up()), 1.3f, 26, SPORE_RGB);
 		world.playSound(null, pos, SoundEvents.BLOCK_FUNGUS_PLACE, SoundCategory.BLOCKS, 1.0f, 0.8f);
 		world.playSound(null, pos, SoundEvents.BLOCK_ROOTS_PLACE, SoundCategory.BLOCKS, 1.0f, 0.6f);
 	}
@@ -628,6 +631,14 @@ public final class Mycelid {
 			List<Vec3d> arc = arcPath(jump.from(), jump.target());
 			Fx.ribbon(world, arc, 18, MOSS_INK, SPORE_RGB, 0.7f);
 			Fx.burst(world, jump.target().add(0, 1, 0), 1.8f, 7, SPORE_RGB);
+			// The body comes up out of a great mushroom, and the spores thrown out burst over whatever stands close
+			Fx.mushroom(world, jump.target(), 2.4f, 30, SPORE_RGB);
+			for (LivingEntity mob : world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(3), e -> e instanceof Monster && e.isAlive())) {
+				mob.damage(world.getDamageSources().indirectMagic(player, player), 4);
+				Vec3d away = mob.getPos().subtract(jump.target());
+				mob.takeKnockback(0.8, -away.x, -away.z);
+				mob.addStatusEffect(new StatusEffectInstance(mob.isUndead() ? StatusEffects.WITHER : StatusEffects.POISON, 60, 0));
+			}
 			Fx.helix(world, player, 1.0f, 2.2f, 3, true, 14, SPORE_RGB);
 			Fx.ring(world, jump.target(), 0.3f, 3.0f, 12, MOSS_INK);
 			Fx.fov(player, 0.12f, 10);

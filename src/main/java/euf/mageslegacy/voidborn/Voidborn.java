@@ -62,7 +62,7 @@ public final class Voidborn {
 	public static final int POCKET_COST = 20;
 	public static final double STEP_RANGE = 14;
 	private static final int STEP_TICKS = 10;
-	private static final int STEP_COOLDOWN = 100;
+	private static final int STEP_COOLDOWN = 160;
 	private static final int WELL_TICKS = 80;
 	private static final int WELL_COOLDOWN = 500;
 	private static final double WELL_RADIUS = 8;
@@ -104,8 +104,6 @@ public final class Voidborn {
 	private static final List<Held> HELD = new ArrayList<>();
 	private static final List<Passage> PASSAGES = new ArrayList<>();
 	private static final List<Door> DOORS = new ArrayList<>();
-	/** Until when a Second Step costs nothing. */
-	private static final java.util.Map<UUID, Long> FREE_STEP = new java.util.HashMap<>();
 	/** Until when (client world time) this client's own player phases through blocks; set by the effect packet. */
 	public static long clientPhaseUntil;
 
@@ -119,7 +117,6 @@ public final class Voidborn {
 		HELD.clear();
 		PASSAGES.clear();
 		DOORS.clear();
-		FREE_STEP.clear();
 	}
 
 	// ---- what the talents change ----
@@ -313,28 +310,19 @@ public final class Voidborn {
 			return AbilityResult.HINTED;
 		}
 		long now = now(player.getServer());
-		Long free = FREE_STEP.get(player.getUuid());
-		boolean second = free != null && free >= now;
 		int cost = stepCost(data.has(Talents.STEP_CHEAP));
-		if (!second && !ready(player, data, 0)) {
+		if (!ready(player, data, 0)) {
 			return AbilityResult.COOLDOWN;
 		}
-		if (!second && data.resource < cost) {
+		if (data.resource < cost) {
 			return AbilityResult.NO_RESOURCE;
 		}
 		List<Vec3d> path = stepPath(player, stepRange(data));
 		if (path.size() < 2) {
 			return AbilityResult.NO_SPACE;
 		}
-		if (second) {
-			FREE_STEP.remove(player.getUuid());
-		} else {
-			data.addResource(-cost);
-			cooldown(player, data, 0, data.has(Talents.STEP_QUICK) ? 60 : STEP_COOLDOWN);
-			if (data.has(Talents.STEP_TWICE)) {
-				FREE_STEP.put(player.getUuid(), now + STEP_TICKS + 60);
-			}
-		}
+		data.addResource(-cost);
+		cooldown(player, data, 0, data.has(Talents.STEP_QUICK) ? 100 : STEP_COOLDOWN);
 		ServerWorld world = player.getServerWorld();
 		boolean through = path.stream().anyMatch(p -> !fits(player, p));
 		player.stopRiding();
@@ -495,6 +483,16 @@ public final class Voidborn {
 		Fx.ring(world, at, 0.3f, 2.8f, 10, VOID_INK);
 		Fx.mark(world, at, null, 1.6f, 40, VOID_INK, Fx.CRACKS);
 		Fx.shake(player, 1.2f, 7);
+		// Exit Funnel: the void closing behind the body drags the enemies around to where it came out
+		if (RaceState.of(player).has(Talents.STEP_PULL)) {
+			for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(5), e -> enemy(e, player))) {
+				Vec3d to = at.subtract(e.getPos());
+				e.setVelocity(to.multiply(0.25).add(0, 0.25, 0));
+				e.velocityModified = true;
+				Fx.tendril(world, e, player, 8, VOID_RGB, STAR_RGB);
+			}
+			Fx.vortex(world, at.add(0, 1, 0), 1.4f, 16, VOID_RGB);
+		}
 		world.spawnParticles(ModParticles.VOID_MOTE, at.x, at.y + 1, at.z, 30, 0.2, 0.4, 0.2, 0.12);
 		world.spawnParticles(ModParticles.STAR, at.x, at.y + 1, at.z, 12, 0.6, 0.8, 0.6, 0.0);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 1.0f, 1.2f);
@@ -976,7 +974,6 @@ public final class Voidborn {
 
 	/** The race changed: whatever it held goes back, its wells close. */
 	public static void cleanup(ServerPlayerEntity player) {
-		FREE_STEP.remove(player.getUuid());
 		WELLS.removeIf(w -> w.owner() == player);
 		STEPS.removeIf(s -> s.player() == player);
 		HELD.replaceAll(h -> h.owner().equals(player.getUuid()) ? new Held(h.entity(), h.owner(), h.origin(), h.pos(), h.yaw(), 0, h.ally(), h.excised()) : h);

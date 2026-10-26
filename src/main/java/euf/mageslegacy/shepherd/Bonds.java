@@ -531,6 +531,7 @@ public final class Bonds {
 		Fx.mark(world, mob.getPos(), mob, 1.8f, 40, Shepherd.GOLD_RGB, Fx.RIPPLES);
 		Fx.burst(world, mob.getPos().add(0, mob.getHeight() / 2, 0), 2.5f, 8, Shepherd.GOLD_RGB);
 		Fx.screen(player, 20, Shepherd.GOLD_RGB);
+		Fx.aurora(world, mob.getPos(), 1.8f, 50, Shepherd.GOLD_RGB, Shepherd.SPIRIT_RGB);
 		world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.6f, 1.4f);
 		player.sendMessage(Text.translatable("mages_legacy.bond.done", mob.getDisplayName(),
 				Text.translatable("mages_legacy.beast." + kind.id() + ".skill_desc")).formatted(Formatting.GOLD), false);

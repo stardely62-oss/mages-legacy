@@ -595,6 +595,12 @@ public final class Bloodkin {
 			}
 			// A stream of blood from the victim to the Bloodkin: a living tendril, and drops carried along it
 			Fx.tendril(world, e, player, 20, WINE_INK, BLOOD_INK);
+			// The tendril yanks the victim a couple of blocks towards the Bloodkin
+			Vec3d yank = player.getPos().subtract(e.getPos());
+			if (yank.lengthSquared() > 4) {
+				e.setVelocity(yank.normalize().multiply(0.55).add(0, 0.2, 0));
+				e.velocityModified = true;
+			}
 			Fx.pillar(world, e.getPos(), 0.35f + e.getWidth() * 0.4f, e.getHeight() + 0.8f, 10, BLOOD_INK);
 			splash(world, e, 8);
 			Vec3d from = e.getPos().add(0, e.getHeight() * 0.6, 0);
