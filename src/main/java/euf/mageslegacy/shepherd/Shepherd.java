@@ -61,6 +61,7 @@ public final class Shepherd {
 	private static final int GATHER_COOLDOWN = 160;
 	private static final int ARMY_SLOT = 7;
 	private static final int ARMY_COOLDOWN = 12000;
+	private static final int ARMY_KINDS = 6;
 	private static final UUID FRAIL = UUID.fromString("2e8b5c1f-7a3d-4c6e-9f2b-1d5a8e3c7b99");
 
 	private Shepherd() {
@@ -127,7 +128,7 @@ public final class Shepherd {
 		float regen = 0.5f + Math.min(1.0f, near.size() * 0.2f);
 		data.addResource(data.has(Talents.VOICE_DEEP) ? regen * 1.5f : regen);
 
-		frail(player, !data.has(Talents.VOICE_LIFE));
+		frail(player, data.has(Talents.VOICE_LIFE) ? -2 : -4);
 		if (data.has(Talents.VOICE_AURA)) {
 			for (LivingEntity c : near) {
 				c.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 60, 0, true, false));
@@ -145,17 +146,22 @@ public final class Shepherd {
 		Bonds.tickOwner(player, data);
 	}
 
-	/** −4 maximum health (2 hearts), unless Sturdy Body took it away. */
-	public static void frail(ServerPlayerEntity player, boolean want) {
+	/** Maximum health lost: 4 (2 hearts), 2 with Sturdy Body; 0 takes the penalty away. */
+	public static void frail(ServerPlayerEntity player, double amount) {
 		EntityAttributeInstance health = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
-		if (health == null || want == (health.getModifier(FRAIL) != null)) {
+		if (health == null) {
 			return;
 		}
-		if (want) {
-			health.addTemporaryModifier(new EntityAttributeModifier(FRAIL, "shepherd_frail", -4, EntityAttributeModifier.Operation.ADDITION));
-			player.setHealth(Math.min(player.getHealth(), player.getMaxHealth()));
-		} else {
+		EntityAttributeModifier current = health.getModifier(FRAIL);
+		if (current != null && current.getValue() == amount) {
+			return;
+		}
+		if (current != null) {
 			health.removeModifier(FRAIL);
+		}
+		if (amount != 0) {
+			health.addTemporaryModifier(new EntityAttributeModifier(FRAIL, "shepherd_frail", amount, EntityAttributeModifier.Operation.ADDITION));
+			player.setHealth(Math.min(player.getHealth(), player.getMaxHealth()));
 		}
 	}
 
@@ -163,7 +169,7 @@ public final class Shepherd {
 	public static void cleanup(ServerPlayerEntity player, RaceData data) {
 		Echoes.dismiss(player.getServer(), player.getUuid());
 		Bonds.releaseAll(player, data);
-		frail(player, false);
+		frail(player, 0);
 	}
 
 	// ---- damage ----
@@ -187,9 +193,8 @@ public final class Shepherd {
 		Entity attacker = source.getAttacker();
 		if (attacker instanceof ServerPlayerEntity shepherd && source.getSource() == shepherd && is(shepherd)) {
 			RaceData data = RaceState.of(shepherd);
-			if (!data.has(Talents.VOICE_STRENGTH)) {
-				amount *= 0.75f;
-			}
+			// A Shepherd's own blow is a quarter weaker; Steady Hand only narrows it to a tenth
+			amount *= data.has(Talents.VOICE_STRENGTH) ? 0.9f : 0.75f;
 		}
 		if (attacker != null && Echoes.isEcho(attacker)) {
 			amount = Echoes.onHit(attacker, victim, amount);
@@ -421,11 +426,9 @@ public final class Shepherd {
 		ServerWorld world = player.getServerWorld();
 		boolean loud = data.has(Talents.VOICE_RALLY);
 		if (data.has(Talents.LEGION_ARMY) && ready(player, data, ARMY_SLOT)) {
-			for (EchoType type : EchoType.ALL) {
-				if (learned(data, type)) {
-					Echoes.summon(player, data, type, Creatures.near(player), true, 600, 0);
-				}
-			}
+			// The six mightiest kinds learned (by the voice their Call costs), not every one
+			EchoType.ALL.stream().filter(type -> learned(data, type)).sorted((a, b) -> Integer.compare(b.voice(), a.voice())).limit(ARMY_KINDS)
+					.forEach(type -> Echoes.summon(player, data, type, Creatures.near(player), true, 600, 0));
 			cooldown(player, data, ARMY_SLOT, ARMY_COOLDOWN);
 		}
 		// The horn heals the pack a lot (30% of their health, half with Warm Hands, which also cleanse them) and the

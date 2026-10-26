@@ -902,8 +902,8 @@ public class RaceGameTests implements FabricGameTest {
 		data.talents.add(Talents.VOICE_LIFE);
 		data.talents.add(Talents.VOICE_STRENGTH);
 		Shepherd.tickSecond(player, data);
-		check(Math.abs(player.getMaxHealth() - 20) < 0.01f, "Sturdy Body gives the hearts back");
-		check(Math.abs(Shepherd.modifyDamage(zombie, world.getDamageSources().playerAttack(player), 4) - 4) < 0.01f, "Steady Hand: full blows");
+		check(Math.abs(player.getMaxHealth() - 18) < 0.01f, "Sturdy Body gives one heart back, got " + player.getMaxHealth());
+		check(Math.abs(Shepherd.modifyDamage(zombie, world.getDamageSources().playerAttack(player), 10) - 9) < 0.01f, "Steady Hand: a tenth weaker");
 		zombie.discard();
 		done(ctx, player);
 	}

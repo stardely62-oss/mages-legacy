@@ -226,7 +226,9 @@ public final class Mycelid {
 		}
 		boolean rich = data.has(Talents.FLESH_RICH);
 		// Tastes work from the inside: no swirl of particles in front of the eyes, only the icon
-		player.addStatusEffect(new StatusEffectInstance(effect, rich ? 2400 : 1200, rich ? 1 : 0, false, false, true));
+		// Rich Tastes raise a level, but resistance from mushrooms stops at I: II would take 40% off every blow, always
+		int level = rich && effect != StatusEffects.RESISTANCE ? 1 : 0;
+		player.addStatusEffect(new StatusEffectInstance(effect, rich ? 2400 : 1200, level, false, false, true));
 		data.dirty = true;
 	}
 
