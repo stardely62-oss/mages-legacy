@@ -8,8 +8,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
-import euf.mageslegacy.shepherd.Shepherd;
 import euf.mageslegacy.net.RacePackets;
+import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.voidborn.Voidborn;
 import java.util.Arrays;
 import java.util.Collection;
 import net.minecraft.command.CommandSource;
@@ -100,6 +101,9 @@ public final class RaceCommand {
 		}
 		if (data.race == Race.BLOODKIN) {
 			Bloodkin.cleanup(player);
+		}
+		if (data.race == Race.VOIDBORN) {
+			Voidborn.cleanup(player);
 		}
 	}
 }

@@ -12,6 +12,7 @@ import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.shepherd.Bonds;
 import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.voidborn.Voidborn;
 import java.util.Locale;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -129,6 +130,7 @@ public final class RacePackets {
 			case SHEPHERD -> Shepherd.use(player, data, slot);
 			case FROZEN -> Frozen.use(player, data, slot);
 			case BLOODKIN -> Bloodkin.use(player, data, slot);
+			case VOIDBORN -> Voidborn.use(player, data, slot);
 			default -> AbilityResult.LOCKED;
 		};
 		if (result != AbilityResult.OK) {

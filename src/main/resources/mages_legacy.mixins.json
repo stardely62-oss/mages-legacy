@@ -4,6 +4,7 @@
 	"package": "euf.mageslegacy.mixin",
 	"compatibilityLevel": "JAVA_17",
 	"mixins": [
+		"EndermanEntityMixin",
 		"FoxEntityInvoker",
 		"HungerManagerMixin",
 		"LivingEntityMixin",
@@ -13,6 +14,7 @@
 	],
 	"client": [
 		"client.ClientPlayNetworkHandlerMixin",
+		"client.ClientPlayerEntityMixin",
 		"client.EntityOutlineMixin",
 		"client.GameRendererMixin",
 		"client.LivingEntityRendererMixin",

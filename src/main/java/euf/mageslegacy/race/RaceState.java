@@ -47,6 +47,11 @@ public class RaceState extends PersistentState {
 		return players.computeIfAbsent(player, id -> new RaceData());
 	}
 
+	/** The next free room of the pocket dimension: one past the highest any Voidborn has had. */
+	public int nextPocketRoom() {
+		return players.values().stream().mapToInt(d -> d.voidborn.room).max().orElse(-1) + 1;
+	}
+
 	public List<GlobalPos> nodes(UUID owner) {
 		return nodes.computeIfAbsent(owner, id -> new ArrayList<>());
 	}

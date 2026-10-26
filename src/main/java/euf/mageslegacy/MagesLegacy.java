@@ -17,9 +17,11 @@ import euf.mageslegacy.shepherd.Bonds;
 import euf.mageslegacy.shepherd.Creatures;
 import euf.mageslegacy.shepherd.Echoes;
 import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.voidborn.Voidborn;
 import java.util.UUID;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.EntitySleepEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityCombatEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
@@ -34,6 +36,7 @@ import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.piston.PistonBehavior;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -66,10 +69,15 @@ public class MagesLegacy implements ModInitializer {
 		RacePackets.registerServerReceivers();
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> RaceCommand.register(dispatcher));
 		ServerTickEvents.END_SERVER_TICK.register(MagesLegacy::tick);
+		// Before the worlds tick: a Voidborn rested in the pocket brings the morning (see Voidborn.tickSleep)
+		ServerTickEvents.START_SERVER_TICK.register(Voidborn::tickSleep);
+		EntitySleepEvents.ALLOW_SLEEPING.register((player, pos) -> player instanceof ServerPlayerEntity sp && Voidborn.mayNotSleep(sp)
+				? PlayerEntity.SleepFailureReason.OTHER_PROBLEM : null);
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
 			Mycelid.reset();
 			Frozen.reset();
 			Bloodkin.reset();
+			Voidborn.reset();
 			Echoes.reset();
 			Creatures.reset();
 		});
@@ -119,6 +127,7 @@ public class MagesLegacy implements ModInitializer {
 			if (killer instanceof ServerPlayerEntity player) {
 				Mycelid.onKill(player, victim);
 				Bloodkin.onKill(player, victim);
+				Voidborn.onKill(player, victim);
 			}
 			Shepherd.onKill(killer, victim);
 		});
@@ -154,6 +163,7 @@ public class MagesLegacy implements ModInitializer {
 		Mycelid.tick(server);
 		Frozen.tick(server);
 		Bloodkin.tick(server);
+		Voidborn.tick(server);
 		int ticks = server.getTicks();
 		if (ticks % 20 == 0) {
 			Echoes.tickSecond(server);
@@ -173,6 +183,8 @@ public class MagesLegacy implements ModInitializer {
 					Frozen.tickSecond(player, data);
 				} else if (data.race == Race.BLOODKIN) {
 					Bloodkin.tickSecond(player, data);
+				} else if (data.race == Race.VOIDBORN) {
+					Voidborn.tickSecond(player, data);
 				}
 			}
 			// The client registers our channels a moment after joining, so the prompt waits for the tick

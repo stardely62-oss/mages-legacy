@@ -6,8 +6,8 @@ import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilityResult;
-import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Progression.UnlockResult;
+import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
@@ -20,12 +20,15 @@ import euf.mageslegacy.shepherd.EchoType;
 import euf.mageslegacy.shepherd.Echoes;
 import euf.mageslegacy.shepherd.Shepherd;
 import euf.mageslegacy.shepherd.ShepherdData;
+import euf.mageslegacy.voidborn.Pocket;
+import euf.mageslegacy.voidborn.Voidborn;
 import java.util.List;
+import java.util.UUID;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.advancement.Advancement;
 import net.minecraft.block.Blocks;
-import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.block.JukeboxBlock;
+import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
@@ -1124,6 +1127,136 @@ public class RaceGameTests implements FabricGameTest {
 		spider.discard();
 		other.discard();
 		done(ctx, player);
+	}
+
+	static ServerPlayerEntity voidborn(TestContext ctx, BlockPos at) {
+		ServerPlayerEntity player = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
+		player.changeGameMode(GameMode.SURVIVAL);
+		player.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
+		RaceState.of(player).reset(Race.VOIDBORN);
+		RaceState.of(player).addResource(100);
+		return player;
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "void_step", tickLimit = 100)
+	public void theVoidStepPassesThroughWallsButNeverIntoThem(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(3, 2, 1));
+		floor(world, at.add(-2, 0, -1), 5, 18);
+		// A wall three blocks thick, two blocks ahead (yaw 0 looks south, +Z)
+		for (int dx = -2; dx <= 2; dx++) {
+			for (int dy = 0; dy <= 3; dy++) {
+				for (int dz = 2; dz <= 4; dz++) {
+					world.setBlockState(at.add(dx, dy, dz), Blocks.STONE.getDefaultState());
+				}
+			}
+		}
+		ServerPlayerEntity player = voidborn(ctx, at);
+		RaceData data = RaceState.of(player);
+		check(Voidborn.step(player, data) == AbilityResult.OK, "the Void Step");
+		check(Voidborn.phasing(player), "the body passes through matter while it goes");
+		ctx.runAtTick(ctx.getTick() + 14, () -> {
+			check(!Voidborn.phasing(player), "and is solid again after");
+			check(player.getZ() > at.getZ() + 5, "it came out past the wall, at z+" + (player.getZ() - at.getZ()));
+			check(world.isSpaceEmpty(player, player.getBoundingBox()), "and not inside a block");
+			done(ctx, player);
+		});
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "void_stuck", tickLimit = 100)
+	public void theVoidStepNeverLeavesTheBodyInRockOrPastBedrock(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(3, 2, 1));
+		floor(world, at.add(-2, 0, -1), 5, 18);
+		// Solid rock all the way ahead: nowhere to come out, so it doesn't go and costs nothing
+		for (int dx = -2; dx <= 2; dx++) {
+			for (int dy = -1; dy <= 4; dy++) {
+				for (int dz = 1; dz <= 16; dz++) {
+					world.setBlockState(at.add(dx, dy, dz), Blocks.STONE.getDefaultState());
+				}
+			}
+		}
+		ServerPlayerEntity player = voidborn(ctx, at);
+		RaceData data = RaceState.of(player);
+		check(Voidborn.step(player, data) == AbilityResult.NO_SPACE && data.resource == 100, "no room anywhere ahead: no step, no cost");
+		// Bedrock: the step stops short of it, it never passes through
+		for (int dx = -2; dx <= 2; dx++) {
+			for (int dy = -1; dy <= 4; dy++) {
+				for (int dz = 1; dz <= 16; dz++) {
+					world.setBlockState(at.add(dx, dy, dz), dz == 3 ? Blocks.BEDROCK.getDefaultState() : dy == -1 ? Blocks.STONE.getDefaultState()
+							: Blocks.AIR.getDefaultState());
+				}
+			}
+		}
+		check(Voidborn.step(player, data) == AbilityResult.OK, "the step towards bedrock");
+		ctx.runAtTick(ctx.getTick() + 14, () -> {
+			check(player.getZ() < at.getZ() + 3, "it stopped before the bedrock, at z+" + (player.getZ() - at.getZ()));
+			check(world.isSpaceEmpty(player, player.getBoundingBox()), "and stands free");
+			done(ctx, player);
+		});
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "void_well", tickLimit = 120)
+	public void theWellDrawsEnemiesIn(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(4, 2, 1));
+		floor(world, at.add(-4, 0, -1), 9, 14);
+		// A block to aim at: the Well opens in front of it
+		world.setBlockState(at.add(0, 1, 8), Blocks.STONE.getDefaultState());
+		ServerPlayerEntity player = voidborn(ctx, at);
+		ZombieEntity zombie = EntityType.ZOMBIE.create(world);
+		zombie.refreshPositionAndAngles(at.getX() + 4.5, at.getY(), at.getZ() + 6.5, 0, 0);
+		world.spawnEntity(zombie);
+		Vec3d center = new Vec3d(at.getX() + 0.5, at.getY() + 1.62, at.getZ() + 6.5);
+		double before = zombie.getPos().distanceTo(center);
+		check(Voidborn.well(player, RaceState.of(player)) == AbilityResult.OK, "the Well");
+		ctx.runAtTick(ctx.getTick() + 20, () -> {
+			double after = zombie.getPos().distanceTo(center);
+			check(after < before - 1.5, "the zombie was drawn in: " + before + " -> " + after);
+			zombie.discard();
+			done(ctx, player);
+		});
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "void_excise", tickLimit = 120)
+	public void theExcisionTakesACreatureAwayAndBringsItBack(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(3, 2, 1));
+		floor(world, at.add(-2, 0, -1), 5, 8);
+		ServerPlayerEntity player = voidborn(ctx, at);
+		RaceData data = RaceState.of(player);
+		ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(0, 0, 4));
+		UUID id = zombie.getUuid();
+		check(Voidborn.excise(player, data) == AbilityResult.OK, "the Excision");
+		ServerWorld pocket = Pocket.world(world.getServer());
+		check(world.getEntity(id) == null && pocket.getEntity(id) != null, "the zombie is in the pocket now");
+		check(pocket.getBlockState(BlockPos.ofFloored(Pocket.center(data.voidborn.room)).down()).isOf(Blocks.AMETHYST_BLOCK), "the room was laid");
+		// Leaving the race lets go of whatever it held: it comes back where it was
+		Voidborn.cleanup(player);
+		ctx.runAtTick(ctx.getTick() + 3, () -> {
+			Entity back = world.getEntity(id);
+			check(back != null && back.getPos().distanceTo(Vec3d.ofBottomCenter(at.add(0, 0, 4))) < 0.5, "back on its spot: " + back);
+			back.discard();
+			done(ctx, player);
+		});
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "void_body", tickLimit = 100)
+	public void waterBurnsAndBedsRefuseAVoidborn(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(2, 2, 2));
+		floor(world, at.add(-1, 0, -1), 3, 3);
+		world.setBlockState(at, Blocks.WATER.getDefaultState());
+		ServerPlayerEntity player = voidborn(ctx, at);
+		ctx.runAtTick(ctx.getTick() + 70, () -> {
+			player.timeUntilRegen = 0;
+			player.setHealth(20);
+			Voidborn.tickSecond(player, RaceState.of(player));
+			check(player.getHealth() < 20, "water burns: " + player.getHealth());
+			check(Voidborn.mayNotSleep(player), "the world's beds won't hold it");
+			world.removeBlock(at, false);
+			done(ctx, player);
+		});
 	}
 
 	private static void check(boolean condition, String message) {

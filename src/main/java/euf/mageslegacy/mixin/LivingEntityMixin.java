@@ -6,6 +6,7 @@ import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.voidborn.Voidborn;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.effect.StatusEffectInstance;
@@ -44,7 +45,8 @@ public abstract class LivingEntityMixin {
 	@Inject(method = "damage", at = @At("HEAD"), cancellable = true)
 	private void mages_legacy$friendlyFire(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
 		LivingEntity self = (LivingEntity) (Object) this;
-		if (!self.getWorld().isClient() && (Shepherd.friendlyFire(self, source) || Frozen.avoids(self, source) || Bloodkin.avoids(self))) {
+		if (!self.getWorld().isClient() && (Shepherd.friendlyFire(self, source) || Frozen.avoids(self, source) || Bloodkin.avoids(self)
+				|| Voidborn.avoids(self, source))) {
 			cir.setReturnValue(false);
 		}
 	}

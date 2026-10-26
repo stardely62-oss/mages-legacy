@@ -9,7 +9,7 @@ public enum Race {
 	SHEPHERD(0xD9B26F, true),
 	FROZEN(0x8FB8DE, true),
 	BLOODKIN(0xB23A48, true),
-	VOIDBORN(0x9B7FD4, false);
+	VOIDBORN(0x9B7FD4, true);
 
 	public final int color;
 	public final boolean playable;

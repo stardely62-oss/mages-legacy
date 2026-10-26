@@ -32,6 +32,8 @@ public final class RaceParticles {
 		registry.register(ModParticles.BLOOD_MOTE, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Mote(world, x, y, z, vx, vy, vz, sprites));
 		registry.register(ModParticles.EMBER, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Ember(world, x, y, z, vx, vy, vz, sprites));
 		registry.register(ModParticles.BLOOD_MIST, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Mist(world, x, y, z, vx, vy, vz, sprites));
+		registry.register(ModParticles.VOID_MOTE, sprites -> (type, world, x, y, z, vx, vy, vz) -> new VoidMote(world, x, y, z, vx, vy, vz, sprites));
+		registry.register(ModParticles.STAR, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Star(world, x, y, z, vx, vy, vz, sprites));
 		registry.register(ModParticles.BAT, sprites -> {
 			batSprites = sprites;
 			return (type, world, x, y, z, vx, vy, vz) -> new Bat(world, x, y, z, vx, vy, vz, sprites, null);
@@ -429,6 +431,81 @@ public final class RaceParticles {
 			// The wings beat up, level, down, level
 			int frame = (age / 2 + beat) % 4;
 			setSprite(sprites.getSprite(frame == 3 ? 1 : frame, 2));
+		}
+
+		@Override
+		public ParticleTextureSheet getType() {
+			return ParticleTextureSheet.PARTICLE_SHEET_TRANSLUCENT;
+		}
+	}
+
+	/** A mote of the void: flies along its velocity (or drifts), dark with a lit rim, and dwindles to nothing. */
+	static final class VoidMote extends SpriteBillboardParticle {
+		private final float startScale;
+
+		VoidMote(ClientWorld world, double x, double y, double z, double vx, double vy, double vz, SpriteProvider sprites) {
+			super(world, x, y, z);
+			setSprite(sprites.getSprite(random));
+			velocityX = vx + (random.nextDouble() - 0.5) * 0.01;
+			velocityY = vy + (random.nextDouble() - 0.5) * 0.01;
+			velocityZ = vz + (random.nextDouble() - 0.5) * 0.01;
+			gravityStrength = 0;
+			velocityMultiplier = 0.9f;
+			collidesWithWorld = false;
+			startScale = 0.08f + random.nextFloat() * 0.08f;
+			scale = startScale;
+			maxAge = 14 + random.nextInt(12);
+		}
+
+		@Override
+		public void tick() {
+			super.tick();
+			scale = startScale * (1 - (float) age / maxAge);
+			alpha = lifeAlpha(age, maxAge, 1);
+		}
+
+		@Override
+		public int getBrightness(float tint) {
+			return FULL_BRIGHT;
+		}
+
+		@Override
+		public ParticleTextureSheet getType() {
+			return ParticleTextureSheet.PARTICLE_SHEET_TRANSLUCENT;
+		}
+	}
+
+	/** A star: hangs almost still, swelling to a glint and back on its own beat. */
+	static final class Star extends SpriteBillboardParticle {
+		private final SpriteProvider sprites;
+		private final float beat;
+
+		Star(ClientWorld world, double x, double y, double z, double vx, double vy, double vz, SpriteProvider sprites) {
+			super(world, x, y, z);
+			this.sprites = sprites;
+			velocityX = vx * 0.2;
+			velocityY = vy * 0.2 + 0.002;
+			velocityZ = vz * 0.2;
+			gravityStrength = 0;
+			velocityMultiplier = 0.95f;
+			collidesWithWorld = false;
+			scale = 0.06f + random.nextFloat() * 0.05f;
+			maxAge = 20 + random.nextInt(30);
+			beat = random.nextFloat() * MathHelper.TAU;
+			setSprite(sprites.getSprite(0, 2));
+		}
+
+		@Override
+		public void tick() {
+			super.tick();
+			float glint = 0.5f + 0.5f * MathHelper.sin(age * 0.45f + beat);
+			setSprite(sprites.getSprite(Math.round(glint * 2), 2));
+			alpha = lifeAlpha(age, maxAge, 3);
+		}
+
+		@Override
+		public int getBrightness(float tint) {
+			return FULL_BRIGHT;
 		}
 
 		@Override

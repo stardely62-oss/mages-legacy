@@ -10,6 +10,7 @@ import euf.mageslegacy.race.Talents;
 import euf.mageslegacy.shepherd.Bonds;
 import euf.mageslegacy.shepherd.EchoType;
 import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.voidborn.Voidborn;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.minecraft.client.MinecraftClient;
@@ -40,6 +41,8 @@ public final class RaceHud {
 	public static final String[] BLOODKIN_ABILITY_ICONS = {"ability_dash", "ability_harvest", "ability_sacrifice", "fang_feast", "night_bats"};
 	public static final Item[] FROZEN_ICONS = {Items.CLOCK, Items.PACKED_ICE, Items.SAND, Items.HEART_OF_THE_SEA, Items.ICE};
 	public static final String[] FROZEN_ABILITY_ICONS = {"ability_rewind", "ability_dome", "ability_quicken", "flow_current", "stasis_freeze"};
+	public static final Item[] VOIDBORN_ICONS = {Items.ENDER_PEARL, Items.CRYING_OBSIDIAN, Items.CHORUS_FRUIT, Items.ENDER_CHEST};
+	public static final String[] VOIDBORN_ABILITY_ICONS = {"ability_void_step", "ability_well", "ability_excise", "ability_pocket"};
 	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.FEATHER, Items.NOTE_BLOCK, Items.LEAD};
 	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_whistle", "ability_song", "ability_gather"};
 
@@ -47,12 +50,12 @@ public final class RaceHud {
 	}
 
 	public static boolean hasAbilities(Race race) {
-		return race == Race.MYCELID || race == Race.SHEPHERD || race == Race.FROZEN || race == Race.BLOODKIN;
+		return race == Race.MYCELID || race == Race.SHEPHERD || race == Race.FROZEN || race == Race.BLOODKIN || race == Race.VOIDBORN;
 	}
 
-	/** The main abilities: three each; the Shepherds have a fourth, the Song of Bonds. Keys past these: {@link #shown}. */
+	/** The main abilities: three each; the Shepherds have a fourth (the Song), the Voidborn too (the Pocket). Keys past these: {@link #shown}. */
 	public static int abilityCount(Race race) {
-		return race == Race.SHEPHERD ? 4 : hasAbilities(race) ? 3 : 0;
+		return race == Race.SHEPHERD || race == Race.VOIDBORN ? 4 : hasAbilities(race) ? 3 : 0;
 	}
 
 	/** Whether key {@code slot} has an ability for this player now (one a talent opens shows once it's learnt). */
@@ -73,6 +76,7 @@ public final class RaceHud {
 			case SHEPHERD -> SHEPHERD_ABILITY_ICONS[slot];
 			case FROZEN -> FROZEN_ABILITY_ICONS[slot];
 			case BLOODKIN -> BLOODKIN_ABILITY_ICONS[slot];
+			case VOIDBORN -> VOIDBORN_ABILITY_ICONS[slot];
 			default -> null;
 		};
 	}
@@ -99,6 +103,14 @@ public final class RaceHud {
 				case 3 -> Bloodkin.FEAST_COST;
 				case 4 -> Bloodkin.SWARM_COST;
 				default -> 0;
+			};
+		}
+		if (race == Race.VOIDBORN) {
+			return switch (slot) {
+				case 0 -> Voidborn.STEP_COST;
+				case 1 -> Voidborn.WELL_COST;
+				case 2 -> Voidborn.EXCISE_COST;
+				default -> Voidborn.POCKET_COST;
 			};
 		}
 		if (race == Race.FROZEN) {
@@ -162,6 +174,7 @@ public final class RaceHud {
 			case SHEPHERD -> "res_voice";
 			case FROZEN -> "res_sand";
 			case BLOODKIN -> "res_blood";
+			case VOIDBORN -> "res_void";
 			default -> null;
 		};
 	}
@@ -178,6 +191,8 @@ public final class RaceHud {
 			ctx.drawItem(new ItemStack(FROZEN_ICONS[slot]), x, y);
 		} else if (race == Race.BLOODKIN) {
 			ctx.drawItem(new ItemStack(BLOODKIN_ICONS[slot]), x, y);
+		} else if (race == Race.VOIDBORN) {
+			ctx.drawItem(new ItemStack(VOIDBORN_ICONS[slot]), x, y);
 		} else if (race == Race.SHEPHERD) {
 			// The Call shows the first echo of its squad
 			EchoType echo = slot == 0 ? activeSquad().keySet().stream().findFirst().flatMap(EchoType::byId).orElse(null) : null;

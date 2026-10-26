@@ -33,6 +33,10 @@ public final class Fx {
 	public static final int AURA = 14;
 	public static final int SWARM = 15;
 	public static final int BURST = 16;
+	public static final int RIFT = 17;
+	public static final int VORTEX = 18;
+	public static final int VOID_SCREEN = 19;
+	public static final int PHASE = 20;
 	/**
 	 * A flag on a colour: lay it on as real colour under its glow, the way blood should look, rather than glow alone
 	 * (which a bright day washes to pink, and which can't show a dark colour at all).
@@ -144,6 +148,7 @@ public final class Fx {
 	public static final int CLOCK = 1;
 	public static final int FAIRY_RING = 2;
 	public static final int RIPPLES = 3;
+	public static final int CRACKS = 4;
 
 	/**
 	 * A mark on the ground in a race's own manner ({@link #POOL}, {@link #CLOCK}, {@link #FAIRY_RING}, {@link #RIPPLES}):
@@ -215,6 +220,39 @@ public final class Fx {
 		buf.writeVarInt(around.getId());
 		buf.writeVarInt(count);
 		send(world, around.getPos(), buf);
+	}
+
+	/**
+	 * A tear in the world standing upright at {@code at}, {@code height} tall and {@code width} across at its widest:
+	 * it rips open, a starry dark inside a violet edge, holds and seals shut.
+	 */
+	public static void rift(ServerWorld world, Vec3d at, float height, float width, int ticks, int rgb) {
+		PacketByteBuf buf = start(RIFT, ticks, rgb);
+		writeVec(buf, at);
+		buf.writeFloat(height);
+		buf.writeFloat(width);
+		send(world, at, buf);
+	}
+
+	/** A black hole at {@code at}: a dark core, a spinning disk of light around it, motes falling in. */
+	public static void vortex(ServerWorld world, Vec3d at, float radius, int ticks, int rgb) {
+		PacketByteBuf buf = start(VORTEX, ticks, rgb);
+		writeVec(buf, at);
+		buf.writeFloat(radius);
+		send(world, at, buf);
+	}
+
+	/** This player's view drowns in the void for a moment: dark, with stars rushing past. */
+	public static void voidScreen(ServerPlayerEntity player, int ticks) {
+		sendTo(player, start(VOID_SCREEN, ticks, 0), buf -> {
+		});
+	}
+
+	/** This player passes through solid blocks for {@code ticks}: its client lets it, and glides it along. */
+	public static void phase(ServerPlayerEntity player, int ticks) {
+		flight(player, ticks);
+		sendTo(player, start(PHASE, ticks, 0), buf -> {
+		});
 	}
 
 	/** This player's camera shakes, {@code strength} degrees at first, dying away over {@code ticks}. */

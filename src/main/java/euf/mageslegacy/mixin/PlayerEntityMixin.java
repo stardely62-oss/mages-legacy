@@ -5,6 +5,7 @@ import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
+import euf.mageslegacy.voidborn.Voidborn;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.FoodComponent;
 import net.minecraft.item.Item;
@@ -15,13 +16,23 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Lets races react to the food a player eats (Mycelids: stews feed spores, meat feeds half). */
+/** Lets races react to the food a player eats (Mycelids: stews feed spores, meat feeds half), and Voidborn pass through walls. */
 @Mixin(PlayerEntity.class)
 public abstract class PlayerEntityMixin {
 	@Unique
 	private Item mages_legacy$eating;
+
+	/** A Voidborn in the middle of a Void Step moves through solid blocks. */
+	@Inject(method = "tickMovement", at = @At("HEAD"))
+	private void mages_legacy$phase(CallbackInfo ci) {
+		PlayerEntity self = (PlayerEntity) (Object) this;
+		if (Voidborn.phasing(self)) {
+			self.noClip = true;
+		}
+	}
 
 	@Inject(method = "eatFood", at = @At("HEAD"))
 	private void mages_legacy$beforeEat(World world, ItemStack stack, CallbackInfoReturnable<ItemStack> cir) {

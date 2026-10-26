@@ -1,6 +1,7 @@
 package euf.mageslegacy.race;
 
 import euf.mageslegacy.shepherd.ShepherdData;
+import euf.mageslegacy.voidborn.VoidData;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -28,6 +29,8 @@ public class RaceData {
 	public final List<String> tastes = new ArrayList<>();
 	/** The Shepherds' bestiary, bonds and rituals (empty for other races). */
 	public final ShepherdData shepherd = new ShepherdData();
+	/** The Voidborn's pocket room and way back (empty for other races). */
+	public final VoidData voidborn = new VoidData();
 
 	// Not saved: server ticks at which each ability slot is ready again, and the spore jump chain
 	public final Map<Integer, Long> readyAt = new HashMap<>();
@@ -121,6 +124,7 @@ public class RaceData {
 		tastes.forEach(t -> tasteList.add(NbtString.of(t)));
 		nbt.put("tastes", tasteList);
 		nbt.put("shepherd", shepherd.toNbt());
+		nbt.put("voidborn", voidborn.toNbt());
 		return nbt;
 	}
 
@@ -137,6 +141,7 @@ public class RaceData {
 			data.tastes.add(e.asString());
 		}
 		data.shepherd.readNbt(nbt.getCompound("shepherd"));
+		data.voidborn.readNbt(nbt.getCompound("voidborn"));
 		return data;
 	}
 }

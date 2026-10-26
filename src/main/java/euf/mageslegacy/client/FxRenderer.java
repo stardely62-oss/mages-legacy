@@ -2,6 +2,7 @@ package euf.mageslegacy.client;
 
 import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.fx.ModParticles;
+import euf.mageslegacy.voidborn.Voidborn;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -69,6 +70,11 @@ public final class FxRenderer {
 		void tick() {
 		}
 
+		/** Whether it is drawn as ink too: when its colour asks for it, or always (the void's dark). */
+		boolean inks() {
+			return ink;
+		}
+
 		/** How thick its ink is: a flash or a ghost only tints, a stream of blood is solid. */
 		float inkStrength() {
 			return 0.85f;
@@ -120,6 +126,15 @@ public final class FxRenderer {
 			case Fx.SHAKE -> SHAKES.add(new float[] {ticks, 0, buf.readFloat()});
 			case Fx.FOV -> FOVS.add(new float[] {ticks, 0, buf.readFloat()});
 			case Fx.PULSE -> SCREENS.add(new Pulse(ticks, rgb, buf.readVarInt()));
+			case Fx.RIFT -> EFFECTS.add(new Rift(ticks, rgb, readVec(buf), buf.readFloat(), buf.readFloat()));
+			case Fx.VORTEX -> EFFECTS.add(new Vortex(ticks, rgb, readVec(buf), buf.readFloat()));
+			case Fx.VOID_SCREEN -> SCREENS.add(new VoidScreen(ticks));
+			case Fx.PHASE -> {
+				MinecraftClient client = MinecraftClient.getInstance();
+				if (client.world != null) {
+					Voidborn.clientPhaseUntil = client.world.getTime() + ticks + 2;
+				}
+			}
 			default -> {
 			}
 		}
@@ -213,7 +228,7 @@ public final class FxRenderer {
 		inkPass = true;
 		VertexConsumer ink = immediate.getBuffer(FxLayers.INK);
 		for (Effect e : EFFECTS) {
-			if (e.ink) {
+			if (e.inks()) {
 				inkStrength = e.inkStrength();
 				e.draw(m, ink, cam, context.tickDelta());
 			}
@@ -237,6 +252,10 @@ public final class FxRenderer {
 		int h = ctx.getScaledWindowHeight();
 		for (Effect e : SCREENS) {
 			float t = e.progress(delta);
+			if (e instanceof VoidScreen voidScreen) {
+				voidScreen.paint(ctx, w, h, delta);
+				continue;
+			}
 			if (e instanceof Pulse pulse) {
 				edges(ctx, w, h, e.rgb, 0.4f * pulse.beat(delta) * Math.min(1, (1 - t) * 6), 7);
 				continue;
@@ -753,7 +772,7 @@ public final class FxRenderer {
 
 		@Override
 		float inkStrength() {
-			return style == Fx.POOL ? 1.0f : 0.7f;
+			return style == Fx.POOL || style == Fx.CRACKS ? 1.0f : 0.7f;
 		}
 
 		@Override
@@ -773,6 +792,7 @@ public final class FxRenderer {
 				case Fx.POOL -> pool(m, vc, center, life, fade);
 				case Fx.CLOCK -> clock(m, vc, center, life, fade);
 				case Fx.FAIRY_RING -> fairyRing(m, vc, center, life, fade);
+				case Fx.CRACKS -> cracks(m, vc, center, life, fade);
 				default -> ripples(m, vc, center, life, fade);
 			}
 		}
@@ -895,6 +915,43 @@ public final class FxRenderer {
 			}
 			// A small glow on the ground where it stands
 			flatRing(vc, m, foot.add(0, 0.01, 0), cap * 1.2, cap, rgb, 0.25f * fade, 10);
+		}
+
+		/**
+		 * The ground cracked open onto the void: black fissures zigzagging out from the middle, glowing violet at their
+		 * lips, stars glinting deep in them. They split open in a few ticks, as ground does under a blow.
+		 */
+		private void cracks(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
+			float grow = easeOut(Math.min(1, life / 6f));
+			Vec3d up = new Vec3d(0, 1, 0);
+			int count = 7;
+			for (int i = 0; i < count; i++) {
+				double angle = Math.PI * 2 * i / count + hash(seed, i) * 0.6;
+				double length = radius * (0.55 + 0.45 * hash(seed, i + 50)) * grow;
+				int steps = 5;
+				Vec3d p = c;
+				for (int s = 0; s < steps; s++) {
+					angle += (hash(seed, i * 10 + s + 100) - 0.5) * 1.2;
+					Vec3d next = p.add(Math.cos(angle) * length / steps, 0, Math.sin(angle) * length / steps);
+					double width = 0.24 * (1 - (double) s / steps) + 0.04;
+					if (inkPass) {
+						Vec3d dir = next.subtract(p).normalize();
+						Vec3d side = new Vec3d(-dir.z, 0, dir.x).multiply(width / 2);
+						quad(vc, m, p.subtract(side), next.subtract(side.multiply(0.7)), next.add(side.multiply(0.7)), p.add(side), 0x05020A, fade, fade, fade, fade);
+					} else {
+						glowLine(vc, m, p, next, up, width * 2.4, rgb, 0.5f * fade);
+						glowLine(vc, m, p, next, up, width * 0.35, 0xE8E0FF, 0.5f * fade);
+						if (hash(seed, i * 10 + s + 700) < 0.5) {
+							float twinkle = fade * (0.5f + 0.5f * MathHelper.sin(life * 0.6f + i * 3 + s));
+							double size = 0.04;
+							Vec3d q = p.lerp(next, 0.5).add(0, 0.01, 0);
+							quad(vc, m, q.add(-size, 0, -size), q.add(size, 0, -size), q.add(size, 0, size), q.add(-size, 0, size), 0xFFFFFF, twinkle, twinkle,
+									twinkle, twinkle);
+						}
+					}
+					p = next;
+				}
+			}
 		}
 
 		/** A voice on the ground: soft rings rolling out from the middle one after another, fading as they go. */
@@ -1163,6 +1220,285 @@ public final class FxRenderer {
 
 		@Override
 		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+		}
+	}
+
+	// ---- the void ----
+
+	/** A pseudo-random number in 0..1 fixed by a seed and an index: shapes that keep their jags from frame to frame. */
+	private static float hash(long seed, int i) {
+		long h = seed * 6364136223846793005L + i * 1442695040888963407L;
+		h ^= h >>> 29;
+		h *= 0xBF58476D1CE4E5B9L;
+		h ^= h >>> 32;
+		return (h & 0xFFFFFF) / (float) 0x1000000;
+	}
+
+	/** A small cross of light facing the camera. */
+	private static void star(VertexConsumer vc, Matrix4f m, Vec3d p, Vec3d right, Vec3d up, double size, float alpha) {
+		Vec3d r = right.multiply(size);
+		Vec3d u = up.multiply(size);
+		quad(vc, m, p.subtract(r), p.subtract(u), p.add(r), p.add(u), 0xFFFFFF, alpha, alpha, alpha, alpha);
+		Vec3d r2 = right.multiply(size * 2.2);
+		Vec3d u2 = up.multiply(size * 0.35);
+		quad(vc, m, p.subtract(r2).subtract(u2), p.add(r2).subtract(u2), p.add(r2).add(u2), p.subtract(r2).add(u2), 0xE0D8FF, alpha * 0.5f, alpha * 0.5f,
+				alpha * 0.5f, alpha * 0.5f);
+	}
+
+	/**
+	 * A tear in the world, upright, always turned to the camera: a ragged lens of starry dark inside a violet edge,
+	 * white-hot at the seam. It rips open with an overshoot, its edges flicker, and it seals shut to a bright line.
+	 */
+	private static final class Rift extends Effect {
+		final Vec3d at;
+		final float height;
+		final float width;
+		final long seed;
+
+		Rift(int ticks, int rgb, Vec3d at, float height, float width) {
+			super(ticks, rgb);
+			this.at = at;
+			this.height = height;
+			this.width = width;
+			this.seed = Double.doubleToLongBits(at.x * 13 + at.y * 7 + at.z * 3 + ticks);
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		float inkStrength() {
+			return 1.0f;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			float life = age + delta;
+			float open = life < 5 ? easeOutBack(life / 5f) : 1;
+			float shut = Math.min(1, (ticks - life) / 6f);
+			float wide = Math.max(0, open * shut);
+			Vec3d toCam = cam.subtract(at).multiply(1, 0, 1);
+			Vec3d facing = toCam.lengthSquared() < 1.0E-4 ? new Vec3d(0, 0, 1) : toCam.normalize();
+			Vec3d right = facing.crossProduct(new Vec3d(0, 1, 0)).normalize();
+			Vec3d up = new Vec3d(0, 1, 0);
+			int n = 22;
+			Vec3d[] left = new Vec3d[n + 1];
+			Vec3d[] rightEdge = new Vec3d[n + 1];
+			Vec3d[] mid = new Vec3d[n + 1];
+			for (int k = 0; k <= n; k++) {
+				float s = (float) k / n;
+				double y = (s - 0.5) * height * (0.6 + 0.4 * Math.min(1, open));
+				double profile = Math.pow(Math.sin(Math.PI * s), 0.75);
+				double flicker = 0.06 * Math.sin(life * 0.9 + k * 1.3);
+				double l = width / 2 * profile * wide * (0.85 + 0.3 * hash(seed, k) + flicker);
+				double r = width / 2 * profile * wide * (0.85 + 0.3 * hash(seed, k + 100) - flicker);
+				double cx = width * 0.12 * (hash(seed, k + 200) - 0.5) * profile;
+				Vec3d c = at.add(up.multiply(y)).add(right.multiply(cx));
+				mid[k] = c;
+				left[k] = c.subtract(right.multiply(l));
+				rightEdge[k] = c.add(right.multiply(r));
+			}
+			if (inkPass) {
+				for (int k = 0; k < n; k++) {
+					quad(vc, m, left[k], left[k + 1], rightEdge[k + 1], rightEdge[k], 0x0A0418, 0.97f, 0.97f, 0.97f, 0.97f);
+				}
+				return;
+			}
+			float a = Math.min(1, life / 2f);
+			for (int k = 0; k < n; k++) {
+				// A soft violet halo, the violet edge, and a white-hot seam inside it
+				glowLine(vc, m, left[k], left[k + 1], facing, 0.55, rgb, 0.16f * a);
+				glowLine(vc, m, rightEdge[k], rightEdge[k + 1], facing, 0.55, rgb, 0.16f * a);
+				glowLine(vc, m, left[k], left[k + 1], facing, 0.16, rgb, 0.9f * a);
+				glowLine(vc, m, rightEdge[k], rightEdge[k + 1], facing, 0.16, rgb, 0.9f * a);
+				glowLine(vc, m, left[k], left[k + 1], facing, 0.05, 0xFFFFFF, 0.7f * a);
+				glowLine(vc, m, rightEdge[k], rightEdge[k + 1], facing, 0.05, 0xFFFFFF, 0.7f * a);
+				// A faint swirl of violet deep inside
+				quad(vc, m, mid[k], mid[k + 1], left[k + 1].lerp(mid[k + 1], 0.4), left[k].lerp(mid[k], 0.4), rgb, 0.12f * a, 0.12f * a, 0, 0);
+			}
+			// As it seals, only a bright seam is left
+			if (shut < 1) {
+				for (int k = 0; k < n; k++) {
+					glowLine(vc, m, mid[k], mid[k + 1], facing, 0.12, 0xFFFFFF, (1 - shut) * 0.9f);
+				}
+			}
+			// Stars far away inside it
+			for (int i = 0; i < 16; i++) {
+				int k = 2 + (int) (hash(seed, i + 300) * (n - 4));
+				float u = hash(seed, i + 400) * 1.6f - 0.8f;
+				Vec3d p = mid[k].lerp(u < 0 ? left[k] : rightEdge[k], Math.abs(u)).add(facing.multiply(-0.02));
+				float twinkle = 0.4f + 0.6f * (0.5f + 0.5f * MathHelper.sin(life * 0.5f + i * 2.1f));
+				star(vc, m, p, right, up, 0.035 + 0.03 * hash(seed, i + 500), twinkle * a * wide);
+			}
+		}
+	}
+
+	/**
+	 * A black hole: a core of pure dark ringed by a white-hot ring of light, a disk of violet fire spiralling into
+	 * it, and motes and stars falling in from all around. It swells in, holds, and collapses at the end.
+	 */
+	private static final class Vortex extends Effect {
+		final Vec3d at;
+		final float radius;
+		/** The disk's plane, tilted a little so it reads as a disk from anywhere. */
+		final Vec3d e1;
+		final Vec3d e2;
+
+		Vortex(int ticks, int rgb, Vec3d at, float radius) {
+			super(ticks, rgb);
+			this.at = at;
+			this.radius = radius;
+			Vec3d normal = new Vec3d(0.3, 1, 0.15).normalize();
+			this.e1 = normal.crossProduct(new Vec3d(0, 0, 1)).normalize();
+			this.e2 = normal.crossProduct(e1).normalize();
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		float inkStrength() {
+			return 1.0f;
+		}
+
+		@Override
+		void tick() {
+			MinecraftClient client = MinecraftClient.getInstance();
+			if (client.world == null || age > ticks - 6) {
+				return;
+			}
+			for (int i = 0; i < 5; i++) {
+				double a = client.world.random.nextDouble() * Math.PI * 2;
+				double b = (client.world.random.nextDouble() - 0.5) * Math.PI;
+				Vec3d dir = new Vec3d(Math.cos(a) * Math.cos(b), Math.sin(b), Math.sin(a) * Math.cos(b));
+				Vec3d p = at.add(dir.multiply(radius * (2 + client.world.random.nextDouble())));
+				Vec3d tangent = dir.crossProduct(new Vec3d(0, 1, 0));
+				Vec3d v = dir.multiply(-0.22).add(tangent.multiply(0.12));
+				client.world.addParticle(ModParticles.VOID_MOTE, p.x, p.y, p.z, v.x, v.y, v.z);
+			}
+			if (age % 2 == 0) {
+				double a = client.world.random.nextDouble() * Math.PI * 2;
+				Vec3d p = at.add(e1.multiply(Math.cos(a) * radius * 1.4)).add(e2.multiply(Math.sin(a) * radius * 1.4));
+				client.world.addParticle(ModParticles.STAR, p.x, p.y, p.z, 0, 0, 0);
+			}
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			float life = age + delta;
+			float grow = easeOutBack(Math.min(1, life / 8f));
+			float shrink = Math.min(1, (ticks - life) / 6f);
+			float size = grow * shrink;
+			if (size <= 0.01f) {
+				return;
+			}
+			Vec3d n = cam.subtract(at);
+			n = n.lengthSquared() < 1.0E-4 ? new Vec3d(0, 0, 1) : n.normalize();
+			Vec3d right = n.crossProduct(new Vec3d(0, 1, 0));
+			right = right.lengthSquared() < 1.0E-4 ? new Vec3d(1, 0, 0) : right.normalize();
+			Vec3d up = right.crossProduct(n).normalize();
+			double core = radius * 0.32 * size;
+			int seg = 36;
+			if (inkPass) {
+				// The core: nothing at all, and a shadow around it where the light bends away
+				for (int i = 0; i < seg; i++) {
+					double a0 = Math.PI * 2 * i / seg;
+					double a1 = Math.PI * 2 * (i + 1) / seg;
+					Vec3d p0 = at.add(right.multiply(Math.cos(a0) * core)).add(up.multiply(Math.sin(a0) * core));
+					Vec3d p1 = at.add(right.multiply(Math.cos(a1) * core)).add(up.multiply(Math.sin(a1) * core));
+					quad(vc, m, at, at, p1, p0, 0x000000, 1, 1, 1, 1);
+					Vec3d q0 = at.add(right.multiply(Math.cos(a0) * core * 1.9)).add(up.multiply(Math.sin(a0) * core * 1.9));
+					Vec3d q1 = at.add(right.multiply(Math.cos(a1) * core * 1.9)).add(up.multiply(Math.sin(a1) * core * 1.9));
+					quad(vc, m, p0, p1, q1, q0, 0x0A0418, 0.75f, 0.75f, 0, 0);
+				}
+				return;
+			}
+			// The ring of light right at its edge
+			for (int i = 0; i < seg; i++) {
+				double a0 = Math.PI * 2 * i / seg;
+				double a1 = Math.PI * 2 * (i + 1) / seg;
+				Vec3d p0 = at.add(right.multiply(Math.cos(a0) * core * 1.04)).add(up.multiply(Math.sin(a0) * core * 1.04));
+				Vec3d p1 = at.add(right.multiply(Math.cos(a1) * core * 1.04)).add(up.multiply(Math.sin(a1) * core * 1.04));
+				glowLine(vc, m, p0, p1, n, 0.1, 0xF4EEFF, 0.95f * shrink);
+				glowLine(vc, m, p0, p1, n, 0.35, rgb, 0.45f * shrink);
+			}
+			// The disk: three arms of light spiralling in, white-hot inside, violet, then dark at the rim
+			for (int arm = 0; arm < 3; arm++) {
+				List<Vec3d> points = new ArrayList<>();
+				int steps = 26;
+				float[] widths = new float[steps + 1];
+				int[] colors = new int[steps + 1];
+				float[] alphas = new float[steps + 1];
+				for (int k = 0; k <= steps; k++) {
+					float s = (float) k / steps;
+					double r = core * 1.25 + (radius * size - core * 1.25) * s;
+					double theta = arm * Math.PI * 2 / 3 + life * 0.3 - 2.4 * Math.log(r / (core * 1.25 + 1.0E-3) + 1);
+					points.add(at.add(e1.multiply(Math.cos(theta) * r)).add(e2.multiply(Math.sin(theta) * r)));
+					widths[k] = (float) (0.22 + 0.5 * s) * size;
+					colors[k] = s < 0.3f ? lerpColor(0xFFF0FF, rgb, s / 0.3f) : lerpColor(rgb, 0x3A1C70, (s - 0.3f) / 0.7f);
+					alphas[k] = (1 - s) * 0.9f * shrink;
+				}
+				strip(vc, m, cam, points, widths, colors, alphas);
+			}
+			// Faint rings of the disk itself
+			for (float f : new float[] {1.4f, 2.0f, 2.8f}) {
+				double r = core * f;
+				if (r > radius * size) {
+					continue;
+				}
+				for (int i = 0; i < seg; i++) {
+					double a0 = Math.PI * 2 * i / seg + life * 0.05 * f;
+					double a1 = Math.PI * 2 * (i + 1) / seg + life * 0.05 * f;
+					Vec3d p0 = at.add(e1.multiply(Math.cos(a0) * r)).add(e2.multiply(Math.sin(a0) * r));
+					Vec3d p1 = at.add(e1.multiply(Math.cos(a1) * r)).add(e2.multiply(Math.sin(a1) * r));
+					glowLine(vc, m, p0, p1, e1.crossProduct(e2), 0.14, rgb, 0.3f / f * shrink);
+				}
+			}
+		}
+	}
+
+	/** The player's own passage through the void: the view goes dark, stars rush past from the middle outwards. */
+	private static final class VoidScreen extends Effect {
+		VoidScreen(int ticks) {
+			super(ticks, 0);
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+		}
+
+		void paint(DrawContext ctx, int w, int h, float delta) {
+			float life = age + delta;
+			float a = Math.min(1, life / 3f) * Math.min(1, (ticks - life) / 4f);
+			if (a <= 0) {
+				return;
+			}
+			ctx.fill(0, 0, w, h, argb(0x0A0418, 0.8f * a));
+			edges(ctx, w, h, 0x7050C0, 0.55f * a, 4);
+			int cx = w / 2;
+			int cy = h / 2;
+			double reach = Math.hypot(w, h) / 2;
+			for (int i = 0; i < 110; i++) {
+				double angle = hash(7, i) * Math.PI * 2;
+				double speed = 0.05 + 0.08 * hash(11, i);
+				double d = (hash(13, i) + life * speed) % 1;
+				double dist = d * d * reach;
+				int len = (int) (1 + d * 10);
+				int size = d > 0.6 ? 2 : 1;
+				float bright = (float) Math.min(1, d * 3) * a;
+				int color = i % 5 == 0 ? 0xC8B4FF : 0xFFFFFF;
+				// A streak pointing out from the middle: a few dots along its way
+				for (int k = 0; k < len; k += 2) {
+					double r = dist + k;
+					int x = cx + (int) (Math.cos(angle) * r);
+					int y = cy + (int) (Math.sin(angle) * r);
+					ctx.fill(x, y, x + size, y + size, argb(color, bright * (1 - (float) k / (len + 1))));
+				}
+			}
 		}
 	}
 }

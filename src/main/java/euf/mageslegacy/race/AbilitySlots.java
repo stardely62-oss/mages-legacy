@@ -23,6 +23,7 @@ public final class AbilitySlots {
 		}
 		return switch (race) {
 			case SHEPHERD -> OPEN;
+			case VOIDBORN -> slot == 3 ? OPEN : null;
 			case BLOODKIN -> slot == 3 ? Talents.FANG_FEAST : Talents.NIGHT_BATS;
 			case FROZEN -> slot == 3 ? Talents.FLOW_CURRENT : Talents.STASIS_FREEZE;
 			default -> null;
