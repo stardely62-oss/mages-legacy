@@ -1,5 +1,6 @@
 package euf.mageslegacy.shepherd;
 
+import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.fx.ModParticles;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.RaceData;
@@ -15,8 +16,8 @@ import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.attribute.EntityAttributeInstance;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
@@ -306,6 +307,9 @@ public final class Echoes {
 		world.spawnEntity(mob);
 		broadcast(world.getServer());
 		rise(world, at);
+		// A pillar of pale light and strands winding in as the echo takes shape
+		Fx.pillar(world, at, 0.5f, 2.6f, 14, Shepherd.SPIRIT_RGB);
+		Fx.helix(world, mob, Math.max(0.6f, mob.getWidth()), mob.getHeight() + 0.4f, 2, true, 16, Shepherd.SPIRIT_RGB);
 		world.playSound(null, mob.getBlockPos(), SoundEvents.PARTICLE_SOUL_ESCAPE, SoundCategory.PLAYERS, 1.5f, 0.7f);
 		world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_ALLAY_AMBIENT_WITHOUT_ITEM, SoundCategory.PLAYERS, 0.6f, 0.5f);
 		return mob;

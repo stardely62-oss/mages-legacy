@@ -662,7 +662,7 @@ public final class Bloodkin {
 		// A crown of blood: it erupts around the Bloodkin, a seal burns under it and embers rise off it all the Feast long
 		Fx.screen(player, 24, BLOOD_RGB);
 		Fx.pulse(player, FEAST_TICKS / 20, FEAST_TICKS, HEART_RGB);
-		Fx.aura(world, player, FEAST_TICKS, BLOOD_INK);
+		Fx.aura(world, player, FEAST_TICKS, BLOOD_INK, Fx.EMBERS);
 		Fx.sigil(world, player.getPos(), player, 2.4f, FEAST_TICKS, BLOOD_INK);
 		Fx.helix(world, player, 1.3f, 3.0f, 4, false, 26, BLOOD_INK);
 		Fx.burst(world, player.getPos().add(0, 1, 0), 3.0f, 8, BLOOD_INK);

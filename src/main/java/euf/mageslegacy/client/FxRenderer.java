@@ -16,6 +16,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.particle.DefaultParticleType;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
@@ -111,7 +112,7 @@ public final class FxRenderer {
 				EFFECTS.add(new Ghosts(ticks, rgb, yaw, spots));
 			}
 			case Fx.BURST -> EFFECTS.add(new Burst(ticks, rgb, readVec(buf), buf.readFloat()));
-			case Fx.AURA -> EFFECTS.add(new Aura(ticks, rgb, buf.readVarInt()));
+			case Fx.AURA -> EFFECTS.add(new Aura(ticks, rgb, buf.readVarInt(), buf.readVarInt()));
 			case Fx.SWARM -> EFFECTS.add(new Swarm(ticks, buf.readVarInt(), buf.readVarInt()));
 			case Fx.SHAKE -> SHAKES.add(new float[] {ticks, 0, buf.readFloat()});
 			case Fx.FOV -> FOVS.add(new float[] {ticks, 0, buf.readFloat()});
@@ -958,13 +959,21 @@ public final class FxRenderer {
 		}
 	}
 
-	/** Embers rising off a body for a while, and now and then a breath of blood mist: made by this client. */
+	/** Particles rising off a body for a while (embers with a breath of blood mist, grains, spores...): made by this client. */
 	private static final class Aura extends Effect {
 		final int around;
+		final DefaultParticleType particle;
 
-		Aura(int ticks, int rgb, int around) {
+		Aura(int ticks, int rgb, int around, int kind) {
 			super(ticks, rgb);
 			this.around = around;
+			this.particle = switch (kind) {
+				case Fx.GRAINS -> ModParticles.SAND;
+				case Fx.SPORES -> ModParticles.SPORE;
+				case Fx.WISPS -> ModParticles.WISP;
+				case Fx.MOTES -> ModParticles.MOTE;
+				default -> ModParticles.EMBER;
+			};
 		}
 
 		@Override
@@ -978,10 +987,10 @@ public final class FxRenderer {
 			for (int i = 0; i < 3; i++) {
 				double angle = world.random.nextDouble() * Math.PI * 2;
 				double r = 0.35 + world.random.nextDouble() * 0.35;
-				world.addParticle(ModParticles.EMBER, e.getX() + Math.cos(angle) * r, e.getY() + world.random.nextDouble() * e.getHeight(),
+				world.addParticle(particle, e.getX() + Math.cos(angle) * r, e.getY() + world.random.nextDouble() * e.getHeight(),
 						e.getZ() + Math.sin(angle) * r, 0, 0, 0);
 			}
-			if (age % 4 == 0) {
+			if (particle == ModParticles.EMBER && age % 4 == 0) {
 				world.addParticle(ModParticles.BLOOD_MIST, e.getX(), e.getY() + 0.2, e.getZ(), (world.random.nextDouble() - 0.5) * 0.08, 0,
 						(world.random.nextDouble() - 0.5) * 0.08);
 			}

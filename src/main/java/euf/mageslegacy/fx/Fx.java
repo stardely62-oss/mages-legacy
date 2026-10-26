@@ -184,10 +184,18 @@ public final class Fx {
 		send(world, at, buf);
 	}
 
-	/** A glow of embers rising off an entity for {@code ticks}, made by the clients themselves. */
-	public static void aura(ServerWorld world, Entity around, int ticks, int rgb) {
+	/** What an aura gives off: crimson embers, grains of time, glowing spores, spirit wisps, golden motes. */
+	public static final int EMBERS = 0;
+	public static final int GRAINS = 1;
+	public static final int SPORES = 2;
+	public static final int WISPS = 3;
+	public static final int MOTES = 4;
+
+	/** Particles of {@code kind} rising off an entity for {@code ticks}, made by the clients themselves. */
+	public static void aura(ServerWorld world, Entity around, int ticks, int rgb, int kind) {
 		PacketByteBuf buf = start(AURA, ticks, rgb);
 		buf.writeVarInt(around.getId());
+		buf.writeVarInt(kind);
 		send(world, around.getPos(), buf);
 	}
 
