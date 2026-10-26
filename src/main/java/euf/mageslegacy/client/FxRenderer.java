@@ -728,7 +728,7 @@ public final class FxRenderer {
 	}
 
 	/**
-	 * A mark on the ground in a race's own manner: a pool of blood, a clock face, roots of mycelium, ripples of a voice.
+	 * A mark on the ground in a race's own manner: a pool of blood, a clock face, a carpet of mycelium, ripples of a voice.
 	 * It opens, holds (riding with an entity if it has one) and fades.
 	 */
 	private static final class Mark extends Effect {
@@ -750,7 +750,7 @@ public final class FxRenderer {
 
 		@Override
 		float inkStrength() {
-			return style == Fx.POOL ? 1.0f : 0.7f;
+			return style == Fx.POOL || style == Fx.MOSS ? 1.0f : 0.7f;
 		}
 
 		@Override
@@ -768,41 +768,44 @@ public final class FxRenderer {
 			switch (style) {
 				case Fx.POOL -> pool(m, vc, center, life, fade);
 				case Fx.CLOCK -> clock(m, vc, center, life, fade);
-				case Fx.ROOTS -> roots(m, vc, center, life, fade);
+				case Fx.MOSS -> moss(m, vc, center, life, fade);
 				default -> ripples(m, vc, center, life, fade);
 			}
 		}
 
-		/** Blood spreading on the ground: an uneven pool with a glossy rim, spatters around it, beating if it rides a body. */
+		/** Blood spreading on the ground: a thick uneven pool with a glossy rim, spatters around it, beating if it rides a body. */
 		private void pool(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
 			float spread = easeOut(Math.min(1, life / 10f));
 			float beat = follow >= 0 ? 0.9f + 0.1f * heartbeat((life % 20) / 20f) : 1;
 			// Blood lies on the ground as colour; only its rim catches the light
-			float body = inkPass ? 1 : 0.15f;
-			int n = 40;
-			Vec3d prev = null;
-			for (int i = 0; i <= n; i++) {
-				double a = Math.PI * 2 * i / n;
-				// An uneven edge: a few slow lobes, the same every frame
-				double lobes = 1 + 0.18 * Math.sin(a * 3 + seed % 7) + 0.1 * Math.sin(a * 5 + seed % 11) + 0.06 * Math.sin(a * 9 + seed % 13);
-				double r = radius * spread * beat * lobes;
-				Vec3d p = c.add(Math.cos(a) * r, 0, Math.sin(a) * r);
-				if (prev != null) {
-					quad(vc, m, c, c, p, prev, rgb, 0.7f * fade * body, 0.7f * fade * body, 0.55f * fade * body, 0.55f * fade * body);
-					// The glossy rim where the pool runs out
-					glowLine(vc, m, prev, p, new Vec3d(0, 1, 0), 0.08, lerpColor(rgb, 0xFF8080, 0.3f), 0.45f * fade);
-				}
-				prev = p;
-			}
-			// Spatters thrown past its edge
+			float body = inkPass ? 0.95f : 0.12f;
+			blob(m, vc, c, radius * spread * beat, body, lerpColor(rgb, 0xFF8080, 0.3f), 0.45f, fade, 7);
 			java.util.Random random = new java.util.Random(seed);
 			for (int k = 0; k < 9; k++) {
 				double a = random.nextDouble() * Math.PI * 2;
 				double d = radius * (1.15 + random.nextDouble() * 0.5) * spread;
 				double s = 0.08 + random.nextDouble() * 0.12;
 				Vec3d p = c.add(Math.cos(a) * d, 0, Math.sin(a) * d);
-				float spot = 0.7f * fade * body;
+				float spot = fade * body;
 				quad(vc, m, p.add(-s, 0, -s), p.add(s, 0, -s), p.add(s, 0, s), p.add(-s, 0, s), rgb, spot, spot, spot, spot);
+			}
+		}
+
+		/** An uneven patch lying on the ground, filled in its colour, with a lit rim; the same shape every frame. */
+		private void blob(Matrix4f m, VertexConsumer vc, Vec3d c, double r0, float fill, int rim, float rimAlpha, float fade, int salt) {
+			int n = 40;
+			Vec3d prev = null;
+			for (int i = 0; i <= n; i++) {
+				double a = Math.PI * 2 * i / n;
+				// A few slow lobes make the edge uneven
+				double lobes = 1 + 0.18 * Math.sin(a * 3 + seed % salt) + 0.1 * Math.sin(a * 5 + seed % (salt + 4)) + 0.06 * Math.sin(a * 9 + seed % 13);
+				double r = r0 * lobes;
+				Vec3d p = c.add(Math.cos(a) * r, 0, Math.sin(a) * r);
+				if (prev != null) {
+					quad(vc, m, c, c, p, prev, rgb, fill * fade, fill * fade, fill * fade * 0.9f, fill * fade * 0.9f);
+					glowLine(vc, m, prev, p, new Vec3d(0, 1, 0), 0.08, rim, rimAlpha * fade);
+				}
+				prev = p;
 			}
 		}
 
@@ -827,42 +830,33 @@ public final class FxRenderer {
 			flatRing(vc, m, c, r * 0.06, 0.08, rgb, a, 12);
 		}
 
-		/** Roots of mycelium creeping out from the middle: crooked threads that fork, with glowing tips where they grow. */
-		private void roots(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
-			float grow = easeOut(Math.min(1, life / 14f));
-			Vec3d up = new Vec3d(0, 1, 0);
+		/**
+		 * A carpet of mycelium creeping over the ground: a dark mossy patch with an uneven edge, spores twinkling on it
+		 * and tiny glowing sprouts poking up here and there.
+		 */
+		private void moss(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
+			float spread = easeOut(Math.min(1, life / 14f));
+			int glow = 0x9CFF8A;
+			blob(m, vc, c, radius * spread, inkPass ? 0.6f : 0.08f, glow, 0.4f, fade, 11);
+			if (inkPass) {
+				return;
+			}
 			java.util.Random random = new java.util.Random(seed);
-			int threads = 9;
-			for (int i = 0; i < threads; i++) {
-				double angle = Math.PI * 2 * i / threads + random.nextDouble() * 0.5;
-				thread(m, vc, c, angle, radius * (0.7 + random.nextDouble() * 0.3), grow, fade, 0.1, random, 2, up);
-			}
-			// A faint glow in the middle where it all starts
-			flatRing(vc, m, c, radius * 0.12 * grow, 0.2, rgb, 0.5f * fade, 16);
-		}
-
-		/** One root: a few crooked steps outwards, now and then a smaller root branching off. */
-		private void thread(Matrix4f m, VertexConsumer vc, Vec3d from, double angle, double length, float grow, float fade, double width,
-				java.util.Random random, int depth, Vec3d up) {
-			int steps = 6;
-			Vec3d p = from;
-			double shown = length * grow;
-			double walked = 0;
-			for (int s = 0; s < steps && walked < shown; s++) {
-				angle += (random.nextDouble() - 0.5) * 0.7;
-				double step = Math.min(length / steps, shown - walked);
-				Vec3d next = p.add(Math.cos(angle) * step, 0, Math.sin(angle) * step);
-				float a = fade * (0.9f - 0.5f * (float) (walked / length));
-				glowLine(vc, m, p, next, up, width * (1 - 0.6 * walked / length), rgb, a);
-				walked += step;
-				p = next;
-				if (depth > 0 && random.nextDouble() < 0.35) {
-					thread(m, vc, p, angle + (random.nextBoolean() ? 0.8 : -0.8), length * 0.4, grow, fade * 0.8f, width * 0.6, random, depth - 1, up);
+			Vec3d up = new Vec3d(0, 1, 0);
+			for (int k = 0; k < 30; k++) {
+				double a = random.nextDouble() * Math.PI * 2;
+				double d = Math.sqrt(random.nextDouble()) * radius * spread * 0.9;
+				Vec3d p = c.add(Math.cos(a) * d, 0.01, Math.sin(a) * d);
+				float twinkle = fade * (0.35f + 0.65f * (0.5f + 0.5f * MathHelper.sin(life * 0.25f + k * 1.7f)));
+				double s = 0.04 + random.nextDouble() * 0.05;
+				quad(vc, m, p.add(-s, 0, -s), p.add(s, 0, -s), p.add(s, 0, s), p.add(-s, 0, s), 0xC8FFB0, twinkle, twinkle, twinkle, twinkle);
+				// Every few, a sprout of light standing up out of the moss
+				if (k % 4 == 0) {
+					double h = (0.12 + random.nextDouble() * 0.15) * spread;
+					Vec3d side = new Vec3d(Math.cos(a + 1), 0, Math.sin(a + 1));
+					glowLine(vc, m, p, p.add(0, h, 0), side, 0.05, glow, twinkle);
+					glowLine(vc, m, p, p.add(0, h, 0), side.crossProduct(up), 0.05, glow, twinkle);
 				}
-			}
-			// The growing tip glows
-			if (grow < 1) {
-				flatRing(vc, m, p, 0.06, 0.08, 0xFFFFFF, fade * 0.8f, 8);
 			}
 		}
 

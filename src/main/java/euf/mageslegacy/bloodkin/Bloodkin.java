@@ -607,7 +607,7 @@ public final class Bloodkin {
 		}
 		// The circle closes in on the Bloodkin, a seal of blood opening under its feet
 		Fx.ring(world, player.getPos(), (float) radius, 0.5f, 14, BLOOD_INK);
-		Fx.mark(world, player.getPos(), player, (float) radius * 0.5f, 30, BLOOD_INK, Fx.POOL);
+		Fx.mark(world, player.getPos(), null, (float) radius * 0.5f, 30, BLOOD_INK, Fx.POOL);
 		Fx.pulse(player, 2, 30, HEART_RGB);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 1.5f, 0.8f);
 		if (drawn > 0) {
@@ -637,7 +637,7 @@ public final class Bloodkin {
 		splash(world, player, 20);
 		// Blood wrung out of the body winds up around it and is drunk back in
 		Fx.helix(world, player, 1.1f, 2.4f, 3, true, 22, BLOOD_INK);
-		Fx.mark(world, player.getPos(), player, 1.5f, 26, BLOOD_INK, Fx.POOL);
+		Fx.mark(world, player.getPos(), null, 1.5f, 26, BLOOD_INK, Fx.POOL);
 		Fx.screen(player, 14, BLOOD_RGB);
 		Fx.pulse(player, 1, 18, HEART_RGB);
 		Fx.shake(player, 1.6f, 8);
@@ -663,7 +663,7 @@ public final class Bloodkin {
 		Fx.screen(player, 24, BLOOD_RGB);
 		Fx.pulse(player, FEAST_TICKS / 20, FEAST_TICKS, HEART_RGB);
 		Fx.aura(world, player, FEAST_TICKS, BLOOD_INK, Fx.EMBERS);
-		Fx.mark(world, player.getPos(), player, 2.4f, FEAST_TICKS, BLOOD_INK, Fx.POOL);
+		Fx.mark(world, player.getPos(), null, 2.4f, FEAST_TICKS, BLOOD_INK, Fx.POOL);
 		Fx.helix(world, player, 1.3f, 3.0f, 4, false, 26, BLOOD_INK);
 		Fx.burst(world, player.getPos().add(0, 1, 0), 3.0f, 8, BLOOD_INK);
 		Fx.shake(player, 2.5f, 12);

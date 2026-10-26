@@ -139,15 +139,15 @@ public final class Fx {
 		send(world, from.getPos(), buf);
 	}
 
-	/** Marks on the ground, one for each race's manner: blood, time, mycelium, a voice. */
+	/** Marks on the ground, one for each race's manner: blood, time, a carpet of mycelium, a voice. */
 	public static final int POOL = 0;
 	public static final int CLOCK = 1;
-	public static final int ROOTS = 2;
+	public static final int MOSS = 2;
 	public static final int RIPPLES = 3;
 
 	/**
-	 * A mark on the ground in a race's own manner ({@link #POOL}, {@link #CLOCK}, {@link #ROOTS}, {@link #RIPPLES}):
-	 * it opens, holds riding with {@code follow} if given, and fades.
+	 * A mark on the ground in a race's own manner ({@link #POOL}, {@link #CLOCK}, {@link #MOSS}, {@link #RIPPLES}):
+	 * it opens, holds (riding with {@code follow} if given, or staying where it was made) and fades.
 	 */
 	public static void mark(ServerWorld world, Vec3d at, Entity follow, float radius, int ticks, int rgb, int style) {
 		PacketByteBuf buf = start(MARK, ticks, rgb);
