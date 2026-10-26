@@ -31,6 +31,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.client.MinecraftClient;
@@ -88,6 +89,19 @@ public class HarnessClient implements ClientModInitializer {
 			if (c.currentScreen instanceof LoreScreen lore) {
 				lore.revealAll();
 			}
+		});
+		// Keys: JourneyMap is installed, the third ability was left on JourneyMap's G; the mod moved it, nothing clashes
+		step(1, false, c -> {
+			check("journeymap_loaded", FabricLoader.getInstance().isModLoaded("journeymap"));
+			check("old_key_settled", MagesLegacyClient.ABILITY_KEYS[2].isDefault());
+			StringBuilder clashes = new StringBuilder();
+			for (KeyBinding ours : MagesLegacyClient.ourKeys()) {
+				for (KeyBinding other : MagesLegacyClient.clashes(c, ours)) {
+					clashes.append(ours.getTranslationKey()).append(" = ").append(other.getTranslationKey()).append("; ");
+				}
+			}
+			LOGGER.info("[harness] key clashes: {}", clashes.length() == 0 ? "none" : clashes);
+			check("no_key_clashes", clashes.length() == 0);
 		});
 		step(5, false, c -> screenshot(c, "lore"));
 		step(20, false, c -> {

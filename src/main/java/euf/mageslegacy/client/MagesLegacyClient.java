@@ -21,16 +21,20 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.network.PacketByteBuf;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import org.lwjgl.glfw.GLFW;
 
 public class MagesLegacyClient implements ClientModInitializer {
 	public static final String CATEGORY = "category.mages_legacy";
 	public static final KeyBinding[] ABILITY_KEYS = {
-			key("ability_1", GLFW.GLFW_KEY_R), key("ability_2", GLFW.GLFW_KEY_V), key("ability_3", GLFW.GLFW_KEY_G), key("ability_4", GLFW.GLFW_KEY_H)};
+			key("ability_1", GLFW.GLFW_KEY_R), key("ability_2", GLFW.GLFW_KEY_V), key("ability_3", GLFW.GLFW_KEY_Z), key("ability_4", GLFW.GLFW_KEY_H)};
+	// Defaults clear of vanilla and of JourneyMap (which takes G, B, N, J, C, O, F, [, \, - and =)
 	public static final KeyBinding TREE_KEY = key("talents", GLFW.GLFW_KEY_K);
-	public static final KeyBinding BESTIARY_KEY = key("bestiary", GLFW.GLFW_KEY_B);
-	public static final KeyBinding SQUAD_KEY = key("next_squad", GLFW.GLFW_KEY_N);
+	public static final KeyBinding BESTIARY_KEY = key("bestiary", GLFW.GLFW_KEY_U);
+	public static final KeyBinding SQUAD_KEY = key("next_squad", GLFW.GLFW_KEY_Y);
+	private static boolean keysSettled;
 
 	/**
 	 * The key as printed on an English keyboard (R, V, G, H), whatever layout the system has switched to: GLFW names
@@ -84,6 +88,10 @@ public class MagesLegacyClient implements ClientModInitializer {
 
 	private static void tick(MinecraftClient client) {
 		ClientRaceState.tick();
+		if (!keysSettled && client.options != null) {
+			keysSettled = true;
+			settleKeys(client);
+		}
 		if (client.player == null) {
 			return;
 		}
@@ -101,6 +109,49 @@ public class MagesLegacyClient implements ClientModInitializer {
 		}
 		if (pressed(client, SQUAD_KEY, ABILITY_KEYS.length + 2) && ClientRaceState.race == Race.SHEPHERD) {
 			selectSquad(ClientRaceState.extra.getInt("activePreset") + 1);
+		}
+	}
+
+	/** Our keys, all of them. */
+	public static List<KeyBinding> ourKeys() {
+		List<KeyBinding> keys = new ArrayList<>(List.of(ABILITY_KEYS));
+		keys.addAll(List.of(TREE_KEY, BESTIARY_KEY, SQUAD_KEY));
+		return keys;
+	}
+
+	/** Other bindings (vanilla's or another mod's) on the same key as ours. */
+	public static List<KeyBinding> clashes(MinecraftClient client, KeyBinding ours) {
+		List<KeyBinding> list = new ArrayList<>();
+		for (KeyBinding other : client.options.allKeys) {
+			if (other != ours && !other.isUnbound() && !ours.isUnbound() && other.equals(ours) && !ourKeys().contains(other)) {
+				list.add(other);
+			}
+		}
+		return list;
+	}
+
+	/**
+	 * Once a start: a key of ours that shares its key with another mod's (an older default, or a mod installed later)
+	 * goes back to our default when that one is free, so a modpack works without anyone opening the controls.
+	 */
+	private static void settleKeys(MinecraftClient client) {
+		boolean changed = false;
+		for (KeyBinding ours : ourKeys()) {
+			if (clashes(client, ours).isEmpty() || ours.isDefault()) {
+				continue;
+			}
+			KeyBinding probe = ours;
+			boolean defaultFree = java.util.Arrays.stream(client.options.allKeys)
+					.noneMatch(other -> other != probe && KeyBindingHelper.getBoundKeyOf(other).equals(probe.getDefaultKey()));
+			if (defaultFree) {
+				MagesLegacy.LOGGER.info("Key {} clashed with another mod; back to its default {}", ours.getTranslationKey(), ours.getDefaultKey().getTranslationKey());
+				ours.setBoundKey(ours.getDefaultKey());
+				changed = true;
+			}
+		}
+		if (changed) {
+			KeyBinding.updateKeysByCode();
+			client.options.write();
 		}
 	}
 

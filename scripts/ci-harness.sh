@@ -27,8 +27,18 @@ timeout 300 ./gradlew runGenworld --stacktrace
 test -f "$SERVER/world/level.dat" || { echo 'genworld did not create a world'; exit 1; }
 cp -r "$SERVER/world" "$CLIENT/saves/harness"
 
-# Skip first-launch screens and keep running without window focus
+# JourneyMap, as players have it: our keys must not clash with it out of the box
+JM_URL=https://cdn.modrinth.com/data/lfHFW1mp/versions/Dk3AKHGe/journeymap-fabric-1.20.1-6.0.7.jar
+JM_SHA512=9a6b9bbdf1d0e7532ede179cb47ca07626d9df3a27d3bb4472b77dfa2ef010ccd2bea40a3f47f048ffe095d103a42dd492b1cc43c0f06349c0e67933b866692e
+mkdir -p "$CLIENT/mods"
+rm -f "$CLIENT"/mods/journeymap-*.jar
+curl -sSfL -o "$CLIENT/mods/journeymap-fabric-1.20.1-6.0.7.jar" "$JM_URL"
+echo "$JM_SHA512  $CLIENT/mods/journeymap-fabric-1.20.1-6.0.7.jar" | sha512sum -c -
+
+# Skip first-launch screens and keep running without window focus. The third ability sits on G, as it did before
+# JourneyMap's G was known: the mod has to move it back to its free default by itself.
 cat > "$CLIENT/options.txt" <<'EOF'
+key_key.mages_legacy.ability_3:key.keyboard.g
 onboardAccessibility:false
 tutorialStep:none
 skipMultiplayerWarning:true
