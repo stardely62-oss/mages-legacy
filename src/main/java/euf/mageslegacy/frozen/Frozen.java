@@ -326,7 +326,7 @@ public final class Frozen {
 	// ---- once a second ----
 
 	public static void tickSecond(ServerPlayerEntity player, RaceData data) {
-		data.addResource(data.has(Talents.FLOW_SAND) ? 1.0f : 0.5f);
+		data.addResource(data.has(Talents.FLOW_SAND) ? 1.5f : 0.75f);
 		long now = now(player.getServer());
 		long spent = SPENT_AT.computeIfAbsent(player.getUuid(), id -> now);
 		if (now - spent > NUMB_AFTER) {
@@ -465,7 +465,8 @@ public final class Frozen {
 	}
 
 	/**
-	 * A Frozen's own blow. Strike from the Past doubles the first one after a Rewind; Viscous Time slows the one hit;
+	 * A Frozen's own blow. One on an enemy held in time (in its own Dome, or by its Stopping Gaze) lands 30% harder:
+	 * the Dome and the Gaze open the moment to strike. Strike from the Past doubles the first one after a Rewind; Viscous Time slows the one hit;
 	 * Doubled Moment lands every third blow twice (half again the damage); Sand in the Wounds draws sand from monsters.
 	 */
 	public static float onHit(LivingEntity victim, DamageSource source, float amount) {
@@ -474,6 +475,11 @@ public final class Frozen {
 		}
 		RaceData data = RaceState.of(player);
 		ServerWorld world = player.getServerWorld();
+		if (HELD_MOBS.containsKey(victim.getUuid())
+				|| DOMES.stream().anyMatch(d -> !d.stop && d.owner.equals(player.getUuid()) && d.contains(victim))) {
+			amount *= 1.3f;
+			world.spawnParticles(ICE, victim.getX(), victim.getY() + victim.getHeight() / 2, victim.getZ(), 5, 0.25, 0.25, 0.25, 0);
+		}
 		Long until = STRIKE.remove(player.getUuid());
 		if (until != null && until >= now(player.getServer())) {
 			amount *= 2;

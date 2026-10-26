@@ -63,7 +63,7 @@ public final class Bloodkin {
 	private static final int DASH_TICKS = 5;
 	private static final int DOUBLE_WINDOW = 60;
 	private static final int HARVEST_COOLDOWN = 400;
-	private static final int SACRIFICE_COOLDOWN = 200;
+	private static final int SACRIFICE_COOLDOWN = 400;
 	private static final int SWARM_SLOT = AbilitySlots.cooldownSlot(Race.BLOODKIN, 4);
 	private static final int SWARM_COOLDOWN = 600;
 	private static final int SWARM_TICKS = 60;
