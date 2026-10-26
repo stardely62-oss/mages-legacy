@@ -290,7 +290,7 @@ public final class Mycelid {
 		// The mycelium gives the body back: spores wind in, a column of light
 		Fx.helix(world, player, 1.4f, 2.6f, 4, true, 26, SPORE_RGB);
 		Fx.pillar(world, to, 0.7f, 5, 24, SPORE_RGB);
-		Fx.threads(world, to, 2.2f, 3.2f, 14, 44, SPORE_RGB);
+		Fx.threads(world, to, 2.4f, 1.5f, 14, 44, SPORE_RGB);
 		Fx.nebula(world, to, null, 2.4f, 40, SPORE_RGB, 0xC8FFB0);
 		Fx.burst(world, to.add(0, 1, 0), 3.0f, 9, MOSS_INK);
 		Fx.screen(player, 30, SPORE_RGB);
@@ -629,7 +629,7 @@ public final class Mycelid {
 			Fx.burst(world, jump.target().add(0, 1, 0), 1.8f, 7, SPORE_RGB);
 			// Threads of mycelium tear up out of the ground and knit the body together; the spores thrown out burst over
 			// whatever stands close
-			Fx.threads(world, jump.target(), 1.4f, 2.4f, 10, 24, SPORE_RGB);
+			Fx.threads(world, jump.target(), 1.9f, 1.3f, 11, 24, SPORE_RGB);
 			for (LivingEntity mob : world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(3), e -> e instanceof Monster && e.isAlive())) {
 				mob.damage(world.getDamageSources().indirectMagic(player, player), 4);
 				Vec3d away = mob.getPos().subtract(jump.target());

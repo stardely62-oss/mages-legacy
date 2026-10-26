@@ -1824,7 +1824,7 @@ public final class FxRenderer {
 					double u = 1 - s;
 					points.add(base.multiply(u * u * u).add(c1.multiply(3 * u * u * s)).add(c2.multiply(3 * u * s * s)).add(tip.multiply(s * s * s)));
 					float along = (float) k / n;
-					widths[k] = (float) (0.14 * (1 - along) + 0.03);
+					widths[k] = (float) (0.09 * (1 - along) + 0.025);
 					colors[k] = lerpColor(inkPass ? 0x1E4A1C : rgb, inkPass ? 0x1E4A1C : 0xF0FFE8, along * along);
 					alphas[k] = 0.85f * back;
 				}
