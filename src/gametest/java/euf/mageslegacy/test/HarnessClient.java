@@ -414,10 +414,13 @@ public class HarnessClient implements ClientModInitializer {
 			screenshot(c, "rewind_end");
 			c.options.setPerspective(Perspective.FIRST_PERSON);
 			resetCooldowns(c);
+			UUID frozenId = c.player.getUuid();
 			onServer(c, s -> {
+				// Two blocks beside the Frozen, wherever the Rewind left it: well inside the Dome
 				ServerWorld world = s.getOverworld();
+				Vec3d here = s.getPlayerManager().getPlayer(frozenId).getPos();
 				ZombieEntity zombie = EntityType.ZOMBIE.create(world);
-				zombie.refreshPositionAndAngles(arena.getX() - 0.5, arena.getY(), arena.getZ() + 2.5, 0, 0);
+				zombie.refreshPositionAndAngles(here.x, here.y, here.z + 2, 0, 0);
 				zombie.setAiDisabled(true);
 				world.spawnEntity(zombie);
 				return null;
