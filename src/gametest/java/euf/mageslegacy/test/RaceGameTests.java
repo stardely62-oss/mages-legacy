@@ -1128,6 +1128,23 @@ public class RaceGameTests implements FabricGameTest {
 		done(ctx, player);
 	}
 
+	/** Keeps the chunks around a test loaded for entities too, so a freshly spawned mob can be found and pulled. */
+	static void holdChunks(ServerWorld world, BlockPos at) {
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dz = -1; dz <= 1; dz++) {
+				world.setChunkForced((at.getX() >> 4) + dx, (at.getZ() >> 4) + dz, true);
+			}
+		}
+	}
+
+	static void releaseChunks(ServerWorld world, BlockPos at) {
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dz = -1; dz <= 1; dz++) {
+				world.setChunkForced((at.getX() >> 4) + dx, (at.getZ() >> 4) + dz, false);
+			}
+		}
+	}
+
 	static ServerPlayerEntity voidborn(TestContext ctx, BlockPos at) {
 		ServerPlayerEntity player = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
 		player.changeGameMode(GameMode.SURVIVAL);
@@ -1206,14 +1223,18 @@ public class RaceGameTests implements FabricGameTest {
 		ZombieEntity zombie = EntityType.ZOMBIE.create(world);
 		zombie.refreshPositionAndAngles(at.getX() + 4.5, at.getY(), at.getZ() + 6.5, 0, 0);
 		world.spawnEntity(zombie);
-		Vec3d center = new Vec3d(at.getX() + 0.5, at.getY() + 1.62, at.getZ() + 6.5);
-		check(Voidborn.well(player, RaceState.of(player)) == AbilityResult.OK, "the Well");
-		zombie.setVelocity(Vec3d.ZERO);
-		Voidborn.tick(world.getServer());
-		Vec3d toCenter = center.subtract(zombie.getBoundingBox().getCenter()).normalize();
-		check(zombie.getVelocity().dotProduct(toCenter) > 0.05, "the zombie is pulled towards the Well: " + zombie.getVelocity());
-		zombie.discard();
-		done(ctx, player);
+		holdChunks(world, at);
+		ctx.runAtTick(ctx.getTick() + 5, () -> {
+			Vec3d center = new Vec3d(at.getX() + 0.5, at.getY() + 1.62, at.getZ() + 6.5);
+			check(Voidborn.well(player, RaceState.of(player)) == AbilityResult.OK, "the Well");
+			zombie.setVelocity(Vec3d.ZERO);
+			Voidborn.tick(world.getServer());
+			Vec3d toCenter = center.subtract(zombie.getBoundingBox().getCenter()).normalize();
+			check(zombie.getVelocity().dotProduct(toCenter) > 0.05, "the zombie is pulled towards the Well: " + zombie.getVelocity());
+			zombie.discard();
+			releaseChunks(world, at);
+			done(ctx, player);
+		});
 	}
 
 	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "void_excise", tickLimit = 120)
@@ -1224,8 +1245,9 @@ public class RaceGameTests implements FabricGameTest {
 		ServerPlayerEntity player = voidborn(ctx, at);
 		RaceData data = RaceState.of(player);
 		ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(0, 0, 4));
-		// A couple of ticks for the zombie to settle into the world before it is looked at
-		ctx.runAtTick(ctx.getTick() + 3, () -> {
+		// The chunks held for entities, and a few ticks for the zombie to settle before it is looked at
+		holdChunks(world, at);
+		ctx.runAtTick(ctx.getTick() + 5, () -> {
 			UUID id = zombie.getUuid();
 			ServerWorld pocket = Pocket.world(world.getServer());
 			AbilityResult result = Voidborn.excise(player, data);
@@ -1235,6 +1257,7 @@ public class RaceGameTests implements FabricGameTest {
 				check(result == AbilityResult.LOCKED && world.getEntity(id) != null && data.resource == 100,
 						"no pocket: nothing happens, nothing spent (" + result + ", zombie " + world.getEntity(id) + ", void " + data.resource + ")");
 				zombie.discard();
+				releaseChunks(world, at);
 				done(ctx, player);
 				return;
 			}
@@ -1247,6 +1270,7 @@ public class RaceGameTests implements FabricGameTest {
 				Entity back = world.getEntity(id);
 				check(back != null && back.getPos().distanceTo(Vec3d.ofBottomCenter(at.add(0, 0, 4))) < 0.5, "back on its spot: " + back);
 				back.discard();
+				releaseChunks(world, at);
 				done(ctx, player);
 			});
 		});
