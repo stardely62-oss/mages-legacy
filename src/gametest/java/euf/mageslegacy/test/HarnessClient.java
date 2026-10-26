@@ -347,6 +347,8 @@ public class HarnessClient implements ClientModInitializer {
 			});
 			step(10, false, c -> interactWolf(c));
 		}
+		// The bond is made on the server a tick after the last click and reaches the client with the next sync
+		step(20, false, c -> { });
 		step(20, false, c -> {
 			check("wolf_bonded", ClientRaceState.extra.getList("bonds", 10).size() == 1);
 			screenshot(c, "bonded");
