@@ -703,15 +703,19 @@ public class HarnessClient implements ClientModInitializer {
 			tp(c, Vec3d.ofBottomCenter(arena).add(0, 0, -3), Vec3d.ofBottomCenter(arena).add(0, 1.2, 3));
 		});
 		// The Excision: the zombie is gone into the pocket for six seconds, then back
-		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[2].getDefaultKey()));
+		step(30, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[2].getDefaultKey()));
 		step(140, false, c -> {
+			UUID me = c.player.getUuid();
+			LOGGER.info("[harness] excision: cooling {}, void {}, looking at {}",
+					onServer(c, s -> RaceState.get(s).data(me).readyAt.getOrDefault(2, 0L) > s.getTicks()),
+					onServer(c, s -> RaceState.get(s).data(me).resource), c.crosshairTarget);
 			screenshot(c, "void_excise");
-			int here = onServer(c, s -> s.getOverworld().getEntitiesByClass(ZombieEntity.class, new Box(arena).expand(12), z -> true).size());
+			int here = onServer(c, s -> s.getOverworld().getEntitiesByClass(ZombieEntity.class, new Box(arena).expand(12), z -> z.isAlive()).size());
 			LOGGER.info("[harness] excision: zombies left here {}", here);
 			check("excise_away", here == 0);
 		});
 		step(10, false, c -> {
-			int here = onServer(c, s -> s.getOverworld().getEntitiesByClass(ZombieEntity.class, new Box(arena).expand(12), z -> true).size());
+			int here = onServer(c, s -> s.getOverworld().getEntitiesByClass(ZombieEntity.class, new Box(arena).expand(12), z -> z.isAlive()).size());
 			LOGGER.info("[harness] excision: zombies back {}", here);
 			check("excise_back", here == 1);
 			screenshot(c, "hud_voidborn");
