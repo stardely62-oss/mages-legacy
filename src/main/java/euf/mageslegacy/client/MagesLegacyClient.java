@@ -31,7 +31,7 @@ public class MagesLegacyClient implements ClientModInitializer {
 	public static final String CATEGORY = "category.mages_legacy";
 	public static final KeyBinding[] ABILITY_KEYS = {
 			key("ability_1", GLFW.GLFW_KEY_R), key("ability_2", GLFW.GLFW_KEY_V), key("ability_3", GLFW.GLFW_KEY_Z), key("ability_4", GLFW.GLFW_KEY_H),
-			key("ability_5", GLFW.GLFW_KEY_X)};
+			key("ability_5", GLFW.GLFW_KEY_LEFT_ALT)};
 	// Defaults clear of vanilla and of JourneyMap (which takes G, B, N, J, C, O, F, [, \, - and =)
 	public static final KeyBinding TREE_KEY = key("talents", GLFW.GLFW_KEY_K);
 	public static final KeyBinding BESTIARY_KEY = key("bestiary", GLFW.GLFW_KEY_U);
@@ -39,7 +39,7 @@ public class MagesLegacyClient implements ClientModInitializer {
 	private static boolean keysSettled;
 
 	/**
-	 * The key as printed on an English keyboard (R, V, G, H), whatever layout the system has switched to: GLFW names
+	 * The key as printed on an English keyboard (R, V, G, H; Alt for either Alt), whatever layout the system has switched to: GLFW names
 	 * letter keys by the active layout, which turned R into К. Other keys keep their localized names.
 	 */
 	public static String keyLabel(KeyBinding binding) {
@@ -47,6 +47,13 @@ public class MagesLegacyClient implements ClientModInitializer {
 		String prefix = "key.keyboard.";
 		if (key.startsWith(prefix) && key.length() == prefix.length() + 1) {
 			return key.substring(prefix.length()).toUpperCase(Locale.ROOT);
+		}
+		// "Left Alt" won't fit a key cap: the side goes
+		for (String side : List.of("left.", "right.")) {
+			String name = key.startsWith(prefix + side) ? key.substring(prefix.length() + side.length()) : "";
+			if (List.of("alt", "shift", "control").contains(name)) {
+				return name.equals("control") ? "Ctrl" : name.substring(0, 1).toUpperCase(Locale.ROOT) + name.substring(1);
+			}
 		}
 		return binding.getBoundKeyLocalizedText().getString();
 	}

@@ -24,6 +24,12 @@ public final class ModParticles {
 	public static final DefaultParticleType BLOOD = FabricParticleTypes.simple();
 	/** A glowing drop of drawn blood: drifts where it's sent (the Harvest's streams). */
 	public static final DefaultParticleType BLOOD_MOTE = FabricParticleTypes.simple();
+	/** A crimson ember: rises off a feasting Bloodkin, swirling, glowing. */
+	public static final DefaultParticleType EMBER = FabricParticleTypes.simple();
+	/** Dark blood mist: billows out, swells and thins away. */
+	public static final DefaultParticleType BLOOD_MIST = FabricParticleTypes.simple();
+	/** A bat of the swarm: flies off along its velocity, beating its wings. */
+	public static final DefaultParticleType BAT = FabricParticleTypes.simple();
 
 	private ModParticles() {
 	}
@@ -37,5 +43,8 @@ public final class ModParticles {
 		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("mote"), MOTE);
 		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("blood"), BLOOD);
 		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("blood_mote"), BLOOD_MOTE);
+		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("ember"), EMBER);
+		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("blood_mist"), BLOOD_MIST);
+		Registry.register(Registries.PARTICLE_TYPE, MagesLegacy.id("bat"), BAT);
 	}
 }

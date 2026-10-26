@@ -35,7 +35,7 @@ public final class RaceHud {
 	public static final int[] MYCELID_COSTS = {15, 30, 40};
 	/** The Whistle's orders as marks on its slot: Follow, Guard, Hunt. */
 	public static final String[] STANCE_MARKS = {"↩", "◈", "⚔"};
-	// Keys H and X: the abilities talents open show their talent's icon
+	// Keys H and Alt: the abilities talents open show their talent's icon
 	public static final Item[] BLOODKIN_ICONS = {Items.REDSTONE, Items.NETHER_WART, Items.IRON_SWORD, Items.ENCHANTED_GOLDEN_APPLE, Items.BAT_SPAWN_EGG};
 	public static final String[] BLOODKIN_ABILITY_ICONS = {"ability_dash", "ability_harvest", "ability_sacrifice", "fang_feast", "night_bats"};
 	public static final Item[] FROZEN_ICONS = {Items.CLOCK, Items.PACKED_ICE, Items.SAND, Items.HEART_OF_THE_SEA, Items.ICE};

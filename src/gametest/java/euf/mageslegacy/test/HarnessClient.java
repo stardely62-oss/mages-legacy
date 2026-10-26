@@ -562,7 +562,7 @@ public class HarnessClient implements ClientModInitializer {
 				return null;
 			});
 		});
-		// X with the Swarm talent: the bat swarm, the way a player presses it
+		// Alt with the Swarm talent: the bat swarm, the way a player presses it
 		step(5, false, c -> {
 			resetCooldowns(c);
 			UUID me = c.player.getUuid();
@@ -582,12 +582,35 @@ public class HarnessClient implements ClientModInitializer {
 			boolean sneakSeen = onServer(c, s -> RaceState.get(s).data(me).readyAt.getOrDefault(4, 0L) > s.getTicks());
 			boolean sacrificed = onServer(c, s -> s.getPlayerManager().getPlayer(me).getHealth() < s.getPlayerManager().getPlayer(me).getMaxHealth());
 			int bats = onServer(c, s -> s.getOverworld().getEntitiesByClass(BatEntity.class, new Box(arena).expand(24), b -> true).size());
-			LOGGER.info("[harness] X: swarm cooldown {}, sacrificed {}, bats {}", sneakSeen, sacrificed, bats);
-			check("x_swarm", sneakSeen && !sacrificed && bats > 0);
+			LOGGER.info("[harness] Alt: swarm cooldown {}, sacrificed {}, bats {}", sneakSeen, sacrificed, bats);
+			check("alt_swarm", sneakSeen && !sacrificed && bats > 0);
 			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 		});
 		step(10, false, c -> {
 			screenshot(c, "bat_swarm");
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+		});
+		// H with the Feast crown: the crown of blood, seen from behind
+		step(60, false, c -> {
+			resetCooldowns(c);
+			UUID me = c.player.getUuid();
+			onServer(c, s -> {
+				ServerPlayerEntity player = s.getPlayerManager().getPlayer(me);
+				RaceData data = RaceState.get(s).data(me);
+				data.talents.add(Talents.FANG_FEAST);
+				data.addResource(100);
+				RacePackets.sync(player, data);
+				return null;
+			});
+		});
+		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[3].getDefaultKey()));
+		step(8, false, c -> {
+			UUID me = c.player.getUuid();
+			check("h_feast", onServer(c, s -> RaceState.get(s).data(me).readyAt.getOrDefault(5, 0L) > s.getTicks()));
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+		});
+		step(6, false, c -> {
+			screenshot(c, "blood_feast");
 			c.options.setPerspective(Perspective.FIRST_PERSON);
 		});
 		step(20, false, this::finish);

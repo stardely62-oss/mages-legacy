@@ -22,6 +22,17 @@ public final class Fx {
 	public static final int PILLAR = 3;
 	public static final int SCREEN = 4;
 	public static final int FLIGHT = 5;
+	public static final int SLASH = 6;
+	public static final int TENDRIL = 7;
+	public static final int SIGIL = 8;
+	public static final int HELIX = 9;
+	public static final int GHOSTS = 10;
+	public static final int SHAKE = 11;
+	public static final int FOV = 12;
+	public static final int PULSE = 13;
+	public static final int AURA = 14;
+	public static final int SWARM = 15;
+	public static final int BURST = 16;
 	/** How far away players still see an effect. */
 	private static final double RANGE = 64;
 
@@ -95,6 +106,110 @@ public final class Fx {
 	public static void flight(ServerPlayerEntity player, int ticks) {
 		if (ServerPlayNetworking.canSend(player, RacePackets.FX)) {
 			ServerPlayNetworking.send(player, RacePackets.FX, start(FLIGHT, ticks, 0));
+		}
+	}
+
+	/**
+	 * A crescent cut through {@code at}: it sweeps across along {@code dir} in a flash, a white-hot edge on a band of
+	 * colour, and fades as it widens. {@code roll} turns it from flat (0) to upright (90 degrees).
+	 */
+	public static void slash(ServerWorld world, Vec3d at, Vec3d dir, float size, float roll, int ticks, int rgb) {
+		PacketByteBuf buf = start(SLASH, ticks, rgb);
+		writeVec(buf, at);
+		writeVec(buf, dir);
+		buf.writeFloat(size);
+		buf.writeFloat(roll);
+		send(world, at, buf);
+	}
+
+	/**
+	 * A living stream from one entity to another: a winding ribbon, thick at its source and thin where it arrives,
+	 * with bright pulses running along it.
+	 */
+	public static void tendril(ServerWorld world, Entity from, Entity to, int ticks, int rgb, int rgb2) {
+		PacketByteBuf buf = start(TENDRIL, ticks, rgb);
+		buf.writeInt(rgb2);
+		buf.writeVarInt(from.getId());
+		buf.writeVarInt(to.getId());
+		send(world, from.getPos(), buf);
+	}
+
+	/** A circle of runes on the ground that springs open, slowly turns and beats with light, riding with {@code follow} if given. */
+	public static void sigil(ServerWorld world, Vec3d at, Entity follow, float radius, int ticks, int rgb) {
+		PacketByteBuf buf = start(SIGIL, ticks, rgb);
+		writeVec(buf, at);
+		buf.writeVarInt(follow == null ? -1 : follow.getId());
+		buf.writeFloat(radius);
+		send(world, at, buf);
+	}
+
+	/** Strands of light that wind up around an entity, rising, then draw into it ({@code inward}) or fly apart. */
+	public static void helix(ServerWorld world, Entity around, float radius, float height, int strands, boolean inward, int ticks, int rgb) {
+		PacketByteBuf buf = start(HELIX, ticks, rgb);
+		buf.writeVarInt(around.getId());
+		buf.writeFloat(radius);
+		buf.writeFloat(height);
+		buf.writeVarInt(strands);
+		buf.writeBoolean(inward);
+		send(world, around.getPos(), buf);
+	}
+
+	/** Glowing afterimages of a body left along {@code path}, facing {@code yaw}, the oldest fading first. */
+	public static void ghosts(ServerWorld world, List<Vec3d> path, float yaw, int count, int ticks, int rgb) {
+		if (path.size() < 2) {
+			return;
+		}
+		PacketByteBuf buf = start(GHOSTS, ticks, rgb);
+		buf.writeFloat(yaw);
+		buf.writeVarInt(count);
+		for (int i = 0; i < count; i++) {
+			writeVec(buf, path.get(Math.min(path.size() - 1, (int) ((path.size() - 1) * (i + 0.5) / count))));
+		}
+		send(world, path.get(0), buf);
+	}
+
+	/** A burst: a shell that flashes out from {@code at} to {@code radius} in a few ticks and is gone. */
+	public static void burst(ServerWorld world, Vec3d at, float radius, int ticks, int rgb) {
+		PacketByteBuf buf = start(BURST, ticks, rgb);
+		writeVec(buf, at);
+		buf.writeFloat(radius);
+		send(world, at, buf);
+	}
+
+	/** A glow of embers rising off an entity for {@code ticks}, made by the clients themselves. */
+	public static void aura(ServerWorld world, Entity around, int ticks, int rgb) {
+		PacketByteBuf buf = start(AURA, ticks, rgb);
+		buf.writeVarInt(around.getId());
+		send(world, around.getPos(), buf);
+	}
+
+	/** {@code count} bats circling an entity for {@code ticks}: a body scattered into a swarm. */
+	public static void swarm(ServerWorld world, Entity around, int count, int ticks) {
+		PacketByteBuf buf = start(SWARM, ticks, 0);
+		buf.writeVarInt(around.getId());
+		buf.writeVarInt(count);
+		send(world, around.getPos(), buf);
+	}
+
+	/** This player's camera shakes, {@code strength} degrees at first, dying away over {@code ticks}. */
+	public static void shake(ServerPlayerEntity player, float strength, int ticks) {
+		sendTo(player, start(SHAKE, ticks, 0), buf -> buf.writeFloat(strength));
+	}
+
+	/** This player's view widens by {@code amount} (0.2 is a fifth) at once and eases back over {@code ticks}: a rush. */
+	public static void fov(ServerPlayerEntity player, float amount, int ticks) {
+		sendTo(player, start(FOV, ticks, 0), buf -> buf.writeFloat(amount));
+	}
+
+	/** This player's screen edges beat like a heart, {@code beats} times over {@code ticks}. */
+	public static void pulse(ServerPlayerEntity player, int beats, int ticks, int rgb) {
+		sendTo(player, start(PULSE, ticks, rgb), buf -> buf.writeVarInt(beats));
+	}
+
+	private static void sendTo(ServerPlayerEntity player, PacketByteBuf buf, java.util.function.Consumer<PacketByteBuf> rest) {
+		if (ServerPlayNetworking.canSend(player, RacePackets.FX)) {
+			rest.accept(buf);
+			ServerPlayNetworking.send(player, RacePackets.FX, buf);
 		}
 	}
 

@@ -881,7 +881,7 @@ public class RaceGameTests implements FabricGameTest {
 		check(Math.abs(player.getHealth() - 10) < 0.01f, "the Shepherd heals 2 hearts, now " + player.getHealth());
 		foe.discard();
 
-		// The Gather (X) brings the creatures to the Shepherd, on its own cooldown
+		// The Gather (Alt) brings the creatures to the Shepherd, on its own cooldown
 		echo.refreshPositionAndAngles(at.getX() + 3.5, at.getY(), at.getZ() - 3.5, 0, 0);
 		check(Shepherd.use(player, data, 4) == AbilityResult.OK && echo.squaredDistanceTo(player) < 16, "the Gather brings the echo close");
 
@@ -1114,10 +1114,10 @@ public class RaceGameTests implements FabricGameTest {
 		data.readyAt.clear();
 		player.setHealth(4);
 		check(Bloodkin.sacrifice(player, data) == AbilityResult.HINTED && player.getHealth() == 4, "the Sacrifice never kills");
-		// X before the Swarm talent: a hint naming the talent; sneaking never changes which ability a key casts
+		// Alt before the Swarm talent: a hint naming the talent; sneaking never changes which ability a key casts
 		data.readyAt.clear();
 		player.setHealth(20);
-		check(Bloodkin.use(player, data, 4) == AbilityResult.HINTED && player.getHealth() == 20, "X without the Swarm only hints");
+		check(Bloodkin.use(player, data, 4) == AbilityResult.HINTED && player.getHealth() == 20, "Alt without the Swarm only hints");
 		data.alt = true;
 		check(Bloodkin.use(player, data, 2) == AbilityResult.OK && player.getHealth() < 20, "sneak + Z is still the Sacrifice");
 		data.alt = false;

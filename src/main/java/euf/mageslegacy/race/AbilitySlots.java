@@ -1,12 +1,12 @@
 package euf.mageslegacy.race;
 
 /**
- * The ability keys: R, V, Z for every race's three main abilities, then H and X for the ones a race has beyond them,
+ * The ability keys: R, V, Z for every race's three main abilities, then H and left Alt for the ones a race has beyond them,
  * most of which a talent opens (the Bloodkin's Feast and Swarm, say). Each has a key of its own: sneaking is never what
  * picks an ability, since the server can't always tell a crouch from a keypress.
  */
 public final class AbilitySlots {
-	/** Keys the client sends: 0..2 the main three, 3 is H, 4 is X. */
+	/** Keys the client sends: 0..2 the main three, 3 is H, 4 is left Alt. */
 	public static final int KEYS = 5;
 	/** Cooldown slots the sync carries (abilities keep theirs at fixed numbers in RaceData.readyAt). */
 	public static final int COOLDOWNS = 10;

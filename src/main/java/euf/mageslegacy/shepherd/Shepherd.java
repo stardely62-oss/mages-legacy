@@ -470,7 +470,7 @@ public final class Shepherd {
 		return AbilityResult.OK;
 	}
 
-	/** The Gather (X): your creatures within 64 blocks come to your side, on their own cooldown. */
+	/** The Gather (Alt): your creatures within 64 blocks come to your side, on their own cooldown. */
 	public static AbilityResult gather(ServerPlayerEntity player, RaceData data) {
 		ServerWorld world = player.getServerWorld();
 		if (!ready(player, data, GATHER_SLOT)) {

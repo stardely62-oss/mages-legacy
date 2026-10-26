@@ -15,8 +15,8 @@ DEFS = ASSETS / "particles"
 
 
 def sprite(rows, palette):
-    """rows: 8 strings of 8 characters; each character is a palette key, '.' is transparent."""
-    img = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
+    """rows: square grid of strings (8x8, or 16x16 for bats); each character is a palette key, '.' is transparent."""
+    img = Image.new("RGBA", (len(rows[0]), len(rows)), (0, 0, 0, 0))
     for y, row in enumerate(rows):
         for x, ch in enumerate(row):
             if ch != ".":
@@ -68,6 +68,27 @@ DROPS = [
     ["........", "........", "........", "...hr...", "...rd...", "........", "........", "........"],
     ["........", "........", "........", "........", "..p..p..", ".prrrdp.", "..pddp..", "........"],
 ]
+# A crimson ember: the Feast's aura, rising off the body
+EMBER = {"w": (255, 226, 200, 255), "g": (255, 84, 72, 255), "o": (200, 28, 44, 190), "f": (130, 10, 26, 90)}
+# Dark blood mist, soft and see-through: what a Bloodkin scatters into and gathers out of
+MIST_PAL = {"a": (110, 14, 32, 150), "b": (78, 8, 24, 100), "c": (50, 4, 16, 55)}
+MISTS = [
+    ["........", "..cccc..", ".cbbbbc.", ".cbaabc.", ".cbaabc.", ".cbbbbc.", "..cccc..", "........"],
+    [".cc.....", "cbbcccc.", "cbaabbbc", ".cbaaabc", "cbbaabbc", "cbbbbbc.", ".ccccc..", "........"],
+]
+# A bat of the swarm, three beats of its wings: up, level, down
+BAT_PAL = {"k": (26, 14, 24, 255), "d": (58, 24, 42, 255), "h": (96, 40, 62, 255), "r": (255, 64, 64, 255)}
+BATS = [
+    ["................", "................", ".h............h.", ".dh..........hd.", "..dd...kk...dd..", "..ddd.kkkk.ddd..",
+     "...dddrkkrddd...", "....ddkkkkdd....", ".....dkkkkd.....", ".......kk.......", "................", "................",
+     "................", "................", "................", "................"],
+    ["................", "................", "................", "................", "................", ".......kk.......",
+     "......kkkk......", ".hdddkrkkrkdddh.", "hdddddkkkkdddddh", ".d.dddkkkkddd.d.", ".......kk.......", "................",
+     "................", "................", "................", "................"],
+    ["................", "................", "................", "................", ".......kk.......", "......rkkr......",
+     ".....dkkkkd.....", "....ddkkkkdd....", "...ddd.kk.ddd...", "..dd........dd..", ".dh..........hd.", ".h............h.",
+     "................", "................", "................", "................"],
+]
 BLOOD_GLOW = {"w": (255, 200, 200, 255), "g": (230, 40, 60, 255), "o": (150, 15, 30, 180), "f": (110, 10, 25, 80)}
 
 KINDS = {
@@ -79,6 +100,9 @@ KINDS = {
     "mote": (MOTES, MOTE),
     "blood": (DROPS, BLOOD),
     "blood_mote": (MOTES, BLOOD_GLOW),
+    "ember": (MOTES, EMBER),
+    "blood_mist": (MISTS, MIST_PAL),
+    "bat": (BATS, BAT_PAL),
 }
 
 

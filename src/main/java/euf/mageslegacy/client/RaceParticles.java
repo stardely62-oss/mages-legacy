@@ -2,15 +2,20 @@ package euf.mageslegacy.client;
 
 import euf.mageslegacy.fx.ModParticles;
 import net.fabricmc.fabric.api.client.particle.v1.ParticleFactoryRegistry;
+import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleTextureSheet;
 import net.minecraft.client.particle.SpriteBillboardParticle;
 import net.minecraft.client.particle.SpriteProvider;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.Entity;
 import net.minecraft.util.math.MathHelper;
+import org.jetbrains.annotations.Nullable;
 
 /** How each of the races' particles moves and looks (see {@link ModParticles}). */
 public final class RaceParticles {
 	private static final int FULL_BRIGHT = 0xF000F0;
+	/** The bat frames, kept for the swarm's bats, which the client makes itself to circle a body (see {@link #swarmBat}). */
+	private static SpriteProvider batSprites;
 
 	private RaceParticles() {
 	}
@@ -25,6 +30,12 @@ public final class RaceParticles {
 		registry.register(ModParticles.MOTE, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Mote(world, x, y, z, vx, vy, vz, sprites));
 		registry.register(ModParticles.BLOOD, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Drop(world, x, y, z, vx, vy, vz, sprites));
 		registry.register(ModParticles.BLOOD_MOTE, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Mote(world, x, y, z, vx, vy, vz, sprites));
+		registry.register(ModParticles.EMBER, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Ember(world, x, y, z, vx, vy, vz, sprites));
+		registry.register(ModParticles.BLOOD_MIST, sprites -> (type, world, x, y, z, vx, vy, vz) -> new Mist(world, x, y, z, vx, vy, vz, sprites));
+		registry.register(ModParticles.BAT, sprites -> {
+			batSprites = sprites;
+			return (type, world, x, y, z, vx, vy, vz) -> new Bat(world, x, y, z, vx, vy, vz, sprites, null);
+		});
 	}
 
 	/** Fades in over the first few ticks and out over the last third. */
@@ -258,6 +269,166 @@ public final class RaceParticles {
 		@Override
 		public int getBrightness(float tint) {
 			return FULL_BRIGHT;
+		}
+
+		@Override
+		public ParticleTextureSheet getType() {
+			return ParticleTextureSheet.PARTICLE_SHEET_TRANSLUCENT;
+		}
+	}
+
+	/**
+	 * A bat that circles {@code around} (a Bloodkin scattered into the swarm) for {@code ticks} instead of flying off,
+	 * or null if the sprites aren't loaded.
+	 */
+	@Nullable
+	public static Particle swarmBat(ClientWorld world, Entity around, int ticks) {
+		if (batSprites == null) {
+			return null;
+		}
+		Bat bat = new Bat(world, around.getX(), around.getY() + 1, around.getZ(), 0, 0, 0, batSprites, around);
+		bat.setMaxAge(ticks);
+		return bat;
+	}
+
+	/** A crimson ember: rises swirling off a body, glowing, and shrinks away. */
+	static final class Ember extends SpriteBillboardParticle {
+		private final SpriteProvider sprites;
+		private final float phase;
+		private final float startScale;
+
+		Ember(ClientWorld world, double x, double y, double z, double vx, double vy, double vz, SpriteProvider sprites) {
+			super(world, x, y, z);
+			this.sprites = sprites;
+			velocityX = vx + (random.nextDouble() - 0.5) * 0.02;
+			velocityY = vy + 0.03 + random.nextDouble() * 0.03;
+			velocityZ = vz + (random.nextDouble() - 0.5) * 0.02;
+			gravityStrength = -0.04f;
+			velocityMultiplier = 0.93f;
+			startScale = 0.06f + random.nextFloat() * 0.06f;
+			scale = startScale;
+			maxAge = 16 + random.nextInt(14);
+			phase = random.nextFloat() * MathHelper.TAU;
+			setSpriteForAge(sprites);
+		}
+
+		@Override
+		public void tick() {
+			super.tick();
+			velocityX += MathHelper.sin(age * 0.5f + phase) * 0.004;
+			velocityZ += MathHelper.cos(age * 0.5f + phase) * 0.004;
+			setSpriteForAge(sprites);
+			scale = startScale * (1 - (float) age / maxAge * 0.7f);
+			alpha = lifeAlpha(age, maxAge, 2);
+		}
+
+		@Override
+		public int getBrightness(float tint) {
+			return FULL_BRIGHT;
+		}
+
+		@Override
+		public ParticleTextureSheet getType() {
+			return ParticleTextureSheet.PARTICLE_SHEET_TRANSLUCENT;
+		}
+	}
+
+	/** A puff of dark blood mist: thrown out, slows, swells and thins to nothing. */
+	static final class Mist extends SpriteBillboardParticle {
+		private final float startScale;
+
+		Mist(ClientWorld world, double x, double y, double z, double vx, double vy, double vz, SpriteProvider sprites) {
+			super(world, x, y, z);
+			setSprite(sprites.getSprite(random));
+			velocityX = vx;
+			velocityY = vy + 0.005;
+			velocityZ = vz;
+			gravityStrength = -0.005f;
+			velocityMultiplier = 0.86f;
+			startScale = 0.35f + random.nextFloat() * 0.3f;
+			scale = startScale;
+			maxAge = 24 + random.nextInt(16);
+			angle = random.nextFloat() * MathHelper.TAU;
+			prevAngle = angle;
+		}
+
+		@Override
+		public void tick() {
+			super.tick();
+			prevAngle = angle;
+			angle += 0.03f;
+			scale = startScale * (1 + (float) age / maxAge * 1.2f);
+			alpha = lifeAlpha(age, maxAge, 3) * 0.8f;
+		}
+
+		@Override
+		public ParticleTextureSheet getType() {
+			return ParticleTextureSheet.PARTICLE_SHEET_TRANSLUCENT;
+		}
+	}
+
+	/**
+	 * A bat: beats its wings and flies along its velocity, weaving a little; one of a swarm instead circles its
+	 * Bloodkin on a tilted orbit of its own, darting in and out, until the swarm gathers back into a body.
+	 */
+	static final class Bat extends SpriteBillboardParticle {
+		private final SpriteProvider sprites;
+		@Nullable
+		private final Entity around;
+		private final float orbit;
+		private final float speed;
+		private final float tilt;
+		private final float height;
+		private final int beat;
+		private float turn;
+
+		Bat(ClientWorld world, double x, double y, double z, double vx, double vy, double vz, SpriteProvider sprites, @Nullable Entity around) {
+			super(world, x, y, z);
+			this.sprites = sprites;
+			this.around = around;
+			velocityX = vx;
+			velocityY = vy;
+			velocityZ = vz;
+			gravityStrength = 0;
+			velocityMultiplier = 0.98f;
+			collidesWithWorld = false;
+			scale = 0.14f + random.nextFloat() * 0.08f;
+			maxAge = 18 + random.nextInt(14);
+			orbit = 0.9f + random.nextFloat() * 1.3f;
+			speed = (0.18f + random.nextFloat() * 0.16f) * (random.nextBoolean() ? 1 : -1);
+			tilt = (random.nextFloat() - 0.5f) * 1.2f;
+			height = 0.3f + random.nextFloat() * 1.6f;
+			turn = random.nextFloat() * MathHelper.TAU;
+			beat = random.nextInt(3);
+			setSprite(sprites.getSprite(beat, 2));
+		}
+
+		@Override
+		public void tick() {
+			if (around != null) {
+				// Gone when the swarm gathers back into a body
+				if (around.isRemoved() || age++ >= maxAge) {
+					markDead();
+					return;
+				}
+				prevPosX = x;
+				prevPosY = y;
+				prevPosZ = z;
+				turn += speed;
+				float r = orbit * (0.85f + 0.25f * MathHelper.sin(age * 0.21f + tilt * 5));
+				double tx = around.getX() + MathHelper.cos(turn) * r;
+				double tz = around.getZ() + MathHelper.sin(turn) * r;
+				double ty = around.getY() + height + MathHelper.sin(turn) * tilt + 0.15 * MathHelper.sin(age * 0.6f);
+				// Chases its place on the orbit rather than snapping to it, so the swarm trails behind a fast body
+				setPos(x + (tx - x) * 0.45, y + (ty - y) * 0.45, z + (tz - z) * 0.45);
+			} else {
+				super.tick();
+				velocityY += MathHelper.sin(age * 0.7f) * 0.01;
+				alpha = lifeAlpha(age, maxAge, 0);
+			}
+			// The wings beat up, level, down, level
+			int frame = (age / 2 + beat) % 4;
+			setSprite(sprites.getSprite(frame == 3 ? 1 : frame, 2));
 		}
 
 		@Override

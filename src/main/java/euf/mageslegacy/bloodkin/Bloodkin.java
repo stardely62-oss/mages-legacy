@@ -34,7 +34,6 @@ import net.minecraft.entity.passive.GolemEntity;
 import net.minecraft.entity.passive.TameableEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.FoodComponent;
-import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -79,6 +78,8 @@ public final class Bloodkin {
 	/** Colours of the glowing effects: fresh blood, and the dark wine of old blood. */
 	private static final int BLOOD_RGB = 0xE0283C;
 	private static final int WINE_RGB = 0x6A0F1E;
+	/** The deep red a Bloodkin's own heart beats in at the screen's edges. */
+	private static final int HEART_RGB = 0x8A0018;
 
 	private record Dash(ServerPlayerEntity player, List<Vec3d> path, Set<UUID> hit, boolean free) {}
 
@@ -305,9 +306,19 @@ public final class Bloodkin {
 			heal += 4;
 			world.playSound(null, victim.getBlockPos(), SoundEvents.ENTITY_PLAYER_ATTACK_CRIT, SoundCategory.PLAYERS, 1.0f, 0.6f);
 			splash(world, victim, 10);
+			// The Bite: two fangs' worth of cut, crossed
+			Vec3d center = victim.getPos().add(0, victim.getHeight() * 0.6, 0);
+			Fx.slash(world, center, player.getRotationVec(1.0f), 0.9f + victim.getWidth(), 55, 8, BLOOD_RGB);
+			Fx.slash(world, center, player.getRotationVec(1.0f), 0.9f + victim.getWidth(), 125, 8, BLOOD_RGB);
+			Fx.shake(player, 1.5f, 6);
 		}
 		heal += amount * lifesteal(player, data, now);
 		player.heal(heal);
+		Long feasting = FEAST.get(player.getUuid());
+		if (feasting != null && feasting > now) {
+			// In the Feast every blow is drunk: a stream of blood from the wound straight into the Bloodkin
+			Fx.tendril(world, victim, player, 12, WINE_RGB, BLOOD_RGB);
+		}
 		drink(player, data, Math.min(amount, 8));
 		if (data.has(Talents.FANG_BLEED)) {
 			bleed(world, victim, player, data);
@@ -434,7 +445,12 @@ public final class Bloodkin {
 		DASH_STEP.put(player.getUuid(), 0);
 		ServerWorld world = player.getServerWorld();
 		Fx.flight(player, DASH_TICKS);
-		Fx.ribbon(world, path, 18, WINE_RGB, BLOOD_RGB, 0.9f);
+		Fx.ribbon(world, path, 20, WINE_RGB, BLOOD_RGB, 1.3f);
+		// Blood shades of the body left along the way, and the view rushing wide
+		Fx.ghosts(world, path, player.getYaw(), 4, 16, BLOOD_RGB);
+		Fx.fov(player, 0.22f, 12);
+		Fx.shake(player, 0.8f, 5);
+		world.spawnParticles(ModParticles.BLOOD_MIST, player.getX(), player.getY() + 0.9, player.getZ(), 8, 0.3, 0.5, 0.3, 0.02);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_PHANTOM_FLAP, SoundCategory.PLAYERS, 1.0f, 0.6f);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ITEM_TRIDENT_RIPTIDE_1, SoundCategory.PLAYERS, 0.8f, 1.4f);
 		return AbilityResult.OK;
@@ -493,9 +509,19 @@ public final class Bloodkin {
 			for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, swept, e -> prey(e, player) && !d.hit().contains(e.getUuid()))) {
 				d.hit().add(e.getUuid());
 				e.damage(world.getDamageSources().playerAttack(player), 6);
+				Vec3d along = b.subtract(a);
+				Fx.slash(world, e.getPos().add(0, e.getHeight() * 0.55, 0), along, 1.1f + e.getWidth(), 20 + world.getRandom().nextFloat() * 40, 9, BLOOD_RGB);
+				Fx.shake(player, 2.2f, 7);
 				if (hasBlood(e)) {
 					bleed(world, e, player, data);
 					splash(world, e, 12);
+					// Blood thrown on along the cut
+					Vec3d spray = along.lengthSquared() > 1.0E-6 ? along.normalize() : Vec3d.ZERO;
+					for (int k = 0; k < 10; k++) {
+						world.spawnParticles(ModParticles.BLOOD, e.getX(), e.getY() + e.getHeight() * 0.6, e.getZ(), 0,
+								spray.x * 0.35 + (world.getRandom().nextDouble() - 0.5) * 0.2, 0.15 + world.getRandom().nextDouble() * 0.15,
+								spray.z * 0.35 + (world.getRandom().nextDouble() - 0.5) * 0.2, 1);
+					}
 				}
 				Progression.addXp(player, data, 1);
 				if (data.has(Talents.FANG_TRAIL)) {
@@ -516,6 +542,9 @@ public final class Bloodkin {
 					DOUBLE.put(player.getUuid(), now + DOUBLE_WINDOW);
 				}
 				world.spawnParticles(ModParticles.BLOOD, b.x, b.y + 0.5, b.z, 16, 0.4, 0.3, 0.4, 0.1);
+				world.spawnParticles(ModParticles.BLOOD_MIST, b.x, b.y + 0.8, b.z, 10, 0.4, 0.4, 0.4, 0.04);
+				Fx.burst(world, b.add(0, 1, 0), 1.6f, 6, BLOOD_RGB);
+				Fx.ring(world, b, 0.3f, 2.2f, 10, BLOOD_RGB);
 			}
 		}
 	}
@@ -559,7 +588,10 @@ public final class Bloodkin {
 			if (data.has(Talents.THIRST_MARK)) {
 				MARKED.put(e.getUuid(), now + MARK_TICKS);
 			}
-			// A stream of blood from the victim to the Bloodkin
+			// A stream of blood from the victim to the Bloodkin: a living tendril, and drops carried along it
+			Fx.tendril(world, e, player, 20, WINE_RGB, BLOOD_RGB);
+			Fx.pillar(world, e.getPos(), 0.35f + e.getWidth() * 0.4f, e.getHeight() + 0.8f, 10, BLOOD_RGB);
+			splash(world, e, 8);
 			Vec3d from = e.getPos().add(0, e.getHeight() * 0.6, 0);
 			Vec3d way = player.getPos().add(0, 1, 0).subtract(from);
 			for (int i = 0; i < 10; i++) {
@@ -570,9 +602,13 @@ public final class Bloodkin {
 			Progression.addXp(player, data, 2);
 			drawn++;
 		}
+		// The circle closes in on the Bloodkin, a seal of blood opening under its feet
 		Fx.ring(world, player.getPos(), (float) radius, 0.5f, 14, BLOOD_RGB);
+		Fx.sigil(world, player.getPos(), player, (float) radius * 0.5f, 30, BLOOD_RGB);
+		Fx.pulse(player, 2, 30, HEART_RGB);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 1.5f, 0.8f);
 		if (drawn > 0) {
+			Fx.shake(player, 1.0f, 10);
 			world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_GENERIC_DRINK, SoundCategory.PLAYERS, 1.0f, 0.6f);
 		}
 	}
@@ -596,7 +632,12 @@ public final class Bloodkin {
 		}
 		ServerWorld world = player.getServerWorld();
 		splash(world, player, 20);
+		// Blood wrung out of the body winds up around it and is drunk back in
+		Fx.helix(world, player, 1.1f, 2.4f, 3, true, 22, BLOOD_RGB);
+		Fx.sigil(world, player.getPos(), player, 1.5f, 26, BLOOD_RGB);
 		Fx.screen(player, 14, BLOOD_RGB);
+		Fx.pulse(player, 1, 18, HEART_RGB);
+		Fx.shake(player, 1.6f, 8);
 		Fx.ring(world, player.getPos(), 0.3f, 2.5f, 12, WINE_RGB);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_PLAYER_HURT_SWEET_BERRY_BUSH, SoundCategory.PLAYERS, 1.0f, 0.6f);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_BREWING_STAND_BREW, SoundCategory.PLAYERS, 0.8f, 0.5f);
@@ -615,14 +656,21 @@ public final class Bloodkin {
 		cooldown(player, data, FEAST_SLOT, FEAST_COOLDOWN);
 		FEAST.put(player.getUuid(), now(player.getServer()) + FEAST_TICKS);
 		ServerWorld world = player.getServerWorld();
-		Fx.screen(player, FEAST_TICKS, BLOOD_RGB);
+		// A crown of blood: it erupts around the Bloodkin, a seal burns under it and embers rise off it all the Feast long
+		Fx.screen(player, 24, BLOOD_RGB);
+		Fx.pulse(player, FEAST_TICKS / 20, FEAST_TICKS, HEART_RGB);
+		Fx.aura(world, player, FEAST_TICKS, BLOOD_RGB);
+		Fx.sigil(world, player.getPos(), player, 2.4f, FEAST_TICKS, BLOOD_RGB);
+		Fx.helix(world, player, 1.3f, 3.0f, 4, false, 26, BLOOD_RGB);
+		Fx.burst(world, player.getPos().add(0, 1, 0), 3.0f, 8, BLOOD_RGB);
+		Fx.shake(player, 2.5f, 12);
 		Fx.ring(world, player.getPos(), 0.5f, 6, 16, BLOOD_RGB);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_WITHER_SPAWN, SoundCategory.PLAYERS, 0.4f, 1.8f);
 		return AbilityResult.OK;
 	}
 
 	/**
-	 * Bat Swarm (X): the Bloodkin scatters into bats for 3 seconds, flying where it looks, untouchable;
+	 * Bat Swarm (Alt): the Bloodkin scatters into bats for 3 seconds, flying where it looks, untouchable;
 	 * with the Biting Swarm whatever it flies through bleeds.
 	 */
 	public static AbilityResult swarm(ServerPlayerEntity player, RaceData data) {
@@ -659,7 +707,14 @@ public final class Bloodkin {
 		}
 		SWARMS.add(new Swarm(player, now(player.getServer()) + SWARM_TICKS, bats));
 		player.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY, SWARM_TICKS + 4, 0, true, false, false));
-		world.spawnParticles(ParticleTypes.SMOKE, player.getX(), player.getY() + 1, player.getZ(), 30, 0.4, 0.6, 0.4, 0.05);
+		// The body bursts into a cloud of bats: a flash of dark blood, bats flung out, and a flock that circles it
+		Fx.swarm(world, player, 26, SWARM_TICKS);
+		Fx.burst(world, player.getPos().add(0, 1, 0), 2.4f, 8, WINE_RGB);
+		Fx.ring(world, player.getPos(), 0.4f, 3.5f, 12, BLOOD_RGB);
+		Fx.fov(player, 0.16f, SWARM_TICKS);
+		Fx.shake(player, 1.6f, 8);
+		world.spawnParticles(ModParticles.BLOOD_MIST, player.getX(), player.getY() + 1, player.getZ(), 24, 0.5, 0.7, 0.5, 0.06);
+		world.spawnParticles(ModParticles.BAT, player.getX(), player.getY() + 1.1, player.getZ(), 16, 0.3, 0.4, 0.3, 0.35);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_BAT_TAKEOFF, SoundCategory.PLAYERS, 1.2f, 0.8f);
 	}
 
@@ -672,7 +727,13 @@ public final class Bloodkin {
 				if (!player.isRemoved()) {
 					player.removeStatusEffect(StatusEffects.INVISIBILITY);
 					player.fallDistance = 0;
-					player.getServerWorld().spawnParticles(ParticleTypes.SMOKE, player.getX(), player.getY() + 1, player.getZ(), 30, 0.4, 0.6, 0.4, 0.05);
+					// The flock gathers back into a body
+					ServerWorld world = player.getServerWorld();
+					world.spawnParticles(ModParticles.BLOOD_MIST, player.getX(), player.getY() + 1, player.getZ(), 16, 0.4, 0.6, 0.4, 0.02);
+					Fx.helix(world, player, 1.6f, 2.2f, 3, true, 10, WINE_RGB);
+					Fx.burst(world, player.getPos().add(0, 1, 0), 1.3f, 6, BLOOD_RGB);
+					Fx.shake(player, 1.0f, 6);
+					world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_BAT_TAKEOFF, SoundCategory.PLAYERS, 1.0f, 1.4f);
 				}
 				it.remove();
 				continue;
