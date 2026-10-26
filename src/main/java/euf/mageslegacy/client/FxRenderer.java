@@ -17,9 +17,12 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.particle.DefaultParticleType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShape;
 import org.joml.Matrix4f;
 
 /**
@@ -759,7 +762,8 @@ public final class FxRenderer {
 			if (follow >= 0) {
 				Vec3d riding = lerped(follow, delta);
 				if (riding != null) {
-					center = riding;
+					// A mark riding with a body stays on the ground under it, even when the body leaps
+					center = ground(riding);
 				}
 			}
 			center = center.add(0, 0.04, 0);
@@ -807,6 +811,26 @@ public final class FxRenderer {
 				}
 				prev = p;
 			}
+		}
+
+		/** The top of the ground under a point (a few blocks down at most), or the point itself over a drop. */
+		private static Vec3d ground(Vec3d p) {
+			ClientWorld world = MinecraftClient.getInstance().world;
+			if (world == null) {
+				return p;
+			}
+			BlockPos.Mutable pos = BlockPos.ofFloored(p).mutableCopy();
+			for (int i = 0; i < 6; i++) {
+				VoxelShape shape = world.getBlockState(pos).getCollisionShape(world, pos);
+				if (!shape.isEmpty()) {
+					double top = pos.getY() + shape.getMax(Direction.Axis.Y);
+					if (top <= p.y + 0.01) {
+						return new Vec3d(p.x, top, p.z);
+					}
+				}
+				pos.move(Direction.DOWN);
+			}
+			return p;
 		}
 
 		/** A clock face: a ring, twelve marks (long at the quarters), and two hands going round, the long one fast. */
