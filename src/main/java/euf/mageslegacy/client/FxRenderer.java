@@ -249,7 +249,7 @@ public final class FxRenderer {
 						Vec3d normal = v[k].subtract(center).normalize();
 						Vec3d view = v[k].subtract(cam).normalize();
 						float edge = 1 - (float) Math.abs(normal.dotProduct(view));
-						a[k] = (0.06f + 0.55f * edge * edge + band * 0.4f) * fade;
+						a[k] = (0.05f + 0.42f * edge * edge + band * 0.25f) * fade;
 					}
 					quad(vc, m, v[0], v[1], v[2], v[3], rgb, a[0], a[1], a[2], a[3]);
 				}
