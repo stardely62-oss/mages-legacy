@@ -504,8 +504,15 @@ public class TalentScreen extends Screen {
 			LegacyUi.panel(ctx, x, y, x + tileW, y + 24, hot ? color : LegacyUi.RIM_DARK);
 			RaceHud.drawAbility(ctx, race, slot, x + 4, y + 4, true);
 			String key = "mages_legacy.ability." + race.id() + "." + (slot + 1);
-			ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(Text.translatable(key + ".name").getString(), tileW - 52), x + 24, y + 3,
-					LegacyUi.GOLD);
+			// A long name shrinks to fit (down to 70%) before it is ever cut
+			String name = Text.translatable(key + ".name").getString();
+			int room = tileW - 52;
+			float scale = Math.max(0.7f, Math.min(1, room / (float) textRenderer.getWidth(name)));
+			ctx.getMatrices().push();
+			ctx.getMatrices().translate(x + 24, y + 3 + (1 - scale) * 4, 0);
+			ctx.getMatrices().scale(scale, scale, 1);
+			ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(name, (int) (room / scale)), 0, 0, LegacyUi.GOLD);
+			ctx.getMatrices().pop();
 			int cx = x + 24;
 			if (resourceIcon != null && LegacyUi.exists(LegacyUi.icon(resourceIcon))) {
 				LegacyUi.icon(ctx, LegacyUi.icon(resourceIcon), cx - 1, y + 13, 9, true);
