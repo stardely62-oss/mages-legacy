@@ -934,10 +934,11 @@ public final class FxRenderer {
 		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
 			float t = progress(delta);
 			double r = radius * easeOut(t);
-			float fade = (1 - t) * (1 - t);
+			// From inside a burst is only a smear: it is seen from outside, and felt from within by the screen
 			if (cam.squaredDistanceTo(at) < r * r) {
-				fade *= 0.35f;
+				return;
 			}
+			float fade = (1 - t) * (1 - t);
 			int lat = 10;
 			int lon = 20;
 			for (int i = -lat; i < lat; i++) {
