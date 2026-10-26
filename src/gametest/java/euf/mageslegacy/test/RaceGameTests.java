@@ -838,8 +838,8 @@ public class RaceGameTests implements FabricGameTest {
 		done(ctx, player);
 	}
 
-	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "focus", tickLimit = 100)
-	public void theHuntersMarkTurnsTheArmyOnOneFoe(TestContext ctx) {
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "mend", tickLimit = 100)
+	public void mendThePackHealsCreaturesMuchAndPlayersALittle(TestContext ctx) {
 		ServerWorld world = ctx.getWorld();
 		BlockPos at = ctx.getAbsolutePos(new BlockPos(4, 2, 4));
 		floor(world, at.add(-4, 0, -4), 9, 9);
@@ -848,19 +848,25 @@ public class RaceGameTests implements FabricGameTest {
 		EchoType zombieType = EchoType.of(EntityType.ZOMBIE).orElseThrow();
 		learn(player, data, zombieType);
 		MobEntity echo = Echoes.summon(player, data, zombieType, Vec3d.ofBottomCenter(at.add(-2, 0, 0)), false, 0, 0);
-		// A foe straight ahead of the Shepherd (yaw 0 looks south, +Z)
-		ZombieEntity foe = beast(ctx, EntityType.ZOMBIE, at.add(0, 0, 3));
+		echo.setHealth(2);
+		player.setHealth(6);
 		data.addResource(100);
-		check(Shepherd.focus(player, data) == AbilityResult.OK, "the Mark lands on the foe ahead");
-		check(echo.getTarget() == foe && foe.hasStatusEffect(StatusEffects.GLOWING), "the echo turns on the marked foe, which glows");
-		float marked = Shepherd.modifyDamage(foe, world.getDamageSources().mobAttack(echo), 10);
-		check(Math.abs(marked - 13) < 0.01f, "the marked foe takes 30% more from creatures, got " + marked);
-
-		// Sneak + G gathers the creatures to the Shepherd
-		echo.refreshPositionAndAngles(at.getX() + 3.5, at.getY(), at.getZ() - 3.5, 0, 0);
+		check(Shepherd.mend(player, data) == AbilityResult.OK, "Mend the Pack");
+		check(echo.getHealth() >= 2 + echo.getMaxHealth() * 0.4f - 0.01f, "the echo heals 40% of its health, now " + echo.getHealth());
+		check(Math.abs(player.getHealth() - 10) < 0.01f, "the Shepherd heals only 2 hearts, now " + player.getHealth());
+		check(Math.abs(data.resource - 70) < 0.01f, "it costs 30 voice");
+		check(Shepherd.mend(player, data) == AbilityResult.COOLDOWN, "and then waits");
 		data.readyAt.clear();
+		data.talents.add(Talents.VOICE_MEND);
+		echo.setHealth(2);
+		echo.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, 200));
+		Shepherd.mend(player, data);
+		check(!echo.hasStatusEffect(StatusEffects.POISON) && echo.hasStatusEffect(StatusEffects.RESISTANCE), "Warm Hands cleanse and harden");
+
+		// Sneak + G gathers the creatures to the Shepherd, on its own cooldown
+		echo.refreshPositionAndAngles(at.getX() + 3.5, at.getY(), at.getZ() - 3.5, 0, 0);
 		player.setSneaking(true);
-		check(Shepherd.focus(player, data) == AbilityResult.OK && echo.squaredDistanceTo(player) < 16, "the Gather brings the echo close");
+		check(Shepherd.mend(player, data) == AbilityResult.OK && echo.squaredDistanceTo(player) < 16, "the Gather brings the echo close");
 		player.setSneaking(false);
 
 		// Light Bonds: a wolf takes one slot instead of two
@@ -870,7 +876,6 @@ public class RaceGameTests implements FabricGameTest {
 		check(Shepherd.beastCost(BeastKind.byId("wolf").orElseThrow(), light) == 1 && Shepherd.beastCost(BeastKind.byId("rabbit").orElseThrow(), light) == 1,
 				"Light Bonds: the wolf takes one, the rabbit still one");
 		Echoes.dismiss(world.getServer(), player.getUuid());
-		foe.discard();
 		done(ctx, player);
 	}
 

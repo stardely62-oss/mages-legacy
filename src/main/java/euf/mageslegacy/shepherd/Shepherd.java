@@ -44,18 +44,21 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Everything the Shepherds do that isn't the echoes or the bonds themselves: the voice (their resource) and the bond
  * capacity, their weaknesses (less health, a weak hand, heavy armour crowds the bonds), the abilities (Call, Rally,
- * Hunter's Mark; the Song of Bonds lives in {@link Bonds}), the auras of the Voice branch, and race experience from what their creatures do.
+ * Mend the Pack; the Song of Bonds lives in {@link Bonds}), the auras of the Voice branch, and race experience from what their creatures do.
  */
 public final class Shepherd {
 	public static final int BASE_CAPACITY = 4;
 	public static final int RALLY_COST = 25;
-	public static final int FOCUS_COST = 15;
+	public static final int MEND_COST = 30;
+	public static final int MEND_RADIUS = 16;
 	public static final int GATHER_COST = 10;
 	public static final int CREATURE_KILL_XP = 3;
 	public static final int ECHO_LEARNED_XP = 20;
 	private static final int CALL_COOLDOWN = 20;
 	private static final int RALLY_COOLDOWN = 600;
-	private static final int FOCUS_COOLDOWN = 160;
+	private static final int MEND_COOLDOWN = 400;
+	private static final int GATHER_SLOT = 5;
+	private static final int GATHER_COOLDOWN = 160;
 	private static final int ARMY_SLOT = 7;
 	private static final int ARMY_COOLDOWN = 12000;
 	private static final UUID FRAIL = UUID.fromString("2e8b5c1f-7a3d-4c6e-9f2b-1d5a8e3c7b99");
@@ -195,9 +198,9 @@ public final class Shepherd {
 				: attacker.getServer().getPlayerManager().getPlayer(creatureOwner);
 		if (master != null) {
 			RaceData data = RaceState.of(master);
-			// The Hunter's Mark: the marked foe takes more from the Shepherd's creatures
+			// A foe marked by a skeleton echo's arrows takes more from the Shepherd's creatures
 			if (victim == Creatures.marked(master)) {
-				amount *= data.has(Talents.VOICE_FOCUS) ? 1.6f : 1.3f;
+				amount *= 1.3f;
 			}
 			// The Banner: creatures near their Shepherd hit harder
 			if (data.has(Talents.VOICE_BANNER) && attacker.squaredDistanceTo(master) < 16 * 16) {
@@ -256,7 +259,7 @@ public final class Shepherd {
 		return switch (slot) {
 			case 0 -> call(player, data);
 			case 1 -> rally(player, data);
-			case 2 -> focus(player, data);
+			case 2 -> mend(player, data);
 			case 3 -> Bonds.song(player, data);
 			default -> AbilityResult.LOCKED;
 		};
@@ -433,16 +436,16 @@ public final class Shepherd {
 	}
 
 	/**
-	 * Hunter's Mark: the foe you look at (up to 32 blocks) glows for 10 seconds (15 with Hunter's Eye), every creature
-	 * of yours goes for it at once, and it takes 30% more from them (60% with Hunter's Eye). Sneaking gathers instead:
-	 * all your creatures within 64 blocks come to your side.
+	 * Mend the Pack: every creature of yours within 16 blocks heals 40% of its health (60% with Warm Hands, which also
+	 * cleanses them and gives Resistance); you and other players there heal only 2 hearts. Sneaking gathers instead:
+	 * your creatures within 64 blocks come to your side, on their own short cooldown.
 	 */
-	public static AbilityResult focus(ServerPlayerEntity player, RaceData data) {
-		if (!ready(player, data, 2)) {
-			return AbilityResult.COOLDOWN;
-		}
+	public static AbilityResult mend(ServerPlayerEntity player, RaceData data) {
 		ServerWorld world = player.getServerWorld();
 		if (player.isSneaking()) {
+			if (!ready(player, data, GATHER_SLOT)) {
+				return AbilityResult.COOLDOWN;
+			}
 			if (data.resource < GATHER_COST) {
 				return AbilityResult.NO_RESOURCE;
 			}
@@ -464,28 +467,37 @@ public final class Shepherd {
 			}
 			world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 0.7f, 1.2f);
 			data.addResource(-GATHER_COST);
-			cooldown(player, data, 2, FOCUS_COOLDOWN);
+			cooldown(player, data, GATHER_SLOT, GATHER_COOLDOWN);
 			return AbilityResult.OK;
 		}
-		if (data.resource < FOCUS_COST) {
+		if (!ready(player, data, 2)) {
+			return AbilityResult.COOLDOWN;
+		}
+		if (data.resource < MEND_COST) {
 			return AbilityResult.NO_RESOURCE;
 		}
-		LivingEntity target = lookedAt(player, 32, e -> !Creatures.isCreatureOf(e, player.getUuid()));
-		if (target == null) {
-			return AbilityResult.NO_TARGET;
-		}
-		int ticks = data.has(Talents.VOICE_FOCUS) ? 300 : 200;
-		Creatures.mark(player, target, player.getServer().getTicks() + ticks);
-		target.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, ticks, 0, true, false));
-		for (LivingEntity c : Creatures.around(player, 32)) {
-			if (c instanceof MobEntity mob) {
-				mob.setTarget(target);
+		boolean warm = data.has(Talents.VOICE_MEND);
+		for (LivingEntity c : Creatures.around(player, MEND_RADIUS)) {
+			c.heal(c.getMaxHealth() * (warm ? 0.6f : 0.4f));
+			c.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 1, true, true));
+			if (warm) {
+				c.getStatusEffects().stream().filter(e -> !e.getEffectType().isBeneficial()).map(StatusEffectInstance::getEffectType).toList()
+						.forEach(c::removeStatusEffect);
+				c.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 100, 0, true, true));
 			}
+			world.spawnParticles(ParticleTypes.HEART, c.getX(), c.getY() + c.getHeight() + 0.2, c.getZ(), 3, 0.3, 0.2, 0.3, 0);
 		}
-		world.spawnParticles(ParticleTypes.ANGRY_VILLAGER, target.getX(), target.getY() + target.getHeight() + 0.3, target.getZ(), 3, 0.3, 0.1, 0.3, 0);
-		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_WOLF_GROWL, SoundCategory.PLAYERS, 0.8f, 1.2f);
-		data.addResource(-FOCUS_COST);
-		cooldown(player, data, 2, FOCUS_COOLDOWN);
+		// Players (the Shepherd among them) only get a little: the song is meant for the pack
+		for (ServerPlayerEntity p : world.getEntitiesByClass(ServerPlayerEntity.class, player.getBoundingBox().expand(MEND_RADIUS),
+				p -> p.isAlive() && !p.isSpectator())) {
+			p.heal(4);
+			world.spawnParticles(ParticleTypes.HAPPY_VILLAGER, p.getX(), p.getY() + 1, p.getZ(), 6, 0.3, 0.4, 0.3, 0);
+		}
+		world.spawnParticles(ParticleTypes.WAX_ON, player.getX(), player.getY() + 0.3, player.getZ(), 40, MEND_RADIUS * 0.3, 0.2, MEND_RADIUS * 0.3, 0);
+		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.2f, 0.7f);
+		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_CHIME.value(), SoundCategory.PLAYERS, 1.0f, 1.0f);
+		data.addResource(-MEND_COST);
+		cooldown(player, data, 2, MEND_COOLDOWN);
 		return AbilityResult.OK;
 	}
 

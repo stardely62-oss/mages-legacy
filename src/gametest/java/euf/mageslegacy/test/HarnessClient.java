@@ -9,10 +9,12 @@ import euf.mageslegacy.client.screen.LoreScreen;
 import euf.mageslegacy.client.screen.RaceSelectScreen;
 import euf.mageslegacy.client.screen.TalentScreen;
 import euf.mageslegacy.net.RacePackets;
+import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.race.Talents;
+import euf.mageslegacy.shepherd.Bonds;
 import euf.mageslegacy.shepherd.EchoType;
 import euf.mageslegacy.shepherd.Shepherd;
 import java.io.IOException;
@@ -332,7 +334,16 @@ public class HarnessClient implements ClientModInitializer {
 		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[3].getDefaultKey()));
 		step(10, false, c -> {
 			UUID me = c.player.getUuid();
-			check("song_key", onServer(c, s -> !RaceState.get(s).data(me).shepherd.rituals.isEmpty()));
+			screenshot(c, "song");
+			boolean sung = onServer(c, s -> !RaceState.get(s).data(me).shepherd.rituals.isEmpty());
+			check("song_key", sung);
+			if (!sung) {
+				// Diagnose: the key's binding, and what the Song says when called on the server for the same look
+				LOGGER.info("[harness] song key bound to {}, race {}, yaw {} pitch {}", MagesLegacyClient.ABILITY_KEYS[3].getBoundKeyTranslationKey(),
+						ClientRaceState.race, c.player.getYaw(), c.player.getPitch());
+				AbilityResult direct = onServer(c, s -> Bonds.song(s.getPlayerManager().getPlayer(me), RaceState.get(s).data(me)));
+				LOGGER.info("[harness] the Song called on the server: {}", direct);
+			}
 			selectItem(c, Items.BEEF);
 		});
 		for (int i = 0; i < 4; i++) {

@@ -30,8 +30,8 @@ public final class RaceHud {
 	public static final Item[] MYCELID_ICONS = {Items.RED_MUSHROOM, Items.SPORE_BLOSSOM, Items.MYCELIUM};
 	public static final String[] MYCELID_ABILITY_ICONS = {"ability_spore_jump", "ability_spore_cloud", "ability_network"};
 	public static final int[] MYCELID_COSTS = {15, 30, 40};
-	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.SPYGLASS, Items.NOTE_BLOCK};
-	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_focus", "ability_song"};
+	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.GLISTERING_MELON_SLICE, Items.NOTE_BLOCK};
+	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_mend", "ability_song"};
 
 	private RaceHud() {
 	}
@@ -65,7 +65,7 @@ public final class RaceHud {
 				case 0 -> squadCost(false);
 				case 1 -> Shepherd.RALLY_COST;
 				case 3 -> Bonds.SONG_COST;
-				default -> Shepherd.FOCUS_COST;
+				default -> Shepherd.MEND_COST;
 			};
 		}
 		if (slot == 0 && ClientRaceState.talents.contains(Talents.NET_CHEAP)) {
