@@ -525,6 +525,7 @@ public class RaceGameTests implements FabricGameTest {
 	public void theBondRitualNeedsSongFoodAndFire(TestContext ctx) {
 		ServerWorld world = ctx.getWorld();
 		BlockPos at = ctx.getAbsolutePos(new BlockPos(3, 2, 3));
+		holdChunks(world, at);
 		floor(world, at.add(-3, 0, -3), 7, 7);
 		ServerPlayerEntity player = shepherd(ctx, at);
 		RaceData data = RaceState.of(player);
@@ -573,10 +574,15 @@ public class RaceGameTests implements FabricGameTest {
 		check(wolf.isRemoved() && bond.resting(), "a fallen beast goes to rest");
 		bond.restingUntil = world.getTime();
 		Bonds.tickOwner(player, data);
-		check(!bond.resting() && world.getEntity(bond.entity) instanceof WolfEntity back && back.isAlive(), "and comes back to its Shepherd");
-		world.getEntity(bond.entity).discard();
-		world.removeBlock(at.add(-2, 0, 0), false);
-		done(ctx, player);
+		check(!bond.resting(), "the rest is over");
+		// A freshly spawned body may take a tick or two to show in the test world's books
+		ctx.runAtTick(ctx.getTick() + 3, () -> {
+			check(world.getEntity(bond.entity) instanceof WolfEntity back && back.isAlive(), "and comes back to its Shepherd");
+			world.getEntity(bond.entity).discard();
+			world.removeBlock(at.add(-2, 0, 0), false);
+			releaseChunks(world, at);
+			done(ctx, player);
+		});
 	}
 
 	static <T extends MobEntity> T beast(TestContext ctx, EntityType<T> type, BlockPos at) {
