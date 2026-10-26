@@ -134,7 +134,9 @@ public class RaceGameTests implements FabricGameTest {
 		for (String criterion : nether.getCriteria().keySet()) {
 			player.getAdvancementTracker().grantCriterion(nether, criterion);
 		}
-		check(Progression.openTiers(player) == 2, "the Nether opens tier 2");
+		check(data.level < 10 && Progression.openTiers(player) == 1, "the Nether alone isn't enough below level 10 (level " + data.level + ")");
+		Progression.addXp(player, data, 5000);
+		check(data.level >= 10 && Progression.openTiers(player) == 2, "the Nether and level 10 open tier 2");
 		int before = data.freePoints();
 		check(Progression.unlock(player, data, Talents.SWARM_POTENT) == UnlockResult.OK, "tier 2 after the Nether");
 		check(data.freePoints() == before - 2, "tier 2 talents cost 2");
