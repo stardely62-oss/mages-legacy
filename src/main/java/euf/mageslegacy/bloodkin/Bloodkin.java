@@ -79,7 +79,7 @@ public final class Bloodkin {
 	private static final int BLOOD_RGB = 0xE0283C;
 	private static final int WINE_RGB = 0x6A0F1E;
 	/** The deep red a Bloodkin's own heart beats in at the screen's edges. */
-	private static final int HEART_RGB = 0x8A0018;
+	private static final int HEART_RGB = 0xB01226;
 
 	private record Dash(ServerPlayerEntity player, List<Vec3d> path, Set<UUID> hit, boolean free) {}
 

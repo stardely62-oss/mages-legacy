@@ -165,6 +165,18 @@ public final class FxRenderer {
 		return scale;
 	}
 
+	/** The effects being drawn now, by kind, for the test harness's log. */
+	public static String describe() {
+		StringBuilder sb = new StringBuilder();
+		for (Effect e : EFFECTS) {
+			sb.append(e.getClass().getSimpleName()).append('@').append(e.age).append('/').append(e.ticks).append(' ');
+		}
+		for (Effect e : SCREENS) {
+			sb.append(e instanceof Pulse ? "Pulse" : "Screen").append('@').append(e.age).append('/').append(e.ticks).append(' ');
+		}
+		return sb.toString().trim();
+	}
+
 	/** Whether the server is carrying this player along a path right now (its steps are then smoothed). */
 	public static boolean inFlight() {
 		return ClientRaceState.clientTicks() <= flightUntil;
@@ -197,7 +209,7 @@ public final class FxRenderer {
 		for (Effect e : SCREENS) {
 			float t = e.progress(delta);
 			if (e instanceof Pulse pulse) {
-				edges(ctx, w, h, e.rgb, 0.6f * pulse.beat(delta) * Math.min(1, (1 - t) * 6), 4);
+				edges(ctx, w, h, e.rgb, 0.4f * pulse.beat(delta) * Math.min(1, (1 - t) * 6), 7);
 				continue;
 			}
 			if (t < 0.15f) {
@@ -485,9 +497,17 @@ public final class FxRenderer {
 			}
 			sideA = sideA.normalize().multiply(widths[i] / 2);
 			sideB = sideB.normalize().multiply(widths[i + 1] / 2);
-			quad(vc, m, a.subtract(sideA), b.subtract(sideB), b, a, colors[i], 0, 0, alphas[i + 1], alphas[i]);
-			quad(vc, m, a, b, b.add(sideB), a.add(sideA), colors[i], alphas[i], alphas[i + 1], 0, 0);
+			// Right at the eye a strand would blot out the view: it thins away instead
+			float na = alphas[i] * nearFade(cam, a);
+			float nb = alphas[i + 1] * nearFade(cam, b);
+			quad(vc, m, a.subtract(sideA), b.subtract(sideB), b, a, colors[i], 0, 0, nb, na);
+			quad(vc, m, a, b, b.add(sideB), a.add(sideA), colors[i], na, nb, 0, 0);
 		}
+	}
+
+	/** 0 within half a block of the eye, 1 from a block and a half on. */
+	private static float nearFade(Vec3d cam, Vec3d p) {
+		return MathHelper.clamp(((float) cam.distanceTo(p) - 0.5f), 0, 1);
 	}
 
 	/** A ring of light lying flat at {@code center}. */
@@ -749,7 +769,7 @@ public final class FxRenderer {
 					points.add(base.add(Math.cos(angle) * r, s * height, Math.sin(angle) * r));
 					float head = (float) k / n;
 					widths[k] = 0.05f + 0.12f * head;
-					colors[k] = lerpColor(rgb, 0xFFFFFF, head * head * 0.6f);
+					colors[k] = lerpColor(rgb, 0xFF8080, head * head * 0.5f);
 					alphas[k] = (0.25f + 0.75f * head) * (1 - bottom * 0.5f);
 				}
 				strip(vc, m, cam, points, widths, colors, alphas);

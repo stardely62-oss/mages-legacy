@@ -2,6 +2,7 @@ package euf.mageslegacy.test;
 
 import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.client.ClientRaceState;
+import euf.mageslegacy.client.FxRenderer;
 import euf.mageslegacy.client.MagesLegacyClient;
 import euf.mageslegacy.client.RaceHud;
 import euf.mageslegacy.client.screen.BestiaryScreen;
@@ -505,8 +506,16 @@ public class HarnessClient implements ClientModInitializer {
 			tp(c, Vec3d.ofBottomCenter(arena).add(-7, 0, 0), Vec3d.ofBottomCenter(arena).add(0, 1.0, 0));
 		});
 		step(10, false, c -> check("bloodkin_chosen", serverRace(c) == Race.BLOODKIN && ClientRaceState.race == Race.BLOODKIN));
-		step(3, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
-		step(10, false, c -> screenshot(c, "blood_dash"));
+		step(5, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
+		step(1, false, c -> {
+			LOGGER.info("[harness] dash fx: {}", FxRenderer.describe());
+			screenshot(c, "blood_dash");
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+		});
+		step(8, false, c -> {
+			screenshot(c, "blood_dash_side");
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+		});
 		step(5, false, c -> {
 			check("dash_cuts", onServer(c, s -> s.getOverworld().getEntitiesByClass(SpiderEntity.class, new Box(arena).expand(12),
 					sp -> sp.getHealth() < sp.getMaxHealth()).size() == 1));
@@ -520,7 +529,15 @@ public class HarnessClient implements ClientModInitializer {
 			});
 		});
 		step(5, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[1].getDefaultKey()));
-		step(6, false, c -> screenshot(c, "blood_harvest"));
+		step(1, false, c -> {
+			LOGGER.info("[harness] harvest fx: {}", FxRenderer.describe());
+			screenshot(c, "blood_harvest");
+			c.options.setPerspective(Perspective.THIRD_PERSON_FRONT);
+		});
+		step(6, false, c -> {
+			screenshot(c, "blood_harvest_side");
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+		});
 		step(5, false, c -> {
 			check("harvest_drinks", onServer(c, s -> s.getOverworld().getEntitiesByClass(SpiderEntity.class, new Box(arena).expand(16),
 					sp -> sp.getHealth() < sp.getMaxHealth()).size() >= 2));
