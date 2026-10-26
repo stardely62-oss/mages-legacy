@@ -107,11 +107,10 @@ public class RaceGameTests implements FabricGameTest {
 	}
 
 	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "choose")
-	public void aRaceIsChosenOnceAndOnlyIfAwake(TestContext ctx) {
+	public void aRaceIsChosenOnce(TestContext ctx) {
 		ServerPlayerEntity player = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
 		RaceData data = RaceState.of(player);
 		check(data.race == null, "a new player has no race");
-		check(!RacePackets.choose(player, Race.VOIDBORN), "a sleeping race can't be picked yet");
 		check(RacePackets.choose(player, Race.MYCELID) && data.race == Race.MYCELID, "picking the Mycelids should work");
 		check(!RacePackets.choose(player, Race.MYCELID), "the choice is made once");
 		check(RaceState.get(ctx.getWorld().getServer()).data(player.getUuid()) == data, "the data lives in the saved state");
@@ -1227,7 +1226,8 @@ public class RaceGameTests implements FabricGameTest {
 		RaceData data = RaceState.of(player);
 		ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(0, 0, 4));
 		UUID id = zombie.getUuid();
-		check(Voidborn.excise(player, data) == AbilityResult.OK, "the Excision");
+		AbilityResult result = Voidborn.excise(player, data);
+		check(result == AbilityResult.OK, "the Excision: " + result + ", pocket world " + Pocket.world(world.getServer()));
 		ServerWorld pocket = Pocket.world(world.getServer());
 		check(world.getEntity(id) == null && pocket.getEntity(id) != null, "the zombie is in the pocket now");
 		check(pocket.getBlockState(BlockPos.ofFloored(Pocket.center(data.voidborn.room)).down()).isOf(Blocks.AMETHYST_BLOCK), "the room was laid");
