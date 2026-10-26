@@ -845,7 +845,7 @@ public final class Frozen {
 			Progression.addXp(player, data, 3);
 			return AbilityResult.OK;
 		}
-		HitResult hit = player.raycast(6, 0, false);
+		HitResult hit = player.raycast(6, 1.0f, false);
 		if (!(hit instanceof BlockHitResult blockHit) || hit.getType() != HitResult.Type.BLOCK) {
 			player.sendMessage(Text.translatable("mages_legacy.frozen.nothing_to_quicken"), true);
 			return AbilityResult.HINTED;
