@@ -645,8 +645,10 @@ public final class Bloodkin {
 			if (bat == null) {
 				continue;
 			}
-			bat.refreshPositionAndAngles(player.getX() + (world.getRandom().nextDouble() - 0.5), player.getY() + 1 + world.getRandom().nextDouble(),
-					player.getZ() + (world.getRandom().nextDouble() - 0.5), world.getRandom().nextFloat() * 360, 0);
+			// Burst out onto the ring at once, not out of the Bloodkin's own face
+			double a = Math.PI * 2 * i / 7;
+			bat.refreshPositionAndAngles(player.getX() + Math.cos(a) * 1.6, player.getY() + 0.4 + world.getRandom().nextDouble(),
+					player.getZ() + Math.sin(a) * 1.6, world.getRandom().nextFloat() * 360, 0);
 			bat.setInvulnerable(true);
 			bat.addCommandTag("mages_legacy_swarm");
 			// Silence is synced, so clients can tell the swarm from wild bats (see swarmBat)
