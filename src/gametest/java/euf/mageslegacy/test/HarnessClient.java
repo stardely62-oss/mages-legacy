@@ -389,6 +389,55 @@ public class HarnessClient implements ClientModInitializer {
 			screenshot(c, "talents_shepherd");
 			c.setScreen(null);
 		});
+		// ---- The Frozen: walk, a real Rewind seen from behind mid-flight, the Dome, the tree ----
+		step(10, false, c -> {
+			commands(c, "race set @a frozen", "race xp @a 3000", "race resource @a 100", "kill @e[type=!player]");
+			c.options.hudHidden = false;
+			tp(c, Vec3d.ofBottomCenter(arena).add(-7, 0, 0), Vec3d.ofBottomCenter(arena).add(0, 1.2, 0));
+		});
+		step(20, false, c -> check("frozen_chosen", serverRace(c) == Race.FROZEN && ClientRaceState.race == Race.FROZEN));
+		// Seven blocks east in half-block steps, so the trail has a path to fly back along
+		for (int i = 1; i <= 14; i++) {
+			double x = -7 + i * 0.5;
+			step(4, false, c -> tp(c, Vec3d.ofBottomCenter(arena).add(x, 0, 0), Vec3d.ofBottomCenter(arena).add(x + 7, 1.2, 0)));
+		}
+		step(5, false, c -> {
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+			screenshot(c, "frozen_before");
+		});
+		step(3, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
+		step(2, false, c -> screenshot(c, "rewind_mid"));
+		step(15, false, c -> {
+			UUID me = c.player.getUuid();
+			double x = onServer(c, s -> s.getPlayerManager().getPlayer(me).getX());
+			check("rewind_back", x < Vec3d.ofBottomCenter(arena).x - 2.5);
+			screenshot(c, "rewind_end");
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+			resetCooldowns(c);
+			onServer(c, s -> {
+				ServerWorld world = s.getOverworld();
+				ZombieEntity zombie = EntityType.ZOMBIE.create(world);
+				zombie.refreshPositionAndAngles(arena.getX() - 0.5, arena.getY(), arena.getZ() + 2.5, 0, 0);
+				zombie.setAiDisabled(true);
+				world.spawnEntity(zombie);
+				return null;
+			});
+		});
+		step(5, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[1].getDefaultKey()));
+		step(10, false, c -> {
+			check("frozen_dome", onServer(c, s -> s.getOverworld().getEntitiesByClass(ZombieEntity.class, new Box(arena).expand(12),
+					z -> z.hasStatusEffect(StatusEffects.SLOWNESS)).size() == 1));
+			tp(c, Vec3d.ofBottomCenter(arena).add(-1, 0, -5), Vec3d.ofBottomCenter(arena).add(-4, 1, 0));
+		});
+		step(10, true, c -> screenshot(c, "frozen_dome"));
+		step(10, false, c -> {
+			screenshot(c, "hud_frozen");
+			c.setScreen(new TalentScreen());
+		});
+		step(20, false, c -> {
+			screenshot(c, "talents_frozen");
+			c.setScreen(null);
+		});
 		step(20, false, this::finish);
 
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);

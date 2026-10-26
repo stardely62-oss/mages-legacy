@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.shepherd.Shepherd;
 import euf.mageslegacy.net.RacePackets;
@@ -92,6 +93,9 @@ public final class RaceCommand {
 		Mycelid.removeCapArmor(player);
 		if (data.race == Race.SHEPHERD) {
 			Shepherd.cleanup(player, data);
+		}
+		if (data.race == Race.FROZEN) {
+			Frozen.cleanup(player);
 		}
 	}
 }

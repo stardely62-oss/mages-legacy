@@ -90,6 +90,44 @@ public final class Talents {
 	public static final String VOICE_LOSS = add("voice_loss", Race.SHEPHERD, 2, 3, 3, VOICE_LIFE, Items.TOTEM_OF_UNDYING);
 	public static final String VOICE_HEART = add("voice_heart", Race.SHEPHERD, 2, 4, 5, VOICE_AURA, Items.HEART_OF_THE_SEA);
 
+	// The Frozen: Loop (the Rewind), Stasis (the Dome), Flow (quickening, and the Frozen themselves). Same shape and
+	// prices as the other trees.
+	public static final String LOOP_HEAL = add("loop_heal", Race.FROZEN, 0, 1, 1, null, Items.GLISTERING_MELON_SLICE);
+	public static final String LOOP_CHEAP = add("loop_cheap", Race.FROZEN, 0, 1, 1, null, Items.SAND);
+	public static final String LOOP_QUICK = add("loop_quick", Race.FROZEN, 0, 1, 1, null, Items.CLOCK);
+	public static final String LOOP_LONG = add("loop_long", Race.FROZEN, 0, 2, 2, LOOP_HEAL, Items.COMPASS);
+	public static final String LOOP_CLEANSE = add("loop_cleanse", Race.FROZEN, 0, 2, 2, LOOP_LONG, Items.MILK_BUCKET);
+	public static final String LOOP_SHARDS = add("loop_shards", Race.FROZEN, 0, 2, 2, LOOP_CHEAP, Items.PACKED_ICE);
+	public static final String LOOP_HASTE = add("loop_haste", Race.FROZEN, 0, 2, 2, LOOP_QUICK, Items.FEATHER);
+	public static final String LOOP_LAST = add("loop_last", Race.FROZEN, 0, 3, 3, LOOP_CLEANSE, Items.TOTEM_OF_UNDYING);
+	public static final String LOOP_RETURN = add("loop_return", Race.FROZEN, 0, 3, 3, LOOP_SHARDS, Items.ENDER_PEARL);
+	public static final String LOOP_ALLY = add("loop_ally", Race.FROZEN, 0, 3, 3, LOOP_HASTE, Items.LEAD);
+	public static final String LOOP_ETERNAL = add("loop_eternal", Race.FROZEN, 0, 4, 5, LOOP_LAST, Items.NETHER_STAR);
+
+	public static final String STASIS_WIDE = add("stasis_wide", Race.FROZEN, 1, 1, 1, null, Items.BLUE_ICE);
+	public static final String STASIS_LONG = add("stasis_long", Race.FROZEN, 1, 1, 1, null, Items.CLOCK);
+	public static final String STASIS_CHEAP = add("stasis_cheap", Race.FROZEN, 1, 1, 1, null, Items.SAND);
+	public static final String STASIS_DEEP = add("stasis_deep", Race.FROZEN, 1, 2, 2, STASIS_WIDE, Items.STONE_SWORD);
+	public static final String STASIS_RETURN = add("stasis_return", Race.FROZEN, 1, 2, 2, STASIS_DEEP, Items.ARROW);
+	public static final String STASIS_FOLLOW = add("stasis_follow", Race.FROZEN, 1, 2, 2, STASIS_LONG, Items.LEATHER_BOOTS);
+	public static final String STASIS_MEND = add("stasis_mend", Race.FROZEN, 1, 2, 2, STASIS_CHEAP, Items.GOLDEN_APPLE);
+	public static final String STASIS_FREEZE = add("stasis_freeze", Race.FROZEN, 1, 3, 3, STASIS_RETURN, Items.ICE);
+	public static final String STASIS_SHATTER = add("stasis_shatter", Race.FROZEN, 1, 3, 3, STASIS_FOLLOW, Items.GLASS_PANE);
+	public static final String STASIS_WARD = add("stasis_ward", Race.FROZEN, 1, 3, 3, STASIS_MEND, Items.SHIELD);
+	public static final String STASIS_STOP = add("stasis_stop", Race.FROZEN, 1, 4, 5, STASIS_FREEZE, Items.PAINTING);
+
+	public static final String FLOW_AREA = add("flow_area", Race.FROZEN, 2, 1, 1, null, Items.FURNACE);
+	public static final String FLOW_LONG = add("flow_long", Race.FROZEN, 2, 1, 1, null, Items.CLOCK);
+	public static final String FLOW_HASTE = add("flow_haste", Race.FROZEN, 2, 1, 1, null, Items.IRON_PICKAXE);
+	public static final String FLOW_GROW = add("flow_grow", Race.FROZEN, 2, 2, 2, FLOW_AREA, Items.WHEAT);
+	public static final String FLOW_CHEAP = add("flow_cheap", Race.FROZEN, 2, 2, 2, FLOW_GROW, Items.SUGAR);
+	public static final String FLOW_REGEN = add("flow_regen", Race.FROZEN, 2, 2, 2, FLOW_LONG, Items.APPLE);
+	public static final String FLOW_POTIONS = add("flow_potions", Race.FROZEN, 2, 2, 2, FLOW_HASTE, Items.POTION);
+	public static final String FLOW_SWIFT = add("flow_swift", Race.FROZEN, 2, 3, 3, FLOW_CHEAP, Items.RABBIT_FOOT);
+	public static final String FLOW_SAND = add("flow_sand", Race.FROZEN, 2, 3, 3, FLOW_REGEN, Items.SANDSTONE);
+	public static final String FLOW_NUMB = add("flow_numb", Race.FROZEN, 2, 3, 3, FLOW_POTIONS, Items.BLAZE_POWDER);
+	public static final String FLOW_CURRENT = add("flow_current", Race.FROZEN, 2, 4, 5, FLOW_SWIFT, Items.HEART_OF_THE_SEA);
+
 	private Talents() {
 	}
 

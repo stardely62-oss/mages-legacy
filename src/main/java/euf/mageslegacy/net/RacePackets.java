@@ -1,6 +1,7 @@
 package euf.mageslegacy.net;
 
 import euf.mageslegacy.MagesLegacy;
+import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Progression;
@@ -116,6 +117,7 @@ public final class RacePackets {
 		AbilityResult result = switch (data.race) {
 			case MYCELID -> Mycelid.use(player, data, slot);
 			case SHEPHERD -> Shepherd.use(player, data, slot);
+			case FROZEN -> Frozen.use(player, data, slot);
 			default -> AbilityResult.LOCKED;
 		};
 		if (result != AbilityResult.OK && result != AbilityResult.HINTED) {

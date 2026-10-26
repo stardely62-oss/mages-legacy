@@ -1,6 +1,7 @@
 package euf.mageslegacy.test;
 
 import euf.mageslegacy.MagesLegacy;
+import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilityResult;
@@ -40,6 +41,7 @@ import net.minecraft.entity.passive.ParrotEntity;
 import net.minecraft.entity.passive.PolarBearEntity;
 import net.minecraft.entity.passive.RabbitEntity;
 import net.minecraft.entity.passive.WolfEntity;
+import net.minecraft.entity.projectile.ArrowEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -102,7 +104,7 @@ public class RaceGameTests implements FabricGameTest {
 		ServerPlayerEntity player = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
 		RaceData data = RaceState.of(player);
 		check(data.race == null, "a new player has no race");
-		check(!RacePackets.choose(player, Race.FROZEN), "a sleeping race can't be picked yet");
+		check(!RacePackets.choose(player, Race.BLOODKIN), "a sleeping race can't be picked yet");
 		check(RacePackets.choose(player, Race.MYCELID) && data.race == Race.MYCELID, "picking the Mycelids should work");
 		check(!RacePackets.choose(player, Race.MYCELID), "the choice is made once");
 		check(RaceState.get(ctx.getWorld().getServer()).data(player.getUuid()) == data, "the data lives in the saved state");
@@ -138,6 +140,7 @@ public class RaceGameTests implements FabricGameTest {
 	public void theTreeHasRoomForBuilds(TestContext ctx) {
 		treeShape(Race.MYCELID);
 		treeShape(Race.SHEPHERD);
+		treeShape(Race.FROZEN);
 		ctx.complete();
 	}
 
@@ -905,6 +908,103 @@ public class RaceGameTests implements FabricGameTest {
 		check(Math.abs(player.getMaxHealth() - 18) < 0.01f, "Sturdy Body gives one heart back, got " + player.getMaxHealth());
 		check(Math.abs(Shepherd.modifyDamage(zombie, world.getDamageSources().playerAttack(player), 10) - 9) < 0.01f, "Steady Hand: a tenth weaker");
 		zombie.discard();
+		done(ctx, player);
+	}
+
+	static ServerPlayerEntity frozen(TestContext ctx, BlockPos at) {
+		ServerPlayerEntity player = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
+		player.changeGameMode(GameMode.SURVIVAL);
+		player.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
+		RaceState.of(player).reset(Race.FROZEN);
+		return player;
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "rewind", tickLimit = 100)
+	public void theRewindFliesBackAlongTheTrail(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(1, 2, 1));
+		floor(world, at.add(-1, 0, -1), 9, 3);
+		ServerPlayerEntity player = frozen(ctx, at);
+		RaceData data = RaceState.of(player);
+		data.addResource(100);
+		check(Frozen.rewind(player, data) == AbilityResult.HINTED, "no trail yet, no Rewind");
+		Vec3d start = player.getPos();
+		// Walk six blocks east over 30 ticks, the trail recording every tick
+		for (int i = 0; i <= 30; i++) {
+			player.refreshPositionAndAngles(start.x + i * 0.2, start.y, start.z, 0, 0);
+			Frozen.record(player);
+		}
+		Vec3d left = player.getPos();
+		check(Frozen.rewind(player, data) == AbilityResult.OK, "the Rewind");
+		check(Math.abs(data.resource - 70) < 0.01f, "it costs 30 sand, left " + data.resource);
+		check(Frozen.avoids(player, world.getDamageSources().generic()), "nothing touches a Frozen in flight");
+		for (int i = 0; i < 12; i++) {
+			Frozen.tick(world.getServer());
+		}
+		check(player.getPos().distanceTo(start) < 0.5, "back where it was 30 ticks ago, at " + player.getPos() + " from " + left);
+		check(!Frozen.avoids(player, world.getDamageSources().generic()), "and solid again on landing");
+		check(Frozen.rewind(player, data) == AbilityResult.COOLDOWN, "then it waits");
+		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "frozen_dome", tickLimit = 100)
+	public void theDomeHoldsEnemiesAndArrows(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(4, 2, 4));
+		floor(world, at.add(-4, 0, -4), 9, 9);
+		ServerPlayerEntity player = frozen(ctx, at);
+		RaceData data = RaceState.of(player);
+		ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(2, 0, 0));
+		ArrowEntity arrow = new ArrowEntity(world, at.getX() - 2.0, at.getY() + 1.5, at.getZ() + 0.5);
+		arrow.setVelocity(1, 0, 0);
+		arrow.setNoGravity(true);
+		world.spawnEntity(arrow);
+		data.addResource(100);
+		check(Frozen.dome(player, data) == AbilityResult.OK, "the Dome");
+		Frozen.tick(world.getServer());
+		StatusEffectInstance slow = zombie.getStatusEffect(StatusEffects.SLOWNESS);
+		check(slow != null && slow.getAmplifier() >= 3, "the zombie under the Dome all but stops");
+		check(arrow.getVelocity().lengthSquared() < 1.0E-6, "the arrow hangs in the air");
+		check(Frozen.dome(player, data) == AbilityResult.COOLDOWN, "one Dome at a time");
+		zombie.discard();
+		arrow.discard();
+		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "quicken", tickLimit = 100)
+	public void theQuickeningSpeedsWorkingBlocks(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(1, 2, 1));
+		floor(world, at.add(-1, 0, -1), 3, 3);
+		world.setBlockState(at.down(), Blocks.FARMLAND.getDefaultState());
+		world.setBlockState(at, Blocks.WHEAT.getDefaultState());
+		world.setBlockState(at.east(), Blocks.FURNACE.getDefaultState());
+		check(Frozen.quickenable(world, at) && Frozen.quickenable(world, at.east()), "crops and furnaces can be quickened");
+		check(!Frozen.quickenable(world, at.add(-1, -1, 0)), "plain stone can't");
+		ServerPlayerEntity player = frozen(ctx, at);
+		RaceData data = RaceState.of(player);
+		data.addResource(100);
+		player.setPitch(90);
+		check(Frozen.quicken(player, data) == AbilityResult.OK && Frozen.quickened(world, at), "looking down at the wheat quickens it");
+		world.removeBlock(at.east(), false);
+		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "frozen_body", tickLimit = 100)
+	public void theFrozenHealSlowAndHoldOnToTheMoment(TestContext ctx) {
+		ServerPlayerEntity player = frozen(ctx, ctx.getAbsolutePos(new BlockPos(1, 2, 1)));
+		RaceData data = RaceState.of(player);
+		check(Frozen.naturalHealing(player) == 0.5f, "natural healing at half speed");
+		StatusEffectInstance speed = Frozen.shorten(player, new StatusEffectInstance(StatusEffects.SPEED, 600));
+		check(speed.getDuration() == 420, "a potion lasts 30% shorter, got " + speed.getDuration());
+		data.talents.add(Talents.FLOW_POTIONS);
+		check(Frozen.shorten(player, new StatusEffectInstance(StatusEffects.SPEED, 600)).getDuration() == 600, "Lasting Memory: as usual");
+		data.talents.add(Talents.LOOP_ETERNAL);
+		player.setHealth(player.getMaxHealth());
+		float first = Frozen.modifyDamage(player, player.getDamageSources().generic(), player.getMaxHealth() - 2);
+		player.setHealth(player.getHealth() - first);
+		check(Frozen.modifyDamage(player, player.getDamageSources().generic(), 100) <= player.getHealth() - 1,
+				"the Eternal Moment began on the low blow: nothing kills now");
 		done(ctx, player);
 	}
 

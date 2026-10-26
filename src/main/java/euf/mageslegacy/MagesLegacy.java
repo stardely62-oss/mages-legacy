@@ -1,6 +1,7 @@
 package euf.mageslegacy;
 
 import euf.mageslegacy.block.MyceliumNodeBlock;
+import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.ClientRaceView;
@@ -63,6 +64,7 @@ public class MagesLegacy implements ModInitializer {
 		ServerTickEvents.END_SERVER_TICK.register(MagesLegacy::tick);
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
 			Mycelid.reset();
+			Frozen.reset();
 			Echoes.reset();
 			Creatures.reset();
 		});
@@ -97,10 +99,13 @@ public class MagesLegacy implements ModInitializer {
 			}
 			return Mycelid.eat((ServerPlayerEntity) player, data, stack) ? TypedActionResult.success(stack) : TypedActionResult.fail(stack);
 		});
-		ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> Mycelid.onDeath(entity));
+		ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+			Mycelid.onDeath(entity);
+			Frozen.onDeath(entity);
+		});
 		ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
 			if (entity instanceof ServerPlayerEntity player) {
-				return Mycelid.allowDeath(player);
+				return Mycelid.allowDeath(player) && Frozen.allowDeath(player);
 			}
 			// Echoes fade and bonded beasts go to rest instead of dying
 			return Echoes.allowDeath(entity) && Bonds.allowDeath(entity);
@@ -141,6 +146,7 @@ public class MagesLegacy implements ModInitializer {
 
 	private static void tick(MinecraftServer server) {
 		Mycelid.tick(server);
+		Frozen.tick(server);
 		int ticks = server.getTicks();
 		if (ticks % 20 == 0) {
 			Echoes.tickSecond(server);
@@ -156,6 +162,8 @@ public class MagesLegacy implements ModInitializer {
 					Mycelid.tickSecond(player, data);
 				} else if (data.race == Race.SHEPHERD) {
 					Shepherd.tickSecond(player, data);
+				} else if (data.race == Race.FROZEN) {
+					Frozen.tickSecond(player, data);
 				}
 			}
 			// The client registers our channels a moment after joining, so the prompt waits for the tick

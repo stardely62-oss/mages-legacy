@@ -7,7 +7,7 @@ import java.util.Optional;
 public enum Race {
 	MYCELID(0x7FB069, true),
 	SHEPHERD(0xD9B26F, true),
-	FROZEN(0x8FB8DE, false),
+	FROZEN(0x8FB8DE, true),
 	BLOODKIN(0xB23A48, false),
 	VOIDBORN(0x9B7FD4, false);
 
