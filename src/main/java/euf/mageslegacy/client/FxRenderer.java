@@ -228,6 +228,10 @@ public final class FxRenderer {
 			float scale = grow < 1 ? 1 + 2.2f * (float) Math.pow(grow - 1, 3) + 1.2f * (float) Math.pow(grow - 1, 2) : 1;
 			float fade = Math.min(1, (ticks - life) / 8f);
 			float r = radius * Math.max(0.05f, scale);
+			// Seen from inside, the shell only hints at itself: it must not wash the whole view in its colour
+			if (cam.squaredDistanceTo(center) < r * r) {
+				fade *= 0.3f;
+			}
 			int lat = 12;
 			int lon = 32;
 			double spin = life * 0.015;
