@@ -1231,7 +1231,8 @@ public class RaceGameTests implements FabricGameTest {
 		// The test server is made from a preset without datapack dimensions: there the Excision just refuses (the
 		// client harness, in a real world, tries the pocket itself)
 		if (pocket == null) {
-			check(result == AbilityResult.LOCKED && world.getEntity(id) != null && data.resource == 100, "no pocket: nothing happens, nothing spent");
+			check(result == AbilityResult.LOCKED && world.getEntity(id) != null && data.resource == 100,
+					"no pocket: nothing happens, nothing spent (" + result + ", zombie " + world.getEntity(id) + ", void " + data.resource + ")");
 			zombie.discard();
 			done(ctx, player);
 			return;
