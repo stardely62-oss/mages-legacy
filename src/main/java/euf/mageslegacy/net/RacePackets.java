@@ -33,6 +33,8 @@ public final class RacePackets {
 	public static final Identifier BEAST = MagesLegacy.id("beast");
 	/** Server to client: entity ids of the echoes in the player's world, so they are drawn as spirits. */
 	public static final Identifier ECHOES = MagesLegacy.id("echoes");
+	/** Server to client: the quickened blocks of the client's world and the ticks each has left. */
+	public static final Identifier QUICKENED = MagesLegacy.id("quickened");
 	public static final int SLOTS = 4;
 
 	private RacePackets() {

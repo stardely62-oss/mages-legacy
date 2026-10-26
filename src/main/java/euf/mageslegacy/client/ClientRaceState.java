@@ -56,6 +56,11 @@ public final class ClientRaceState {
 		clientTicks++;
 	}
 
+	/** Client ticks counted since the game started, for timers sent by the server. */
+	public static long clientTicks() {
+		return clientTicks;
+	}
+
 	/** Ticks until the slot is ready again. */
 	public static int cooldown(int slot) {
 		return (int) Math.max(0, cooldowns[slot] - (clientTicks - receivedAt));

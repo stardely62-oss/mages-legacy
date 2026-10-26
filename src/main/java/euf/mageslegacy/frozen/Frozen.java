@@ -1,5 +1,6 @@
 package euf.mageslegacy.frozen;
 
+import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
@@ -15,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
@@ -30,6 +33,7 @@ import net.minecraft.entity.mob.Monster;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.entity.projectile.ProjectileUtil;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.RegistryKey;
@@ -180,6 +184,7 @@ public final class Frozen {
 	/** When each Frozen last spent sand (numbness creeps in after long idleness), and sand spent towards experience. */
 	private static final Map<UUID, Long> SPENT_AT = new HashMap<>();
 	private static final Map<UUID, Float> SPENT = new HashMap<>();
+	private static boolean quickChanged;
 
 	private Frozen() {
 	}
@@ -258,6 +263,11 @@ public final class Frozen {
 		tickFlights(server);
 		tickDomes(now);
 		tickQuick(now);
+		// The hourglasses over quickened blocks: sent when the set changes, and every 5 s for those who came near since
+		if (quickChanged || now % 100 == 0) {
+			quickChanged = false;
+			sendQuickened(server, now);
+		}
 		tickHeld(server, now);
 		tickShapes(now);
 		ETERNAL.entrySet().removeIf(e -> {
@@ -900,6 +910,7 @@ public final class Frozen {
 				BlockPos fixed = pos.toImmutable();
 				QUICK.removeIf(q -> q.world() == world && q.pos().equals(fixed));
 				QUICK.add(new Quick(player.getUuid(), world, fixed, until));
+				quickChanged = true;
 				world.spawnParticles(SAND, fixed.getX() + 0.5, fixed.getY() + 1.0, fixed.getZ() + 0.5, 6, 0.3, 0.1, 0.3, 0);
 				added++;
 			}
@@ -946,6 +957,7 @@ public final class Frozen {
 			Quick q = it.next();
 			if (q.until() < now || !q.world().isChunkLoaded(q.pos())) {
 				it.remove();
+				quickChanged = true;
 				continue;
 			}
 			BlockState state = q.world().getBlockState(q.pos());
@@ -964,6 +976,23 @@ public final class Frozen {
 				q.world().spawnParticles(SAND, q.pos().getX() + 0.5, q.pos().getY() + 1.05, q.pos().getZ() + 0.5, 3, 0.3, 0.05, 0.3, 0);
 				q.world().spawnParticles(ParticleTypes.WAX_OFF, q.pos().getX() + 0.5, q.pos().getY() + 0.5, q.pos().getZ() + 0.5, 1, 0.4, 0.4, 0.4, 0);
 			}
+		}
+	}
+
+	/** Tells every player which blocks in their world are quickened and for how long. */
+	private static void sendQuickened(MinecraftServer server, long now) {
+		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+			if (!ServerPlayNetworking.canSend(player, RacePackets.QUICKENED)) {
+				continue;
+			}
+			List<Quick> here = QUICK.stream().filter(q -> q.world() == player.getWorld()).toList();
+			PacketByteBuf buf = PacketByteBufs.create();
+			buf.writeVarInt(here.size());
+			for (Quick q : here) {
+				buf.writeBlockPos(q.pos());
+				buf.writeVarInt((int) Math.max(0, q.until() - now));
+			}
+			ServerPlayNetworking.send(player, RacePackets.QUICKENED, buf);
 		}
 	}
 
@@ -999,6 +1028,7 @@ public final class Frozen {
 		UUID id = player.getUuid();
 		DOMES.removeIf(d -> d.owner.equals(id));
 		QUICK.removeIf(q -> q.owner().equals(id));
+		quickChanged = true;
 		ETERNAL.remove(id);
 		WAYS.remove(id);
 	}

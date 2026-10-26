@@ -14,6 +14,7 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
@@ -65,13 +66,19 @@ public class MagesLegacyClient implements ClientModInitializer {
 			PacketByteBuf copy = PacketByteBufs.copy(buf);
 			client.execute(() -> EchoVisuals.read(copy));
 		});
+		ClientPlayNetworking.registerGlobalReceiver(RacePackets.QUICKENED, (client, handler, buf, sender) -> {
+			PacketByteBuf copy = PacketByteBufs.copy(buf);
+			client.execute(() -> QuickenVisuals.read(copy));
+		});
 		ClientPlayNetworking.registerGlobalReceiver(RacePackets.OPEN_CHOICE, (client, handler, buf, sender) ->
 				client.execute(() -> client.setScreen(new LoreScreen())));
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
 			ClientRaceState.clear();
 			EchoVisuals.clear();
+			QuickenVisuals.clear();
 		}));
 		HudRenderCallback.EVENT.register(RaceHud::render);
+		WorldRenderEvents.AFTER_ENTITIES.register(QuickenVisuals::render);
 		ClientTickEvents.END_CLIENT_TICK.register(MagesLegacyClient::tick);
 	}
 
@@ -81,26 +88,41 @@ public class MagesLegacyClient implements ClientModInitializer {
 			return;
 		}
 		for (int slot = 0; slot < ABILITY_KEYS.length; slot++) {
-			while (ABILITY_KEYS[slot].wasPressed()) {
-				// The fourth key is the Shepherd's Song; other races have three abilities
-				if (ClientRaceState.race != null && slot < RaceHud.abilityCount(ClientRaceState.race)) {
-					useAbility(slot);
-				}
+			// The fourth key is the Shepherd's Song; other races have three abilities
+			if (pressed(client, ABILITY_KEYS[slot], slot) && ClientRaceState.race != null && slot < RaceHud.abilityCount(ClientRaceState.race)) {
+				useAbility(slot);
 			}
 		}
-		while (TREE_KEY.wasPressed()) {
+		if (pressed(client, TREE_KEY, ABILITY_KEYS.length)) {
 			client.setScreen(ClientRaceState.race == null ? new LoreScreen() : new TalentScreen());
 		}
-		while (BESTIARY_KEY.wasPressed()) {
-			if (ClientRaceState.race == Race.SHEPHERD) {
-				client.setScreen(new BestiaryScreen());
-			}
+		if (pressed(client, BESTIARY_KEY, ABILITY_KEYS.length + 1) && ClientRaceState.race == Race.SHEPHERD) {
+			client.setScreen(new BestiaryScreen());
 		}
-		while (SQUAD_KEY.wasPressed()) {
-			if (ClientRaceState.race == Race.SHEPHERD) {
-				selectSquad(ClientRaceState.extra.getInt("activePreset") + 1);
-			}
+		if (pressed(client, SQUAD_KEY, ABILITY_KEYS.length + 2) && ClientRaceState.race == Race.SHEPHERD) {
+			selectSquad(ClientRaceState.extra.getInt("activePreset") + 1);
 		}
+	}
+
+	/** Whether each of our keys was down last tick, by the physical key (see {@link #pressed}). */
+	private static final boolean[] DOWN = new boolean[ABILITY_KEYS.length + 3];
+
+	/**
+	 * Whether one of our keys was pressed this tick. Minecraft gives a key to one binding only, so when another mod
+	 * (JourneyMap, say) binds the same key, ours never hears it: then the physical key itself is watched, and both mods
+	 * act on it. Not while a screen is open, so typing in the chat doesn't cast anything.
+	 */
+	private static boolean pressed(MinecraftClient client, KeyBinding binding, int index) {
+		boolean fired = false;
+		while (binding.wasPressed()) {
+			fired = true;
+		}
+		InputUtil.Key key = KeyBindingHelper.getBoundKeyOf(binding);
+		boolean down = key.getCategory() == InputUtil.Type.KEYSYM && key.getCode() != InputUtil.UNKNOWN_KEY.getCode()
+				&& InputUtil.isKeyPressed(client.getWindow().getHandle(), key.getCode());
+		boolean edge = down && !DOWN[index];
+		DOWN[index] = down;
+		return fired || (edge && client.currentScreen == null);
 	}
 
 	public static void useAbility(int slot) {
