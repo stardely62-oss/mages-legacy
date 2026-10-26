@@ -37,7 +37,9 @@ echo "$JM_SHA512  $CLIENT/mods/journeymap-fabric-1.20.1-6.0.7.jar" | sha512sum -
 
 # Skip first-launch screens and keep running without window focus. The third ability sits on G, as it did before
 # JourneyMap's G was known: the mod has to move it back to its free default by itself.
+# (version: 1.20.1's data version, or the options datafixer chokes on modern key names and drops the whole file)
 cat > "$CLIENT/options.txt" <<'EOF'
+version:3465
 key_key.mages_legacy.ability_3:key.keyboard.g
 onboardAccessibility:false
 tutorialStep:none
