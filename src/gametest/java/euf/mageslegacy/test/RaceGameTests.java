@@ -1224,28 +1224,31 @@ public class RaceGameTests implements FabricGameTest {
 		ServerPlayerEntity player = voidborn(ctx, at);
 		RaceData data = RaceState.of(player);
 		ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(0, 0, 4));
-		UUID id = zombie.getUuid();
-		ServerWorld pocket = Pocket.world(world.getServer());
-		AbilityResult result = Voidborn.excise(player, data);
-		// The test server is made from a preset without datapack dimensions: there the Excision just refuses (the
-		// client harness, in a real world, tries the pocket itself)
-		if (pocket == null) {
-			check(result == AbilityResult.LOCKED && world.getEntity(id) != null && data.resource == 100,
-					"no pocket: nothing happens, nothing spent (" + result + ", zombie " + world.getEntity(id) + ", void " + data.resource + ")");
-			zombie.discard();
-			done(ctx, player);
-			return;
-		}
-		check(result == AbilityResult.OK, "the Excision: " + result);
-		check(world.getEntity(id) == null && pocket.getEntity(id) != null, "the zombie is in the pocket now");
-		check(pocket.getBlockState(BlockPos.ofFloored(Pocket.center(data.voidborn.room)).down()).isOf(Blocks.AMETHYST_BLOCK), "the room was laid");
-		// Leaving the race lets go of whatever it held: it comes back where it was
-		Voidborn.cleanup(player);
+		// A couple of ticks for the zombie to settle into the world before it is looked at
 		ctx.runAtTick(ctx.getTick() + 3, () -> {
-			Entity back = world.getEntity(id);
-			check(back != null && back.getPos().distanceTo(Vec3d.ofBottomCenter(at.add(0, 0, 4))) < 0.5, "back on its spot: " + back);
-			back.discard();
-			done(ctx, player);
+			UUID id = zombie.getUuid();
+			ServerWorld pocket = Pocket.world(world.getServer());
+			AbilityResult result = Voidborn.excise(player, data);
+			// The test server is made from a preset without datapack dimensions: there the Excision just refuses (the
+			// client harness, in a real world, tries the pocket itself)
+			if (pocket == null) {
+				check(result == AbilityResult.LOCKED && world.getEntity(id) != null && data.resource == 100,
+						"no pocket: nothing happens, nothing spent (" + result + ", zombie " + world.getEntity(id) + ", void " + data.resource + ")");
+				zombie.discard();
+				done(ctx, player);
+				return;
+			}
+			check(result == AbilityResult.OK, "the Excision: " + result);
+			check(world.getEntity(id) == null && pocket.getEntity(id) != null, "the zombie is in the pocket now");
+			check(pocket.getBlockState(BlockPos.ofFloored(Pocket.center(data.voidborn.room)).down()).isOf(Blocks.AMETHYST_BLOCK), "the room was laid");
+			// Leaving the race lets go of whatever it held: it comes back where it was
+			Voidborn.cleanup(player);
+			ctx.runAtTick(ctx.getTick() + 3, () -> {
+				Entity back = world.getEntity(id);
+				check(back != null && back.getPos().distanceTo(Vec3d.ofBottomCenter(at.add(0, 0, 4))) < 0.5, "back on its spot: " + back);
+				back.discard();
+				done(ctx, player);
+			});
 		});
 	}
 
