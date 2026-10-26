@@ -322,7 +322,8 @@ public class HarnessClient implements ClientModInitializer {
 			onServer(c, s -> {
 				ServerWorld world = s.getOverworld();
 				WolfEntity wolf = EntityType.WOLF.create(world);
-				wolf.refreshPositionAndAngles(arena.getX() + 3.5, arena.getY(), arena.getZ() + 2.5, 0, 0);
+				// Where the camera below looks: the centre of block (3, 0, 2) off the arena
+				wolf.refreshPositionAndAngles(arena.getX() + 4.0, arena.getY(), arena.getZ() + 3.0, 0, 0);
 				wolf.setAiDisabled(true);
 				world.spawnEntity(wolf);
 				world.setBlockState(arena.add(5, 0, 2), Blocks.CAMPFIRE.getDefaultState());

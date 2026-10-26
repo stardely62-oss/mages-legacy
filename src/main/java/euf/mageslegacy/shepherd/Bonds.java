@@ -126,7 +126,28 @@ public final class Bonds {
 			return AbilityResult.COOLDOWN;
 		}
 		LivingEntity target = Shepherd.lookedAt(player, 8, e -> BeastKind.of(e.getType()).isPresent());
+		if (target == null) {
+			target = nearestToLook(player, 8, 12);
+		}
 		return target instanceof MobEntity mob ? singTo(player, data, mob) : AbilityResult.NO_BEAST;
+	}
+
+	/** A small beast is hard to hit with a straight look: the one closest to where you look, within {@code degrees}. */
+	@Nullable
+	private static LivingEntity nearestToLook(ServerPlayerEntity player, double range, double degrees) {
+		Vec3d eye = player.getEyePos();
+		Vec3d look = player.getRotationVec(1.0f);
+		double best = Math.cos(Math.toRadians(degrees));
+		LivingEntity found = null;
+		for (LivingEntity e : player.getServerWorld().getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(range),
+				e -> e.isAlive() && BeastKind.of(e.getType()).isPresent() && e.squaredDistanceTo(player) < range * range)) {
+			double cos = e.getBoundingBox().getCenter().subtract(eye).normalize().dotProduct(look);
+			if (cos > best && player.canSee(e)) {
+				best = cos;
+				found = e;
+			}
+		}
+		return found;
 	}
 
 	/** The Song to this beast, wherever the Shepherd looks (the cooldown is the caller's business). */
