@@ -998,7 +998,7 @@ public class RaceGameTests implements FabricGameTest {
 		StatusEffectInstance speed = Frozen.shorten(player, new StatusEffectInstance(StatusEffects.SPEED, 600));
 		check(speed.getDuration() == 420, "a potion lasts 30% shorter, got " + speed.getDuration());
 		data.talents.add(Talents.FLOW_POTIONS);
-		check(Frozen.shorten(player, new StatusEffectInstance(StatusEffects.SPEED, 600)).getDuration() == 600, "Lasting Memory: as usual");
+		check(Frozen.shorten(player, new StatusEffectInstance(StatusEffects.SPEED, 600)).getDuration() == 510, "Lasting Memory: only 15% shorter");
 		data.talents.add(Talents.LOOP_ETERNAL);
 		player.setHealth(player.getMaxHealth());
 		float first = Frozen.modifyDamage(player, player.getDamageSources().generic(), player.getMaxHealth() - 2);
