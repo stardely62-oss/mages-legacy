@@ -8,6 +8,7 @@ import euf.mageslegacy.client.screen.BestiaryScreen;
 import euf.mageslegacy.client.screen.LoreScreen;
 import euf.mageslegacy.client.screen.RaceSelectScreen;
 import euf.mageslegacy.client.screen.TalentScreen;
+import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Race;
@@ -459,6 +460,8 @@ public class HarnessClient implements ClientModInitializer {
 			int smelted = onServer(c, s -> s.getOverworld().getBlockEntity(arena.add(4, 0, -3)) instanceof AbstractFurnaceBlockEntity be
 					? be.getStack(2).getCount() : -1);
 			LOGGER.info("[harness] quickening: sand {}, iron smelted in 3 s: {}", sand, smelted);
+			LOGGER.info("[harness] quickening: furnace quickened {}, nbt {}", onServer(c, s -> Frozen.quickened(s.getOverworld(), arena.add(4, 0, -3))),
+					onServer(c, s -> s.getOverworld().getBlockEntity(arena.add(4, 0, -3)) instanceof AbstractFurnaceBlockEntity be ? be.createNbt().toString() : "none"));
 			// A plain furnace smelts one item in 10 s; quickened, three seconds give a couple
 			check("quicken_key", sand < 95 && smelted >= 2);
 			screenshot(c, "quicken");

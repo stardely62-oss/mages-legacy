@@ -999,7 +999,9 @@ public class RaceGameTests implements FabricGameTest {
 			for (int i = 0; i < 25; i++) {
 				Frozen.tick(world.getServer());
 			}
+			net.minecraft.util.hit.HitResult hit = player.raycast(6, 1.0f, false);
 			check(furnace.getStack(2).getCount() >= 1, "the quickened furnace smelts: " + quickened + ", quickened " + Frozen.quickened(world, at.east())
+					+ ", look " + hit.getType() + " at " + (hit instanceof net.minecraft.util.hit.BlockHitResult b ? b.getBlockPos().subtract(at) : null)
 					+ ", furnace " + furnace.createNbt());
 		}
 		world.removeBlock(at.east(), false);
