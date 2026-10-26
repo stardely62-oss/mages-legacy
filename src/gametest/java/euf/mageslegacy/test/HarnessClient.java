@@ -136,7 +136,7 @@ public class HarnessClient implements ClientModInitializer {
 			commands(c, "gamerule sendCommandFeedback false", "gamerule doDaylightCycle false", "gamerule doWeatherCycle false",
 					"gamerule doMobSpawning false", "time set 1000", "weather clear", "gamemode survival @a",
 					"effect give @a minecraft:resistance 600 4 true", "effect give @a minecraft:saturation 600 0 true",
-					"race xp @a 3000", "race resource @a 100", "clear @a",
+					"race xp @a 20000", "race resource @a 100", "clear @a",
 					"give @a minecraft:red_mushroom 8", "give @a minecraft:brown_mushroom 8");
 			onServer(c, s -> {
 				arena = prepareArena(s.getOverworld());
@@ -270,7 +270,7 @@ public class HarnessClient implements ClientModInitializer {
 
 		// ---- Shepherds: switch race, learn echoes, the bestiary, a real Call, a bond, the Rally ----
 		step(10, false, c -> {
-			commands(c, "race set @a shepherd", "race xp @a 3000", "race resource @a 100", "kill @e[type=!player]");
+			commands(c, "race set @a shepherd", "race xp @a 20000", "race resource @a 100", "kill @e[type=!player]");
 			UUID me = c.player.getUuid();
 			onServer(c, s -> {
 				ServerPlayerEntity player = s.getPlayerManager().getPlayer(me);
@@ -407,7 +407,7 @@ public class HarnessClient implements ClientModInitializer {
 		});
 		// ---- The Frozen: walk, a real Rewind seen from behind mid-flight, the Dome, the tree ----
 		step(10, false, c -> {
-			commands(c, "race set @a frozen", "race xp @a 3000", "race resource @a 100", "kill @e[type=!player]");
+			commands(c, "race set @a frozen", "race xp @a 20000", "race resource @a 100", "kill @e[type=!player]");
 			c.options.hudHidden = false;
 			tp(c, Vec3d.ofBottomCenter(arena).add(-7, 0, 0), Vec3d.ofBottomCenter(arena).add(0, 1.2, 0));
 		});
@@ -491,7 +491,7 @@ public class HarnessClient implements ClientModInitializer {
 		});
 		// ---- The Bloodkin: a real Dash through a spider, the Harvest, a pig heard through a wall, the Sacrifice ----
 		step(10, false, c -> {
-			commands(c, "race set @a bloodkin", "race xp @a 3000", "race resource @a 100", "kill @e[type=!player]",
+			commands(c, "race set @a bloodkin", "race xp @a 20000", "race resource @a 100", "kill @e[type=!player]",
 					"item replace entity @a armor.head with minecraft:leather_helmet");
 			c.options.hudHidden = false;
 			c.options.setPerspective(Perspective.FIRST_PERSON);
@@ -637,7 +637,7 @@ public class HarnessClient implements ClientModInitializer {
 		});
 		// ---- The Voidborn: a Void Step through a wall, the Well, the Excision, into the Pocket and back ----
 		step(10, false, c -> {
-			commands(c, "race set @a voidborn", "race resource @a 100", "kill @e[type=!player]", "weather clear", "time set 6000");
+			commands(c, "race set @a voidborn", "race xp @a 20000", "race resource @a 100", "kill @e[type=!player]", "weather clear", "time set 6000");
 			onServer(c, s -> {
 				ServerWorld world = s.getOverworld();
 				for (int dx = -4; dx <= 4; dx++) {

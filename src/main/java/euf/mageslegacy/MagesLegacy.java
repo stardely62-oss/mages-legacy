@@ -8,6 +8,7 @@ import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilitySlots;
 import euf.mageslegacy.race.ClientRaceView;
+import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceCommand;
 import euf.mageslegacy.race.RaceData;
@@ -128,6 +129,7 @@ public class MagesLegacy implements ModInitializer {
 				Mycelid.onKill(player, victim);
 				Bloodkin.onKill(player, victim);
 				Voidborn.onKill(player, victim);
+				Progression.onKill(player, victim);
 			}
 			Shepherd.onKill(killer, victim);
 		});

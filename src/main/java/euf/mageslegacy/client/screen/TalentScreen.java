@@ -662,11 +662,17 @@ public class TalentScreen extends Screen {
 			ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(name, (int) (room / scale)), 0, 0, LegacyUi.GOLD);
 			ctx.getMatrices().pop();
 			int cx = x + 24;
-			if (resourceIcon != null && LegacyUi.exists(LegacyUi.icon(resourceIcon))) {
+			if (!RaceHud.locked(race, slot) && resourceIcon != null && LegacyUi.exists(LegacyUi.icon(resourceIcon))) {
 				LegacyUi.icon(ctx, LegacyUi.icon(resourceIcon), cx - 1, y + 13, 9, true);
 				cx += 10;
 			}
-			ctx.drawTextWithShadow(textRenderer, (RaceHud.cost(race, slot) <= 0 ? "—" : String.valueOf(RaceHud.cost(race, slot))), cx, y + 13, LegacyUi.mix(color, 0xFFFFFFFF, 0.3f));
+			if (RaceHud.locked(race, slot)) {
+				ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.screen.opens_at", AbilitySlots.unlockLevel(race, slot)), x + 24, y + 13,
+						LegacyUi.RED);
+			} else {
+				ctx.drawTextWithShadow(textRenderer, (RaceHud.cost(race, slot) <= 0 ? "—" : String.valueOf(RaceHud.cost(race, slot))), cx, y + 13,
+						LegacyUi.mix(color, 0xFFFFFFFF, 0.3f));
+			}
 			LegacyUi.keyCap(ctx, MagesLegacyClient.keyLabel(MagesLegacyClient.ABILITY_KEYS[slot]), x + tileW - 4, y + 20, 0xFFFFFFFF);
 		}
 		return hovered;

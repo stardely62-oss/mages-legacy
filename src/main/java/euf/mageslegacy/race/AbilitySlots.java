@@ -46,6 +46,20 @@ public final class AbilitySlots {
 		return false;
 	}
 
+	/**
+	 * The race level at which the ability on key {@code slot} opens: none is there from the start. The first comes
+	 * almost at once, the others as the race grows; abilities a talent opens need only that talent.
+	 */
+	public static int unlockLevel(Race race, int slot) {
+		return switch (slot) {
+			case 0 -> 1;
+			case 1 -> 5;
+			case 2 -> 10;
+			case 3 -> race == Race.SHEPHERD ? 3 : race == Race.VOIDBORN ? 8 : 0;
+			default -> 0;
+		};
+	}
+
 	/** Where the ability on key {@code slot} keeps its cooldown. */
 	public static int cooldownSlot(Race race, int slot) {
 		if (slot < 3 || race == Race.SHEPHERD && slot == 3) {

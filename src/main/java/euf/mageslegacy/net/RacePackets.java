@@ -125,6 +125,12 @@ public final class RacePackets {
 			return;
 		}
 		data.alt = alt;
+		// Abilities open with the race's growth
+		if (data.level < AbilitySlots.unlockLevel(data.race, slot)) {
+			player.sendMessage(Text.translatable("mages_legacy.ability.level_locked", AbilitySlots.unlockLevel(data.race, slot)), true);
+			player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), SoundCategory.PLAYERS, 0.7f, 0.5f);
+			return;
+		}
 		AbilityResult result = switch (data.race) {
 			case MYCELID -> Mycelid.use(player, data, slot);
 			case SHEPHERD -> Shepherd.use(player, data, slot);

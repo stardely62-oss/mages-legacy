@@ -12,8 +12,9 @@ import net.minecraft.util.Identifier;
 /** Race experience, levels, milestones that open the tiers of the tree, and buying talents. */
 public final class Progression {
 	public static final int MAX_TIER = 4;
-	/** Tier N needs milestone N-1: none, the Nether, a summoned Wither, the dead dragon. */
+	/** Tier N needs milestone N-1: none, the Nether, a summoned Wither, the dead dragon; and a race level as well. */
 	private static final String[] MILESTONES = {null, "story/enter_the_nether", "nether/summon_wither", "end/kill_dragon"};
+	public static final int[] TIER_LEVELS = {0, 10, 20, 30};
 
 	public enum UnlockResult { OK, NO_RACE, UNKNOWN, OTHER_RACE, ALREADY, NO_POINTS, NEEDS_TALENT, NEEDS_MILESTONE }
 
@@ -27,6 +28,10 @@ public final class Progression {
 		if (tier > MAX_TIER) {
 			return false;
 		}
+		RaceData data = RaceState.of(player);
+		if (data == null || data.level < TIER_LEVELS[tier - 1]) {
+			return false;
+		}
 		Advancement advancement = player.server.getAdvancementLoader().get(new Identifier(MILESTONES[tier - 1]));
 		return advancement != null && player.getAdvancementTracker().getProgress(advancement).isDone();
 	}
@@ -38,6 +43,14 @@ public final class Progression {
 			tier++;
 		}
 		return tier;
+	}
+
+	/** Every monster a race's player kills teaches a little, whatever the race. */
+	public static void onKill(ServerPlayerEntity player, net.minecraft.entity.LivingEntity victim) {
+		RaceData data = RaceState.of(player);
+		if (data != null && data.race != null && victim instanceof net.minecraft.entity.mob.Monster) {
+			addXp(player, data, 1);
+		}
 	}
 
 	public static void addXp(ServerPlayerEntity player, RaceData data, int amount) {

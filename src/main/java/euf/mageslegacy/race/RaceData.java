@@ -59,8 +59,9 @@ public class RaceData {
 	}
 
 	/** Experience needed to go from {@code level} to the next one. */
+	/** Experience from one level to the next: slow to climb, steeper the higher (about 120 000 in all to level 50). */
 	public static int xpForNext(int level) {
-		return 40 + 20 * level;
+		return 60 + 30 * level + 2 * level * level;
 	}
 
 	/** Adds race experience; returns how many levels were gained. */

@@ -213,8 +213,13 @@ public final class RaceHud {
 	public static void pressed(int slot) {
 		Race race = ClientRaceState.race;
 		PRESSED[slot] = ClientRaceState.clientTicks();
-		PRESSED_READY[slot] = race != null && shown(race, slot) && (cooldown(race, slot) == 0 || chain(race, slot))
+		PRESSED_READY[slot] = race != null && shown(race, slot) && !locked(race, slot) && (cooldown(race, slot) == 0 || chain(race, slot))
 				&& slotCost(race, slot) >= 0 && ClientRaceState.resource >= slotCost(race, slot);
+	}
+
+	/** An ability the race hasn't grown into yet. */
+	public static boolean locked(Race race, int slot) {
+		return ClientRaceState.level < AbilitySlots.unlockLevel(race, slot);
 	}
 
 	/** A Voidborn's Excision holding someone: pressing it lets go, for free. */
@@ -312,7 +317,8 @@ public final class RaceHud {
 			boolean cooling = cooldown > 0 && !chain;
 			int cost = slotCost(race, slot);
 			boolean short_ = cost < 0 || ClientRaceState.resource < cost;
-			boolean ready = !cooling && !short_;
+			boolean locked = locked(race, slot);
+			boolean ready = !cooling && !short_ && !locked;
 			ctx.fill(sx - 2, sy - 2, sx + 20, sy + 20, LegacyUi.BLACK);
 			LegacyUi.outline(ctx, sx - 1, sy - 1, sx + 19, sy + 19, ready ? LegacyUi.mix(LegacyUi.RIM, color, 0.5f) : LegacyUi.RIM_DARK);
 			ctx.fill(sx, sy, sx + 18, sy + 18, 0xD0141016);
@@ -344,7 +350,12 @@ public final class RaceHud {
 			ctx.getMatrices().push();
 			ctx.getMatrices().translate(0, 0, 200);
 			pressFlash(ctx, slot, sx, sy, color);
-			if (cooling) {
+			if (locked) {
+				// Not open yet: dark, with the race level it opens at
+				ctx.fill(sx, sy, sx + 18, sy + 18, 0xC0000000);
+				String lvl = String.valueOf(AbilitySlots.unlockLevel(race, slot));
+				ctx.drawText(tr, lvl, sx + 9 - tr.getWidth(lvl) / 2, sy + 5, 0xFF9A9088, true);
+			} else if (cooling) {
 				ctx.fill(sx, sy, sx + 18, sy + 18, 0x90000000);
 				String secs = String.valueOf((cooldown + 19) / 20);
 				ctx.drawText(tr, secs, sx + 9 - tr.getWidth(secs) / 2, sy + 5, 0xFFFFFFFF, true);
