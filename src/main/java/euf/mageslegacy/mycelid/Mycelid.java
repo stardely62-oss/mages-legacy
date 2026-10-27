@@ -88,7 +88,7 @@ public final class Mycelid {
 	private static final int TASTE_TICKS_RICH = 1200;
 	private static final int AFTERTASTE = 2400;
 	private static final int DIET_XP_CAP = 25;
-	private static final int JUMP_COOLDOWN = 30;
+	private static final int JUMP_COOLDOWN = 100;
 	private static final int CLOUD_COOLDOWN = 200;
 	private static final int CLOUD_COOLDOWN_QUICK = 140;
 	public static final int JUMP_COST_CHEAP = 10;
