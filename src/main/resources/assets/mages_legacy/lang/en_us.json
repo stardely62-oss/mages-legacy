@@ -1329,7 +1329,7 @@
 	"mages_legacy.face.drowned": "Drowned",
 	"mages_legacy.face.drowned.desc": "Drowned face. Gift: in water you breathe and swim like a dolphin. Weakness: burns in the sun without a helmet. Power (V): Trident — a trident thrown hard, nothing to pick up.",
 	"mages_legacy.face.creeper": "Creeper",
-	"mages_legacy.face.creeper.desc": "Creeper face. Gift: explosions hurt half as much. Weakness: near a cat or ocelot — Weakness II and Slowness. Power (V): Blast — up to 14 damage to all within 5 blocks, no blocks broken, 2 to yourself.",
+	"mages_legacy.face.creeper.desc": "Creeper face. Gift: explosions hurt half as much. Weakness: near a cat or ocelot — Weakness II and Slowness. Power (V): Blast — up to 10 damage to all within 5 blocks, no blocks broken, 2 to yourself.",
 	"mages_legacy.face.spider": "Spider",
 	"mages_legacy.face.spider.desc": "Spider face. Gift: you climb walls and see in the dark. Weakness: fire burns half again as hard. Power (V): Web — the creature you look at (up to 16 blocks) and all within 3 of it are tangled (Slowness IV for 5 seconds) and poisoned.",
 	"mages_legacy.face.enderman": "Enderman",

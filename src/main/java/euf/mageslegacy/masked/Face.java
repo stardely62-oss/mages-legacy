@@ -14,7 +14,7 @@ import net.minecraft.item.Items;
 public enum Face {
 	ZOMBIE("zombie", Items.ZOMBIE_SPAWN_EGG, 15, 120, EntityType.ZOMBIE, EntityType.HUSK, EntityType.ZOMBIE_VILLAGER),
 	SKELETON("skeleton", Items.SKELETON_SPAWN_EGG, 20, 160, EntityType.SKELETON, EntityType.STRAY),
-	DROWNED("drowned", Items.DROWNED_SPAWN_EGG, 15, 120, EntityType.DROWNED),
+	DROWNED("drowned", Items.DROWNED_SPAWN_EGG, 15, 160, EntityType.DROWNED),
 	CREEPER("creeper", Items.CREEPER_SPAWN_EGG, 30, 300, EntityType.CREEPER),
 	SPIDER("spider", Items.SPIDER_SPAWN_EGG, 15, 160, EntityType.SPIDER, EntityType.CAVE_SPIDER),
 	ENDERMAN("enderman", Items.ENDERMAN_SPAWN_EGG, 20, 200, EntityType.ENDERMAN),

@@ -686,7 +686,7 @@ public final class Masked {
 		for (int i = -2; i <= 2; i++) {
 			ArrowEntity arrow = new ArrowEntity(world, player);
 			arrow.setVelocity(player, player.getPitch(), player.getYaw() + i * 6, 0, 2.8f, 1.0f);
-			arrow.setDamage(2.5 * m);
+			arrow.setDamage(1.2 * m);
 			arrow.pickupType = PersistentProjectileEntity.PickupPermission.CREATIVE_ONLY;
 			world.spawnEntity(arrow);
 		}
@@ -706,7 +706,7 @@ public final class Masked {
 		return AbilityResult.OK;
 	}
 
-	/** Creeper, the Blast: everything within 5 blocks takes up to 14, the Masked itself 4 (its own face halves that). */
+	/** Creeper, the Blast: everything within 5 blocks takes up to 10, the Masked itself 4 (its own face halves that). */
 	private static AbilityResult blast(ServerPlayerEntity player, float m) {
 		ServerWorld world = player.getServerWorld();
 		Vec3d at = player.getPos();
@@ -716,7 +716,7 @@ public final class Masked {
 			if (d > 5) {
 				continue;
 			}
-			e.damage(world.getDamageSources().indirectMagic(player, player), (float) (14 * m * (1 - d / 6)));
+			e.damage(world.getDamageSources().indirectMagic(player, player), (float) (10 * m * (1 - d / 6)));
 			Vec3d push = e.getPos().subtract(at).normalize().multiply(1.2 * (1 - d / 6));
 			e.addVelocity(push.x, 0.4, push.z);
 			e.velocityModified = true;
