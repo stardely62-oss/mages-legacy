@@ -10,6 +10,7 @@ import euf.mageslegacy.client.screen.LoreScreen;
 import euf.mageslegacy.client.screen.RaceSelectScreen;
 import euf.mageslegacy.client.screen.TalentScreen;
 import euf.mageslegacy.frozen.Frozen;
+import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.Race;
@@ -240,6 +241,38 @@ public class HarnessClient implements ClientModInitializer {
 		});
 		step(10, false, c -> check("mushroom_taste", onServer(c, s ->
 				s.getPlayerManager().getPlayer(c.player.getUuid()).hasStatusEffect(StatusEffects.STRENGTH))));
+
+		// H: the Mycelium Carpet, seen from above the shoulder; then Alt with the Great Bloom crown
+		step(10, false, c -> {
+			resetCooldowns(c);
+			UUID me = c.player.getUuid();
+			onServer(c, s -> {
+				ServerPlayerEntity player = s.getPlayerManager().getPlayer(me);
+				RaceData data = RaceState.get(s).data(me);
+				data.talents.add(Talents.SWARM_BLOOM);
+				data.addResource(100);
+				RacePackets.sync(player, data);
+				return null;
+			});
+			tp(c, Vec3d.ofBottomCenter(arena).add(-1, 0, 0), Vec3d.ofBottomCenter(arena).add(2.5, 0, 0));
+		});
+		step(10, false, c -> MagesLegacyClient.useAbility(3));
+		step(25, false, c -> {
+			check("carpet_is_mycelium", onServer(c, s -> Mycelid.onMycelium(s.getPlayerManager().getPlayer(c.player.getUuid()))));
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+			c.player.setPitch(45);
+		});
+		step(5, false, c -> screenshot(c, "mycelium_carpet"));
+		step(10, false, c -> {
+			commands(c, "race resource @a 100");
+			MagesLegacyClient.useAbility(4);
+		});
+		step(12, false, c -> {
+			screenshot(c, "great_bloom");
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+			check("bloom_infects", onServer(c, s -> s.getOverworld().getEntity(zombie) instanceof ZombieEntity z
+					&& z.hasStatusEffect(StatusEffects.GLOWING)));
+		});
 
 		// Mycelium nodes open after the Nether: grow two and travel between them
 		step(10, false, c -> {
