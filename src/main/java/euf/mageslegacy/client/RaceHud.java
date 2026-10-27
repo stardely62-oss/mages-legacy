@@ -10,6 +10,8 @@ import euf.mageslegacy.race.Talents;
 import euf.mageslegacy.shepherd.Bonds;
 import euf.mageslegacy.shepherd.EchoType;
 import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.masked.Face;
+import euf.mageslegacy.masked.Masked;
 import euf.mageslegacy.tempter.Tempter;
 import euf.mageslegacy.voidborn.Voidborn;
 import java.util.LinkedHashMap;
@@ -50,13 +52,15 @@ public final class RaceHud {
 	public static final String[] MERCENARY_ABILITY_ICONS = {"ability_credit_strike", "ability_exchange", "ability_pledge", "ability_shop", "deal_stake"};
 	public static final Item[] TEMPTER_ICONS = {Items.ENDER_EYE, Items.ROSE_BUSH, Items.LEAD, Items.FERMENTED_SPIDER_EYE, Items.REDSTONE_BLOCK};
 	public static final String[] TEMPTER_ABILITY_ICONS = {"ability_gaze", "ability_kiss", "ability_vow", "ability_jealousy", "thread_break"};
+	public static final Item[] MASKED_ICONS = {Items.SHEARS, Items.ZOMBIE_HEAD, Items.ARMOR_STAND, Items.BELL, Items.CARVED_PUMPKIN};
+	public static final String[] MASKED_ABILITY_ICONS = {"ability_tear", "ability_power", "ability_change", "ability_kin", "gal_thousand"};
 
 	private RaceHud() {
 	}
 
 	public static boolean hasAbilities(Race race) {
 		return race == Race.MYCELID || race == Race.SHEPHERD || race == Race.FROZEN || race == Race.BLOODKIN || race == Race.VOIDBORN
-				|| race == Race.MERCENARY || race == Race.TEMPTER;
+				|| race == Race.MERCENARY || race == Race.TEMPTER || race == Race.MASKED;
 	}
 
 	/** The main abilities: three each; the Shepherds have a fourth (the Song), the Voidborn too (the Pocket). Keys past these: {@link #shown}. */
@@ -85,6 +89,7 @@ public final class RaceHud {
 			case VOIDBORN -> VOIDBORN_ABILITY_ICONS[slot];
 			case MERCENARY -> MERCENARY_ABILITY_ICONS[slot];
 			case TEMPTER -> TEMPTER_ABILITY_ICONS[slot];
+			case MASKED -> MASKED_ABILITY_ICONS[slot];
 			default -> null;
 		};
 	}
@@ -97,6 +102,15 @@ public final class RaceHud {
 		// The Mercenaries pay in health, hunger and armour, not from a bar
 		if (race == Race.MERCENARY) {
 			return 0;
+		}
+		if (race == Race.MASKED) {
+			return switch (slot) {
+				case 1 -> ClientRaceState.extra.getInt("powerCost");
+				case 2 -> ClientRaceState.talents.contains(Talents.GAL_CHEAP) ? Masked.SWAP_COST_CHEAP : Masked.SWAP_COST;
+				case 3 -> ClientRaceState.talents.contains(Talents.KIN_KING) ? Masked.KIN_COST_KING : Masked.KIN_COST;
+				case 4 -> Masked.THOUSAND_COST;
+				default -> 0;
+			};
 		}
 		if (race == Race.TEMPTER) {
 			return switch (slot) {
@@ -199,12 +213,21 @@ public final class RaceHud {
 			case VOIDBORN -> "res_void";
 			case MERCENARY -> "res_contract";
 			case TEMPTER -> "res_adoration";
+			case MASKED -> "res_essence";
 			default -> null;
 		};
 	}
 
 	/** An ability's icon: the Codex texture if it ships, the item otherwise. */
 	public static void drawAbility(DrawContext ctx, Race race, int slot, int x, int y, boolean bright) {
+		// The Masked's Power shows the worn face, the Change the face that comes next
+		if (race == Race.MASKED && (slot == 1 || slot == 2)) {
+			Face face = Face.byId(ClientRaceState.extra.getString(slot == 1 ? "face" : "next")).orElse(null);
+			if (face != null) {
+				ctx.drawItem(new ItemStack(face.egg), x, y);
+				return;
+			}
+		}
 		String icon = abilityIcon(race, slot);
 		Identifier texture = icon == null ? null : LegacyUi.icon(icon);
 		if (texture != null && LegacyUi.exists(texture)) {
@@ -221,6 +244,8 @@ public final class RaceHud {
 			ctx.drawItem(new ItemStack(MERCENARY_ICONS[slot]), x, y);
 		} else if (race == Race.TEMPTER) {
 			ctx.drawItem(new ItemStack(TEMPTER_ICONS[slot]), x, y);
+		} else if (race == Race.MASKED) {
+			ctx.drawItem(new ItemStack(MASKED_ICONS[slot]), x, y);
 		} else if (race == Race.SHEPHERD) {
 			// The Call shows the first echo of its squad
 			EchoType echo = slot == 0 ? activeSquad().keySet().stream().findFirst().flatMap(EchoType::byId).orElse(null) : null;
@@ -327,6 +352,13 @@ public final class RaceHud {
 			int max = ClientRaceState.extra.getInt("capMax");
 			String cap = used + "/" + max;
 			ctx.drawText(tr, cap, barX - 20 - tr.getWidth(cap), h - 15, used >= max ? LegacyUi.RED : LegacyUi.GOLD, true);
+		}
+		if (race == Race.MASKED) {
+			// How fresh the worn face still is, over the essence icon; red when it's about to crumble, a dash when faceless
+			boolean faceless = ClientRaceState.extra.getString("face").isEmpty();
+			int fresh = ClientRaceState.extra.getInt("fresh");
+			String text = faceless ? "—" : fresh + "%";
+			ctx.drawText(tr, text, barX - 20 - tr.getWidth(text), h - 15, faceless || fresh <= 15 ? LegacyUi.RED : 0xFFE8DCC0, true);
 		}
 
 		if (!hasAbilities(race)) {

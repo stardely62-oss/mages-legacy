@@ -1,5 +1,6 @@
 package euf.mageslegacy.race;
 
+import euf.mageslegacy.masked.MaskData;
 import euf.mageslegacy.mercenary.MercData;
 import euf.mageslegacy.shepherd.ShepherdData;
 import euf.mageslegacy.voidborn.VoidData;
@@ -34,6 +35,8 @@ public class RaceData {
 	public final VoidData voidborn = new VoidData();
 	/** The Mercenary's account in the Mage's Shop (empty for other races). */
 	public final MercData merc = new MercData();
+	/** The Masked's gallery of faces (empty for other races). */
+	public final MaskData masked = new MaskData();
 
 	// Not saved: server ticks at which each ability slot is ready again, and the spore jump chain
 	public final Map<Integer, Long> readyAt = new HashMap<>();
@@ -116,6 +119,7 @@ public class RaceData {
 		xpTaken.clear();
 		shepherd.clear();
 		merc.clear();
+		masked.clear();
 		readyAt.clear();
 		chainLeft = 0;
 		prompted = false;
@@ -142,6 +146,7 @@ public class RaceData {
 		nbt.put("shepherd", shepherd.toNbt());
 		nbt.put("voidborn", voidborn.toNbt());
 		nbt.put("merc", merc.toNbt());
+		nbt.put("masked", masked.toNbt());
 		return nbt;
 	}
 
@@ -167,6 +172,7 @@ public class RaceData {
 		data.shepherd.readNbt(nbt.getCompound("shepherd"));
 		data.voidborn.readNbt(nbt.getCompound("voidborn"));
 		data.merc.readNbt(nbt.getCompound("merc"));
+		data.masked.readNbt(nbt.getCompound("masked"));
 		return data;
 	}
 }

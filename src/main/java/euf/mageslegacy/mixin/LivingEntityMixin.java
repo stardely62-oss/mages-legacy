@@ -4,15 +4,18 @@ import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mercenary.Mercenary;
 import euf.mageslegacy.mycelid.Mycelid;
+import euf.mageslegacy.race.ClientRaceView;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.masked.Masked;
 import euf.mageslegacy.tempter.Tempter;
 import euf.mageslegacy.voidborn.Voidborn;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -40,6 +43,8 @@ public abstract class LivingEntityMixin {
 			amount = Frozen.modifyDamage((ServerPlayerEntity) self, source, amount);
 		} else if (race == Race.MERCENARY) {
 			amount = Mercenary.modifyDamage((ServerPlayerEntity) self, source, amount);
+		} else if (race == Race.MASKED) {
+			amount = Masked.modifyDamage((ServerPlayerEntity) self, source, amount);
 		}
 		amount = Progression.scale(source, amount);
 		Voidborn.onHurt(self, amount);
@@ -47,10 +52,23 @@ public abstract class LivingEntityMixin {
 		amount = Bloodkin.onHit(self, source, amount);
 		amount = Mercenary.onHit(self, source, amount);
 		amount = Tempter.onHit(self, source, amount);
+		amount = Masked.onHit(self, source, amount);
 		amount = Shepherd.modifyDamage(self, source, amount);
 		// Last: the Vow passes half of what's left to a Tempter, and her own threads share out what reaches her
 		amount = Tempter.onAllyHurt(self, source, amount);
 		return race == Race.TEMPTER ? Tempter.modifyDamage((ServerPlayerEntity) self, source, amount) : amount;
+	}
+
+	/** A Masked in a spider's face climbs walls like a ladder; the client decides for its own player, the server for all. */
+	@Inject(method = "isClimbing", at = @At("RETURN"), cancellable = true)
+	private void mages_legacy$spiderFace(CallbackInfoReturnable<Boolean> cir) {
+		LivingEntity self = (LivingEntity) (Object) this;
+		if (cir.getReturnValueZ() || !(self instanceof PlayerEntity player) || !player.horizontalCollision || player.isSpectator()) {
+			return;
+		}
+		if (self.getWorld().isClient() ? player.isMainPlayer() && ClientRaceView.climbs : Masked.climbs(player)) {
+			cir.setReturnValue(true);
+		}
 	}
 
 	/** No friendly fire, no blow on a rewinding or blurred Frozen: it doesn't land at all (no knockback, no flash). */

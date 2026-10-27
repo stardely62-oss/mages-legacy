@@ -15,6 +15,7 @@ import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.shepherd.Bonds;
 import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.masked.Masked;
 import euf.mageslegacy.tempter.Tempter;
 import euf.mageslegacy.voidborn.Voidborn;
 import java.util.Locale;
@@ -42,6 +43,8 @@ public final class RacePackets {
 	public static final Identifier BEAST = MagesLegacy.id("beast");
 	/** Server to client: entity ids of the echoes in the player's world, so they are drawn as spirits. */
 	public static final Identifier ECHOES = MagesLegacy.id("echoes");
+	/** Server to client: which players in the client's world wear which face (entity id, face), drawn in that shape. */
+	public static final Identifier FACES = MagesLegacy.id("faces");
 	/** Server to client: the quickened blocks of the client's world and the ticks each has left. */
 	public static final Identifier QUICKENED = MagesLegacy.id("quickened");
 	/**
@@ -151,6 +154,9 @@ public final class RacePackets {
 		if (race == Race.TEMPTER) {
 			player.sendMessage(Text.translatable("mages_legacy.message.tempter_hint").formatted(Formatting.YELLOW), false);
 		}
+		if (race == Race.MASKED) {
+			player.sendMessage(Text.translatable("mages_legacy.message.masked_hint").formatted(Formatting.YELLOW), false);
+		}
 		sync(player, data);
 		return true;
 	}
@@ -176,6 +182,7 @@ public final class RacePackets {
 			case VOIDBORN -> Voidborn.use(player, data, slot);
 			case MERCENARY -> Mercenary.use(player, data, slot);
 			case TEMPTER -> Tempter.use(player, data, slot);
+			case MASKED -> Masked.use(player, data, slot);
 			default -> AbilityResult.LOCKED;
 		};
 		if (result != AbilityResult.OK) {
@@ -223,7 +230,8 @@ public final class RacePackets {
 		buf.writeVarInt(data.chainLeft > 0 && now <= data.chainUntil ? data.chainLeft : 0);
 		// Race-specific extras: the Shepherd's capacity, bestiary and bonds
 		buf.writeNbt(data.race == Race.SHEPHERD ? Shepherd.clientInfo(player, data) : data.race == Race.VOIDBORN ? Voidborn.clientInfo(player)
-				: data.race == Race.MERCENARY ? Mercenary.clientInfo(player, data) : data.race == Race.TEMPTER ? Tempter.clientInfo(player) : new NbtCompound());
+				: data.race == Race.MERCENARY ? Mercenary.clientInfo(player, data) : data.race == Race.TEMPTER ? Tempter.clientInfo(player)
+				: data.race == Race.MASKED ? Masked.clientInfo(player, data) : new NbtCompound());
 		ServerPlayNetworking.send(player, SYNC, buf);
 	}
 }

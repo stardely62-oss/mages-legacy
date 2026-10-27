@@ -12,8 +12,7 @@ public enum Race {
 	VOIDBORN(0x9B7FD4, true),
 	MERCENARY(0xC8823C, true),
 	TEMPTER(0xD46A8E, true),
-	/** A sleeping race: its legend is told on the choice screen, its powers are still to come. */
-	MASKED(0xBFB6A3, false);
+	MASKED(0xBFB6A3, true);
 
 	public final int color;
 	public final boolean playable;

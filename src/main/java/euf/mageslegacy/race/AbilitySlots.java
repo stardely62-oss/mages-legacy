@@ -37,6 +37,7 @@ public final class AbilitySlots {
 			case FROZEN -> Talents.FLOW_CURRENT;
 			case MERCENARY -> Talents.DEAL_STAKE;
 			case TEMPTER -> Talents.THREAD_BREAK;
+			case MASKED -> Talents.GAL_THOUSAND;
 			default -> null;
 		};
 	}
@@ -69,6 +70,16 @@ public final class AbilitySlots {
 				case 1 -> 10;
 				case 2 -> 5;
 				case 3 -> 1;
+				default -> 0;
+			};
+		}
+		// The Masked tear a face first; its power and the change of faces come soon after
+		if (race == Race.MASKED) {
+			return switch (slot) {
+				case 0 -> 1;
+				case 1 -> 3;
+				case 2 -> 6;
+				case 3 -> 15;
 				default -> 0;
 			};
 		}

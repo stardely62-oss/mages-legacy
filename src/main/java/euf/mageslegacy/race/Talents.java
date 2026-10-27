@@ -279,6 +279,44 @@ public final class Talents {
 	public static final String COURT_CHEAP_VOW = add("court_cheap_vow", Race.TEMPTER, 2, 3, 3, COURT_COMPANY, Items.BONE);
 	public static final String COURT_QUEEN = add("court_queen", Race.TEMPTER, 2, 4, 5, COURT_TWO_VOWS, Items.GOLDEN_HELMET);
 
+	// Masked: Gallery (more faces, longer worn, the Thousand Faces crown), Tearing (the rip itself and what it gives,
+	// the Last Face crown), Kin (the disguise and the retinue of one's own kind, the King of Masks crown).
+	public static final String GAL_SLOTS = add("gal_slots", Race.MASKED, 0, 1, 1, null, Items.ITEM_FRAME);
+	public static final String GAL_LONG = add("gal_long", Race.MASKED, 0, 1, 1, null, Items.CLOCK);
+	public static final String GAL_CHEAP = add("gal_cheap", Race.MASKED, 0, 1, 1, null, Items.LEATHER);
+	public static final String GAL_MORE = add("gal_more", Race.MASKED, 0, 2, 2, GAL_SLOTS, Items.GLOW_ITEM_FRAME);
+	public static final String GAL_TRACE = add("gal_trace", Race.MASKED, 0, 2, 2, GAL_MORE, Items.PHANTOM_MEMBRANE);
+	public static final String GAL_FRESH = add("gal_fresh", Race.MASKED, 0, 2, 2, GAL_LONG, Items.ROTTEN_FLESH);
+	public static final String GAL_QUICK = add("gal_quick", Race.MASKED, 0, 2, 2, GAL_CHEAP, Items.SUGAR);
+	public static final String GAL_POWER = add("gal_power", Race.MASKED, 0, 3, 3, GAL_TRACE, Items.BLAZE_POWDER);
+	public static final String GAL_KEEP = add("gal_keep", Race.MASKED, 0, 3, 3, GAL_FRESH, Items.HONEYCOMB);
+	public static final String GAL_ESSENCE = add("gal_essence", Race.MASKED, 0, 3, 3, GAL_QUICK, Items.GLOWSTONE_DUST);
+	public static final String GAL_THOUSAND = add("gal_thousand", Race.MASKED, 0, 4, 5, GAL_POWER, Items.CARVED_PUMPKIN);
+
+	public static final String RIP_WEAK = add("rip_weak", Race.MASKED, 1, 1, 1, null, Items.IRON_SWORD);
+	public static final String RIP_REACH = add("rip_reach", Race.MASKED, 1, 1, 1, null, Items.FISHING_ROD);
+	public static final String RIP_HEAL = add("rip_heal", Race.MASKED, 1, 1, 1, null, Items.GLISTERING_MELON_SLICE);
+	public static final String RIP_FEED = add("rip_feed", Race.MASKED, 1, 2, 2, RIP_WEAK, Items.EXPERIENCE_BOTTLE);
+	public static final String RIP_SHOCK = add("rip_shock", Race.MASKED, 1, 2, 2, RIP_FEED, Items.SKELETON_SKULL);
+	public static final String RIP_TEAR = add("rip_tear", Race.MASKED, 1, 2, 2, RIP_REACH, Items.SHEARS);
+	public static final String RIP_ARMOR = add("rip_armor", Race.MASKED, 1, 2, 2, RIP_HEAL, Items.GOLDEN_APPLE);
+	public static final String RIP_CHAIN = add("rip_chain", Race.MASKED, 1, 3, 3, RIP_SHOCK, Items.CHAIN);
+	public static final String RIP_EXECUTE = add("rip_execute", Race.MASKED, 1, 3, 3, RIP_TEAR, Items.WITHER_ROSE);
+	public static final String RIP_FACELESS = add("rip_faceless", Race.MASKED, 1, 3, 3, RIP_ARMOR, Items.BONE);
+	public static final String RIP_LAST = add("rip_last", Race.MASKED, 1, 4, 5, RIP_CHAIN, Items.TOTEM_OF_UNDYING);
+
+	public static final String KIN_DEEP = add("kin_deep", Race.MASKED, 2, 1, 1, null, Items.ENDER_EYE);
+	public static final String KIN_RETINUE = add("kin_retinue", Race.MASKED, 2, 1, 1, null, Items.BELL);
+	public static final String KIN_SCENT = add("kin_scent", Race.MASKED, 2, 1, 1, null, Items.FERMENTED_SPIDER_EYE);
+	public static final String KIN_LONG = add("kin_long", Race.MASKED, 2, 2, 2, KIN_DEEP, Items.LEAD);
+	public static final String KIN_STRONG = add("kin_strong", Race.MASKED, 2, 2, 2, KIN_LONG, Items.IRON_CHESTPLATE);
+	public static final String KIN_HEAL = add("kin_heal", Race.MASKED, 2, 2, 2, KIN_RETINUE, Items.COOKED_BEEF);
+	public static final String KIN_SKIN = add("kin_skin", Race.MASKED, 2, 2, 2, KIN_SCENT, Items.RABBIT_HIDE);
+	public static final String KIN_GUARD = add("kin_guard", Race.MASKED, 2, 3, 3, KIN_STRONG, Items.SHIELD);
+	public static final String KIN_FEAST = add("kin_feast", Race.MASKED, 2, 3, 3, KIN_HEAL, Items.SPIDER_EYE);
+	public static final String KIN_ALL = add("kin_all", Race.MASKED, 2, 3, 3, KIN_SKIN, Items.ARMOR_STAND);
+	public static final String KIN_KING = add("kin_king", Race.MASKED, 2, 4, 5, KIN_GUARD, Items.GOLDEN_HELMET);
+
 	private Talents() {
 	}
 

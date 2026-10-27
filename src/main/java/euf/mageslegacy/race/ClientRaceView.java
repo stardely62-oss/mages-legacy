@@ -8,6 +8,8 @@ import net.minecraft.entity.player.PlayerEntity;
  */
 public final class ClientRaceView {
 	public static volatile Race race;
+	/** The client's own player wears a spider's face (or has one under the Thousand Faces): it climbs walls. */
+	public static volatile boolean climbs;
 
 	private ClientRaceView() {
 	}

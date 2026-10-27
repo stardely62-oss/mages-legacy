@@ -81,6 +81,10 @@ public class MagesLegacyClient implements ClientModInitializer {
 			PacketByteBuf copy = PacketByteBufs.copy(buf);
 			client.execute(() -> EchoVisuals.read(copy));
 		});
+		ClientPlayNetworking.registerGlobalReceiver(RacePackets.FACES, (client, handler, buf, sender) -> {
+			PacketByteBuf copy = PacketByteBufs.copy(buf);
+			client.execute(() -> FaceVisuals.read(copy));
+		});
 		ClientPlayNetworking.registerGlobalReceiver(RacePackets.QUICKENED, (client, handler, buf, sender) -> {
 			PacketByteBuf copy = PacketByteBufs.copy(buf);
 			client.execute(() -> QuickenVisuals.read(copy));
@@ -94,6 +98,7 @@ public class MagesLegacyClient implements ClientModInitializer {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
 			ClientRaceState.clear();
 			EchoVisuals.clear();
+			FaceVisuals.clear();
 			QuickenVisuals.clear();
 			FxRenderer.clear();
 		}));
@@ -107,6 +112,7 @@ public class MagesLegacyClient implements ClientModInitializer {
 	private static void tick(MinecraftClient client) {
 		ClientRaceState.tick();
 		FxRenderer.tick();
+		FaceVisuals.tick(client);
 		if (!keysSettled && client.options != null) {
 			keysSettled = true;
 			settleKeys(client);

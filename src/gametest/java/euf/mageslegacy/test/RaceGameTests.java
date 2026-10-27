@@ -10,6 +10,8 @@ import euf.mageslegacy.mercenary.Shop;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilityResult;
+import euf.mageslegacy.masked.Face;
+import euf.mageslegacy.masked.Masked;
 import euf.mageslegacy.tempter.Tempter;
 import euf.mageslegacy.race.Progression.UnlockResult;
 import euf.mageslegacy.race.Progression;
@@ -1400,6 +1402,61 @@ public class RaceGameTests implements FabricGameTest {
 		check(Tempter.onHit(left, world.getDamageSources().playerAttack(player), 8) == 6, "her own hand is a quarter softer");
 		left.discard();
 		right.discard();
+		done(ctx, player);
+	}
+
+	static ServerPlayerEntity masked(TestContext ctx, BlockPos at) {
+		ServerPlayerEntity player = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
+		player.changeGameMode(GameMode.SURVIVAL);
+		player.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
+		RaceState.of(player).reset(Race.MASKED);
+		return player;
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "masked", tickLimit = 100)
+	public void theMaskedTearFacesAndPassForTheirKind(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(3, 2, 1));
+		floor(world, at.add(-3, 0, -1), 7, 8);
+		ServerPlayerEntity player = masked(ctx, at);
+		RaceData data = RaceState.of(player);
+		player.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 20);
+		ZombieEntity victim = beast(ctx, EntityType.ZOMBIE, at.add(0, 0, 2));
+		check(Masked.use(player, data, 0) == AbilityResult.HINTED, "a whole zombie keeps its face");
+		victim.setHealth(5);
+		check(Masked.use(player, data, 0) == AbilityResult.OK && data.masked.worn == Face.ZOMBIE, "the zombie's face goes on");
+		check(victim.isDead(), "and the zombie dies of it");
+		Masked.tickSecond(player, data);
+		check(player.getMaxHealth() == 24, "a zombie face gives two hearts, max health " + player.getMaxHealth());
+
+		// Its kind takes the Masked for its own, others don't; a blow on one of them gives it away
+		ZombieEntity kin = beast(ctx, EntityType.ZOMBIE, at.add(2, 0, 4));
+		SpiderEntity spider = beast(ctx, EntityType.SPIDER, at.add(-2, 0, 4));
+		kin.setTarget(player);
+		spider.setTarget(player);
+		check(kin.getTarget() == null, "a zombie won't hunt a zombie face");
+		check(spider.getTarget() == player, "a spider will");
+		Masked.onHit(kin, world.getDamageSources().playerAttack(player), 1);
+		kin.setTarget(player);
+		check(kin.getTarget() == player, "after a blow the kin see through the face");
+
+		// The zombie face's power, then a second face and the change back
+		spider.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 2.5, 0, 0);
+		data.addResource(100);
+		float health = spider.getHealth();
+		check(Masked.use(player, data, 1) == AbilityResult.OK && spider.getHealth() < health, "the dead grip");
+		spider.setHealth(3);
+		data.readyAt.clear();
+		check(Masked.use(player, data, 0) == AbilityResult.OK && data.masked.worn == Face.SPIDER && data.masked.gallery.size() == 2, "a spider face too");
+		check(Masked.use(player, data, 2) == AbilityResult.OK && data.masked.worn == Face.ZOMBIE, "the change goes back to the zombie");
+
+		// A face worn out crumbles, and faceless the Masked is frail
+		data.masked.gallery.put(Face.ZOMBIE, 0.01f);
+		Masked.tickSecond(player, data);
+		check(data.masked.worn == null && !data.masked.gallery.containsKey(Face.ZOMBIE) && player.getMaxHealth() == 16,
+				"faceless: " + data.masked.worn + ", max health " + player.getMaxHealth());
+		check(Masked.use(player, data, 1) == AbilityResult.HINTED, "no power without a face");
+		kin.discard();
 		done(ctx, player);
 	}
 

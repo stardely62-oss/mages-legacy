@@ -6,6 +6,8 @@ import euf.mageslegacy.race.Race;
 import java.util.HashSet;
 import java.util.Set;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtString;
 import net.minecraft.network.PacketByteBuf;
 
 /** The client's copy of its own race data, from the sync packet; cooldowns count down locally between syncs. */
@@ -49,6 +51,8 @@ public final class ClientRaceState {
 		chainLeft = buf.readVarInt();
 		NbtCompound nbt = buf.readNbt();
 		extra = nbt == null ? new NbtCompound() : nbt;
+		ClientRaceView.climbs = race == Race.MASKED && ("spider".equals(extra.getString("face"))
+				|| extra.getBoolean("thousand") && extra.getList("gallery", NbtElement.STRING_TYPE).contains(NbtString.of("spider")));
 		receivedAt = clientTicks;
 	}
 
@@ -69,6 +73,7 @@ public final class ClientRaceState {
 	public static void clear() {
 		race = null;
 		ClientRaceView.race = null;
+		ClientRaceView.climbs = false;
 		talents.clear();
 		resource = 0;
 		level = 0;
