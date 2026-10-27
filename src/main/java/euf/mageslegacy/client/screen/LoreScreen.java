@@ -192,7 +192,7 @@ public class LoreScreen extends Screen {
 		int top = 48;
 		int size = Math.max(24, Math.min(44, (height - top - 60) / 2 - 46));
 		int glow = size * 3 / 4;
-		int cellH = size + (glow - size / 2) + 4 + 10 + 22;
+		int cellH = size + (glow - size / 2) + 4 + 10 + 22 + 12;
 		int y0 = top + Math.max(0, (height - top - 50 - 2 * cellH) / 2);
 		int x0 = (width - cols * cellW) / 2;
 		for (Race race : races) {
