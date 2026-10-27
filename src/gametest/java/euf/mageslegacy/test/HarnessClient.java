@@ -1004,7 +1004,10 @@ public class HarnessClient implements ClientModInitializer {
 		shotWhen("Web", 0.35f, "fx_masked_web");
 		step(4, false, c -> key(2));
 		shotWhen("Masks", 0.4f, "fx_masked_change");
-		step(10, false, c -> commands(c, "race resource @a 100", spider(arena.add(1, 0, 2), 0, 16), spider(arena.add(1, 0, -2), 0, 16)));
+		// The Change put the zombie's face back on: its kin are zombies
+		step(10, false, c -> commands(c, "race resource @a 100",
+				String.format(Locale.ROOT, "summon zombie %d %d %d {NoAI:1b}", arena.getX() + 1, arena.getY(), arena.getZ() + 2),
+				String.format(Locale.ROOT, "summon zombie %d %d %d {NoAI:1b}", arena.getX() + 1, arena.getY(), arena.getZ() - 2)));
 		step(4, false, c -> key(3));
 		shotWhen("Sigil", 0.04f, "fx_masked_kin");
 		step(4, false, c -> {
