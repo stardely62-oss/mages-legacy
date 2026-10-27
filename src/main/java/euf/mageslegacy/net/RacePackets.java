@@ -119,6 +119,7 @@ public final class RacePackets {
 					case 2 -> Contracts.deliver(player, data, index);
 					case 3 -> Contracts.reroll(player, data);
 					case 4 -> Shop.buy(player, data, id);
+					case 5 -> Mercenary.openedShop(player);
 					default -> {
 					}
 				}

@@ -379,7 +379,7 @@ public final class Tempter {
 			cooldown(player, data, 0, moon ? cd * 3 / 4 : cd);
 			friend.heal(6);
 			friend.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 0, true, true, true));
-			Fx.tendril(world, player, friend, 14, WINE_INK, ROSE_RGB);
+			Fx.hearts(world, player, friend, 6, 24, ROSE_RGB);
 			world.spawnParticles(ParticleTypes.HEART, friend.getX(), friend.getY() + friend.getHeight() + 0.2, friend.getZ(), 4, 0.3, 0.2, 0.3, 0);
 			world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ALLAY_ITEM_GIVEN, SoundCategory.PLAYERS, 1.0f, 1.2f);
 			return AbilityResult.OK;
@@ -419,10 +419,9 @@ public final class Tempter {
 			player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 60, 1, true, true, true));
 		}
 		Progression.addXp(player, data, "tempter_kiss", 1, 30);
-		// A rose streak where she went, the life drawn out in a thread, a heartbeat
+		// A rose streak where she went; over the kissed a heart beats once, and its life flows to her as little hearts
 		Fx.ribbon(world, List.of(from, player.getPos()), 12, WINE_INK, ROSE_RGB, 1.0f);
-		Fx.tendril(world, target, player, 14, WINE_INK, ROSE_RGB);
-		Fx.burst(world, target.getPos().add(0, target.getHeight() * 0.7, 0), 1.0f + target.getWidth(), 7, ROSE_RGB);
+		Fx.hearts(world, target, player, sleeper ? 10 : 6, 24, ROSE_RGB);
 		Fx.pulse(player, 2, 20, ROSE_RGB);
 		world.spawnParticles(ParticleTypes.HEART, target.getX(), target.getY() + target.getHeight() + 0.2, target.getZ(), sleeper ? 6 : 3, 0.3, 0.2, 0.3, 0);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_GENERIC_DRINK, SoundCategory.PLAYERS, 0.8f, 1.5f);
@@ -460,9 +459,9 @@ public final class Tempter {
 		player.velocityModified = true;
 		player.fallDistance = 0;
 		player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 50, 0, true, false, true));
-		// Dark wings beating once: a rose ring where she sprang, a streak along the way
+		// Dark wings unfold from her back and beat once; the air rings where she sprang
+		Fx.wings(world, player, 1.5f, 36, ROSE_RGB);
 		Fx.ring(world, player.getPos(), 0.4f, 3.0f, 10, ROSE_RGB);
-		Fx.ribbon(world, List.of(player.getPos(), player.getPos().add(flat.x * 5, 2.5, flat.z * 5)), 14, WINE_INK, ROSE_RGB, 1.4f);
 		Fx.fov(player, 0.15f, 10);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ENDER_DRAGON_FLAP, SoundCategory.PLAYERS, 0.6f, 1.6f);
 		return AbilityResult.OK;
@@ -526,8 +525,9 @@ public final class Tempter {
 			mob.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, ticks, 0));
 		}
 		ServerWorld world = player.getServerWorld();
-		Fx.tendril(world, player, mob, 24, WINE_INK, ROSE_RGB);
-		Fx.helix(world, mob, mob.getWidth() + 0.5f, mob.getHeight() + 0.3f, 2, true, 20, ROSE_RGB);
+		// Her eyes on it, and a heart that turns over its head for as long as it is hers
+		Fx.hearts(world, player, mob, 4, 16, ROSE_RGB);
+		Fx.sigil(world, mob, Fx.SIGIL_HEART, ticks, ROSE_RGB);
 		Fx.aura(world, mob, ticks, ROSE_RGB, Fx.MOTES);
 		world.spawnParticles(ParticleTypes.HEART, mob.getX(), mob.getY() + mob.getHeight() + 0.2, mob.getZ(), 5, 0.3, 0.2, 0.3, 0);
 		world.playSound(null, mob.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.2f, 0.8f);
@@ -558,10 +558,9 @@ public final class Tempter {
 			ASLEEP.put(m.getUuid(), new Spell(player.getUuid(), until));
 			m.setTarget(null);
 			m.getNavigation().stop();
-			Fx.burst(world, m.getPos().add(0, m.getHeight() + 0.3, 0), 0.6f, 10, DREAM_RGB);
+			Fx.sigil(world, m, Fx.SIGIL_MOON, (int) (until - now), DREAM_RGB);
 		}
-		Fx.ring(world, player.getPos(), 0.5f, (float) radius, 24, DREAM_RGB);
-		Fx.mark(world, player.getPos(), null, (float) radius, 40, DREAM_RGB, Fx.RIPPLES);
+		Fx.lullaby(world, player.getPos(), (float) radius, 50, DREAM_RGB);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_CHIME.value(), SoundCategory.PLAYERS, 1.2f, 0.7f);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 1.0f, 0.6f);
 		return AbilityResult.OK;
@@ -594,8 +593,7 @@ public final class Tempter {
 			ASLEEP.remove(m.getUuid());
 			m.damage(world.getDamageSources().indirectMagic(player, player), Math.min(30, 8 + m.getMaxHealth() * 0.25f));
 			m.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 40, 3));
-			Fx.burst(world, m.getPos().add(0, m.getHeight() / 2, 0), 1.2f + m.getWidth(), 9, ROSE_RGB);
-			Fx.slash(world, m.getPos().add(0, m.getHeight() * 0.6, 0), m.getPos().subtract(player.getPos()), 0.8f + m.getWidth(), 90, 9, WINE_INK);
+			Fx.heartbreak(world, m, 30, ROSE_RGB);
 		}
 		Fx.ring(world, player.getPos(), 0.5f, 16, 18, ROSE_RGB);
 		Fx.burst(world, player.getPos().add(0, 1, 0), 3.0f, 10, WINE_INK);
@@ -705,8 +703,8 @@ public final class Tempter {
 		player.setHealth(player.getMaxHealth() * 0.3f);
 		data.readyAt.put(UNDYING_SLOT, now(player.getServer()) + UNDYING_COOLDOWN);
 		data.dirty = true;
-		Fx.tendril(world, instead, player, 24, WINE_INK, ROSE_RGB);
-		Fx.burst(world, player.getPos().add(0, 1, 0), 2.5f, 12, ROSE_RGB);
+		Fx.hearts(world, instead, player, 12, 30, ROSE_RGB);
+		Fx.heartbreak(world, instead, 30, ROSE_RGB);
 		Fx.screen(player, 24, ROSE_RGB);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ITEM_TOTEM_USE, SoundCategory.PLAYERS, 0.6f, 1.5f);
 		player.sendMessage(Text.translatable("mages_legacy.tempter.undying").formatted(Formatting.LIGHT_PURPLE), false);

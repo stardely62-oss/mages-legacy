@@ -42,6 +42,19 @@ public final class Fx {
 	public static final int NEBULA = 24;
 	public static final int COMET = 25;
 	public static final int THREADS = 26;
+	public static final int COINS = 27;
+	public static final int EXCHANGE = 28;
+	public static final int SEAL = 29;
+	public static final int DOOR = 30;
+	public static final int FLIP = 31;
+	public static final int HEARTS = 32;
+	public static final int WINGS = 33;
+	public static final int SIGIL = 34;
+	public static final int HEARTBREAK = 35;
+	public static final int LULLABY = 36;
+	public static final int MASK = 37;
+	public static final int MASKS = 38;
+	public static final int WEB = 39;
 	/**
 	 * A flag on a colour: lay it on as real colour under its glow, the way blood should look, rather than glow alone
 	 * (which a bright day washes to pink, and which can't show a dark colour at all).
@@ -312,6 +325,122 @@ public final class Fx {
 	public static void aurora(ServerWorld world, Vec3d at, float radius, int ticks, int rgb, int rgb2) {
 		PacketByteBuf buf = start(AURORA, ticks, rgb);
 		buf.writeInt(rgb2);
+		writeVec(buf, at);
+		buf.writeFloat(radius);
+		send(world, at, buf);
+	}
+
+	// ---- the Mercenaries: coin and contract ----
+
+	/** {@code count} gold coins flung out of {@code at}, spinning and glinting as they arc and fall. */
+	public static void coins(ServerWorld world, Vec3d at, int count, float speed, int ticks) {
+		PacketByteBuf buf = start(COINS, ticks, 0);
+		writeVec(buf, at);
+		buf.writeVarInt(count);
+		buf.writeFloat(speed);
+		send(world, at, buf);
+	}
+
+	/** Two orbs trading places along crossing arcs, {@code rgb} going from {@code a} to {@code b} and {@code rgb2} back. */
+	public static void exchange(ServerWorld world, Entity a, Entity b, int ticks, int rgb, int rgb2) {
+		PacketByteBuf buf = start(EXCHANGE, ticks, rgb);
+		buf.writeInt(rgb2);
+		buf.writeVarInt(a.getId());
+		buf.writeVarInt(b.getId());
+		send(world, a.getPos(), buf);
+	}
+
+	/** A great coin seal coming down on an entity, stamped on with a flash, then turning round its waist as a ring. */
+	public static void seal(ServerWorld world, Entity on, float radius, int ticks, int rgb) {
+		PacketByteBuf buf = start(SEAL, ticks, rgb);
+		buf.writeVarInt(on.getId());
+		buf.writeFloat(radius);
+		send(world, on.getPos(), buf);
+	}
+
+	/** An arched door of light standing at {@code at} facing {@code yaw}: it traces itself, swings open on warm light, and shuts. */
+	public static void door(ServerWorld world, Vec3d at, float yaw, int ticks, int rgb) {
+		PacketByteBuf buf = start(DOOR, ticks, rgb);
+		writeVec(buf, at);
+		buf.writeFloat(yaw);
+		send(world, at, buf);
+	}
+
+	/** A giant coin tossed above an entity's head: it spins, hangs, and comes down on it. */
+	public static void flip(ServerWorld world, Entity over, int ticks, int rgb) {
+		PacketByteBuf buf = start(FLIP, ticks, rgb);
+		buf.writeVarInt(over.getId());
+		send(world, over.getPos(), buf);
+	}
+
+	// ---- the Tempters: hearts, wings and dreams ----
+
+	/** A stream of small hearts flowing from {@code from} into {@code to}, a big heart beating once at the source. */
+	public static void hearts(ServerWorld world, Entity from, Entity to, int count, int ticks, int rgb) {
+		PacketByteBuf buf = start(HEARTS, ticks, rgb);
+		buf.writeVarInt(from.getId());
+		buf.writeVarInt(to.getId());
+		buf.writeVarInt(count);
+		send(world, from.getPos(), buf);
+	}
+
+	/** Membranous wings spreading from an entity's back, one great beat, a glide, and folding away. */
+	public static void wings(ServerWorld world, Entity on, float span, int ticks, int rgb) {
+		PacketByteBuf buf = start(WINGS, ticks, rgb);
+		buf.writeVarInt(on.getId());
+		buf.writeFloat(span);
+		send(world, on.getPos(), buf);
+	}
+
+	public static final int SIGIL_HEART = 0;
+	public static final int SIGIL_MOON = 1;
+	public static final int SIGIL_MASK = 2;
+
+	/** A glyph hanging over an entity's head for as long as it lasts: a heart, a sleeping moon or a mask. */
+	public static void sigil(ServerWorld world, Entity over, int kind, int ticks, int rgb) {
+		PacketByteBuf buf = start(SIGIL, ticks, rgb);
+		buf.writeVarInt(over.getId());
+		buf.writeVarInt(kind);
+		send(world, over.getPos(), buf);
+	}
+
+	/** A heart over an entity that cracks, splits in two, and falls apart in shards. */
+	public static void heartbreak(ServerWorld world, Entity over, int ticks, int rgb) {
+		PacketByteBuf buf = start(HEARTBREAK, ticks, rgb);
+		buf.writeVarInt(over.getId());
+		send(world, over.getPos(), buf);
+	}
+
+	/** Slow waves of a song rolling out over the ground to {@code radius}, crescent moons rising out of them. */
+	public static void lullaby(ServerWorld world, Vec3d at, float radius, int ticks, int rgb) {
+		PacketByteBuf buf = start(LULLABY, ticks, rgb);
+		writeVec(buf, at);
+		buf.writeFloat(radius);
+		send(world, at, buf);
+	}
+
+	// ---- the Masked: faces ----
+
+	/** A face torn off at {@code from} flying in an arc to an entity's face and pressed onto it. */
+	public static void mask(ServerWorld world, Vec3d from, Entity to, int ticks, int rgb) {
+		PacketByteBuf buf = start(MASK, ticks, rgb);
+		writeVec(buf, from);
+		buf.writeVarInt(to.getId());
+		send(world, from, buf);
+	}
+
+	/** {@code count} faces circling an entity's head, faster and faster, then closing in on it. */
+	public static void masks(ServerWorld world, Entity around, int count, float radius, int ticks, int rgb) {
+		PacketByteBuf buf = start(MASKS, ticks, rgb);
+		buf.writeVarInt(around.getId());
+		buf.writeVarInt(count);
+		buf.writeFloat(radius);
+		send(world, around.getPos(), buf);
+	}
+
+	/** A spider's web spun out flat on the ground at {@code at}: spokes first, then the spiral. */
+	public static void web(ServerWorld world, Vec3d at, float radius, int ticks, int rgb) {
+		PacketByteBuf buf = start(WEB, ticks, rgb);
 		writeVec(buf, at);
 		buf.writeFloat(radius);
 		send(world, at, buf);

@@ -555,7 +555,7 @@ public final class Masked {
 		// The face torn off: a pale slash across where it was, bone dust, and the face flies to the Masked
 		Fx.slash(world, at, at.subtract(player.getEyePos()), 1.0f + target.getWidth(), 20, 10, BONE_INK);
 		Fx.burst(world, at, 1.0f + target.getWidth(), 8, BONE_RGB);
-		Fx.ribbon(world, List.of(at, player.getEyePos()), 10, BONE_INK, GLINT_RGB, 0.5f);
+		Fx.mask(world, at, player, 18, BONE_RGB);
 		world.spawnParticles(ParticleTypes.WHITE_ASH, at.x, at.y, at.z, 20, 0.3, 0.3, 0.3, 0.02);
 		world.playSound(null, target.getBlockPos(), SoundEvents.ENTITY_SHEEP_SHEAR, SoundCategory.PLAYERS, 1.2f, 0.5f);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ITEM_ARMOR_EQUIP_LEATHER, SoundCategory.PLAYERS, 1.0f, 0.7f);
@@ -598,8 +598,9 @@ public final class Masked {
 			TRACE.put(player.getUuid(), new Trace(mask.worn, now + 200));
 		}
 		ServerWorld world = player.getServerWorld();
-		// The old face left standing a moment where the wearer was
+		// The old face left standing a moment where the wearer was; the gallery's faces turn once round the head
 		Fx.ghosts(world, List.of(player.getPos(), player.getPos()), player.getYaw(), 1, 16, BONE_INK);
+		Fx.masks(world, player, Math.max(2, mask.gallery.size()), 0.9f, 18, BONE_RGB);
 		wear(player, data, next);
 		if (data.has(Talents.GAL_QUICK)) {
 			player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 60, 1, true, true, true));
@@ -743,7 +744,7 @@ public final class Masked {
 			world.spawnParticles(new ItemStackParticleEffect(ParticleTypes.ITEM, new ItemStack(Items.COBWEB)), e.getX(), e.getY() + e.getHeight() / 2, e.getZ(), 12, 0.4, 0.4, 0.4, 0.02);
 		}
 		Fx.tendril(world, player, target, 16, BONE_INK, 0xF4F0E8);
-		Fx.mark(world, target.getPos(), null, 3.0f, 60, 0xF4F0E8, Fx.CRACKS);
+		Fx.web(world, target.getPos(), 3.0f, 70, 0xF4F0E8);
 		world.playSound(null, target.getBlockPos(), SoundEvents.ENTITY_SPIDER_AMBIENT, SoundCategory.PLAYERS, 1.0f, 0.7f);
 		return AbilityResult.OK;
 	}
@@ -921,7 +922,7 @@ public final class Masked {
 				m.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, ticks, 0));
 			}
 			Fx.tendril(world, player, m, 20, BONE_INK, BONE_RGB);
-			Fx.aura(world, m, ticks, BONE_RGB, Fx.MOTES);
+			Fx.sigil(world, m, Fx.SIGIL_MASK, ticks, BONE_RGB);
 		}
 		Fx.ring(world, player.getPos(), 0.5f, 16, 18, BONE_RGB);
 		world.playSound(null, player.getBlockPos(), SoundEvents.EVENT_RAID_HORN.value(), SoundCategory.PLAYERS, 0.6f, 1.4f);
@@ -952,7 +953,7 @@ public final class Masked {
 			ring.add(player.getPos().add(Math.cos(a) * 1.8, 0, Math.sin(a) * 1.8));
 		}
 		Fx.ghosts(world, ring, player.getYaw(), 6, 30, BONE_INK);
-		Fx.helix(world, player, 1.4f, 2.4f, 5, true, 30, BONE_RGB);
+		Fx.masks(world, player, 12, 2.2f, 70, BONE_RGB);
 		Fx.aura(world, player, THOUSAND_TICKS, GLINT_RGB, Fx.MOTES);
 		Fx.screen(player, 20, BONE_RGB);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ILLUSIONER_CAST_SPELL, SoundCategory.PLAYERS, 1.2f, 0.7f);

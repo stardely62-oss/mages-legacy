@@ -128,6 +128,8 @@ public class MagesLegacyClient implements ClientModInitializer {
 				if (ClientRaceState.race == Race.MERCENARY && slot == 3) {
 					RaceHud.pressed(slot);
 					client.setScreen(new MercShopScreen());
+					// The others see its door open
+					sendMerc(5, 0, "");
 				} else {
 					useAbility(slot);
 				}

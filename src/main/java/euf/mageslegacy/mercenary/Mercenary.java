@@ -255,8 +255,8 @@ public final class Mercenary {
 		cooldown(player, data, 0, STRIKE_COOLDOWN);
 		STRIKES.put(player.getUuid(), new Strike(data.has(Talents.DEAL_DOUBLE) ? 2 : 1, now(player.getServer()) + STRIKE_WINDOW));
 		ServerWorld world = player.getServerWorld();
-		// Blood goes into the blade: a copper helix winding into the hand, a coin's glint
-		Fx.helix(world, player, 0.7f, 1.8f, 2, true, 14, COPPER_RGB);
+		// Blood bought on credit: a few coins tossed up and the seal of the debt flickering at the hand
+		Fx.coins(world, player.getPos().add(0, 1.2, 0), 4, 0.6f, 24);
 		Fx.aura(world, player, STRIKE_WINDOW, GOLD_RGB, Fx.MOTES);
 		Fx.pulse(player, 1, 14, 0xB01226);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ITEM_ARMOR_EQUIP_CHAIN, SoundCategory.PLAYERS, 1.0f, 0.7f);
@@ -312,11 +312,8 @@ public final class Mercenary {
 			target.addStatusEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 120, 0));
 			target.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 120, 0));
 		}
-		// The trade: a copper thread out to the creature, a gold one back in
-		Fx.tendril(world, player, target, 14, COPPER_INK, COPPER_RGB);
-		Fx.tendril(world, target, player, 18, GOLD_RGB, GOLD_RGB);
-		Fx.burst(world, target.getPos().add(0, target.getHeight() / 2, 0), 1.2f + target.getWidth(), 8, GOLD_RGB);
-		Fx.ring(world, player.getPos(), 0.3f, 2.2f, 10, GOLD_RGB);
+		// The trade: what was hers goes out along one arc, what was the creature's comes back along the other
+		Fx.exchange(world, player, target, 16, GOLD_RGB, 0xC0303A);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_VILLAGER_TRADE, SoundCategory.PLAYERS, 1.0f, 0.6f);
 		world.playSound(null, target.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 1.0f, 0.8f);
 		return AbilityResult.OK;
@@ -350,9 +347,8 @@ public final class Mercenary {
 		player.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, ticks, 1, true, false, true));
 		PLEDGES.put(player.getUuid(), now(player.getServer()) + ticks);
 		ServerWorld world = player.getServerWorld();
-		// A copper shell closes round the body for as long as the pledge holds
-		Fx.sphere(world, player.getPos().add(0, 1, 0), 1.3f, ticks, COPPER_RGB, player, false);
-		Fx.burst(world, player.getPos().add(0, 1, 0), 1.6f, 7, COPPER_INK);
+		// The pawnbroker's seal comes down on the body, and its rim turns at the waist for as long as the pledge holds
+		Fx.seal(world, player, 1.1f, ticks, GOLD_RGB);
 		Fx.shake(player, 1.0f, 6);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_ANVIL_PLACE, SoundCategory.PLAYERS, 0.5f, 1.4f);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ITEM_ARMOR_EQUIP_NETHERITE, SoundCategory.PLAYERS, 1.0f, 0.8f);
@@ -367,10 +363,10 @@ public final class Mercenary {
 		cooldown(player, data, 4, STAKE_COOLDOWN);
 		STAKES.put(player.getUuid(), now(player.getServer()) + STAKE_TICKS);
 		ServerWorld world = player.getServerWorld();
+		// All on one toss: a great coin flies up spinning over the head, comes down, and gold spills everywhere
+		Fx.flip(world, player, 28, GOLD_RGB);
+		Fx.coins(world, player.getPos().add(0, 1.6, 0), 16, 1.2f, 40);
 		Fx.aura(world, player, STAKE_TICKS, GOLD_RGB, Fx.MOTES);
-		Fx.helix(world, player, 1.1f, 2.4f, 4, true, 24, GOLD_RGB);
-		Fx.ring(world, player.getPos(), 0.4f, 6, 18, GOLD_RGB);
-		Fx.burst(world, player.getPos().add(0, 1, 0), 3.0f, 10, GOLD_RGB);
 		Fx.fov(player, 0.15f, 14);
 		Fx.shake(player, 1.5f, 10);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_BELL_USE, SoundCategory.PLAYERS, 1.0f, 0.7f);
@@ -445,7 +441,7 @@ public final class Mercenary {
 			Vec3d center = victim.getPos().add(0, victim.getHeight() * 0.6, 0);
 			Fx.slash(world, center, player.getRotationVec(1.0f), 0.9f + victim.getWidth(), 35, 9, COPPER_INK);
 			Fx.slash(world, center, player.getRotationVec(1.0f), 0.9f + victim.getWidth(), 145, 9, GOLD_RGB);
-			Fx.burst(world, center, 1.0f + victim.getWidth(), 7, GOLD_RGB);
+			Fx.coins(world, center, 10, 1.0f, 32);
 			Fx.shake(player, 1.4f, 6);
 			world.playSound(null, victim.getBlockPos(), SoundEvents.ENTITY_PLAYER_ATTACK_CRIT, SoundCategory.PLAYERS, 1.0f, 0.7f);
 			world.playSound(null, victim.getBlockPos(), SoundEvents.BLOCK_CHAIN_BREAK, SoundCategory.PLAYERS, 0.8f, 1.2f);
@@ -514,6 +510,16 @@ public final class Mercenary {
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_VILLAGER_TRADE, SoundCategory.PLAYERS, 1.0f, 0.5f);
 		player.sendMessage(Text.translatable("mages_legacy.merc.ransom", RANSOM_TOKENS).formatted(Formatting.GOLD), false);
 		return false;
+	}
+
+	/** The Mage's Shop is called: its door stands in the air before the Mercenary, opens on warm light, and shuts. */
+	public static void openedShop(ServerPlayerEntity player) {
+		ServerWorld world = player.getServerWorld();
+		Vec3d look = player.getRotationVec(1.0f).multiply(1, 0, 1);
+		look = look.lengthSquared() < 1.0E-4 ? new Vec3d(0, 0, 1) : look.normalize();
+		Fx.door(world, player.getPos().add(look.multiply(2.2)), player.getYaw(), 50, GOLD_RGB);
+		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_WOODEN_DOOR_OPEN, SoundCategory.PLAYERS, 1.0f, 0.6f);
+		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.0f, 1.2f);
 	}
 
 	/** What the client's Shop screen needs: the account in the Shop and today's prices. */

@@ -865,6 +865,79 @@ public class HarnessClient implements ClientModInitializer {
 			c.options.setPerspective(Perspective.FIRST_PERSON);
 		});
 
+		// The Mercenaries' own shapes: the Exchange's crossing orbs, the Pledge's seal, the Stake's coin, the Shop's door
+		step(10, false, c -> {
+			resetCooldowns(c);
+			commands(c, "kill @e[type=!player]", spider(arena, 0, 20));
+			grant(c, Talents.DEAL_STAKE);
+			tp(c, Vec3d.ofBottomCenter(arena).add(-5, 0, 0), Vec3d.ofBottomCenter(arena).add(0, 0.5, 0));
+		});
+		step(4, false, c -> {
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+			key(1);
+		});
+		step(6, false, c -> screenshot(c, "fx_merc_exchange"));
+		step(4, false, c -> {
+			UUID me = c.player.getUuid();
+			onServer(c, s -> {
+				s.getPlayerManager().getPlayer(me).equipStack(net.minecraft.entity.EquipmentSlot.CHEST, new net.minecraft.item.ItemStack(Items.IRON_CHESTPLATE));
+				return null;
+			});
+			key(2);
+		});
+		step(4, false, c -> screenshot(c, "fx_merc_seal_falling"));
+		step(10, false, c -> screenshot(c, "fx_merc_seal_ring"));
+		step(9, false, c -> key(4));
+		step(10, false, c -> screenshot(c, "fx_merc_stake_flip"));
+		step(12, false, c -> screenshot(c, "fx_merc_stake_coins"));
+		step(10, false, c -> {
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+			key(3);
+		});
+		step(3, false, c -> {
+			c.setScreen(null);
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+		});
+		step(14, false, c -> screenshot(c, "fx_merc_door"));
+
+		// ---- The Tempters: the Kiss's hearts, the Wings, the Charm's heart, the Lullaby's moons, the Broken Heart ----
+		step(10, false, c -> {
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+			commands(c, "race set @a tempter", "race xp @a 20000", "race resource @a 100", "kill @e[type=!player]", "time set night",
+					spider(arena, 0, 16), spider(arena.add(2, 0, 3), 0, 16), spider(arena.add(1, 0, -3), 0, 16));
+		});
+		step(20, false, c -> {
+			check("tempter_chosen", serverRace(c) == Race.TEMPTER && ClientRaceState.race == Race.TEMPTER);
+			grant(c, Talents.THREAD_BREAK);
+			tp(c, Vec3d.ofBottomCenter(arena).add(-6, 0, 0), Vec3d.ofBottomCenter(arena).add(0, 0.5, 0));
+		});
+		step(4, false, c -> {
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+			key(0);
+		});
+		step(8, false, c -> screenshot(c, "fx_tempter_kiss"));
+		step(6, false, c -> key(1));
+		step(6, false, c -> screenshot(c, "fx_tempter_wings_up"));
+		step(8, false, c -> screenshot(c, "fx_tempter_wings_beat"));
+		step(30, false, c -> {
+			resetCooldowns(c);
+			commands(c, "race resource @a 100");
+			tp(c, Vec3d.ofBottomCenter(arena).add(-4, 0, -1), Vec3d.ofBottomCenter(arena).add(2, 0.5, 3));
+		});
+		step(4, false, c -> key(2));
+		step(16, false, c -> screenshot(c, "fx_tempter_charm"));
+		step(4, false, c -> {
+			commands(c, "race resource @a 100");
+			key(3);
+		});
+		step(14, false, c -> screenshot(c, "fx_tempter_lullaby"));
+		step(4, false, c -> {
+			commands(c, "race resource @a 100");
+			key(4);
+		});
+		step(12, false, c -> screenshot(c, "fx_tempter_heartbreak"));
+		step(10, false, c -> commands(c, "time set day", "kill @e[type=!player]"));
+
 		// ---- The Masked: a face torn off a weakened zombie, then a spider's; the wearer drawn as the monster ----
 		step(10, false, c -> {
 			c.options.setPerspective(Perspective.FIRST_PERSON);
@@ -875,8 +948,13 @@ public class HarnessClient implements ClientModInitializer {
 			check("masked_chosen", serverRace(c) == Race.MASKED && ClientRaceState.race == Race.MASKED);
 			tp(c, Vec3d.ofBottomCenter(arena).add(-3, 0, 0), Vec3d.ofBottomCenter(arena).add(0, 1, 0));
 		});
-		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
-		step(30, false, c -> {
+		step(6, false, c -> {
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+			KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey());
+		});
+		step(24, false, c -> {
+			screenshot(c, "fx_masked_tear");
+			c.options.setPerspective(Perspective.FIRST_PERSON);
 			UUID me = c.player.getUuid();
 			check("masked_zombie_face", onServer(c, s -> RaceState.get(s).data(me).masked.worn == Face.ZOMBIE));
 			check("masked_drawn_as_zombie", FaceVisuals.of(c.player.getId()) == Face.ZOMBIE);
@@ -899,12 +977,56 @@ public class HarnessClient implements ClientModInitializer {
 			// The HUD with the face's egg on V and Z
 			screenshot(c, "masked_hud");
 		});
+		// The web of the spider's face, the Change's carousel, Kin's masks over the retinue, the Thousand Faces
+		step(10, false, c -> {
+			resetCooldowns(c);
+			commands(c, "race resource @a 100", "kill @e[type=!player]", String.format(Locale.ROOT, "summon zombie %d %d %d {NoAI:1b}", arena.getX(), arena.getY(), arena.getZ()));
+			grant(c, Talents.GAL_THOUSAND);
+			tp(c, Vec3d.ofBottomCenter(arena).add(-5, 0, 0), Vec3d.ofBottomCenter(arena).add(0, 0.5, 0));
+		});
+		step(4, false, c -> {
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+			key(1);
+		});
+		step(14, false, c -> screenshot(c, "fx_masked_web"));
+		step(4, false, c -> key(2));
+		step(8, false, c -> screenshot(c, "fx_masked_change"));
+		step(10, false, c -> commands(c, "race resource @a 100", spider(arena.add(1, 0, 2), 0, 16), spider(arena.add(1, 0, -2), 0, 16)));
+		step(4, false, c -> key(3));
+		step(16, false, c -> screenshot(c, "fx_masked_kin"));
+		step(4, false, c -> {
+			commands(c, "race resource @a 100");
+			c.options.setPerspective(Perspective.THIRD_PERSON_FRONT);
+			key(4);
+		});
+		step(22, false, c -> screenshot(c, "fx_masked_thousand"));
+		step(5, false, c -> c.options.setPerspective(Perspective.FIRST_PERSON));
 		step(20, false, this::finish);
 
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
 	}
 
 	// ---- server-side helpers ----
+
+	/** A summon command for a still spider at {@code at} (offset by {@code dx}), with {@code health}. */
+	private static String spider(BlockPos at, int dx, int health) {
+		return String.format(Locale.ROOT, "summon spider %d %d %d {NoAI:1b,Health:%df}", at.getX() + dx, at.getY(), at.getZ(), health);
+	}
+
+	/** Learns talents for the player straight in the data (the harness doesn't climb the tree for every crown). */
+	private static void grant(MinecraftClient client, String... talents) {
+		UUID me = client.player.getUuid();
+		onServer(client, s -> {
+			RaceData data = RaceState.get(s).data(me);
+			data.talents.addAll(java.util.List.of(talents));
+			RacePackets.sync(s.getPlayerManager().getPlayer(me), data);
+			return null;
+		});
+	}
+
+	private static void key(int slot) {
+		KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[slot].getDefaultKey());
+	}
 
 	/** A 21x13 mycelium field at the spawn with 6 blocks of air above; returns the block above its centre. */
 	private static BlockPos prepareArena(ServerWorld world) {

@@ -140,6 +140,22 @@ public final class FxRenderer {
 				int rgb2 = buf.readInt();
 				EFFECTS.add(new Aurora(ticks, rgb, rgb2, readVec(buf), buf.readFloat()));
 			}
+			case Fx.COINS -> EFFECTS.add(new Coins(ticks, readVec(buf), buf.readVarInt(), buf.readFloat()));
+			case Fx.EXCHANGE -> {
+				int rgb2 = buf.readInt();
+				EFFECTS.add(new Exchange(ticks, rgb, rgb2, buf.readVarInt(), buf.readVarInt()));
+			}
+			case Fx.SEAL -> EFFECTS.add(new Seal(ticks, rgb, buf.readVarInt(), buf.readFloat()));
+			case Fx.DOOR -> EFFECTS.add(new Door(ticks, rgb, readVec(buf), buf.readFloat()));
+			case Fx.FLIP -> EFFECTS.add(new Flip(ticks, rgb, buf.readVarInt()));
+			case Fx.HEARTS -> EFFECTS.add(new Hearts(ticks, rgb, buf.readVarInt(), buf.readVarInt(), buf.readVarInt()));
+			case Fx.WINGS -> EFFECTS.add(new Wings(ticks, rgb, buf.readVarInt(), buf.readFloat()));
+			case Fx.SIGIL -> EFFECTS.add(new Sigil(ticks, rgb, buf.readVarInt(), buf.readVarInt()));
+			case Fx.HEARTBREAK -> EFFECTS.add(new Heartbreak(ticks, rgb, buf.readVarInt()));
+			case Fx.LULLABY -> EFFECTS.add(new Lullaby(ticks, rgb, readVec(buf), buf.readFloat()));
+			case Fx.MASK -> EFFECTS.add(new Mask(ticks, rgb, readVec(buf), buf.readVarInt()));
+			case Fx.MASKS -> EFFECTS.add(new Masks(ticks, rgb, buf.readVarInt(), buf.readVarInt(), buf.readFloat()));
+			case Fx.WEB -> EFFECTS.add(new Web(ticks, rgb, readVec(buf), buf.readFloat()));
 			case Fx.PHASE -> {
 				MinecraftClient client = MinecraftClient.getInstance();
 				if (client.world != null) {
@@ -1883,6 +1899,993 @@ public final class FxRenderer {
 					float tw = 0.7f + 0.3f * MathHelper.sin(life * 0.4f + i);
 					orb(vc, m, points.get(n), cam, 0.16 * tw, 0xF0FFE8, 0.9f * back);
 					orb(vc, m, points.get(n), cam, 0.35, rgb, 0.25f * back);
+				}
+			}
+		}
+	}
+
+	// ---- shapes of the last three races ----
+
+	/** Right, up and toward-the-camera at a point, for flat things that face the viewer. */
+	private static Vec3d[] facing(Vec3d p, Vec3d cam) {
+		Vec3d n = cam.subtract(p);
+		n = n.lengthSquared() < 1.0E-4 ? new Vec3d(0, 0, 1) : n.normalize();
+		return frame(n);
+	}
+
+	/** Right and up of a flat thing whose face looks along {@code n}, upright in the world. */
+	private static Vec3d[] frame(Vec3d n) {
+		Vec3d right = new Vec3d(0, 1, 0).crossProduct(n);
+		right = right.lengthSquared() < 1.0E-4 ? new Vec3d(1, 0, 0) : right.normalize();
+		Vec3d up = n.crossProduct(right).normalize();
+		return new Vec3d[] {right, up, n};
+	}
+
+	private static Entity entity(int id) {
+		MinecraftClient client = MinecraftClient.getInstance();
+		return client.world == null ? null : client.world.getEntityById(id);
+	}
+
+	/** A filled shape: quads fanned from {@code center} to its {@code rim}, solid inside, {@code rimAlpha} at the edge. */
+	private static void fan(VertexConsumer vc, Matrix4f m, Vec3d center, List<Vec3d> rim, int rgb, float alpha, float rimAlpha) {
+		for (int i = 0; i < rim.size(); i++) {
+			Vec3d a = rim.get(i);
+			Vec3d b = rim.get((i + 1) % rim.size());
+			quad(vc, m, center, center, b, a, rgb, alpha, alpha, rimAlpha, rimAlpha);
+		}
+	}
+
+	/** A glowing outline through {@code points}, closed or open. */
+	private static void outline(VertexConsumer vc, Matrix4f m, List<Vec3d> points, boolean closed, Vec3d normal, double width, int rgb, float alpha) {
+		int n = closed ? points.size() : points.size() - 1;
+		for (int i = 0; i < n; i++) {
+			glowLine(vc, m, points.get(i), points.get((i + 1) % points.size()), normal, width, rgb, alpha);
+		}
+	}
+
+	/** A heart's outline, {@code size} half-tall, in the plane of {@code right} and {@code up}; from..to along the curve (0..2π whole). */
+	private static List<Vec3d> heart(Vec3d c, Vec3d right, Vec3d up, double size, int n, double from, double to) {
+		List<Vec3d> points = new ArrayList<>();
+		for (int i = 0; i <= n; i++) {
+			double t = from + (to - from) * i / n;
+			double s = Math.sin(t);
+			double x = s * s * s;
+			double y = (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) / 16 + 0.12;
+			points.add(c.add(right.multiply(x * size)).add(up.multiply(y * size)));
+		}
+		return points;
+	}
+
+	/** A whole heart: dark wine laid on as ink, rose glowing at its rim and faintly inside. */
+	private static void drawHeart(VertexConsumer vc, Matrix4f m, Vec3d c, Vec3d right, Vec3d up, Vec3d n, double size, int rgb, int inkRgb, float alpha) {
+		List<Vec3d> rim = heart(c, right, up, size, 28, 0, Math.PI * 2);
+		rim.remove(rim.size() - 1);
+		if (inkPass) {
+			fan(vc, m, c, rim, inkRgb, alpha, alpha);
+			return;
+		}
+		fan(vc, m, c, rim, rgb, 0.35f * alpha, 0.05f * alpha);
+		outline(vc, m, rim, true, n, size * 0.18, rgb, 0.9f * alpha);
+		outline(vc, m, rim, true, n, size * 0.05, 0xFFE0EC, 0.7f * alpha);
+	}
+
+	/** A coin: a gold disc in the plane of {@code e1} and {@code e2}, a bright rim, an inner ring, and a glint when it turns edge-on. */
+	private static void drawCoin(VertexConsumer vc, Matrix4f m, Vec3d c, Vec3d e1, Vec3d e2, double r, float alpha, Vec3d cam) {
+		List<Vec3d> rim = new ArrayList<>();
+		List<Vec3d> inner = new ArrayList<>();
+		int seg = 14;
+		for (int i = 0; i < seg; i++) {
+			double a = Math.PI * 2 * i / seg;
+			Vec3d d = e1.multiply(Math.cos(a)).add(e2.multiply(Math.sin(a)));
+			rim.add(c.add(d.multiply(r)));
+			inner.add(c.add(d.multiply(r * 0.66)));
+		}
+		Vec3d normal = e1.crossProduct(e2);
+		if (inkPass) {
+			fan(vc, m, c, rim, 0xB8862A, alpha, alpha);
+			return;
+		}
+		fan(vc, m, c, rim, 0xF2C94C, 0.25f * alpha, 0.1f * alpha);
+		outline(vc, m, rim, true, normal, r * 0.3, 0xF2C94C, 0.8f * alpha);
+		outline(vc, m, inner, true, normal, r * 0.12, 0xFFE9A8, 0.5f * alpha);
+		// Edge-on to the eye, the coin flashes
+		Vec3d toCam = cam.subtract(c);
+		if (toCam.lengthSquared() > 1.0E-4) {
+			double edge = Math.abs(normal.normalize().dotProduct(toCam.normalize()));
+			if (edge < 0.25) {
+				Vec3d[] f = facing(c, cam);
+				star(vc, m, c, f[0], f[1], r * 0.9, (float) (1 - edge / 0.25) * alpha);
+			}
+		}
+	}
+
+	/** A face: a pale mask with a narrow chin, dark eye holes glowing sickly green inside, and a thin slit of a mouth. */
+	private static void drawMask(VertexConsumer vc, Matrix4f m, Vec3d c, Vec3d n, double size, int rgb, float alpha, float eyes) {
+		Vec3d[] f = frame(n);
+		Vec3d right = f[0];
+		Vec3d up = f[1];
+		double w = size * 0.72;
+		double h = size;
+		List<Vec3d> rim = new ArrayList<>();
+		int seg = 24;
+		for (int i = 0; i < seg; i++) {
+			double a = Math.PI * 2 * i / seg;
+			double y = Math.cos(a);
+			double x = Math.sin(a) * (y < 0 ? 1 + 0.32 * y : 1);
+			// Brushed back a little at the temples, so it reads as a shell rather than a plate
+			Vec3d bulge = n.multiply(-0.12 * size * (1 - Math.abs(Math.sin(a))));
+			rim.add(c.add(right.multiply(x * w)).add(up.multiply(y * h)).add(bulge));
+		}
+		Vec3d front = c.add(n.multiply(0.1 * size));
+		List<List<Vec3d>> holes = new ArrayList<>();
+		for (int side = -1; side <= 1; side += 2) {
+			List<Vec3d> eye = new ArrayList<>();
+			Vec3d ec = front.add(right.multiply(side * 0.36 * w)).add(up.multiply(0.16 * h)).add(n.multiply(0.01));
+			for (int i = 0; i < 12; i++) {
+				double a = Math.PI * 2 * i / 12;
+				// Slanted, narrowing to the nose: an unkind look
+				double ey = Math.sin(a) * 0.11 * h - side * Math.cos(a) * 0.04 * h;
+				eye.add(ec.add(right.multiply(Math.cos(a) * 0.22 * w)).add(up.multiply(ey)));
+			}
+			holes.add(eye);
+		}
+		if (inkPass) {
+			fan(vc, m, front, rim, rgb, alpha, alpha);
+			for (List<Vec3d> eye : holes) {
+				fan(vc, m, centroid(eye), eye, 0x0E0B08, alpha, alpha);
+			}
+			return;
+		}
+		outline(vc, m, rim, true, n, size * 0.07, rgb, 0.85f * alpha);
+		outline(vc, m, rim, true, n, size * 0.02, 0xFFFFFF, 0.5f * alpha);
+		for (List<Vec3d> eye : holes) {
+			Vec3d ec = centroid(eye);
+			List<Vec3d> glint = new ArrayList<>();
+			for (Vec3d p : eye) {
+				glint.add(ec.lerp(p, 0.55));
+			}
+			fan(vc, m, ec, glint, 0xB8E07A, 0.9f * alpha * eyes, 0.2f * alpha * eyes);
+			outline(vc, m, eye, true, n, size * 0.03, 0xB8E07A, 0.5f * alpha * eyes);
+		}
+		Vec3d mouth = front.add(up.multiply(-0.5 * h));
+		glowLine(vc, m, mouth.add(right.multiply(-0.22 * w)), mouth.add(right.multiply(0.22 * w)).add(up.multiply(0.03 * h)), n, size * 0.04, 0x3A332A, 0.8f * alpha);
+	}
+
+	private static Vec3d centroid(List<Vec3d> points) {
+		Vec3d sum = Vec3d.ZERO;
+		for (Vec3d p : points) {
+			sum = sum.add(p);
+		}
+		return sum.multiply(1.0 / points.size());
+	}
+
+	private static float smooth(float t) {
+		t = MathHelper.clamp(t, 0, 1);
+		return t * t * (3 - 2 * t);
+	}
+
+	private static Vec3d bezier(Vec3d a, Vec3d c, Vec3d b, double t) {
+		return a.multiply((1 - t) * (1 - t)).add(c.multiply(2 * (1 - t) * t)).add(b.multiply(t * t));
+	}
+
+	/** Gold coins flung out of a point: each on its own arc, flipping over, flashing edge-on, settling on the ground. */
+	private static final class Coins extends Effect {
+		final Vec3d at;
+		final int count;
+		final float speed;
+		final long seed;
+
+		Coins(int ticks, Vec3d at, int count, float speed) {
+			super(ticks, Fx.INK | 0xF2C94C);
+			this.at = at;
+			this.count = Math.max(1, count);
+			this.speed = speed;
+			this.seed = Double.doubleToLongBits(at.x * 3 + at.y * 5 + at.z * 11 + count);
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			float life = age + delta;
+			float fade = Math.min(1, (ticks - life) / 8f) * Math.min(1, life / 1.5f);
+			for (int i = 0; i < count; i++) {
+				double ang = hash(seed, i) * Math.PI * 2;
+				double out = speed * (0.05 + 0.09 * hash(seed, i + 50));
+				double rise = speed * (0.12 + 0.14 * hash(seed, i + 100));
+				// Up and over under gravity until it lands 0.9 below where it started, then it lies there
+				double landed = (rise + Math.sqrt(rise * rise + 4 * 0.015 * 0.9)) / 0.03;
+				double flight = Math.min(life, landed);
+				double y = rise * flight - 0.015 * flight * flight;
+				Vec3d dir = new Vec3d(Math.cos(ang), 0, Math.sin(ang));
+				Vec3d p = at.add(dir.multiply(out * flight)).add(0, y, 0);
+				double spin = life * (0.5 + 0.4 * hash(seed, i + 150)) + hash(seed, i + 200) * 6;
+				// Lying still once down
+				if (life >= landed) {
+					spin = Math.PI / 2;
+				}
+				Vec3d e1 = new Vec3d(-dir.z, 0, dir.x);
+				Vec3d e2 = new Vec3d(0, 1, 0).multiply(Math.cos(spin)).add(dir.multiply(Math.sin(spin)));
+				drawCoin(vc, m, p, e1, e2, 0.13, fade, cam);
+			}
+		}
+	}
+
+	/** Two orbs trading places: one goes along an arc to the other side, the other comes back the other way, trailing light. */
+	private static final class Exchange extends Effect {
+		final int rgb2;
+		final int a;
+		final int b;
+
+		Exchange(int ticks, int rgb, int rgb2, int a, int b) {
+			super(ticks, rgb);
+			this.rgb2 = rgb2 & 0xFFFFFF;
+			this.a = a;
+			this.b = b;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			Entity ea = entity(a);
+			Entity eb = entity(b);
+			if (ea == null || eb == null) {
+				return;
+			}
+			Vec3d pa = ea.getLerpedPos(delta).add(0, ea.getHeight() * 0.6, 0);
+			Vec3d pb = eb.getLerpedPos(delta).add(0, eb.getHeight() * 0.6, 0);
+			Vec3d mid = pa.lerp(pb, 0.5);
+			Vec3d side = pb.subtract(pa).crossProduct(new Vec3d(0, 1, 0));
+			side = side.lengthSquared() < 1.0E-4 ? new Vec3d(1, 0, 0) : side.normalize();
+			double span = pa.distanceTo(pb);
+			Vec3d c1 = mid.add(side.multiply(0.35 * span + 0.6)).add(0, 0.4 * span + 0.3, 0);
+			Vec3d c2 = mid.subtract(side.multiply(0.35 * span + 0.6)).add(0, 0.4 * span + 0.3, 0);
+			float t = progress(delta);
+			float go = smooth(t / 0.8f);
+			float fade = t < 0.8f ? 1 : 1 - (t - 0.8f) / 0.2f;
+			orb(vc, m, cam, pa, c1, pb, go, rgb, fade);
+			orb(vc, m, cam, pb, c2, pa, go, rgb2, fade);
+		}
+
+		private void orb(VertexConsumer vc, Matrix4f m, Vec3d cam, Vec3d from, Vec3d ctrl, Vec3d to, float t, int color, float fade) {
+			List<Vec3d> trail = new ArrayList<>();
+			int n = 12;
+			float[] widths = new float[n + 1];
+			int[] colors = new int[n + 1];
+			float[] alphas = new float[n + 1];
+			for (int k = 0; k <= n; k++) {
+				double s = Math.max(0, t - (n - k) * 0.03);
+				trail.add(bezier(from, ctrl, to, s));
+				float head = (float) k / n;
+				widths[k] = 0.04f + 0.22f * head;
+				colors[k] = lerpColor(color, 0xFFFFFF, head * 0.3f);
+				alphas[k] = head * 0.8f * fade;
+			}
+			strip(vc, m, cam, trail, widths, colors, alphas);
+			Vec3d p = bezier(from, ctrl, to, t);
+			Vec3d[] f = facing(p, cam);
+			List<Vec3d> rim = new ArrayList<>();
+			List<Vec3d> core = new ArrayList<>();
+			for (int i = 0; i < 12; i++) {
+				double a = Math.PI * 2 * i / 12;
+				Vec3d d = f[0].multiply(Math.cos(a)).add(f[1].multiply(Math.sin(a)));
+				rim.add(p.add(d.multiply(0.26)));
+				core.add(p.add(d.multiply(0.09)));
+			}
+			fan(vc, m, p, rim, color, 0.7f * fade, 0);
+			fan(vc, m, p, core, 0xFFFFFF, 0.9f * fade, 0.3f * fade);
+			// Arrived: a flash where it lands
+			if (t >= 0.98f) {
+				Vec3d[] g = facing(to, cam);
+				star(vc, m, to, g[0], g[1], 0.25, fade);
+			}
+		}
+	}
+
+	/**
+	 * A great seal of copper and gold coming down on a creature from above, turning, stamped onto it with a flash and a
+	 * wave along the ground; then only its notched rim is left, turning slowly round the waist until the pledge ends.
+	 */
+	private static final class Seal extends Effect {
+		final int on;
+		final float radius;
+
+		Seal(int ticks, int rgb, int on, float radius) {
+			super(ticks, rgb);
+			this.on = on;
+			this.radius = radius;
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			Vec3d base = lerped(on, delta);
+			if (base == null) {
+				return;
+			}
+			float life = age + delta;
+			float drop = Math.min(1, life / 8f);
+			Vec3d up = new Vec3d(0, 1, 0);
+			double turn = life * 0.12;
+			Vec3d e1 = new Vec3d(Math.cos(turn), 0, Math.sin(turn));
+			Vec3d e2 = new Vec3d(-Math.sin(turn), 0, Math.cos(turn));
+			if (drop < 1) {
+				// Falling, faster and faster
+				Vec3d c = base.add(0, 3.4 - 2.4 * drop * drop, 0);
+				List<Vec3d> rim = circle(c, e1, e2, radius, 32);
+				if (inkPass) {
+					fan(vc, m, c, rim, 0x8A4E22, 0.9f, 0.9f);
+					return;
+				}
+				stamp(vc, m, c, e1, e2, up, 1);
+				return;
+			}
+			if (inkPass) {
+				return;
+			}
+			float after = life - 8;
+			// The stamp: a flash at the waist and a wave along the ground
+			if (after < 6) {
+				float k = after / 6;
+				flatRing(vc, m, base.add(0, 0.05, 0), radius * (1 + 3 * k), 0.4 * (1 - k) + 0.05, rgb, 0.8f * (1 - k), 40);
+				flatRing(vc, m, base.add(0, 1.0, 0), radius * (1 + 0.6 * k), 0.12, 0xFFFFFF, 0.9f * (1 - k), 40);
+			}
+			// The rim left behind, turning round the waist and fading as the pledge runs out
+			float hold = Math.min(1, (ticks - life) / 10f);
+			stamp(vc, m, base.add(0, 1.0 + 0.06 * Math.sin(life * 0.15), 0), e1, e2, up, 0.55f * hold);
+		}
+
+		private static List<Vec3d> circle(Vec3d c, Vec3d e1, Vec3d e2, double r, int seg) {
+			List<Vec3d> points = new ArrayList<>();
+			for (int i = 0; i < seg; i++) {
+				double a = Math.PI * 2 * i / seg;
+				points.add(c.add(e1.multiply(Math.cos(a) * r)).add(e2.multiply(Math.sin(a) * r)));
+			}
+			return points;
+		}
+
+		/** The seal's face: a double rim with sixteen notches, and the mage's eye in the middle. */
+		private void stamp(VertexConsumer vc, Matrix4f m, Vec3d c, Vec3d e1, Vec3d e2, Vec3d up, float alpha) {
+			outline(vc, m, circle(c, e1, e2, radius, 40), true, up, 0.16, rgb, 0.9f * alpha);
+			outline(vc, m, circle(c, e1, e2, radius * 0.78, 40), true, up, 0.06, 0xFFE9A8, 0.7f * alpha);
+			for (int i = 0; i < 16; i++) {
+				double a = Math.PI * 2 * i / 16;
+				Vec3d d = e1.multiply(Math.cos(a)).add(e2.multiply(Math.sin(a)));
+				glowLine(vc, m, c.add(d.multiply(radius * 0.8)), c.add(d.multiply(radius * 0.97)), up, 0.05, rgb, 0.8f * alpha);
+			}
+			// The eye: a lens of two arcs and a round pupil
+			List<Vec3d> lens = new ArrayList<>();
+			for (int i = 0; i <= 12; i++) {
+				double s = -1 + 2.0 * i / 12;
+				lens.add(c.add(e1.multiply(s * radius * 0.55)).add(e2.multiply((1 - s * s) * radius * 0.25)));
+			}
+			for (int i = 12; i >= 0; i--) {
+				double s = -1 + 2.0 * i / 12;
+				lens.add(c.add(e1.multiply(s * radius * 0.55)).add(e2.multiply(-(1 - s * s) * radius * 0.25)));
+			}
+			outline(vc, m, lens, true, up, 0.07, rgb, 0.85f * alpha);
+			outline(vc, m, circle(c, e1, e2, radius * 0.12, 16), true, up, 0.08, 0xFFFFFF, 0.9f * alpha);
+		}
+	}
+
+	/**
+	 * The door of the Mage's Shop: an arched frame of gold traces itself in the air, two copper leaves swing open on a
+	 * warm light with coins drifting out of it, and at the end it shuts and fades.
+	 */
+	private static final class Door extends Effect {
+		final Vec3d at;
+		final Vec3d forward;
+		final Vec3d right;
+
+		Door(int ticks, int rgb, Vec3d at, float yaw) {
+			super(ticks, rgb);
+			this.at = at;
+			double r = Math.toRadians(yaw);
+			this.forward = new Vec3d(-Math.sin(r), 0, Math.cos(r));
+			this.right = new Vec3d(Math.cos(r), 0, Math.sin(r));
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			float t = progress(delta);
+			float life = age + delta;
+			double w = 1.4;
+			double hs = 1.8;
+			Vec3d up = new Vec3d(0, 1, 0);
+			// The frame: up one side, over the arch, down the other
+			List<Vec3d> frame = new ArrayList<>();
+			frame.add(at.add(right.multiply(-w / 2)));
+			frame.add(at.add(right.multiply(-w / 2)).add(0, hs, 0));
+			for (int i = 1; i < 16; i++) {
+				double a = Math.PI - Math.PI * i / 16;
+				frame.add(at.add(right.multiply(Math.cos(a) * w / 2)).add(0, hs + Math.sin(a) * w / 2, 0));
+			}
+			frame.add(at.add(right.multiply(w / 2)).add(0, hs, 0));
+			frame.add(at.add(right.multiply(w / 2)));
+			float traced = Math.min(1, t / 0.2f);
+			float fade = t < 0.85f ? 1 : 1 - (t - 0.85f) / 0.15f;
+			float open = t < 0.2f ? 0 : t < 0.45f ? easeOut((t - 0.2f) / 0.25f) : t < 0.75f ? 1 : Math.max(0, 1 - (t - 0.75f) / 0.12f);
+			double angle = Math.toRadians(105) * open;
+			// The leaves, hinged at each side, swinging out towards the one who called the door
+			for (int side = -1; side <= 1; side += 2) {
+				Vec3d hinge = at.add(right.multiply(side * w / 2));
+				Vec3d along = right.multiply(-side * Math.cos(angle)).add(forward.multiply(-Math.sin(angle)));
+				Vec3d b0 = hinge;
+				Vec3d b1 = hinge.add(along.multiply(w / 2));
+				Vec3d t0 = b0.add(0, hs, 0);
+				Vec3d t1 = b1.add(0, hs, 0);
+				if (traced >= 1) {
+					if (inkPass) {
+						quad(vc, m, b0, b1, t1, t0, 0x6A3A18, 0.95f * fade, 0.95f * fade, 0.95f * fade, 0.95f * fade);
+					} else {
+						Vec3d normal = along.crossProduct(up);
+						outline(vc, m, List.of(b0, b1, t1, t0), true, normal, 0.06, rgb, 0.8f * fade);
+						// A ring for a handle and two bands across
+						glowLine(vc, m, b0.lerp(t0, 0.3), b1.lerp(t1, 0.3), normal, 0.04, rgb, 0.5f * fade);
+						glowLine(vc, m, b0.lerp(t0, 0.75), b1.lerp(t1, 0.75), normal, 0.04, rgb, 0.5f * fade);
+					}
+				}
+			}
+			if (inkPass) {
+				return;
+			}
+			// The frame tracing itself
+			int shown = Math.max(1, (int) Math.ceil((frame.size() - 1) * traced));
+			for (int i = 0; i < shown; i++) {
+				glowLine(vc, m, frame.get(i), frame.get(i + 1), forward, 0.18, rgb, 0.85f * fade);
+				glowLine(vc, m, frame.get(i), frame.get(i + 1), forward, 0.05, 0xFFFFFF, 0.7f * fade);
+			}
+			// The light inside, and a few coins drifting out of it towards the caller
+			if (open > 0) {
+				Vec3d mid = at.add(0, hs / 2, 0);
+				List<Vec3d> doorway = new ArrayList<>(frame);
+				fan(vc, m, mid.add(0, 0.3, 0), doorway, 0xFFD27A, 0.55f * open * fade, 0.15f * open * fade);
+				for (int i = 0; i < 6; i++) {
+					float s = ((life * 0.03f + i / 6f) % 1);
+					Vec3d p = at.add(right.multiply((hash(i, 3) - 0.5) * w * 0.7)).add(0, 0.4 + hs * hash(i, 5) + s * 0.6, 0)
+							.add(forward.multiply(-s * 1.6));
+					double spin = life * 0.4 + i;
+					Vec3d e2 = up.multiply(Math.cos(spin)).add(forward.multiply(Math.sin(spin)));
+					drawCoin(vc, m, p, right, e2, 0.09, open * fade * (1 - s), cam);
+				}
+			}
+		}
+	}
+
+	/** A giant coin tossed over a head: it climbs spinning end over end, hangs, falls onto the head and bursts in light. */
+	private static final class Flip extends Effect {
+		final int over;
+
+		Flip(int ticks, int rgb, int over) {
+			super(ticks, rgb);
+			this.over = over;
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			Entity e = entity(over);
+			if (e == null) {
+				return;
+			}
+			Vec3d base = e.getLerpedPos(delta);
+			float t = progress(delta);
+			float life = age + delta;
+			double top = e.getHeight();
+			double y;
+			if (t < 0.55f) {
+				y = top + 0.6 + 1.1 * easeOut(t / 0.55f);
+			} else if (t < 0.75f) {
+				float k = (t - 0.55f) / 0.2f;
+				y = top + 1.7 - 1.4 * k * k;
+			} else {
+				y = top + 0.3;
+			}
+			Vec3d c = base.add(0, y, 0);
+			if (t < 0.75f) {
+				double spin = life * 0.9;
+				Vec3d e1 = new Vec3d(1, 0, 0);
+				Vec3d e2 = new Vec3d(0, Math.cos(spin), Math.sin(spin));
+				drawCoin(vc, m, c, e1, e2, 0.5, 1, cam);
+				return;
+			}
+			if (inkPass) {
+				return;
+			}
+			// Landed: a burst of gold around the head and a wave at the feet
+			float k = (t - 0.75f) / 0.25f;
+			flatRing(vc, m, base.add(0, 0.05, 0), 0.5 + 3.5 * k, 0.3 * (1 - k) + 0.05, rgb, 0.8f * (1 - k), 40);
+			Vec3d[] f = facing(c, cam);
+			star(vc, m, c, f[0], f[1], 0.6 * (1 - k) + 0.1, 1 - k);
+		}
+	}
+
+	/** A heart beats once over the kissed; a stream of little hearts flows from it into the one who kissed. */
+	private static final class Hearts extends Effect {
+		final int from;
+		final int to;
+		final int count;
+
+		Hearts(int ticks, int rgb, int from, int to, int count) {
+			super(ticks, rgb);
+			this.from = from;
+			this.to = to;
+			this.count = Math.max(1, count);
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			Entity src = entity(from);
+			Entity dst = entity(to);
+			if (src == null || dst == null) {
+				return;
+			}
+			float life = age + delta;
+			Vec3d pf = src.getLerpedPos(delta).add(0, src.getHeight() * 0.7, 0);
+			Vec3d pt = dst.getLerpedPos(delta).add(0, dst.getHeight() * 0.6, 0);
+			// The big heart at the source: in, one beat, out
+			float big = Math.min(1, life / 3f) * Math.max(0, 1 - life / (ticks * 0.7f));
+			if (big > 0) {
+				Vec3d c = pf.add(0, src.getHeight() * 0.35 + 0.3, 0);
+				Vec3d[] f = facing(c, cam);
+				double size = 0.32 * (1 + 0.35 * heartbeat(Math.min(1, life / 14f)));
+				drawHeart(vc, m, c, f[0], f[1], f[2], size, rgb, 0x6A1838, big);
+			}
+			if (inkPass) {
+				return;
+			}
+			Vec3d side = pt.subtract(pf).crossProduct(new Vec3d(0, 1, 0));
+			side = side.lengthSquared() < 1.0E-4 ? new Vec3d(1, 0, 0) : side.normalize();
+			for (int i = 0; i < count; i++) {
+				float born = ticks * 0.5f * i / count;
+				float u = (life - born) / (ticks * 0.45f);
+				if (u <= 0 || u >= 1) {
+					continue;
+				}
+				float eased = u * u;
+				Vec3d p = pf.lerp(pt, eased).add(side.multiply(Math.sin(u * Math.PI * 2 + i) * 0.3 * (1 - u))).add(0, Math.sin(u * Math.PI) * 0.5, 0);
+				Vec3d[] f = facing(p, cam);
+				float a = Math.min(1, u * 5) * (1 - u * 0.6f);
+				List<Vec3d> rim = heart(p, f[0], f[1], 0.13 * (1 - 0.5 * u), 16, 0, Math.PI * 2);
+				rim.remove(rim.size() - 1);
+				fan(vc, m, p, rim, rgb, 0.9f * a, 0.4f * a);
+				outline(vc, m, rim, true, f[2], 0.03, 0xFFE0EC, 0.6f * a);
+			}
+		}
+	}
+
+	/**
+	 * A Tempter's wings: from the shoulders, a bony arm and four long fingers with dark membrane scalloped between them.
+	 * They unfold from the back, rise, come down in one great beat, hold a glide, and fold away.
+	 */
+	private static final class Wings extends Effect {
+		private static final float[] KEY_T = {0, 0.15f, 0.35f, 0.55f, 0.8f, 1};
+		private static final float[] KEY_ANGLE = {-70, 40, -25, 15, 10, -70};
+		final int on;
+		final float span;
+
+		Wings(int ticks, int rgb, int on, float span) {
+			super(ticks, rgb);
+			this.on = on;
+			this.span = span;
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		private float flap(float t) {
+			for (int i = 0; i < KEY_T.length - 1; i++) {
+				if (t <= KEY_T[i + 1]) {
+					float k = smooth((t - KEY_T[i]) / (KEY_T[i + 1] - KEY_T[i]));
+					return MathHelper.lerp(k, KEY_ANGLE[i], KEY_ANGLE[i + 1]);
+				}
+			}
+			return KEY_ANGLE[KEY_ANGLE.length - 1];
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			Entity e = entity(on);
+			if (e == null) {
+				return;
+			}
+			float yaw = e instanceof net.minecraft.entity.LivingEntity living ? MathHelper.lerpAngleDegrees(delta, living.prevBodyYaw, living.bodyYaw) : e.getYaw();
+			double r = Math.toRadians(yaw);
+			Vec3d forward = new Vec3d(-Math.sin(r), 0, Math.cos(r));
+			Vec3d back = forward.multiply(-1);
+			Vec3d right = new Vec3d(Math.cos(r), 0, Math.sin(r));
+			Vec3d up = new Vec3d(0, 1, 0);
+			Vec3d shoulder = e.getLerpedPos(delta).add(0, e.getHeight() * 0.74, 0).add(back.multiply(0.22));
+			float t = progress(delta);
+			float spread = t < 0.15f ? smooth(t / 0.15f) : t > 0.8f ? 1 - smooth((t - 0.8f) / 0.2f) : 1;
+			double angle = Math.toRadians(flap(t));
+			float alpha = Math.min(1, (age + delta) / 2f);
+			for (int s = -1; s <= 1; s += 2) {
+				Vec3d out = right.multiply(s * Math.cos(angle)).add(up.multiply(Math.sin(angle))).add(back.multiply(0.5)).normalize();
+				Vec3d wingUp = right.multiply(-s * Math.sin(angle)).add(up.multiply(Math.cos(angle))).normalize();
+				Vec3d normal = out.crossProduct(wingUp);
+				java.util.function.BiFunction<Double, Double, Vec3d> at = (x, y) -> shoulder.add(out.multiply(x * span)).add(wingUp.multiply(y * span));
+				Vec3d wrist = at.apply(0.42 * (0.4 + 0.6 * spread), 0.14);
+				double[] open = {58, 28, -4, -36};
+				double[] closed = {-62, -70, -76, -82};
+				double[] length = {0.55, 0.78, 0.7, 0.5};
+				Vec3d[] tips = new Vec3d[4];
+				for (int k = 0; k < 4; k++) {
+					double phi = Math.toRadians(MathHelper.lerp(spread, closed[k], open[k]));
+					double len = length[k] * (0.5 + 0.5 * spread);
+					tips[k] = wrist.add(out.multiply(Math.cos(phi) * len * span)).add(wingUp.multiply(Math.sin(phi) * len * span));
+				}
+				Vec3d low = at.apply(0.05, -0.45);
+				if (inkPass) {
+					for (int k = 0; k < 3; k++) {
+						Vec3d scallop = tips[k].lerp(tips[k + 1], 0.5).lerp(wrist, 0.25);
+						quad(vc, m, wrist, tips[k], scallop, tips[k + 1], 0x4A0E26, 0.85f * alpha, 0.85f * alpha, 0.85f * alpha, 0.85f * alpha);
+					}
+					quad(vc, m, shoulder, wrist, tips[3], low, 0x4A0E26, 0.85f * alpha, 0.85f * alpha, 0.85f * alpha, 0.85f * alpha);
+					continue;
+				}
+				// The bones bright, the scalloped edge of the membrane fainter, a faint rose glow over the skin
+				glowLine(vc, m, shoulder, wrist, normal, 0.09, rgb, 0.9f * alpha);
+				for (int k = 0; k < 4; k++) {
+					glowLine(vc, m, wrist, tips[k], normal, 0.06, rgb, 0.85f * alpha);
+					glowLine(vc, m, wrist, tips[k], normal, 0.02, 0xFFE0EC, 0.6f * alpha);
+				}
+				for (int k = 0; k < 3; k++) {
+					Vec3d scallop = tips[k].lerp(tips[k + 1], 0.5).lerp(wrist, 0.25);
+					glowLine(vc, m, tips[k], scallop, normal, 0.04, rgb, 0.55f * alpha);
+					glowLine(vc, m, scallop, tips[k + 1], normal, 0.04, rgb, 0.55f * alpha);
+					quad(vc, m, wrist, tips[k], scallop, tips[k + 1], rgb, 0.18f * alpha, 0.05f * alpha, 0.05f * alpha, 0.05f * alpha);
+				}
+				glowLine(vc, m, tips[3], low, normal, 0.04, rgb, 0.5f * alpha);
+			}
+		}
+	}
+
+	/** A glyph hanging over a head while a spell lasts: a turning heart, a sleeping moon with drifting Zs, or a mask. */
+	private static final class Sigil extends Effect {
+		final int over;
+		final int kind;
+
+		Sigil(int ticks, int rgb, int over, int kind) {
+			super(ticks, rgb);
+			this.over = over;
+			this.kind = kind;
+		}
+
+		@Override
+		boolean inks() {
+			return kind != Fx.SIGIL_MOON;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			Entity e = entity(over);
+			if (e == null || !e.isAlive()) {
+				return;
+			}
+			float life = age + delta;
+			float grow = easeOutBack(Math.min(1, life / 6f));
+			float fade = Math.min(1, (ticks - life) / 8f);
+			Vec3d c = e.getLerpedPos(delta).add(0, e.getHeight() + 0.55 + 0.08 * Math.sin(life * 0.15), 0);
+			switch (kind) {
+				case Fx.SIGIL_HEART -> {
+					double spin = life * 0.08;
+					Vec3d dir = new Vec3d(Math.cos(spin), 0, Math.sin(spin));
+					Vec3d up = new Vec3d(0, 1, 0);
+					drawHeart(vc, m, c, dir, up, dir.crossProduct(up), 0.24 * grow, rgb, 0x6A1838, fade);
+					if (!inkPass) {
+						// Two motes going round it
+						for (int i = 0; i < 2; i++) {
+							double a = life * 0.2 + i * Math.PI;
+							Vec3d p = c.add(Math.cos(a) * 0.4, 0.05 * Math.sin(a * 2), Math.sin(a) * 0.4);
+							Vec3d[] f = facing(p, cam);
+							star(vc, m, p, f[0], f[1], 0.05, 0.8f * fade);
+						}
+					}
+				}
+				case Fx.SIGIL_MOON -> {
+					Vec3d[] f = facing(c, cam);
+					double r = 0.22 * grow;
+					for (int i = 0; i < 16; i++) {
+						double a0 = -Math.PI / 2 + Math.PI * i / 16;
+						double a1 = -Math.PI / 2 + Math.PI * (i + 1) / 16;
+						Vec3d o0 = c.add(f[0].multiply(Math.cos(a0) * r)).add(f[1].multiply(Math.sin(a0) * r));
+						Vec3d o1 = c.add(f[0].multiply(Math.cos(a1) * r)).add(f[1].multiply(Math.sin(a1) * r));
+						Vec3d i0 = c.add(f[0].multiply(Math.cos(a0) * r * 0.3)).add(f[1].multiply(Math.sin(a0) * r));
+						Vec3d i1 = c.add(f[0].multiply(Math.cos(a1) * r * 0.3)).add(f[1].multiply(Math.sin(a1) * r));
+						quad(vc, m, i0, o0, o1, i1, rgb, 0.8f * fade, 0.8f * fade, 0.8f * fade, 0.8f * fade);
+						glowLine(vc, m, o0, o1, f[2], 0.05, 0xFFFFFF, 0.6f * fade);
+					}
+					// Zs drifting up and away
+					for (int i = 0; i < 3; i++) {
+						float s = (life * 0.025f + i / 3f) % 1;
+						Vec3d z = c.add(f[0].multiply(0.3 + s * 0.25)).add(f[1].multiply(0.15 + s * 0.6));
+						double size = 0.07 + 0.05 * s;
+						Vec3d tl = z.add(f[0].multiply(-size)).add(f[1].multiply(size));
+						Vec3d tr = z.add(f[0].multiply(size)).add(f[1].multiply(size));
+						Vec3d bl = z.add(f[0].multiply(-size)).add(f[1].multiply(-size));
+						Vec3d br = z.add(f[0].multiply(size)).add(f[1].multiply(-size));
+						float a = fade * (1 - s) * Math.min(1, s * 6);
+						glowLine(vc, m, tl, tr, f[2], 0.035, rgb, a);
+						glowLine(vc, m, tr, bl, f[2], 0.035, rgb, a);
+						glowLine(vc, m, bl, br, f[2], 0.035, rgb, a);
+					}
+				}
+				default -> {
+					Vec3d[] f = facing(c, cam);
+					drawMask(vc, m, c, f[2], 0.26 * grow, rgb, fade, 0.6f + 0.4f * (float) Math.sin(life * 0.3));
+				}
+			}
+		}
+	}
+
+	/** A heart over a creature cracks down the middle, splits, and its two halves fall apart with shards flying. */
+	private static final class Heartbreak extends Effect {
+		final int over;
+
+		Heartbreak(int ticks, int rgb, int over) {
+			super(ticks, rgb);
+			this.over = over;
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			Entity e = entity(over);
+			Vec3d base = e == null ? null : e.getLerpedPos(delta);
+			if (base == null) {
+				return;
+			}
+			float t = progress(delta);
+			Vec3d c = base.add(0, e.getHeight() + 0.7, 0);
+			Vec3d[] f = facing(c, cam);
+			double size = 0.42 * (t < 0.25f ? easeOutBack(t / 0.25f) : 1);
+			if (t < 0.4f) {
+				drawHeart(vc, m, c, f[0], f[1], f[2], size, rgb, 0x6A1838, 1);
+				// The crack running down it
+				if (t > 0.25f && !inkPass) {
+					float k = (t - 0.25f) / 0.15f;
+					Vec3d prev = c.add(f[1].multiply(size * 0.58));
+					int steps = 6;
+					for (int i = 1; i <= steps * k; i++) {
+						Vec3d next = c.add(f[1].multiply(size * (0.58 - 1.6 * i / steps))).add(f[0].multiply((i % 2 == 0 ? -1 : 1) * size * 0.1));
+						glowLine(vc, m, prev, next, f[2], 0.06, 0xFFFFFF, 0.95f);
+						prev = next;
+					}
+				}
+				return;
+			}
+			float u = (t - 0.4f) / 0.6f;
+			float alpha = 1 - u;
+			for (int s = -1; s <= 1; s += 2) {
+				// One half: the curve on its side, closed along the crack
+				List<Vec3d> half = heart(Vec3d.ZERO, new Vec3d(1, 0, 0), new Vec3d(0, 1, 0), 1, 14, s > 0 ? 0 : Math.PI, s > 0 ? Math.PI : Math.PI * 2);
+				double tilt = s * u * 1.1;
+				Vec3d offset = f[0].multiply(s * size * (0.1 + 1.2 * u)).add(f[1].multiply(-1.6 * u * u));
+				List<Vec3d> rim = new ArrayList<>();
+				for (Vec3d p : half) {
+					double x = p.x * Math.cos(tilt) - p.y * Math.sin(tilt);
+					double y = p.x * Math.sin(tilt) + p.y * Math.cos(tilt);
+					rim.add(c.add(offset).add(f[0].multiply(x * size)).add(f[1].multiply(y * size)));
+				}
+				Vec3d mid = centroid(rim);
+				if (inkPass) {
+					fan(vc, m, mid, rim, 0x6A1838, alpha, alpha);
+				} else {
+					fan(vc, m, mid, rim, rgb, 0.35f * alpha, 0.05f * alpha);
+					outline(vc, m, rim, true, f[2], size * 0.16, rgb, 0.9f * alpha);
+				}
+			}
+			if (!inkPass) {
+				for (int i = 0; i < 8; i++) {
+					double a = Math.PI * 2 * i / 8 + 0.3;
+					Vec3d p = c.add(f[0].multiply(Math.cos(a) * size * (0.3 + 2.2 * u))).add(f[1].multiply(Math.sin(a) * size * (0.3 + 2.2 * u) - u * u));
+					star(vc, m, p, f[0], f[1], 0.06 * (1 - u), alpha);
+				}
+			}
+		}
+	}
+
+	/** A lullaby: soft waves rolling out over the ground, swaying up and down like a song, crescent moons rising from them. */
+	private static final class Lullaby extends Effect {
+		final Vec3d at;
+		final float radius;
+
+		Lullaby(int ticks, int rgb, Vec3d at, float radius) {
+			super(ticks, rgb);
+			this.at = at;
+			this.radius = radius;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			float life = age + delta;
+			float t = progress(delta);
+			float fade = Math.min(1, (ticks - life) / 10f);
+			Vec3d up = new Vec3d(0, 1, 0);
+			for (int w = 0; w < 3; w++) {
+				float k = (t * 1.6f + w / 3f) % 1;
+				double r = radius * k;
+				int seg = 48;
+				for (int i = 0; i < seg; i++) {
+					double a0 = Math.PI * 2 * i / seg;
+					double a1 = Math.PI * 2 * (i + 1) / seg;
+					Vec3d p0 = at.add(Math.cos(a0) * r, 0.25 + 0.18 * Math.sin(a0 * 6 + life * 0.4), Math.sin(a0) * r);
+					Vec3d p1 = at.add(Math.cos(a1) * r, 0.25 + 0.18 * Math.sin(a1 * 6 + life * 0.4), Math.sin(a1) * r);
+					glowLine(vc, m, p0, p1, up, 0.22, lerpColor(rgb, 0xFF6FA8, k), 0.5f * (1 - k) * fade);
+				}
+			}
+			for (int i = 0; i < 6; i++) {
+				double a = Math.PI * 2 * i / 6 + 0.4;
+				float s = (life * 0.03f + i / 6f) % 1;
+				Vec3d c = at.add(Math.cos(a) * radius * 0.55, 0.6 + s * 2.2, Math.sin(a) * radius * 0.55);
+				Vec3d[] f = facing(c, cam);
+				double r = 0.2;
+				float alpha = fade * Math.min(1, s * 5) * (1 - s);
+				for (int k = 0; k < 10; k++) {
+					double a0 = -Math.PI / 2 + Math.PI * k / 10;
+					double a1 = -Math.PI / 2 + Math.PI * (k + 1) / 10;
+					Vec3d o0 = c.add(f[0].multiply(Math.cos(a0) * r)).add(f[1].multiply(Math.sin(a0) * r));
+					Vec3d o1 = c.add(f[0].multiply(Math.cos(a1) * r)).add(f[1].multiply(Math.sin(a1) * r));
+					Vec3d i0 = c.add(f[0].multiply(Math.cos(a0) * r * 0.3)).add(f[1].multiply(Math.sin(a0) * r));
+					Vec3d i1 = c.add(f[0].multiply(Math.cos(a1) * r * 0.3)).add(f[1].multiply(Math.sin(a1) * r));
+					quad(vc, m, i0, o0, o1, i1, rgb, 0.7f * alpha, 0.7f * alpha, 0.7f * alpha, 0.7f * alpha);
+				}
+			}
+		}
+	}
+
+	/** A face torn off a creature flies in an arc, turning over, to the wearer's face, and is pressed on with a flash. */
+	private static final class Mask extends Effect {
+		final Vec3d from;
+		final int to;
+
+		Mask(int ticks, int rgb, Vec3d from, int to) {
+			super(ticks, rgb);
+			this.from = from;
+			this.to = to;
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			Entity e = entity(to);
+			if (e == null) {
+				return;
+			}
+			float t = progress(delta);
+			double yaw = Math.toRadians(e instanceof net.minecraft.entity.LivingEntity l ? MathHelper.lerpAngleDegrees(delta, l.prevHeadYaw, l.headYaw) : e.getYaw());
+			Vec3d forward = new Vec3d(-Math.sin(yaw), 0, Math.cos(yaw));
+			Vec3d face = e.getLerpedPos(delta).add(0, e.getStandingEyeHeight(), 0).add(forward.multiply(0.35));
+			Vec3d apex = from.lerp(face, 0.5).add(0, 1.2, 0);
+			double finalAngle = Math.atan2(forward.z, forward.x);
+			if (t < 0.75f) {
+				float u = smooth(t / 0.75f);
+				Vec3d p = bezier(from, apex, face, u);
+				double psi = finalAngle + (1 - u) * Math.PI * 3;
+				Vec3d n = new Vec3d(Math.cos(psi), 0.2 * Math.sin(u * Math.PI), Math.sin(psi)).normalize();
+				drawMask(vc, m, p, n, 0.32, rgb, 1, 0.5f);
+				return;
+			}
+			float v = (t - 0.75f) / 0.25f;
+			drawMask(vc, m, face, forward, 0.32 * (1 - 0.4 * v), rgb, 1 - v, 1);
+			if (!inkPass) {
+				Vec3d[] f = facing(face, cam);
+				star(vc, m, face, f[0], f[1], 0.5 * (1 - v) + 0.1, 1 - v);
+			}
+		}
+	}
+
+	/** Faces circling a head, facing outwards, turning faster and faster, then drawn in onto the head. */
+	private static final class Masks extends Effect {
+		final int around;
+		final int count;
+		final float radius;
+
+		Masks(int ticks, int rgb, int around, int count, float radius) {
+			super(ticks, rgb);
+			this.around = around;
+			this.count = Math.max(1, count);
+			this.radius = radius;
+		}
+
+		@Override
+		boolean inks() {
+			return true;
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			Entity e = entity(around);
+			if (e == null) {
+				return;
+			}
+			float t = progress(delta);
+			float life = age + delta;
+			Vec3d head = e.getLerpedPos(delta).add(0, e.getHeight() * 0.85, 0);
+			double r = radius * (t < 0.7f ? easeOutBack(Math.min(1, life / 8f)) : 1 - smooth((t - 0.7f) / 0.3f));
+			double spin = life * 0.05 + life * life * 0.004;
+			float alpha = t < 0.7f ? 1 : 1 - smooth((t - 0.7f) / 0.3f) * 0.8f;
+			for (int i = 0; i < count; i++) {
+				double a = Math.PI * 2 * i / count + spin;
+				Vec3d out = new Vec3d(Math.cos(a), 0, Math.sin(a));
+				Vec3d p = head.add(out.multiply(r)).add(0, 0.15 * Math.sin(life * 0.2 + i * 1.7), 0);
+				drawMask(vc, m, p, out, 0.26, rgb, alpha, 0.5f + 0.5f * (float) Math.sin(life * 0.4 + i));
+			}
+		}
+	}
+
+	/** A spider's web spun flat on the ground: the spokes shoot out, the spiral is laid round them, dew glints, it fades. */
+	private static final class Web extends Effect {
+		final Vec3d at;
+		final float radius;
+		final long seed;
+
+		Web(int ticks, int rgb, Vec3d at, float radius) {
+			super(ticks, rgb);
+			this.at = at.add(0, 0.06, 0);
+			this.radius = radius;
+			this.seed = Double.doubleToLongBits(at.x * 17 + at.z * 5);
+		}
+
+		@Override
+		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
+			float t = progress(delta);
+			float fade = t < 0.7f ? 1 : 1 - (t - 0.7f) / 0.3f;
+			Vec3d up = new Vec3d(0, 1, 0);
+			int spokes = 10;
+			double[] angle = new double[spokes];
+			double[] reach = new double[spokes];
+			float shoot = easeOut(Math.min(1, t / 0.15f));
+			for (int k = 0; k < spokes; k++) {
+				angle[k] = Math.PI * 2 * k / spokes + (hash(seed, k) - 0.5) * 0.3;
+				reach[k] = radius * (0.85 + 0.15 * hash(seed, k + 20));
+				Vec3d tip = at.add(Math.cos(angle[k]) * reach[k] * shoot, 0, Math.sin(angle[k]) * reach[k] * shoot);
+				glowLine(vc, m, at, tip, up, 0.05, rgb, 0.85f * fade);
+			}
+			for (int j = 1; j <= 6; j++) {
+				float shown = MathHelper.clamp((t - 0.12f - j * 0.04f) / 0.06f, 0, 1);
+				if (shown <= 0) {
+					continue;
+				}
+				double rj = radius * j / 6.5;
+				for (int k = 0; k < spokes * shown; k++) {
+					int n = (k + 1) % spokes;
+					Vec3d a = at.add(Math.cos(angle[k]) * Math.min(rj, reach[k]), 0, Math.sin(angle[k]) * Math.min(rj, reach[k]));
+					Vec3d b = at.add(Math.cos(angle[n]) * Math.min(rj, reach[n]), 0, Math.sin(angle[n]) * Math.min(rj, reach[n]));
+					// The thread sags inwards between spokes
+					Vec3d sag = a.lerp(b, 0.5).lerp(at, 0.08);
+					glowLine(vc, m, a, sag, up, 0.035, rgb, 0.7f * fade);
+					glowLine(vc, m, sag, b, up, 0.035, rgb, 0.7f * fade);
+					if (hash(seed, j * 31 + k) > 0.8) {
+						Vec3d[] f = facing(a, cam);
+						star(vc, m, a, f[0], f[1], 0.04, fade);
+					}
 				}
 			}
 		}
