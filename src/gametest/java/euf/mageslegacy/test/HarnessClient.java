@@ -124,7 +124,19 @@ public class HarnessClient implements ClientModInitializer {
 				screen.select(Race.VOIDBORN);
 			}
 		});
-		step(10, false, c -> screenshot(c, "choose_voidborn"));
+		step(10, false, c -> {
+			screenshot(c, "choose_voidborn");
+			if (c.currentScreen instanceof RaceSelectScreen screen) {
+				screen.select(Race.MERCENARY);
+			}
+		});
+		step(10, false, c -> {
+			screenshot(c, "choose_mercenary");
+			if (c.currentScreen instanceof RaceSelectScreen screen) {
+				screen.select(Race.TEMPTER);
+			}
+		});
+		step(10, false, c -> screenshot(c, "choose_tempter"));
 		step(20, false, c -> {
 			if (c.currentScreen instanceof RaceSelectScreen screen) {
 				screen.select(Race.MYCELID);
@@ -838,19 +850,6 @@ public class HarnessClient implements ClientModInitializer {
 		step(5, false, c -> {
 			screenshot(c, "credit_strike");
 			c.options.setPerspective(Perspective.FIRST_PERSON);
-			RaceSelectScreen screen = new RaceSelectScreen();
-			c.setScreen(screen);
-			screen.select(Race.MERCENARY);
-		});
-		step(10, false, c -> {
-			screenshot(c, "choose_mercenary");
-			if (c.currentScreen instanceof RaceSelectScreen screen) {
-				screen.select(Race.TEMPTER);
-			}
-		});
-		step(10, false, c -> {
-			screenshot(c, "choose_tempter");
-			c.setScreen(null);
 		});
 		step(20, false, this::finish);
 

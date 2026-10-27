@@ -28,7 +28,8 @@ import net.minecraft.util.Identifier;
  */
 public class MercShopScreen extends Screen {
 	private static final String[] ROMAN = {"I", "II", "III", "IV"};
-	private static final int CARD_H = 36;
+	private static final int CARD_H = 32;
+	private static final int WARE_H = 18;
 	private static boolean onShop;
 	/** The sync this layout was built from: when it changes the buttons are laid out again. */
 	private NbtCompound built;
@@ -73,14 +74,12 @@ public class MercShopScreen extends Screen {
 	protected void init() {
 		built = layoutKey();
 		int tabW = 110;
-		addDrawableChild(new LegacyButton(width / 2 - tabW - 3, 26, tabW, 18, Text.translatable("mages_legacy.merc.tab.contracts"), b -> {
-			onShop = false;
-			clearAndInit();
-		}).accent(color())).active = onShop;
-		addDrawableChild(new LegacyButton(width / 2 + 3, 26, tabW, 18, Text.translatable("mages_legacy.merc.tab.shop"), b -> {
-			onShop = true;
-			clearAndInit();
-		}).accent(color())).active = !onShop;
+		// The open tab is the lit one
+		LegacyButton board = new LegacyButton(width / 2 - tabW - 3, 26, tabW, 18, Text.translatable("mages_legacy.merc.tab.contracts"), b -> showShop(false))
+				.accent(color());
+		LegacyButton shop = new LegacyButton(width / 2 + 3, 26, tabW, 18, Text.translatable("mages_legacy.merc.tab.shop"), b -> showShop(true)).accent(color());
+		addDrawableChild(onShop ? shop.primary() : board.primary());
+		addDrawableChild(onShop ? board : shop);
 		if (onShop) {
 			initShop();
 		} else {
@@ -94,13 +93,13 @@ public class MercShopScreen extends Screen {
 		boolean full = active.size() >= merc().getInt("slots");
 		for (int i = 0; i < offers.size(); i++) {
 			int index = i;
-			int y = TOP + 14 + i * (CARD_H + 4);
+			int y = TOP + 14 + i * (CARD_H + 3);
 			addDrawableChild(new LegacyButton(left() + colW() - 54, y + CARD_H - 18, 50, 14, Text.translatable("mages_legacy.merc.take"),
 					b -> MagesLegacyClient.sendMerc(0, index, ""))).active = !full;
 		}
 		for (int i = 0; i < active.size(); i++) {
 			int index = i;
-			int y = TOP + 14 + i * (CARD_H + 4);
+			int y = TOP + 14 + i * (CARD_H + 3);
 			Contract c = Contract.fromNbt(active.getCompound(i));
 			addDrawableChild(new LegacyButton(right() + colW() - 24, y + 4, 20, 14, Text.literal("✕"),
 					b -> MagesLegacyClient.sendMerc(1, index, "")));
@@ -127,7 +126,7 @@ public class MercShopScreen extends Screen {
 				Shop.Ware ware = wares.get(i);
 				int price = prices.getInt(ware.id());
 				int y = wareY(i);
-				addDrawableChild(new LegacyButton(x + colW() - 54, y + 3, 50, 14,
+				addDrawableChild(new LegacyButton(x + colW() - 54, y + 2, 50, 13,
 						price == -1 ? Text.translatable("mages_legacy.merc.sold_short") : price == -2 ? Text.translatable("mages_legacy.merc.locked_short")
 								: Text.literal(price + " ◆"),
 						b -> MagesLegacyClient.sendMerc(4, 0, ware.id())).accent(color())).active = price >= 0 && tokens >= price;
@@ -135,8 +134,9 @@ public class MercShopScreen extends Screen {
 		}
 	}
 
+	/** Ware rows are tight, so the whole catalogue fits a GUI scale of 3. */
 	private static int wareY(int i) {
-		return TOP + 14 + i * 22;
+		return TOP + 13 + i * WARE_H;
 	}
 
 	@Override
@@ -181,13 +181,13 @@ public class MercShopScreen extends Screen {
 			ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.merc.board_empty").formatted(Formatting.ITALIC), left(), TOP + 18, LegacyUi.MUTED);
 		}
 		for (int i = 0; i < offers.size(); i++) {
-			card(ctx, Contract.fromNbt(offers.getCompound(i)), left(), TOP + 14 + i * (CARD_H + 4), false);
+			card(ctx, Contract.fromNbt(offers.getCompound(i)), left(), TOP + 14 + i * (CARD_H + 3), false);
 		}
 		if (active.isEmpty()) {
 			ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.merc.idle").formatted(Formatting.ITALIC), right(), TOP + 18, LegacyUi.MUTED);
 		}
 		for (int i = 0; i < active.size(); i++) {
-			card(ctx, Contract.fromNbt(active.getCompound(i)), right(), TOP + 14 + i * (CARD_H + 4), true);
+			card(ctx, Contract.fromNbt(active.getCompound(i)), right(), TOP + 14 + i * (CARD_H + 3), true);
 		}
 		long ticks = merc().getLong("nextDay");
 		Text day = Text.translatable("mages_legacy.merc.next_day", ticks / 1200, String.format("%02d", ticks / 20 % 60));
@@ -205,12 +205,12 @@ public class MercShopScreen extends Screen {
 		ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(task.getString(), textW), x + 25, y + 5, LegacyUi.TEXT);
 		String tier = (c.elite ? "★ " : "") + ROMAN[Math.max(0, Math.min(3, c.tier - 1))];
 		Text pay = Text.translatable("mages_legacy.merc.pay", c.xp, c.tokens);
-		ctx.drawTextWithShadow(textRenderer, Text.literal(tier), x + 5, y + 23, c.elite ? LegacyUi.GOLD : LegacyUi.MUTED);
+		ctx.drawTextWithShadow(textRenderer, Text.literal(tier), x + 5, y + 22, c.elite ? LegacyUi.GOLD : LegacyUi.MUTED);
 		ctx.drawTextWithShadow(textRenderer, pay, x + 25, y + 17, LegacyUi.GREEN);
 		if (inHand && c.kind != Contract.Kind.EXPLORE) {
 			int barX = x + 25;
 			int barW = w - 30 - (c.kind == Contract.Kind.GATHER ? 58 : 4);
-			int barY = y + 28;
+			int barY = y + 26;
 			ctx.fill(barX, barY, barX + barW, barY + 4, LegacyUi.BLACK);
 			ctx.fill(barX, barY, barX + barW * c.progress / Math.max(1, c.amount), barY + 4, color());
 			ctx.drawTextWithShadow(textRenderer, c.progress + "/" + c.amount, barX + barW - textRenderer.getWidth(c.progress + "/" + c.amount), barY - 9,
@@ -259,12 +259,12 @@ public class MercShopScreen extends Screen {
 			for (int i = 0; i < wares.size(); i++) {
 				Shop.Ware ware = wares.get(i);
 				int y = wareY(i);
-				LegacyUi.panel(ctx, x, y, x + colW(), y + 20, LegacyUi.RIM_DARK);
+				LegacyUi.panel(ctx, x, y, x + colW(), y + WARE_H - 1, LegacyUi.RIM_DARK);
 				ItemStack stack = ware.icon().get();
-				ctx.drawItem(stack, x + 2, y + 2);
-				ctx.drawItemInSlot(textRenderer, stack, x + 2, y + 2);
+				ctx.drawItem(stack, x + 1, y);
+				ctx.drawItemInSlot(textRenderer, stack, x + 1, y);
 				Text name = Text.translatable("mages_legacy.shop." + ware.id());
-				ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(name.getString(), colW() - 80), x + 22, y + 6, LegacyUi.TEXT);
+				ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(name.getString(), colW() - 80), x + 21, y + 5, LegacyUi.TEXT);
 				List<Text> lines = new ArrayList<>();
 				lines.add(name.copy().formatted(Formatting.GOLD));
 				TalentScreen.wrapInto(lines, Text.translatable("mages_legacy.shop." + ware.id() + ".desc").formatted(Formatting.GRAY));
@@ -274,7 +274,7 @@ public class MercShopScreen extends Screen {
 				if (ware.tier() > 1) {
 					lines.add(Text.translatable("mages_legacy.merc.needs_tier", ROMAN[ware.tier() - 1]).formatted(Formatting.DARK_GRAY));
 				}
-				tips.add(new Tip(x, y, x + colW() - 56, y + 20, lines));
+				tips.add(new Tip(x, y, x + colW() - 56, y + WARE_H - 1, lines));
 			}
 		}
 		// Room kept for the race's own artifacts and armour
