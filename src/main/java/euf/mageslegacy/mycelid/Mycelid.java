@@ -11,6 +11,7 @@ import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.race.Talents;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +68,13 @@ public final class Mycelid {
 	private static final int MOSS_INK = Fx.INK | 0x4E7A3A;
 	public static final int CLOUD_KILL_XP = 4;
 	public static final int DARK_KILL_XP = 3;
+	/** Experience from eating (raw mushrooms and stews together) and from kills, at most this much in ten minutes. */
+	private static final String DIET_XP = "mycelid_diet";
+	/** A taste lasts 45 seconds (a minute with Rich Tastes), and the same one comes back 2 minutes after it was eaten. */
+	private static final int TASTE_TICKS = 900;
+	private static final int TASTE_TICKS_RICH = 1200;
+	private static final int AFTERTASTE = 2400;
+	private static final int DIET_XP_CAP = 25;
 	private static final int JUMP_COOLDOWN = 30;
 	private static final int CLOUD_COOLDOWN = 200;
 	private static final int CLOUD_COOLDOWN_QUICK = 140;
@@ -96,6 +104,8 @@ public final class Mycelid {
 
 	private static final List<PendingJump> JUMPS = new ArrayList<>();
 	private static final List<Cloud> CLOUDS = new ArrayList<>();
+	/** When each player may taste each effect again. Not saved: a relog costs at most one aftertaste. */
+	private static final Map<UUID, Map<StatusEffect, Long>> TASTED = new HashMap<>();
 
 	private Mycelid() {
 	}
@@ -103,6 +113,7 @@ public final class Mycelid {
 	public static void reset() {
 		JUMPS.clear();
 		CLOUDS.clear();
+		TASTED.clear();
 		MycelidFx.reset();
 	}
 
@@ -118,6 +129,11 @@ public final class Mycelid {
 				|| below.isOf(Blocks.BROWN_MUSHROOM_BLOCK) || below.isOf(Blocks.MUSHROOM_STEM) || below.isOf(MagesLegacy.MYCELIUM_NODE);
 	}
 
+	/** Lands where no rain falls: deserts, savannas, badlands, the Nether and the End. */
+	public static boolean dry(ServerPlayerEntity player) {
+		return !player.getWorld().getBiome(player.getBlockPos()).value().hasPrecipitation();
+	}
+
 	public static boolean inSun(ServerPlayerEntity player) {
 		ServerWorld world = player.getServerWorld();
 		return world.getDimension().hasSkyLight() && world.isDay() && !world.isRaining()
@@ -128,12 +144,20 @@ public final class Mycelid {
 		boolean dark = inDark(player);
 		boolean mycelium = onMycelium(player);
 		boolean sun = inSun(player);
-		data.addResource(0.5f + (dark ? 0.5f : 0) + (mycelium ? 1.0f : 0));
+		// Dry lands starve the spores: they don't grow and the dark doesn't mend, unless the Mycelid stands on its own
+		// mycelium (Damp Flesh keeps half the growth)
+		boolean dry = dry(player) && !mycelium;
+		float growth = 0.5f + (dark ? 0.5f : 0) + (mycelium ? 1.0f : 0);
+		data.addResource(dry ? (data.has(Talents.FLESH_FIREPROOF) ? growth / 2 : 0) : growth);
+		// Fire eats the spores, fire resistance or not
+		if (player.isOnFire()) {
+			data.addResource(-5);
+		}
 
 		if (dark) {
 			refresh(player, StatusEffects.NIGHT_VISION, 0, 300, 220);
 		}
-		if (dark || mycelium) {
+		if ((dark && !dry) || mycelium) {
 			refresh(player, StatusEffects.REGENERATION, data.has(Talents.FLESH_DARK_REGEN) ? 1 : 0, 100, 20);
 		}
 		if (sun && !data.has(Talents.FLESH_SUNPROOF)) {
@@ -203,8 +227,16 @@ public final class Mycelid {
 		if (feast) {
 			player.heal(3);
 		}
-		taste(player, data, effect);
-		Progression.addXp(player, data, 5);
+		// A taste is a moment's strength, not a lasting one: the same taste comes back only after its aftertaste
+		Map<StatusEffect, Long> tasted = TASTED.computeIfAbsent(player.getUuid(), id -> new HashMap<>());
+		long now = now(player);
+		if (tasted.getOrDefault(effect, 0L) <= now) {
+			taste(player, data, effect);
+			tasted.put(effect, now + AFTERTASTE);
+		} else {
+			player.sendMessage(Text.translatable("mages_legacy.mycelid.aftertaste", (tasted.get(effect) - now + 19) / 20), true);
+		}
+		Progression.addXp(player, data, DIET_XP, 5, DIET_XP_CAP);
 		player.getItemCooldownManager().set(stack.getItem(), 10);
 		if (!player.getAbilities().creativeMode) {
 			stack.decrement(1);
@@ -230,7 +262,7 @@ public final class Mycelid {
 		// Tastes work from the inside: no swirl of particles in front of the eyes, only the icon
 		// Rich Tastes raise a level, but resistance from mushrooms stops at I: II would take 40% off every blow, always
 		int level = rich && effect != StatusEffects.RESISTANCE ? 1 : 0;
-		player.addStatusEffect(new StatusEffectInstance(effect, rich ? 2400 : 1200, level, false, false, true));
+		player.addStatusEffect(new StatusEffectInstance(effect, rich ? TASTE_TICKS_RICH : TASTE_TICKS, level, false, false, true));
 		data.dirty = true;
 	}
 
@@ -238,7 +270,7 @@ public final class Mycelid {
 	public static void afterEating(ServerPlayerEntity player, RaceData data, Item item, FoodComponent food) {
 		if (item == Items.MUSHROOM_STEW || item == Items.SUSPICIOUS_STEW) {
 			data.addResource(15);
-			Progression.addXp(player, data, 5);
+			Progression.addXp(player, data, DIET_XP, 5, DIET_XP_CAP);
 		} else if (food.isMeat() && !data.has(Talents.FLESH_MEAT)) {
 			int lost = food.getHunger() / 2;
 			player.getHungerManager().setFoodLevel(Math.max(0, player.getHungerManager().getFoodLevel() - lost));
@@ -449,7 +481,10 @@ public final class Mycelid {
 			burst(player, radius);
 		}
 		player.getWorld().playSound(null, player.getBlockPos(), SoundEvents.BLOCK_SPORE_BLOSSOM_BREAK, SoundCategory.PLAYERS, 1.2f, 0.6f);
-		Progression.addXp(player, data, 3);
+		// A cloud teaches only when it catches someone
+		if (!here.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(radius, 2, radius), e -> e instanceof Monster && e.isAlive()).isEmpty()) {
+			Progression.addXp(player, data, "mycelid_cloud", 3, 30);
+		}
 		return AbilityResult.OK;
 	}
 
@@ -529,10 +564,15 @@ public final class Mycelid {
 		if (!world.getBlockState(pos).isReplaceable() || !world.getBlockState(pos.down()).isSideSolidFullSquare(world, pos.down(), Direction.UP)) {
 			return AbilityResult.NO_SPACE;
 		}
+		boolean spreads = RaceState.get(world.getServer()).nodes(player.getUuid()).stream()
+				.noneMatch(n -> n.getDimension().equals(world.getRegistryKey()) && n.getPos().isWithinDistance(pos, 32));
 		placeNodeAt(world, pos, player.getUuid(), nodeLimit(data));
 		data.addResource(-NODE_COST);
 		cooldown(player, data, 2, NODE_COOLDOWN);
-		Progression.addXp(player, data, 5);
+		// Only a node that spreads the network teaches: not regrowing one on the same spot over and over
+		if (spreads) {
+			Progression.addXp(player, data, "mycelid_node", 5, 15);
+		}
 		return AbilityResult.OK;
 	}
 
@@ -671,7 +711,10 @@ public final class Mycelid {
 						}
 					}
 				}
-				Progression.addXp(player, data, 2);
+				// Only a jump in a fight teaches: hopping about an empty field would farm it
+				if (!world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(8), e -> e instanceof Monster && e.isAlive()).isEmpty()) {
+					Progression.addXp(player, data, "mycelid_jump", 2, 30);
+				}
 			}
 		}
 
@@ -747,10 +790,10 @@ public final class Mycelid {
 				if (data == null || data.race != Race.MYCELID) {
 					return;
 				}
-				Progression.addXp(owner, data, CLOUD_KILL_XP);
+				Progression.addXp(owner, data, Progression.HUNT, CLOUD_KILL_XP, Progression.HUNT_CAP);
 				if (data.has(Talents.SWARM_INFECTION)) {
 					data.addResource(10);
-					Progression.addXp(owner, data, 6);
+					Progression.addXp(owner, data, Progression.HUNT, 6, Progression.HUNT_CAP);
 				}
 				if (data.has(Talents.SWARM_BLOOM)) {
 					spawnCloud(cloud.world(), entity.getPos(), cloud.owner(), 3, cloud.potency(), 60);
@@ -764,7 +807,7 @@ public final class Mycelid {
 	public static void onKill(ServerPlayerEntity player, LivingEntity victim) {
 		RaceData data = RaceState.of(player);
 		if (data != null && data.race == Race.MYCELID && victim instanceof Monster && inDark(player)) {
-			Progression.addXp(player, data, DARK_KILL_XP);
+			Progression.addXp(player, data, Progression.HUNT, DARK_KILL_XP, Progression.HUNT_CAP);
 		}
 	}
 

@@ -216,7 +216,7 @@ public final class Bonds {
 		Fx.mark(world, mob.getPos(), mob, Math.max(1.0f, mob.getWidth() + 0.6f), 30, Shepherd.GOLD_RGB, Fx.RIPPLES);
 		// Only a new listener teaches the Shepherd anything: singing to the same beast again is no practice
 		if (fresh) {
-			Progression.addXp(player, data, 2);
+			Progression.addXp(player, data, "shepherd_song", 2, 20);
 		}
 		if (songs) {
 			// The parrot and the bat are won by the songs themselves
@@ -356,7 +356,7 @@ public final class Bonds {
 		ritual.listenUntil = Math.max(ritual.listenUntil, now + SONG_TICKS);
 		data.dirty = true;
 		fedEffects(player, mob);
-		Progression.addXp(player, data, 5);
+		Progression.addXp(player, data, "shepherd_ritual", 5, 40);
 		if (last) {
 			bond(player, data, mob, kind);
 		} else {
@@ -372,7 +372,7 @@ public final class Bonds {
 		}
 		consume(player, stack);
 		fedEffects(player, mob);
-		Progression.addXp(player, data, 5);
+		Progression.addXp(player, data, "shepherd_ritual", 5, 40);
 		bond(player, data, mob, kind);
 		return ActionResult.SUCCESS;
 	}
@@ -535,7 +535,7 @@ public final class Bonds {
 		world.playSound(null, mob.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.6f, 1.4f);
 		player.sendMessage(Text.translatable("mages_legacy.bond.done", mob.getDisplayName(),
 				Text.translatable("mages_legacy.beast." + kind.id() + ".skill_desc")).formatted(Formatting.GOLD), false);
-		Progression.addXp(player, data, 30);
+		Progression.addXp(player, data, "shepherd_bond", 30, 60);
 	}
 
 	/** Makes a loaded beast this Shepherd's: tags, trust, owner, its new goals. */

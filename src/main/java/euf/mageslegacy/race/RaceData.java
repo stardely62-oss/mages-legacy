@@ -39,6 +39,11 @@ public class RaceData {
 	public boolean dirty = true;
 	/** Whether sneak was held with the key being handled now (the Call's recall, the Rewind of an ally). Not saved. */
 	public boolean alt;
+	/**
+	 * Race experience taken from each capped source in the current window: source -> {window start (world time),
+	 * experience taken}. Saved, so leaving and coming back doesn't refill it. See {@link Progression#addXp(ServerPlayerEntity, RaceData, String, int, int)}.
+	 */
+	public final Map<String, long[]> xpTaken = new HashMap<>();
 	/** The legend and the choice of race were sent to the client this session. */
 	public boolean prompted;
 
@@ -58,10 +63,12 @@ public class RaceData {
 		dirty |= (int) before != (int) resource;
 	}
 
-	/** Experience needed to go from {@code level} to the next one. */
-	/** Experience from one level to the next: slow to climb, steeper the higher (about 120 000 in all to level 50). */
+	/**
+	 * Experience from one level to the next, steeper the higher: about 2 000 to level 10, 8 000 to 20, 19 000 to 30
+	 * and 67 000 to 50.
+	 */
 	public static int xpForNext(int level) {
-		return 60 + 30 * level + 2 * level * level;
+		return 50 + 20 * level + level * level;
 	}
 
 	/** Adds race experience; returns how many levels were gained. */
@@ -103,6 +110,7 @@ public class RaceData {
 		level = 0;
 		talents.clear();
 		tastes.clear();
+		xpTaken.clear();
 		shepherd.clear();
 		readyAt.clear();
 		chainLeft = 0;
@@ -124,6 +132,9 @@ public class RaceData {
 		NbtList tasteList = new NbtList();
 		tastes.forEach(t -> tasteList.add(NbtString.of(t)));
 		nbt.put("tastes", tasteList);
+		NbtCompound taken = new NbtCompound();
+		xpTaken.forEach((source, window) -> taken.putLongArray(source, window));
+		nbt.put("xp_taken", taken);
 		nbt.put("shepherd", shepherd.toNbt());
 		nbt.put("voidborn", voidborn.toNbt());
 		return nbt;
@@ -140,6 +151,13 @@ public class RaceData {
 		}
 		for (NbtElement e : nbt.getList("tastes", NbtElement.STRING_TYPE)) {
 			data.tastes.add(e.asString());
+		}
+		NbtCompound taken = nbt.getCompound("xp_taken");
+		for (String source : taken.getKeys()) {
+			long[] window = taken.getLongArray(source);
+			if (window.length == 2) {
+				data.xpTaken.put(source, window);
+			}
 		}
 		data.shepherd.readNbt(nbt.getCompound("shepherd"));
 		data.voidborn.readNbt(nbt.getCompound("voidborn"));

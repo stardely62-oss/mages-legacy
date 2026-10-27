@@ -56,6 +56,7 @@ declare -A P=(
   [flesh_hearty]="$ICON $MYC Subject: a big heart made of mushroom flesh, red and bone white, with a small green plus."
   [flesh_feast]="$ICON $MYC Subject: a wooden plate with three different mushrooms on it."
   [flesh_rebirth]="$ICON $MYC Subject: a small green mushroom sprout rising from grey ashes inside a glowing green halo ring."
+  [oblivion_scroll]="$ICON Palette of an ancient mage's relic: aged parchment cream and tan, antique gold (#D9B26F), and glowing arcane violet (#9B7FD4) as the accent. Subject: one rolled parchment scroll lying diagonally, half unrolled, a glowing violet rune on it fading into wisps of mist, sealed with a round gold wax seal."
   [ability_call]="$ICON $SHEP Subject: a pale cyan ghostly spirit rising out of a curved golden horn."
   [ability_rally]="$ICON $SHEP Subject: a golden war horn blowing, with three bold sound rings in front of it."
   [ability_swap]="$ICON $SHEP Subject: two bold curved arrows chasing each other in a circle, one gold and one ghostly cyan."

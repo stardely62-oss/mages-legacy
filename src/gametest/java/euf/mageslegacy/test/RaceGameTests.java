@@ -122,7 +122,7 @@ public class RaceGameTests implements FabricGameTest {
 		ServerPlayerEntity player = mycelid(ctx, ctx.getAbsolutePos(new BlockPos(1, 2, 1)));
 		RaceData data = RaceState.of(player);
 		check(Progression.unlock(player, data, Talents.SWARM_WIDE) == UnlockResult.NO_POINTS, "level 0 has no points");
-		Progression.addXp(player, data, 2000);
+		Progression.addXp(player, data, 1500);
 		check(data.freePoints() >= 6, "enough points now: " + data.freePoints());
 		check(Progression.unlock(player, data, Talents.SWARM_POTENT) == UnlockResult.NEEDS_TALENT, "the branch goes in order");
 		check(Progression.unlock(player, data, Talents.SWARM_WIDE) == UnlockResult.OK && data.has(Talents.SWARM_WIDE), "tier 1 opens at once");
@@ -137,6 +137,15 @@ public class RaceGameTests implements FabricGameTest {
 		check(data.level < 10 && Progression.openTiers(player) == 1, "the Nether alone isn't enough below level 10 (level " + data.level + ")");
 		Progression.addXp(player, data, 5000);
 		check(data.level >= 10 && Progression.openTiers(player) == 2, "the Nether and level 10 open tier 2");
+		// A source a farm could feed gives no more than its cap in ten minutes
+		RaceData probe = new RaceData();
+		probe.race = Race.MYCELID;
+		for (int i = 0; i < 20; i++) {
+			Progression.addXp(player, probe, "test_farm", 5, 25);
+		}
+		check(probe.xp == 25, "a capped source stops at its cap, got " + probe.xp);
+		Progression.addXp(player, probe, "test_other", 5, 25);
+		check(probe.xp == 30, "another source has its own cap, got " + probe.xp);
 		int before = data.freePoints();
 		check(Progression.unlock(player, data, Talents.SWARM_POTENT) == UnlockResult.OK, "tier 2 after the Nether");
 		check(data.freePoints() == before - 2, "tier 2 talents cost 2");
@@ -253,6 +262,25 @@ public class RaceGameTests implements FabricGameTest {
 		});
 	}
 
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "scroll")
+	public void theScrollOfOblivionGivesEveryPointBack(TestContext ctx) {
+		ServerPlayerEntity player = mycelid(ctx, ctx.getAbsolutePos(new BlockPos(1, 2, 1)));
+		RaceData data = RaceState.of(player);
+		data.addXp(5000);
+		int level = data.level;
+		data.talents.add(Talents.SWARM_WIDE);
+		data.talents.add(Talents.FLESH_HEARTY);
+		check(data.freePoints() < data.totalPoints(), "some points spent first");
+		player.setStackInHand(Hand.MAIN_HAND, new ItemStack(MagesLegacy.OBLIVION_SCROLL, 2));
+		check(MagesLegacy.OBLIVION_SCROLL.use(ctx.getWorld(), player, Hand.MAIN_HAND).getResult().isAccepted(), "the scroll is read");
+		check(data.talents.isEmpty() && data.freePoints() == data.totalPoints(), "every talent forgotten, every point back");
+		check(data.level == level && data.race == Race.MYCELID, "the race and its level stay");
+		check(player.getMainHandStack().getCount() == 1, "one scroll used up");
+		check(!MagesLegacy.OBLIVION_SCROLL.use(ctx.getWorld(), player, Hand.MAIN_HAND).getResult().isAccepted()
+				&& player.getMainHandStack().getCount() == 1, "nothing to forget: the scroll stays");
+		done(ctx, player);
+	}
+
 	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "diet")
 	public void mushroomsGiveSporesAndOneTasteAtATime(TestContext ctx) {
 		ServerPlayerEntity player = mycelid(ctx, ctx.getAbsolutePos(new BlockPos(1, 2, 1)));
@@ -268,10 +296,16 @@ public class RaceGameTests implements FabricGameTest {
 		check(player.hasStatusEffect(StatusEffects.RESISTANCE) && !player.hasStatusEffect(StatusEffects.STRENGTH),
 				"only one taste at a time: the older one fades");
 
-		data.talents.add(Talents.FLESH_TWO_TASTES);
+		// The same taste comes back only after its aftertaste: the mushroom still feeds, but gives no strength
 		player.getItemCooldownManager().remove(Items.RED_MUSHROOM);
-		check(Mycelid.eat(player, data, red), "red again");
-		check(player.hasStatusEffect(StatusEffects.RESISTANCE) && player.hasStatusEffect(StatusEffects.STRENGTH), "two tastes with the talent");
+		float sporesRed = data.resource;
+		check(Mycelid.eat(player, data, red), "red again is still food");
+		check(data.resource > sporesRed && !player.hasStatusEffect(StatusEffects.STRENGTH), "but the strength taste waits for its aftertaste");
+
+		data.talents.add(Talents.FLESH_TWO_TASTES);
+		check(Mycelid.eat(player, data, new ItemStack(Items.WARPED_FUNGUS)), "a warped fungus");
+		check(player.hasStatusEffect(StatusEffects.RESISTANCE) && player.hasStatusEffect(StatusEffects.SPEED), "two tastes with the talent");
+		check(player.getStatusEffect(StatusEffects.SPEED).getDuration() <= 900, "a taste lasts 45 seconds");
 
 		// Meat feeds a Mycelid half as well (8 hunger -> 4); goes through the eatFood mixin
 		player.getHungerManager().setFoodLevel(4);

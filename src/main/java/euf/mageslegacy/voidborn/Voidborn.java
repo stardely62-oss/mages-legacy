@@ -258,13 +258,14 @@ public final class Voidborn {
 		data.addResource(3);
 		// The dark is the void's own: a kill in it teaches more
 		if (player.getServerWorld().getLightLevel(BlockPos.ofFloored(player.getEyePos())) <= 7) {
-			Progression.addXp(player, data, 2);
+			Progression.addXp(player, data, Progression.HUNT, 2, Progression.HUNT_CAP);
 		}
 		if (data.has(Talents.WELL_HUNGER) && WELLS.stream().anyMatch(w -> w.owner() == player && w.pulled().contains(victim.getUuid()))) {
 			data.addResource(10);
 		}
+		// Kin of the void teach the most, though an enderman farm is no faster a road than any other hunt
 		if (victim instanceof EndermanEntity) {
-			Progression.addXp(player, data, 8);
+			Progression.addXp(player, data, Progression.HUNT, 8, Progression.HUNT_CAP);
 		}
 	}
 
@@ -518,7 +519,7 @@ public final class Voidborn {
 		world.spawnParticles(ModParticles.STAR, at.x, at.y + 1, at.z, 12, 0.6, 0.8, 0.6, 0.0);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 1.0f, 1.2f);
 		if (through) {
-			Progression.addXp(player, RaceState.of(player), 1);
+			Progression.addXp(player, RaceState.of(player), "voidborn_step", 1, 20);
 		}
 	}
 
@@ -638,7 +639,7 @@ public final class Voidborn {
 				}
 			}
 			if (data != null && !w.pulled().isEmpty()) {
-				Progression.addXp(owner, data, Math.min(8, w.pulled().size()));
+				Progression.addXp(owner, data, "voidborn_well", Math.min(8, w.pulled().size()), 40);
 			}
 			Fx.shake(owner, 1.6f, 10);
 		}
@@ -699,7 +700,7 @@ public final class Voidborn {
 			}
 		}
 		if (!ally) {
-			Progression.addXp(player, data, 3);
+			Progression.addXp(player, data, "voidborn_excise", 3, 30);
 		}
 		return AbilityResult.OK;
 	}

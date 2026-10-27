@@ -647,7 +647,7 @@ public final class Shepherd {
 		if (killer == owner) {
 			return;
 		}
-		Progression.addXp(owner, data, CREATURE_KILL_XP);
+		Progression.addXp(owner, data, Progression.HUNT, CREATURE_KILL_XP, Progression.HUNT_CAP);
 		if (Echoes.isEcho(killer) && data.has(Talents.LEGION_LEECH)) {
 			data.addResource(5);
 		}

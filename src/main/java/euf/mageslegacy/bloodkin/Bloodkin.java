@@ -178,17 +178,27 @@ public final class Bloodkin {
 		return data.resource < THIRST_BELOW;
 	}
 
-	/** Blood drunk: into the resource, and every 10 drops a point of race experience. */
+	/**
+	 * Blood drunk: into the resource, and every 10 drops of a monster's blood a point of race experience (a pen of
+	 * cows feeds the thirst, it doesn't teach).
+	 */
 	private static void drink(ServerPlayerEntity player, RaceData data, float blood) {
+		drink(player, data, blood, true);
+	}
+
+	private static void drink(ServerPlayerEntity player, RaceData data, float blood, boolean teaches) {
 		if (blood <= 0) {
 			return;
 		}
 		data.addResource(blood);
+		if (!teaches) {
+			return;
+		}
 		float total = DRUNK.getOrDefault(player.getUuid(), 0f) + blood;
 		int xp = (int) (total / 10);
 		DRUNK.put(player.getUuid(), total - xp * 10);
 		if (xp > 0) {
-			Progression.addXp(player, data, xp);
+			Progression.addXp(player, data, "bloodkin_drink", xp, 40);
 		}
 	}
 
@@ -347,7 +357,7 @@ public final class Bloodkin {
 			// In the Feast every blow is drunk: a stream of blood from the wound straight into the Bloodkin
 			Fx.tendril(world, victim, player, 12, WINE_INK, BLOOD_INK);
 		}
-		drink(player, data, Math.min(amount, 8));
+		drink(player, data, Math.min(amount, 8), victim instanceof Monster);
 		if (data.has(Talents.FANG_BLEED)) {
 			bleed(world, victim, player, data);
 		}
@@ -394,8 +404,9 @@ public final class Bloodkin {
 			player.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 100, 0, true, true, true));
 			player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 100, 0, true, true, true));
 		}
-		if (thirsty(data)) {
-			Progression.addXp(player, data, 4);
+		// Thirst teaches through the hunt, not the slaughter of a chicken pen
+		if (thirsty(data) && victim instanceof Monster) {
+			Progression.addXp(player, data, Progression.HUNT, 4, Progression.HUNT_CAP);
 			if (data.has(Talents.THIRST_RAGE)) {
 				data.addResource(15);
 			}
@@ -555,7 +566,7 @@ public final class Bloodkin {
 								spray.z * 0.35 + (world.getRandom().nextDouble() - 0.5) * 0.2, 1);
 					}
 				}
-				Progression.addXp(player, data, 1);
+				Progression.addXp(player, data, "bloodkin_dash", 1, 30);
 				if (data.has(Talents.FANG_TRAIL)) {
 					player.heal(3);
 				}
@@ -637,7 +648,7 @@ public final class Bloodkin {
 				Vec3d push = way.multiply(0.07 + world.getRandom().nextDouble() * 0.015);
 				world.spawnParticles(ModParticles.BLOOD_MOTE, at.x, at.y, at.z, 0, push.x, push.y, push.z, 1);
 			}
-			Progression.addXp(player, data, 2);
+			Progression.addXp(player, data, "bloodkin_harvest", 2, 30);
 			drawn++;
 		}
 		// The circle closes in on the Bloodkin, a seal of blood opening under its feet
@@ -730,7 +741,7 @@ public final class Bloodkin {
 				0.3, 0);
 		world.playSound(null, friend.getBlockPos(), SoundEvents.ENTITY_GENERIC_DRINK, SoundCategory.PLAYERS, 1.0f, 1.2f);
 		world.playSound(null, friend.getBlockPos(), SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 1.0f, 1.2f);
-		Progression.addXp(player, data, 3);
+		Progression.addXp(player, data, "bloodkin_transfuse", 3, 15);
 		return AbilityResult.OK;
 	}
 
@@ -884,7 +895,7 @@ public final class Bloodkin {
 				splash(b.world(), living, 3);
 				// Open Vein: the bleeding feeds its Bloodkin
 				if (owner != null && RaceState.of(owner).has(Talents.FANG_OPEN)) {
-					drink(owner, RaceState.of(owner), b.perSecond());
+					drink(owner, RaceState.of(owner), b.perSecond(), living instanceof Monster);
 				}
 				return false;
 			});

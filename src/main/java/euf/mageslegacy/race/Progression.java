@@ -72,8 +72,34 @@ public final class Progression {
 	public static void onKill(ServerPlayerEntity player, net.minecraft.entity.LivingEntity victim) {
 		RaceData data = RaceState.of(player);
 		if (data != null && data.race != null && victim instanceof net.minecraft.entity.mob.Monster) {
-			addXp(player, data, 1);
+			addXp(player, data, KILLS, 1, 60);
 		}
+	}
+
+	/** How long a capped source's window lasts: ten minutes of world time. */
+	public static final long XP_WINDOW = 12000;
+	/** Capped sources several abilities share: any monster killed, and a race's own hunting (kills its powers made). */
+	public static final String KILLS = "kills";
+	public static final String HUNT = "hunt";
+	public static final int HUNT_CAP = 80;
+
+	/**
+	 * Experience from a source that a farm could feed forever (a pile of mushrooms, a pen of chickens, an enderman
+	 * farm): at most {@code cap} from {@code source} in ten minutes, so the race grows by playing, not by repeating.
+	 */
+	public static void addXp(ServerPlayerEntity player, RaceData data, String source, int amount, int cap) {
+		long now = player.getServerWorld().getTime();
+		long[] window = data.xpTaken.get(source);
+		if (window == null || now - window[0] >= XP_WINDOW || now < window[0]) {
+			window = new long[] {now, 0};
+			data.xpTaken.put(source, window);
+		}
+		int allowed = (int) Math.min(amount, cap - window[1]);
+		if (allowed <= 0) {
+			return;
+		}
+		window[1] += allowed;
+		addXp(player, data, allowed);
 	}
 
 	public static void addXp(ServerPlayerEntity player, RaceData data, int amount) {

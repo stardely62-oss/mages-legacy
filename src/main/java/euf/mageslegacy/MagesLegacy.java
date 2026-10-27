@@ -4,6 +4,7 @@ import euf.mageslegacy.block.MyceliumNodeBlock;
 import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.fx.ModParticles;
+import euf.mageslegacy.item.OblivionScrollItem;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilitySlots;
@@ -32,12 +33,15 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.piston.PistonBehavior;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemGroups;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -46,6 +50,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.BlockSoundGroup;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.Rarity;
 import net.minecraft.util.TypedActionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +64,10 @@ public class MagesLegacy implements ModInitializer {
 			new MyceliumNodeBlock(FabricBlockSettings.copyOf(Blocks.RED_MUSHROOM_BLOCK).nonOpaque().noCollision()
 					.strength(0.5f).luminance(state -> 7).sounds(BlockSoundGroup.FUNGUS).pistonBehavior(PistonBehavior.DESTROY)));
 
+	/** The Scroll of Oblivion: gives back every talent point (see {@link OblivionScrollItem}). */
+	public static final Item OBLIVION_SCROLL = Registry.register(Registries.ITEM, id("oblivion_scroll"),
+			new OblivionScrollItem(new Item.Settings().maxCount(16).rarity(Rarity.RARE)));
+
 	public static Identifier id(String path) {
 		return new Identifier(MOD_ID, path);
 	}
@@ -66,6 +75,7 @@ public class MagesLegacy implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		Talents.init();
+		ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register(entries -> entries.add(OBLIVION_SCROLL));
 		ModParticles.register();
 		RacePackets.registerServerReceivers();
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> RaceCommand.register(dispatcher));

@@ -61,7 +61,7 @@ import org.joml.Vector3f;
 /**
  * Everything the Frozen do: sand of time as their resource, the trail of their last seconds, Blur (a blow now and
  * then passes through them), the Rewind back along that trail, the Frozen Dome, the Quickening of blocks; and their
- * weaknesses (slow natural healing, shorter potions, numbness when the sand lies unused).
+ * weaknesses (slow natural healing, shorter potions, numbness when the hourglass is full).
  */
 public final class Frozen {
 	public static final int REWIND_COST = 30;
@@ -101,7 +101,6 @@ public final class Frozen {
 	private static final int CURRENT_TICKS = 600;
 	private static final int CURRENT_COOLDOWN = 6000;
 	private static final int LONG_COOLDOWN = 12000;
-	private static final int NUMB_AFTER = 12000;
 	public static final float BLUR_CHANCE = 0.1f;
 	public static final float BLUR_CHANCE_OVERTAKE = 0.2f;
 
@@ -190,8 +189,7 @@ public final class Frozen {
 	/** Silhouettes left where a Rewind began: the frozen shape glints for a second. */
 	private static final List<Hold> SHAPES_AT = new ArrayList<>();
 	private static final List<Vec3d> SHAPES = new ArrayList<>();
-	/** When each Frozen last spent sand (numbness creeps in after long idleness), and sand spent towards experience. */
-	private static final Map<UUID, Long> SPENT_AT = new HashMap<>();
+	/** Sand spent towards experience. */
 	private static final Map<UUID, Float> SPENT = new HashMap<>();
 	private static boolean quickChanged;
 
@@ -211,7 +209,6 @@ public final class Frozen {
 		CURRENT.clear();
 		SHAPES_AT.clear();
 		SHAPES.clear();
-		SPENT_AT.clear();
 		SPENT.clear();
 	}
 
@@ -241,10 +238,9 @@ public final class Frozen {
 		data.dirty = true;
 	}
 
-	/** Takes the sand; spending wards off numbness and teaches: a point of race experience for every 10 grains. */
+	/** Takes the sand; spending teaches: a point of race experience for every 10 grains. */
 	private static void spend(ServerPlayerEntity player, RaceData data, float cost) {
 		data.addResource(-cost);
-		SPENT_AT.put(player.getUuid(), now(player.getServer()));
 		float total = SPENT.getOrDefault(player.getUuid(), 0f) + cost;
 		int xp = (int) (total / 10);
 		SPENT.put(player.getUuid(), total - xp * 10);
@@ -327,9 +323,8 @@ public final class Frozen {
 
 	public static void tickSecond(ServerPlayerEntity player, RaceData data) {
 		data.addResource(data.has(Talents.FLOW_SAND) ? 1.5f : 0.75f);
-		long now = now(player.getServer());
-		long spent = SPENT_AT.computeIfAbsent(player.getUuid(), id -> now);
-		if (now - spent > NUMB_AFTER) {
+		// A full hourglass stops: time stands still in the Frozen until they let some sand run
+		if (data.resource >= RaceData.MAX_RESOURCE) {
 			refresh(player, StatusEffects.SLOWNESS, 0, 60, 30);
 		}
 		if (data.has(Talents.FLOW_HASTE)) {
@@ -411,7 +406,7 @@ public final class Frozen {
 		Fx.ghosts(world, List.of(player.getPos(), player.getPos()), player.getYaw(), 1, 14, ICE_RGB);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.PLAYERS, 0.6f, 1.6f);
 		data.addResource(4);
-		Progression.addXp(player, data, 2);
+		Progression.addXp(player, data, "frozen_blur", 2, 20);
 		return true;
 	}
 
@@ -576,7 +571,7 @@ public final class Frozen {
 		cooldown(player, data, 0, data.has(Talents.LOOP_QUICK) ? REWIND_COOLDOWN_QUICK : REWIND_COOLDOWN);
 		// A Rewind right after a blow saved the Frozen from the next one: that teaches
 		if (target == player && player.hurtTime > 0) {
-			Progression.addXp(player, data, 5);
+			Progression.addXp(player, data, "frozen_rewind", 5, 25);
 		}
 		fly(target, player, data, trail, true);
 		return AbilityResult.OK;
@@ -912,7 +907,7 @@ public final class Frozen {
 			if (!d.stop && d.contains(entity) && d.rewarded.add(entity.getUuid())) {
 				ServerPlayerEntity owner = d.player;
 				if (!owner.isRemoved()) {
-					Progression.addXp(owner, RaceState.of(owner), 4);
+					Progression.addXp(owner, RaceState.of(owner), Progression.HUNT, 4, Progression.HUNT_CAP);
 				}
 			}
 		}
@@ -1003,7 +998,7 @@ public final class Frozen {
 		}
 		spend(player, data, cost);
 		cooldown(player, data, 2, QUICKEN_COOLDOWN);
-		Progression.addXp(player, data, 3);
+		Progression.addXp(player, data, "frozen_quicken", 3, 15);
 		// Say what was quickened and for how long: a furnace without fuel shows nothing by itself
 		long seconds = (until - now(player.getServer())) / 20;
 		Text what = added > 1 ? Text.translatable("mages_legacy.frozen.quickened_many", added)
