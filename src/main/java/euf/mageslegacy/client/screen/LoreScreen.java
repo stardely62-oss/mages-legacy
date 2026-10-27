@@ -42,8 +42,8 @@ public class LoreScreen extends Screen {
 		if (pageAt == 0) {
 			pageAt = Util.getMeasuringTimeMs();
 		}
-		backButton = addDrawableChild(new LegacyButton(width / 2 - 150, height - 28, 90, 20, Text.translatable("mages_legacy.screen.back"), b -> turn(-1)));
-		nextButton = addDrawableChild(new LegacyButton(width / 2 + 60, height - 28, 90, 20, Text.translatable("mages_legacy.screen.next"), b -> advance())
+		backButton = addDrawableChild(new LegacyButton(width / 2 - 170, height - 28, 110, 20, Text.translatable("mages_legacy.screen.back"), b -> turn(-1)));
+		nextButton = addDrawableChild(new LegacyButton(width / 2 + 60, height - 28, 110, 20, Text.translatable("mages_legacy.screen.next"), b -> advance())
 				.primary());
 	}
 

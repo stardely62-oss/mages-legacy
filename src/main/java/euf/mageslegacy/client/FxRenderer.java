@@ -2007,7 +2007,7 @@ public final class FxRenderer {
 			double edge = Math.abs(normal.normalize().dotProduct(toCam.normalize()));
 			if (edge < 0.25) {
 				Vec3d[] f = facing(c, cam);
-				star(vc, m, c, f[0], f[1], r * 0.45, 0.8f * (float) (1 - edge / 0.25) * alpha);
+				star(vc, m, c, f[0], f[1], Math.min(0.1, r * 0.45), 0.8f * (float) (1 - edge / 0.25) * alpha);
 			}
 		}
 	}

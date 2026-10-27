@@ -1115,10 +1115,12 @@ public class HarnessClient implements ClientModInitializer {
 	 * lags on CI, so a fixed wait would catch it too early or too late.
 	 */
 	private void shotWhen(String effect, float progress, String name) {
+		// The chat would cover the ground in front: cleared a frame before the picture is taken
+		steps.add(new Step(1, false, c -> c.inGameHud.getChatHud().clear(false), c -> FxRenderer.progressOf(effect) >= progress));
 		steps.add(new Step(2, false, c -> {
 			LOGGER.info("[harness] {} at {}", name, FxRenderer.describe());
 			screenshot(c, name);
-		}, c -> FxRenderer.progressOf(effect) >= progress));
+		}, null));
 	}
 
 	private void step(int waitAfter, boolean needsTerrain, Consumer<MinecraftClient> action) {
