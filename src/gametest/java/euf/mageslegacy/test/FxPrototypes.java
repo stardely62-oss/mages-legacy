@@ -191,6 +191,18 @@ final class FxPrototypes {
 
 	// ---- Lodestone: Malum's particle builder ----
 
+	/**
+	 * WorldParticleBuilder.create for a particle type, called by reflection: its other overloads name Porting Lib's
+	 * classes, which javac would have to see to choose between them.
+	 */
+	private static WorldParticleBuilder builder(LodestoneWorldParticleType type) {
+		try {
+			return (WorldParticleBuilder) WorldParticleBuilder.class.getMethod("create", LodestoneWorldParticleType.class).invoke(null, type);
+		} catch (ReflectiveOperationException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
 	private static LodestoneWorldParticleType type(String name) {
 		return (LodestoneWorldParticleType) Registries.PARTICLE_TYPE.get(new Identifier("lodestone", name));
 	}
@@ -203,7 +215,7 @@ final class FxPrototypes {
 	static void lodestoneKiss(Entity kissed, Entity kisser) {
 		World world = kissed.getWorld();
 		Vec3d top = kissed.getPos().add(0, kissed.getHeight() + 0.4, 0);
-		WorldParticleBuilder.create(type("wisp"))
+		builder(type("wisp"))
 				.setScaleData(GenericParticleData.create(0.45f, 0f).setEasing(Easing.QUARTIC_OUT).build())
 				.setTransparencyData(GenericParticleData.create(0.9f, 0f).setEasing(Easing.QUAD_IN).build())
 				.setColorData(ColorParticleData.create(ROSE_C, WINE_C).setCoefficient(1.4f).build())
@@ -213,7 +225,7 @@ final class FxPrototypes {
 				.setRandomOffset(0.3f)
 				.enableNoClip()
 				.repeat(world, top.x, top.y, top.z, 30);
-		WorldParticleBuilder.create(type("twinkle"))
+		builder(type("twinkle"))
 				.setScaleData(GenericParticleData.create(0.3f, 0f).build())
 				.setTransparencyData(GenericParticleData.create(1f, 0f).build())
 				.setColorData(ColorParticleData.create(PALE_C, ROSE_C).build())
@@ -227,7 +239,7 @@ final class FxPrototypes {
 			double u = i / 16.0;
 			Vec3d apex = from.lerp(to, 0.5).add(0, 1.2, 0);
 			Vec3d p = from.multiply((1 - u) * (1 - u)).add(apex.multiply(2 * (1 - u) * u)).add(to.multiply(u * u));
-			WorldParticleBuilder.create(type("wisp"))
+			builder(type("wisp"))
 					.setScaleData(GenericParticleData.create(0.25f, 0.05f).build())
 					.setTransparencyData(GenericParticleData.create(0.8f, 0f).build())
 					.setColorData(ColorParticleData.create(ROSE_C, PALE_C).build())
@@ -244,7 +256,7 @@ final class FxPrototypes {
 		Vec3d c = thrall.getPos().add(0, thrall.getHeight() + 0.5, 0);
 		for (int i = 0; i < 3; i++) {
 			double a = tick * 0.25 + i * Math.PI * 2 / 3;
-			WorldParticleBuilder.create(type("star"))
+			builder(type("star"))
 					.setScaleData(GenericParticleData.create(0.2f, 0f).build())
 					.setTransparencyData(GenericParticleData.create(0.9f, 0f).build())
 					.setColorData(ColorParticleData.create(ROSE_C, WINE_C).build())
@@ -253,7 +265,7 @@ final class FxPrototypes {
 					.enableNoClip()
 					.spawn(world, c.x + Math.cos(a) * 0.7, c.y, c.z + Math.sin(a) * 0.7);
 		}
-		WorldParticleBuilder.create(type("wisp"))
+		builder(type("wisp"))
 				.setScaleData(GenericParticleData.create(0.6f, 0f).build())
 				.setTransparencyData(GenericParticleData.create(0.25f, 0f).build())
 				.setColorData(ColorParticleData.create(ROSE_C, WINE_C).build())
