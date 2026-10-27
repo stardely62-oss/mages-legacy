@@ -5,6 +5,7 @@ import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.fx.ModParticles;
 import euf.mageslegacy.item.OblivionScrollItem;
+import euf.mageslegacy.mercenary.Mercenary;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilitySlots;
@@ -89,6 +90,7 @@ public class MagesLegacy implements ModInitializer {
 			Frozen.reset();
 			Bloodkin.reset();
 			Voidborn.reset();
+			Mercenary.reset();
 			Echoes.reset();
 			Creatures.reset();
 		});
@@ -130,7 +132,8 @@ public class MagesLegacy implements ModInitializer {
 		});
 		ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
 			if (entity instanceof ServerPlayerEntity player) {
-				return Mycelid.allowDeath(player) && Frozen.allowDeath(player) && Bloodkin.allowDeath(player) && Voidborn.allowDeath(player);
+				return Mycelid.allowDeath(player) && Frozen.allowDeath(player) && Bloodkin.allowDeath(player) && Voidborn.allowDeath(player)
+						&& Mercenary.allowDeath(player);
 			}
 			// Echoes fade and bonded beasts go to rest instead of dying
 			return Echoes.allowDeath(entity) && Bonds.allowDeath(entity);
@@ -140,6 +143,7 @@ public class MagesLegacy implements ModInitializer {
 				Mycelid.onKill(player, victim);
 				Bloodkin.onKill(player, victim);
 				Voidborn.onKill(player, victim);
+				Mercenary.onKill(player, victim);
 				Progression.onKill(player, victim);
 			}
 			Shepherd.onKill(killer, victim);
@@ -177,6 +181,7 @@ public class MagesLegacy implements ModInitializer {
 		Frozen.tick(server);
 		Bloodkin.tick(server);
 		Voidborn.tick(server);
+		Mercenary.tick(server);
 		int ticks = server.getTicks();
 		if (ticks % 20 == 0) {
 			Echoes.tickSecond(server);
@@ -198,6 +203,8 @@ public class MagesLegacy implements ModInitializer {
 					Bloodkin.tickSecond(player, data);
 				} else if (data.race == Race.VOIDBORN) {
 					Voidborn.tickSecond(player, data);
+				} else if (data.race == Race.MERCENARY) {
+					Mercenary.tickSecond(player, data);
 				}
 			}
 			// The client registers our channels a moment after joining, so the prompt waits for the tick

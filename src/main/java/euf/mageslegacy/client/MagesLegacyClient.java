@@ -3,6 +3,7 @@ package euf.mageslegacy.client;
 import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.client.screen.BestiaryScreen;
 import euf.mageslegacy.client.screen.LoreScreen;
+import euf.mageslegacy.client.screen.MercShopScreen;
 import euf.mageslegacy.client.screen.RaceSelectScreen;
 import euf.mageslegacy.client.screen.TalentScreen;
 import euf.mageslegacy.net.RacePackets;
@@ -117,7 +118,13 @@ public class MagesLegacyClient implements ClientModInitializer {
 			// H and X only where the race has something there (a talent not learnt yet still gets an answer)
 			if (pressed(client, ABILITY_KEYS[slot], slot) && ClientRaceState.race != null && RaceHud.hasAbilities(ClientRaceState.race)
 					&& AbilitySlots.talent(ClientRaceState.race, slot) != null) {
-				useAbility(slot);
+				// The Mercenary's H is the Mage's Shop, a screen of its own
+				if (ClientRaceState.race == Race.MERCENARY && slot == 3) {
+					RaceHud.pressed(slot);
+					client.setScreen(new MercShopScreen());
+				} else {
+					useAbility(slot);
+				}
 			}
 		}
 		if (pressed(client, TREE_KEY, ABILITY_KEYS.length)) {
@@ -244,6 +251,19 @@ public class MagesLegacyClient implements ClientModInitializer {
 		buf.writeString(echo);
 		buf.writeVarInt(delta);
 		ClientPlayNetworking.send(RacePackets.PRESET, buf);
+	}
+
+	/** The Mage's Shop: see {@link RacePackets#MERC}. */
+	public static void sendMerc(int action, int index, String ware) {
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeVarInt(action);
+		if (action <= 2) {
+			buf.writeVarInt(index);
+		}
+		if (action == 4) {
+			buf.writeString(ware);
+		}
+		ClientPlayNetworking.send(RacePackets.MERC, buf);
 	}
 
 	public static void sendUnlock(String talent) {

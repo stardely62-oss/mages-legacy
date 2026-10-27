@@ -9,7 +9,11 @@ public enum Race {
 	SHEPHERD(0xD9B26F, true),
 	FROZEN(0x8FB8DE, true),
 	BLOODKIN(0xB23A48, true),
-	VOIDBORN(0x9B7FD4, true);
+	VOIDBORN(0x9B7FD4, true),
+	MERCENARY(0xC8823C, true),
+	/** Sleeping races: their legend is told on the choice screen, their powers are still to come. */
+	TEMPTER(0xD46A8E, false),
+	MASKED(0xBFB6A3, false);
 
 	public final int color;
 	public final boolean playable;

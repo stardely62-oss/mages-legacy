@@ -91,6 +91,10 @@ public final class Progression {
 	 * farm): at most {@code cap} from {@code source} in ten minutes, so the race grows by playing, not by repeating.
 	 */
 	public static void addXp(ServerPlayerEntity player, RaceData data, String source, int amount, int cap) {
+		// Mercenaries learn from their contracts and nothing else
+		if (data.race == Race.MERCENARY) {
+			return;
+		}
 		long now = player.getServerWorld().getTime();
 		long[] window = data.xpTaken.get(source);
 		if (window == null || now - window[0] >= XP_WINDOW || now < window[0]) {

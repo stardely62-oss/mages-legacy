@@ -7,6 +7,7 @@ import euf.mageslegacy.client.MagesLegacyClient;
 import euf.mageslegacy.client.RaceHud;
 import euf.mageslegacy.client.screen.BestiaryScreen;
 import euf.mageslegacy.client.screen.LoreScreen;
+import euf.mageslegacy.client.screen.MercShopScreen;
 import euf.mageslegacy.client.screen.RaceSelectScreen;
 import euf.mageslegacy.client.screen.TalentScreen;
 import euf.mageslegacy.frozen.Frozen;
@@ -783,6 +784,72 @@ public class HarnessClient implements ClientModInitializer {
 		step(10, false, c -> c.setScreen(new TalentScreen()));
 		step(20, false, c -> {
 			screenshot(c, "talents_voidborn");
+			c.setScreen(null);
+		});
+
+		// ---- The Mercenaries: the Mage's Shop on H, a contract taken, a ware bought, a Strike on Credit ----
+		step(10, false, c -> commands(c, "race set @a mercenary", "race xp @a 20000", "kill @e[type=!player]"));
+		step(30, false, c -> {
+			check("mercenary_chosen", serverRace(c) == Race.MERCENARY && ClientRaceState.race == Race.MERCENARY);
+			KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[3].getDefaultKey());
+		});
+		step(20, false, c -> {
+			check("shop_opens", c.currentScreen instanceof MercShopScreen);
+			check("board_filled", ClientRaceState.extra.getList("offers", 10).size() == 3);
+			screenshot(c, "merc_board");
+			MagesLegacyClient.sendMerc(0, 0, "");
+		});
+		step(20, false, c -> {
+			UUID me = c.player.getUuid();
+			check("contract_taken", onServer(c, s -> RaceState.get(s).data(me).merc.active.size() == 1));
+			screenshot(c, "merc_board_taken");
+			onServer(c, s -> {
+				RaceData data = RaceState.get(s).data(me);
+				data.merc.tokens = 60;
+				RacePackets.sync(s.getPlayerManager().getPlayer(me), data);
+				return null;
+			});
+		});
+		step(10, false, c -> {
+			if (c.currentScreen instanceof MercShopScreen shop) {
+				shop.showShop(true);
+			}
+		});
+		step(20, false, c -> {
+			screenshot(c, "merc_shop");
+			MagesLegacyClient.sendMerc(4, 0, "arrows");
+		});
+		step(20, false, c -> {
+			UUID me = c.player.getUuid();
+			check("ware_bought", onServer(c, s -> RaceState.get(s).data(me).merc.tokens == 57
+					&& s.getPlayerManager().getPlayer(me).getInventory().count(Items.ARROW) >= 32));
+			c.setScreen(null);
+			onServer(c, s -> {
+				s.getPlayerManager().getPlayer(me).setHealth(20);
+				return null;
+			});
+		});
+		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
+		step(10, false, c -> {
+			UUID me = c.player.getUuid();
+			check("credit_strike_paid", onServer(c, s -> s.getPlayerManager().getPlayer(me).getHealth() < 20));
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+		});
+		step(5, false, c -> {
+			screenshot(c, "credit_strike");
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+			RaceSelectScreen screen = new RaceSelectScreen();
+			c.setScreen(screen);
+			screen.select(Race.MERCENARY);
+		});
+		step(10, false, c -> {
+			screenshot(c, "choose_mercenary");
+			if (c.currentScreen instanceof RaceSelectScreen screen) {
+				screen.select(Race.TEMPTER);
+			}
+		});
+		step(10, false, c -> {
+			screenshot(c, "choose_tempter");
 			c.setScreen(null);
 		});
 		step(20, false, this::finish);

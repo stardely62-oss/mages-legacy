@@ -14,7 +14,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 /**
- * Five race cards with their emblems on top; below, the chosen race: emblem, name and legend on the left, strengths,
+ * A card for every race with its emblem on top (the sleeping ones too, with their legend); below, the chosen race: emblem, name and legend on the left, strengths,
  * weaknesses and ability tiles on the right. What an ability does is in its tooltip. The legend and the traits
  * scroll with the wheel when a large GUI scale leaves them too little room.
  */
@@ -94,13 +94,17 @@ public class RaceSelectScreen extends Screen {
 		}
 	}
 
+	private static int cards() {
+		return Race.values().length;
+	}
+
 	private int cardWidth() {
-		return Math.min(110, (width - 24 - 4 * 8) / 5);
+		return Math.min(110, (width - 24 - (cards() - 1) * 6) / cards());
 	}
 
 	private int cardX(int index) {
-		int total = 5 * cardWidth() + 4 * 8;
-		return (width - total) / 2 + index * (cardWidth() + 8);
+		int total = cards() * cardWidth() + (cards() - 1) * 6;
+		return (width - total) / 2 + index * (cardWidth() + 6);
 	}
 
 	private int colWidth() {

@@ -3,6 +3,10 @@ package euf.mageslegacy.test;
 import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.frozen.Frozen;
+import euf.mageslegacy.mercenary.Contract;
+import euf.mageslegacy.mercenary.Contracts;
+import euf.mageslegacy.mercenary.Mercenary;
+import euf.mageslegacy.mercenary.Shop;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilityResult;
@@ -1242,6 +1246,98 @@ public class RaceGameTests implements FabricGameTest {
 				world.setChunkForced((at.getX() >> 4) + dx, (at.getZ() >> 4) + dz, false);
 			}
 		}
+	}
+
+	static ServerPlayerEntity mercenary(TestContext ctx, BlockPos at) {
+		ServerPlayerEntity player = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
+		player.changeGameMode(GameMode.SURVIVAL);
+		player.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
+		RaceState.of(player).reset(Race.MERCENARY);
+		return player;
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "merc_contracts", tickLimit = 100)
+	public void mercenariesGrowOnlyByContractsAndSpendTokensInTheShop(TestContext ctx) {
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(2, 2, 2));
+		ServerPlayerEntity player = mercenary(ctx, at);
+		RaceData data = RaceState.of(player);
+		// Kills and every other capped source teach a Mercenary nothing
+		Progression.addXp(player, data, Progression.KILLS, 1, 60);
+		check(data.xp == 0 && data.level == 0, "no race experience but from contracts");
+		// A new day lays out the board
+		Contracts.refresh(player, data);
+		check(data.merc.offers.size() == 3, "three offers on the board, got " + data.merc.offers.size());
+		check(Contracts.accept(player, data, 0) && data.merc.active.size() == 1 && data.merc.offers.size() == 2, "an offer taken in hand");
+		Contracts.accept(player, data, 0);
+		check(!Contracts.accept(player, data, 0) && data.merc.active.size() == 2, "two contracts in hand at most");
+		data.merc.active.clear();
+
+		// A hunt: two zombies
+		Contract hunt = new Contract(Contract.Kind.HUNT, "minecraft:zombie", 2, 1, false, 10, 80);
+		data.merc.active.add(hunt);
+		ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(2, 0, 0));
+		Contracts.onKill(player, data, zombie);
+		check(hunt.progress == 1 && data.merc.tokens == 0, "one of two");
+		Contracts.onKill(player, data, zombie);
+		check(data.merc.active.isEmpty() && data.merc.tokens == 10 && data.level == 1, "the hunt pays tokens and race experience, level " + data.level);
+
+		// Gathering: three iron ingots handed over from the inventory
+		Contract gather = new Contract(Contract.Kind.GATHER, "minecraft:iron_ingot", 3, 1, false, 10, 80);
+		data.merc.active.add(gather);
+		player.getInventory().insertStack(new ItemStack(Items.IRON_INGOT, 5));
+		check(Contracts.deliver(player, data, 0) && data.merc.active.isEmpty() && data.merc.tokens == 20, "the ingots are handed in");
+		check(player.getInventory().count(Items.IRON_INGOT) == 2, "and two stay, got " + player.getInventory().count(Items.IRON_INGOT));
+
+		// The shop: goods for anyone, learning for the Mercenary, dearer each time, three a day
+		check(Shop.buy(player, data, "arrows") && data.merc.tokens == 17 && player.getInventory().count(Items.ARROW) == 32, "arrows bought");
+		int xpBefore = data.xp + RaceData.xpForNext(0) * data.level;
+		data.merc.tokens = 100;
+		check(Shop.buy(player, data, "learning") && data.merc.tokens == 88, "learning costs 12");
+		check(Shop.buy(player, data, "learning") && data.merc.tokens == 70, "the second costs 18");
+		check(Shop.buy(player, data, "learning") && !Shop.buy(player, data, "learning"), "three a day");
+		check(data.xp + RaceData.xpForNext(0) * data.level > xpBefore, "learning teaches");
+		check(!Shop.buy(player, data, "netherite_scrap"), "netherite waits for the last tier");
+		zombie.discard();
+		done(ctx, player);
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "merc_deals", tickLimit = 100)
+	public void mercenaryDealsArePaidInHealthHungerAndArmour(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(2, 2, 1));
+		floor(world, at.add(-2, 0, -1), 5, 6);
+		ServerPlayerEntity player = mercenary(ctx, at);
+		RaceData data = RaceState.of(player);
+		ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(0, 0, 3));
+		// Strike on Credit: 3 health now, the next blow doubled; with no contract in hand the cooldown is half again
+		player.setHealth(20);
+		long now = world.getServer().getTicks();
+		check(Mercenary.use(player, data, 0) == AbilityResult.OK && Math.abs(player.getHealth() - 17) < 0.01f, "paid 3 health, now " + player.getHealth());
+		check(data.readyAt.get(0) - now >= 240, "no contract: a longer cooldown");
+		float struck = Mercenary.onHit(zombie, world.getDamageSources().playerAttack(player), 5);
+		check(Math.abs(struck - 10) < 0.01f, "the blow doubled, got " + struck);
+		check(Math.abs(Mercenary.onHit(zombie, world.getDamageSources().playerAttack(player), 5) - 5) < 0.01f, "only the one blow");
+		player.setHealth(4);
+		data.readyAt.clear();
+		check(Mercenary.use(player, data, 0) == AbilityResult.NO_RESOURCE, "never the last of one's health");
+		player.setHealth(20);
+
+		// The Exchange: the weakness goes to the zombie, its speed comes over, hunger pays (no poison: the undead shrug it off)
+		player.addStatusEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 200, 0));
+		zombie.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 200, 0));
+		player.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 12);
+		int food = player.getHungerManager().getFoodLevel();
+		check(Mercenary.use(player, data, 1) == AbilityResult.OK, "the exchange");
+		check(!player.hasStatusEffect(StatusEffects.WEAKNESS) && player.hasStatusEffect(StatusEffects.SPEED) && zombie.hasStatusEffect(StatusEffects.WEAKNESS)
+				&& player.getAbsorptionAmount() >= 4 && player.getHungerManager().getFoodLevel() == food - Mercenary.EXCHANGE_HUNGER, "effects and life traded");
+
+		// The Pledge: Resistance II for the wear of the armour
+		check(Mercenary.use(player, data, 2) == AbilityResult.HINTED, "nothing to pawn without armour");
+		player.equipStack(EquipmentSlot.CHEST, new ItemStack(Items.IRON_CHESTPLATE));
+		check(Mercenary.use(player, data, 2) == AbilityResult.OK && player.getStatusEffect(StatusEffects.RESISTANCE).getAmplifier() == 1
+				&& player.getEquippedStack(EquipmentSlot.CHEST).getDamage() > 0, "the armour pawned");
+		zombie.discard();
+		done(ctx, player);
 	}
 
 	static ServerPlayerEntity voidborn(TestContext ctx, BlockPos at) {

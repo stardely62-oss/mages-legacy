@@ -31,7 +31,7 @@ public final class LegacyUi {
 	public static final int BLACK = 0xFF050406;
 
 	/** The five race colours, for the legend's embers. */
-	private static final int[] RACE_COLORS = {0x7FB069, 0xD9B26F, 0x8FB8DE, 0xB23A48, 0x9B7FD4};
+	private static final int[] RACE_COLORS = {0x7FB069, 0xD9B26F, 0x8FB8DE, 0xB23A48, 0x9B7FD4, 0xC8823C, 0xD46A8E, 0xBFB6A3};
 
 	private static final Map<Identifier, Boolean> PRESENT = new HashMap<>();
 

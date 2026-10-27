@@ -203,6 +203,44 @@ public final class Talents {
 	public static final String POCKET_HOME = add("pocket_home", Race.VOIDBORN, 2, 3, 3, POCKET_WARD, Items.RECOVERY_COMPASS);
 	public static final String POCKET_HEARTH = add("pocket_hearth", Race.VOIDBORN, 2, 4, 5, POCKET_GARDEN, Items.RESPAWN_ANCHOR);
 
+	// Mercenaries: Deals (the abilities paid in blood, hunger and armour), Contracts (the work and the Mage's Shop),
+	// Craft (a professional's blows and hide).
+	public static final String DEAL_CHEAP = add("deal_cheap", Race.MERCENARY, 0, 1, 1, null, Items.REDSTONE);
+	public static final String DEAL_SHARP = add("deal_sharp", Race.MERCENARY, 0, 1, 1, null, Items.FLINT);
+	public static final String DEAL_LONG = add("deal_long", Race.MERCENARY, 0, 1, 1, null, Items.CLOCK);
+	public static final String DEAL_DOUBLE = add("deal_double", Race.MERCENARY, 0, 2, 2, DEAL_CHEAP, Items.IRON_SWORD);
+	public static final String DEAL_GREED = add("deal_greed", Race.MERCENARY, 0, 2, 2, DEAL_DOUBLE, Items.GOLD_INGOT);
+	public static final String DEAL_CURSE = add("deal_curse", Race.MERCENARY, 0, 2, 2, DEAL_SHARP, Items.FERMENTED_SPIDER_EYE);
+	public static final String DEAL_IRON = add("deal_iron", Race.MERCENARY, 0, 2, 2, DEAL_LONG, Items.IRON_CHESTPLATE);
+	public static final String DEAL_INTEREST = add("deal_interest", Race.MERCENARY, 0, 3, 3, DEAL_GREED, Items.GLISTERING_MELON_SLICE);
+	public static final String DEAL_FREE = add("deal_free", Race.MERCENARY, 0, 3, 3, DEAL_CURSE, Items.BREAD);
+	public static final String DEAL_BUYOUT = add("deal_buyout", Race.MERCENARY, 0, 3, 3, DEAL_IRON, Items.ANVIL);
+	public static final String DEAL_STAKE = add("deal_stake", Race.MERCENARY, 0, 4, 5, DEAL_INTEREST, Items.GOLD_BLOCK);
+
+	public static final String CON_SLOTS = add("con_slots", Race.MERCENARY, 1, 1, 1, null, Items.PAPER);
+	public static final String CON_TOKENS = add("con_tokens", Race.MERCENARY, 1, 1, 1, null, Items.GOLD_NUGGET);
+	public static final String CON_SCOUT = add("con_scout", Race.MERCENARY, 1, 1, 1, null, Items.SPYGLASS);
+	public static final String CON_OFFERS = add("con_offers", Race.MERCENARY, 1, 2, 2, CON_SLOTS, Items.BOOK);
+	public static final String CON_REROLL = add("con_reroll", Race.MERCENARY, 1, 2, 2, CON_OFFERS, Items.WRITABLE_BOOK);
+	public static final String CON_XP = add("con_xp", Race.MERCENARY, 1, 2, 2, CON_TOKENS, Items.EXPERIENCE_BOTTLE);
+	public static final String CON_BOUNTY = add("con_bounty", Race.MERCENARY, 1, 2, 2, CON_SCOUT, Items.BOW);
+	public static final String CON_ELITE = add("con_elite", Race.MERCENARY, 1, 3, 3, CON_REROLL, Items.WITHER_SKELETON_SKULL);
+	public static final String CON_DISCOUNT = add("con_discount", Race.MERCENARY, 1, 3, 3, CON_XP, Items.EMERALD);
+	public static final String CON_RUSH = add("con_rush", Race.MERCENARY, 1, 3, 3, CON_BOUNTY, Items.SUGAR);
+	public static final String CON_RANSOM = add("con_ransom", Race.MERCENARY, 1, 4, 5, CON_ELITE, Items.TOTEM_OF_UNDYING);
+
+	public static final String CRAFT_GRIP = add("craft_grip", Race.MERCENARY, 2, 1, 1, null, Items.STONE_SWORD);
+	public static final String CRAFT_HIDE = add("craft_hide", Race.MERCENARY, 2, 1, 1, null, Items.LEATHER_CHESTPLATE);
+	public static final String CRAFT_MARCH = add("craft_march", Race.MERCENARY, 2, 1, 1, null, Items.LEATHER_BOOTS);
+	public static final String CRAFT_RANGED = add("craft_ranged", Race.MERCENARY, 2, 2, 2, CRAFT_GRIP, Items.CROSSBOW);
+	public static final String CRAFT_EXECUTE = add("craft_execute", Race.MERCENARY, 2, 2, 2, CRAFT_RANGED, Items.IRON_AXE);
+	public static final String CRAFT_VETERAN = add("craft_veteran", Race.MERCENARY, 2, 2, 2, CRAFT_HIDE, Items.IRON_HELMET);
+	public static final String CRAFT_SECOND = add("craft_second", Race.MERCENARY, 2, 2, 2, CRAFT_MARCH, Items.GOLDEN_CARROT);
+	public static final String CRAFT_WOLF = add("craft_wolf", Race.MERCENARY, 2, 3, 3, CRAFT_EXECUTE, Items.BONE);
+	public static final String CRAFT_IRON = add("craft_iron", Race.MERCENARY, 2, 3, 3, CRAFT_VETERAN, Items.IRON_BLOCK);
+	public static final String CRAFT_MARK = add("craft_mark", Race.MERCENARY, 2, 3, 3, CRAFT_SECOND, Items.TARGET);
+	public static final String CRAFT_LEGEND = add("craft_legend", Race.MERCENARY, 2, 4, 5, CRAFT_WOLF, Items.NETHERITE_SWORD);
+
 	private Talents() {
 	}
 

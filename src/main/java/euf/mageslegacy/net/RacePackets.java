@@ -3,6 +3,9 @@ package euf.mageslegacy.net;
 import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.bloodkin.Bloodkin;
 import euf.mageslegacy.frozen.Frozen;
+import euf.mageslegacy.mercenary.Contracts;
+import euf.mageslegacy.mercenary.Mercenary;
+import euf.mageslegacy.mercenary.Shop;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.race.AbilityResult;
 import euf.mageslegacy.race.AbilitySlots;
@@ -40,6 +43,11 @@ public final class RacePackets {
 	public static final Identifier ECHOES = MagesLegacy.id("echoes");
 	/** Server to client: the quickened blocks of the client's world and the ticks each has left. */
 	public static final Identifier QUICKENED = MagesLegacy.id("quickened");
+	/**
+	 * The Mage's Shop: [0, index] takes an offered contract, [1, index] gives up one in hand, [2, index] hands over
+	 * what a gathering contract wants, [3] buys fresh offers, [4, ware id] buys a ware.
+	 */
+	public static final Identifier MERC = MagesLegacy.id("merc");
 	/** Server to client: an ability effect to draw (see {@link euf.mageslegacy.fx.Fx}). */
 	public static final Identifier FX = MagesLegacy.id("fx");
 
@@ -91,6 +99,28 @@ public final class RacePackets {
 				sync(player, data);
 			});
 		});
+		ServerPlayNetworking.registerGlobalReceiver(MERC, (server, player, handler, buf, sender) -> {
+			int action = buf.readVarInt();
+			int index = action <= 2 ? buf.readVarInt() : 0;
+			String id = action == 4 ? buf.readString(64) : "";
+			server.execute(() -> {
+				RaceData data = RaceState.of(player);
+				if (data == null || data.race != Race.MERCENARY) {
+					return;
+				}
+				Contracts.refresh(player, data);
+				switch (action) {
+					case 0 -> Contracts.accept(player, data, index);
+					case 1 -> Contracts.abandon(player, data, index);
+					case 2 -> Contracts.deliver(player, data, index);
+					case 3 -> Contracts.reroll(player, data);
+					case 4 -> Shop.buy(player, data, id);
+					default -> {
+					}
+				}
+				sync(player, data);
+			});
+		});
 		ServerPlayNetworking.registerGlobalReceiver(UNLOCK, (server, player, handler, buf, sender) -> {
 			String id = buf.readString(64);
 			server.execute(() -> {
@@ -113,6 +143,9 @@ public final class RacePackets {
 		player.sendMessage(Text.translatable("mages_legacy.message.chosen", Text.translatable(race.key())).formatted(Formatting.GOLD), false);
 		if (race == Race.SHEPHERD) {
 			player.sendMessage(Text.translatable("mages_legacy.message.shepherd_hint").formatted(Formatting.YELLOW), false);
+		}
+		if (race == Race.MERCENARY) {
+			player.sendMessage(Text.translatable("mages_legacy.message.mercenary_hint").formatted(Formatting.YELLOW), false);
 		}
 		sync(player, data);
 		return true;
@@ -137,6 +170,7 @@ public final class RacePackets {
 			case FROZEN -> Frozen.use(player, data, slot);
 			case BLOODKIN -> Bloodkin.use(player, data, slot);
 			case VOIDBORN -> Voidborn.use(player, data, slot);
+			case MERCENARY -> Mercenary.use(player, data, slot);
 			default -> AbilityResult.LOCKED;
 		};
 		if (result != AbilityResult.OK) {
@@ -183,7 +217,8 @@ public final class RacePackets {
 		}
 		buf.writeVarInt(data.chainLeft > 0 && now <= data.chainUntil ? data.chainLeft : 0);
 		// Race-specific extras: the Shepherd's capacity, bestiary and bonds
-		buf.writeNbt(data.race == Race.SHEPHERD ? Shepherd.clientInfo(player, data) : data.race == Race.VOIDBORN ? Voidborn.clientInfo(player) : new NbtCompound());
+		buf.writeNbt(data.race == Race.SHEPHERD ? Shepherd.clientInfo(player, data) : data.race == Race.VOIDBORN ? Voidborn.clientInfo(player)
+				: data.race == Race.MERCENARY ? Mercenary.clientInfo(player, data) : new NbtCompound());
 		ServerPlayNetworking.send(player, SYNC, buf);
 	}
 }

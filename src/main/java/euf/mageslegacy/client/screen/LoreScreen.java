@@ -108,10 +108,11 @@ public class LoreScreen extends Screen {
 			y += 5;
 		}
 
-		// Five emblems, one per people, lighting up as the story names them
+		// An emblem per people, lighting up as the story names them
 		int size = 20;
 		int gap = 10;
-		int ex = (width - 5 * size - 4 * gap) / 2;
+		int count = Race.values().length;
+		int ex = (width - count * size - (count - 1) * gap) / 2;
 		int ey = Math.min(height - 54, y + 6);
 		for (Race race : Race.values()) {
 			float a = Math.min(1, Math.max(0, (t - 0.6f - 2 * PARAGRAPH_DELAY - race.ordinal() * 0.25f) / FADE));

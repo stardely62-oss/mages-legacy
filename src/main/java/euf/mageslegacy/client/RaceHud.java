@@ -45,12 +45,15 @@ public final class RaceHud {
 	public static final String[] VOIDBORN_ABILITY_ICONS = {"ability_void_step", "ability_well", "ability_excise", "ability_pocket", "abyss_gaze"};
 	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.FEATHER, Items.NOTE_BLOCK, Items.WHITE_BANNER};
 	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_whistle", "ability_song", "legion_army"};
+	public static final Item[] MERCENARY_ICONS = {Items.REDSTONE, Items.EMERALD, Items.IRON_CHESTPLATE, Items.WRITABLE_BOOK, Items.GOLD_BLOCK};
+	public static final String[] MERCENARY_ABILITY_ICONS = {"ability_credit_strike", "ability_exchange", "ability_pledge", "ability_shop", "deal_stake"};
 
 	private RaceHud() {
 	}
 
 	public static boolean hasAbilities(Race race) {
-		return race == Race.MYCELID || race == Race.SHEPHERD || race == Race.FROZEN || race == Race.BLOODKIN || race == Race.VOIDBORN;
+		return race == Race.MYCELID || race == Race.SHEPHERD || race == Race.FROZEN || race == Race.BLOODKIN || race == Race.VOIDBORN
+				|| race == Race.MERCENARY;
 	}
 
 	/** The main abilities: three each; the Shepherds have a fourth (the Song), the Voidborn too (the Pocket). Keys past these: {@link #shown}. */
@@ -77,6 +80,7 @@ public final class RaceHud {
 			case FROZEN -> FROZEN_ABILITY_ICONS[slot];
 			case BLOODKIN -> BLOODKIN_ABILITY_ICONS[slot];
 			case VOIDBORN -> VOIDBORN_ABILITY_ICONS[slot];
+			case MERCENARY -> MERCENARY_ABILITY_ICONS[slot];
 			default -> null;
 		};
 	}
@@ -86,6 +90,10 @@ public final class RaceHud {
 	 * does (-1 while none is picked), Shadow for Shadow makes the swap cheaper.
 	 */
 	public static int cost(Race race, int slot) {
+		// The Mercenaries pay in health, hunger and armour, not from a bar
+		if (race == Race.MERCENARY) {
+			return 0;
+		}
 		if (race == Race.SHEPHERD) {
 			return switch (slot) {
 				case 0 -> squadCost(false);
@@ -176,6 +184,7 @@ public final class RaceHud {
 			case FROZEN -> "res_sand";
 			case BLOODKIN -> "res_blood";
 			case VOIDBORN -> "res_void";
+			case MERCENARY -> "res_contract";
 			default -> null;
 		};
 	}
@@ -194,6 +203,8 @@ public final class RaceHud {
 			ctx.drawItem(new ItemStack(BLOODKIN_ICONS[slot]), x, y);
 		} else if (race == Race.VOIDBORN) {
 			ctx.drawItem(new ItemStack(VOIDBORN_ICONS[slot]), x, y);
+		} else if (race == Race.MERCENARY) {
+			ctx.drawItem(new ItemStack(MERCENARY_ICONS[slot]), x, y);
 		} else if (race == Race.SHEPHERD) {
 			// The Call shows the first echo of its squad
 			EchoType echo = slot == 0 ? activeSquad().keySet().stream().findFirst().flatMap(EchoType::byId).orElse(null) : null;
@@ -291,7 +302,8 @@ public final class RaceHud {
 		if (icon != null && LegacyUi.exists(LegacyUi.icon(icon))) {
 			LegacyUi.icon(ctx, LegacyUi.icon(icon), barX - 18, h - 19, 16, true);
 		}
-		String amount = String.valueOf((int) ClientRaceState.resource);
+		// A Mercenary's bar is the first contract in hand, done so far
+		String amount = (int) ClientRaceState.resource + (race == Race.MERCENARY ? "%" : "");
 		ctx.drawText(tr, amount, barX + 3 - tr.getWidth(amount) / 2, barTop - 11, color, true);
 		if (race == Race.SHEPHERD) {
 			// Bond slots in use, over the voice icon; red when full
