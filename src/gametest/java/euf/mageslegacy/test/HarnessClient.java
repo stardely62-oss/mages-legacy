@@ -77,7 +77,8 @@ import org.slf4j.LoggerFactory;
 public class HarnessClient implements ClientModInitializer {
 	private static final Logger LOGGER = LoggerFactory.getLogger("mages_legacy-harness");
 
-	private record Step(int waitAfter, boolean needsTerrain, Consumer<MinecraftClient> action) {}
+	/** A step of the scenario: its action, then a wait; {@code until}, if given, holds the step back until it's true (or 100 ticks). */
+	private record Step(int waitAfter, boolean needsTerrain, Consumer<MinecraftClient> action, java.util.function.Predicate<MinecraftClient> until) {}
 
 	private final Deque<Step> steps = new ArrayDeque<>();
 	private final List<String> results = new ArrayList<>();
@@ -113,7 +114,19 @@ public class HarnessClient implements ClientModInitializer {
 			LOGGER.info("[harness] key clashes: {}", clashes.length() == 0 ? "none" : clashes);
 			check("no_key_clashes", clashes.length() == 0);
 		});
-		step(5, false, c -> screenshot(c, "lore"));
+		step(5, false, c -> {
+			screenshot(c, "lore");
+			if (c.currentScreen instanceof LoreScreen lore) {
+				lore.showPage(2);
+			}
+		});
+		step(5, false, c -> {
+			screenshot(c, "lore_division");
+			if (c.currentScreen instanceof LoreScreen lore) {
+				lore.showPage(4);
+			}
+		});
+		step(5, false, c -> screenshot(c, "lore_last"));
 		step(20, false, c -> {
 			if (c.currentScreen instanceof LoreScreen lore) {
 				lore.next();
@@ -876,7 +889,7 @@ public class HarnessClient implements ClientModInitializer {
 			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 			key(1);
 		});
-		step(6, false, c -> screenshot(c, "fx_merc_exchange"));
+		shotWhen("Exchange", 0.45f, "fx_merc_exchange");
 		step(4, false, c -> {
 			UUID me = c.player.getUuid();
 			onServer(c, s -> {
@@ -885,11 +898,11 @@ public class HarnessClient implements ClientModInitializer {
 			});
 			key(2);
 		});
-		step(4, false, c -> screenshot(c, "fx_merc_seal_falling"));
-		step(10, false, c -> screenshot(c, "fx_merc_seal_ring"));
+		shotWhen("Seal", 0.025f, "fx_merc_seal_falling");
+		shotWhen("Seal", 0.1f, "fx_merc_seal_ring");
 		step(9, false, c -> key(4));
-		step(10, false, c -> screenshot(c, "fx_merc_stake_flip"));
-		step(12, false, c -> screenshot(c, "fx_merc_stake_coins"));
+		shotWhen("Flip", 0.35f, "fx_merc_stake_flip");
+		shotWhen("Flip", 0.8f, "fx_merc_stake_coins");
 		step(10, false, c -> {
 			c.options.setPerspective(Perspective.FIRST_PERSON);
 			key(3);
@@ -898,7 +911,7 @@ public class HarnessClient implements ClientModInitializer {
 			c.setScreen(null);
 			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 		});
-		step(14, false, c -> screenshot(c, "fx_merc_door"));
+		shotWhen("Door", 0.45f, "fx_merc_door");
 
 		// ---- The Tempters: the Kiss's hearts, the Wings, the Charm's heart, the Lullaby's moons, the Broken Heart ----
 		step(10, false, c -> {
@@ -915,27 +928,27 @@ public class HarnessClient implements ClientModInitializer {
 			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 			key(0);
 		});
-		step(8, false, c -> screenshot(c, "fx_tempter_kiss"));
+		shotWhen("Hearts", 0.35f, "fx_tempter_kiss");
 		step(6, false, c -> key(1));
-		step(6, false, c -> screenshot(c, "fx_tempter_wings_up"));
-		step(8, false, c -> screenshot(c, "fx_tempter_wings_beat"));
+		shotWhen("Wings", 0.15f, "fx_tempter_wings_up");
+		shotWhen("Wings", 0.35f, "fx_tempter_wings_beat");
 		step(30, false, c -> {
 			resetCooldowns(c);
 			commands(c, "race resource @a 100");
 			tp(c, Vec3d.ofBottomCenter(arena).add(-4, 0, -1), Vec3d.ofBottomCenter(arena).add(2, 0.5, 3));
 		});
 		step(4, false, c -> key(2));
-		step(16, false, c -> screenshot(c, "fx_tempter_charm"));
+		shotWhen("Sigil", 0.1f, "fx_tempter_charm");
 		step(4, false, c -> {
 			commands(c, "race resource @a 100");
 			key(3);
 		});
-		step(14, false, c -> screenshot(c, "fx_tempter_lullaby"));
+		shotWhen("Lullaby", 0.3f, "fx_tempter_lullaby");
 		step(4, false, c -> {
 			commands(c, "race resource @a 100");
 			key(4);
 		});
-		step(12, false, c -> screenshot(c, "fx_tempter_heartbreak"));
+		shotWhen("Heartbreak", 0.55f, "fx_tempter_heartbreak");
 		step(10, false, c -> commands(c, "time set day", "kill @e[type=!player]"));
 
 		// ---- The Masked: a face torn off a weakened zombie, then a spider's; the wearer drawn as the monster ----
@@ -952,8 +965,8 @@ public class HarnessClient implements ClientModInitializer {
 			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 			KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey());
 		});
-		step(24, false, c -> {
-			screenshot(c, "fx_masked_tear");
+		shotWhen("Mask", 0.5f, "fx_masked_tear");
+		step(20, false, c -> {
 			c.options.setPerspective(Perspective.FIRST_PERSON);
 			UUID me = c.player.getUuid();
 			check("masked_zombie_face", onServer(c, s -> RaceState.get(s).data(me).masked.worn == Face.ZOMBIE));
@@ -988,18 +1001,18 @@ public class HarnessClient implements ClientModInitializer {
 			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 			key(1);
 		});
-		step(14, false, c -> screenshot(c, "fx_masked_web"));
+		shotWhen("Web", 0.35f, "fx_masked_web");
 		step(4, false, c -> key(2));
-		step(8, false, c -> screenshot(c, "fx_masked_change"));
+		shotWhen("Masks", 0.4f, "fx_masked_change");
 		step(10, false, c -> commands(c, "race resource @a 100", spider(arena.add(1, 0, 2), 0, 16), spider(arena.add(1, 0, -2), 0, 16)));
 		step(4, false, c -> key(3));
-		step(16, false, c -> screenshot(c, "fx_masked_kin"));
+		shotWhen("Sigil", 0.04f, "fx_masked_kin");
 		step(4, false, c -> {
 			commands(c, "race resource @a 100");
 			c.options.setPerspective(Perspective.THIRD_PERSON_FRONT);
 			key(4);
 		});
-		step(22, false, c -> screenshot(c, "fx_masked_thousand"));
+		shotWhen("Masks", 0.3f, "fx_masked_thousand");
 		step(5, false, c -> c.options.setPerspective(Perspective.FIRST_PERSON));
 		step(20, false, this::finish);
 
@@ -1097,8 +1110,19 @@ public class HarnessClient implements ClientModInitializer {
 
 	// ---- client-side helpers ----
 
+	/**
+	 * A screenshot taken once the effect {@code effect} is drawn and {@code progress} of the way through: the server
+	 * lags on CI, so a fixed wait would catch it too early or too late.
+	 */
+	private void shotWhen(String effect, float progress, String name) {
+		steps.add(new Step(2, false, c -> {
+			LOGGER.info("[harness] {} at {}", name, FxRenderer.describe());
+			screenshot(c, name);
+		}, c -> FxRenderer.progressOf(effect) >= progress));
+	}
+
 	private void step(int waitAfter, boolean needsTerrain, Consumer<MinecraftClient> action) {
-		steps.add(new Step(waitAfter, needsTerrain, action));
+		steps.add(new Step(waitAfter, needsTerrain, action, null));
 	}
 
 	private void tick(MinecraftClient client) {
@@ -1110,6 +1134,9 @@ public class HarnessClient implements ClientModInitializer {
 			return;
 		}
 		Step next = steps.peek();
+		if (next.until() != null && !next.until().test(client) && ticks < nextStepTick + 100) {
+			return;
+		}
 		if (next.needsTerrain() && !client.worldRenderer.isTerrainRenderComplete() && ticks < nextStepTick + 400) {
 			return;
 		}

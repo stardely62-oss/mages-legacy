@@ -1,7 +1,6 @@
 package euf.mageslegacy.client.screen;
 
 import euf.mageslegacy.race.Race;
-import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -12,17 +11,26 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 
 /**
- * The legend of the nameless mage, shown before the choice of race: the Codex illustration in a carved frame, the
- * paragraphs fading in one after another like a story being told, and the five emblems lighting up in turn below.
- * A click shows everything at once.
+ * The legend of the nameless mage, told as a short book before the choice of race: a page at a time, each with its
+ * picture and a line or two that write themselves out. The third page lights the eight emblems one by one, each with
+ * what the mage gave that people. A click finishes the writing, the next click turns the page.
  */
 public class LoreScreen extends Screen {
-	private static final Identifier ILLUSTRATION = LegacyUi.gui("lore_mage");
-	private static final float PARAGRAPH_DELAY = 0.9f;
-	private static final float FADE = 0.7f;
+	/** Pictures per page; a page whose picture isn't there yet shows the mage's. */
+	private static final String[] PICTURES = {"lore_people", "lore_mage", null, "lore_sleep", "lore_wake"};
+	private static final Identifier FALLBACK = LegacyUi.gui("lore_mage");
+	private static final int PAGES = PICTURES.length;
+	private static final int DIVISION = 2;
+	/** Letters written per second, and how long the page takes to fade in. */
+	private static final float LETTERS = 45;
+	private static final float FADE = 0.5f;
+	/** On the division page, one emblem every this many seconds. */
+	private static final float EMBLEM_EVERY = 0.45f;
 
-	private long openedAt;
+	private int page;
+	private long pageAt;
 	private boolean revealed;
+	private LegacyButton backButton;
 	private LegacyButton nextButton;
 
 	public LoreScreen() {
@@ -31,24 +39,61 @@ public class LoreScreen extends Screen {
 
 	@Override
 	protected void init() {
-		if (openedAt == 0) {
-			openedAt = Util.getMeasuringTimeMs();
+		if (pageAt == 0) {
+			pageAt = Util.getMeasuringTimeMs();
 		}
-		nextButton = addDrawableChild(new LegacyButton(width / 2 - 70, height - 28, 140, 20, Text.translatable("mages_legacy.screen.next"),
-				b -> next()).primary());
+		backButton = addDrawableChild(new LegacyButton(width / 2 - 150, height - 28, 90, 20, Text.translatable("mages_legacy.screen.back"), b -> turn(-1)));
+		nextButton = addDrawableChild(new LegacyButton(width / 2 + 60, height - 28, 90, 20, Text.translatable("mages_legacy.screen.next"), b -> advance())
+				.primary());
 	}
 
+	/** Straight to the choice of race (the harness, and the last page's button). */
 	public void next() {
 		client.setScreen(new RaceSelectScreen());
 	}
 
-	/** Skips the fade-in; also used by the harness before its screenshot. */
+	/** Finishes writing the page at once; also used by the harness before its screenshot. */
 	public void revealAll() {
 		revealed = true;
 	}
 
+	/** Opens a page already written out (the harness photographs them). */
+	public void showPage(int index) {
+		turn(index - page);
+		revealAll();
+	}
+
+	private void advance() {
+		if (!done()) {
+			revealAll();
+		} else if (page == PAGES - 1) {
+			next();
+		} else {
+			turn(1);
+		}
+	}
+
+	private void turn(int by) {
+		page = Math.max(0, Math.min(PAGES - 1, page + by));
+		pageAt = Util.getMeasuringTimeMs();
+		revealed = false;
+	}
+
 	private float elapsed() {
-		return revealed ? 1000 : (Util.getMeasuringTimeMs() - openedAt) / 1000f;
+		return revealed ? 1000 : (Util.getMeasuringTimeMs() - pageAt) / 1000f;
+	}
+
+	private Text text() {
+		return Text.translatable("mages_legacy.lore.page." + (page + 1));
+	}
+
+	/** Whether the page has finished writing itself out. */
+	private boolean done() {
+		float t = elapsed();
+		if (page == DIVISION) {
+			return t >= FADE + Race.values().length * EMBLEM_EVERY;
+		}
+		return t >= FADE + text().getString().length() / LETTERS;
 	}
 
 	@Override
@@ -56,7 +101,7 @@ public class LoreScreen extends Screen {
 		if (super.mouseClicked(mouseX, mouseY, button)) {
 			return true;
 		}
-		revealAll();
+		advance();
 		return true;
 	}
 
@@ -64,72 +109,110 @@ public class LoreScreen extends Screen {
 	public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
 		LegacyUi.background(ctx, width, height, null);
 		float t = elapsed();
-
+		float fade = Math.min(1, t / FADE);
 		LegacyUi.heading(ctx, title.copy().formatted(Formatting.BOLD), width / 2, 10, LegacyUi.GOLD);
-		int y = 26;
-
-		// The illustration, if there is room for it
-		int textWidth = Math.min(340, width - 60);
-		List<Text> paragraphs = Lines.of("mages_legacy.lore.intro");
-		List<List<OrderedText>> wrapped = new ArrayList<>();
-		int textHeight = 0;
-		for (Text paragraph : paragraphs) {
-			List<OrderedText> lines = textRenderer.wrapLines(paragraph.copy().formatted(Formatting.ITALIC), textWidth);
-			wrapped.add(lines);
-			textHeight += lines.size() * 10 + 5;
+		if (page == DIVISION) {
+			renderDivision(ctx, t, fade);
+		} else {
+			renderPage(ctx, t, fade);
 		}
-		int free = height - 26 - textHeight - 34 - 30 - 20;
-		int imageH = Math.min(96, free);
-		if (imageH >= 40 && LegacyUi.exists(ILLUSTRATION)) {
+		// Where we are in the book
+		int dots = PAGES * 12;
+		for (int i = 0; i < PAGES; i++) {
+			LegacyUi.diamond(ctx, width / 2 - dots / 2 + i * 12 + 6, height - 18, i == page ? 4 : 3, i == page ? LegacyUi.GOLD : LegacyUi.RIM);
+		}
+		backButton.visible = page > 0;
+		nextButton.setMessage(Text.translatable(page == PAGES - 1 && done() ? "mages_legacy.lore.choose" : "mages_legacy.screen.next"));
+		super.render(ctx, mouseX, mouseY, delta);
+	}
+
+	/** A picture as large as the screen allows above, the page's words writing themselves out below. */
+	private void renderPage(DrawContext ctx, float t, float fade) {
+		Text text = text();
+		int textWidth = Math.min(320, width - 60);
+		List<OrderedText> lines = textRenderer.wrapLines(text.copy().formatted(Formatting.ITALIC), textWidth);
+		int textHeight = lines.size() * 11;
+		int top = 28;
+		int room = height - top - textHeight - 70;
+		int imageH = Math.max(0, Math.min(room, Math.min(192, (width - 80) * 2 / 3)));
+		int y = top;
+		if (imageH >= 48) {
 			int imageW = imageH * 3 / 2;
 			int ix = (width - imageW) / 2;
-			LegacyUi.panel(ctx, ix - 3, y - 3, ix + imageW + 3, y + imageH + 3);
-			ctx.drawTexture(ILLUSTRATION, ix, y, imageW, imageH, 0, 0, 144, 96, 144, 96);
-			// The picture fades in from the dark first
-			float shown = Math.min(1, t / 1.2f);
-			if (shown < 1) {
-				ctx.fill(ix, y, ix + imageW, y + imageH, LegacyUi.alpha(0xFF000000, 1 - shown));
+			Identifier picture = PICTURES[page] == null ? FALLBACK : LegacyUi.gui(PICTURES[page]);
+			if (!LegacyUi.exists(picture)) {
+				picture = FALLBACK;
 			}
-			y += imageH + 10;
+			LegacyUi.panel(ctx, ix - 4, y - 4, ix + imageW + 4, y + imageH + 4);
+			if (LegacyUi.exists(picture)) {
+				ctx.drawTexture(picture, ix, y, imageW, imageH, 0, 0, 144, 96, 144, 96);
+			}
+			// The picture comes up out of the dark
+			if (fade < 1) {
+				ctx.fill(ix, y, ix + imageW, y + imageH, LegacyUi.alpha(0xFF000000, 1 - fade));
+			}
+			y += imageH + 14;
 		}
-
-		// The story
+		// The words, letter by letter, the newest letters still fading in
+		int shown = (int) Math.max(0, (t - FADE) * LETTERS);
 		int x = (width - textWidth) / 2;
-		LegacyUi.panel(ctx, x - 12, y - 6, x + textWidth + 12, y + textHeight + 2);
-		for (int i = 0; i < wrapped.size(); i++) {
-			float a = Math.min(1, Math.max(0, (t - 0.6f - i * PARAGRAPH_DELAY) / FADE));
-			int lift = (int) ((1 - a) * 4);
-			for (OrderedText line : wrapped.get(i)) {
-				if (a > 0.05f) {
-					ctx.drawText(textRenderer, line, x, y + lift, LegacyUi.alpha(LegacyUi.PARCHMENT, a), true);
-				}
-				y += 10;
+		int seen = 0;
+		for (OrderedText line : lines) {
+			StringBuilder sb = new StringBuilder();
+			line.accept((index, style, codePoint) -> {
+				sb.appendCodePoint(codePoint);
+				return true;
+			});
+			String full = sb.toString();
+			int take = Math.max(0, Math.min(full.length(), shown - seen));
+			if (take > 0) {
+				int lineWidth = textRenderer.getWidth(full);
+				Text part = Text.literal(full.substring(0, take)).formatted(Formatting.ITALIC);
+				ctx.drawText(textRenderer, part, (width - lineWidth) / 2, y, LegacyUi.PARCHMENT, true);
 			}
-			y += 5;
+			seen += full.length();
+			y += 11;
 		}
+	}
 
-		// An emblem per people, lighting up as the story names them
-		int size = 20;
-		int gap = 10;
-		int count = Race.values().length;
-		int ex = (width - count * size - (count - 1) * gap) / 2;
-		int ey = Math.min(height - 54, y + 6);
-		for (Race race : Race.values()) {
-			float a = Math.min(1, Math.max(0, (t - 0.6f - 2 * PARAGRAPH_DELAY - race.ordinal() * 0.25f) / FADE));
-			int cx = ex + size / 2;
+	/** The division: the eight peoples' emblems lighting up in turn, each with what the mage gave it. */
+	private void renderDivision(DrawContext ctx, float t, float fade) {
+		Text head = text();
+		ctx.drawCenteredTextWithShadow(textRenderer, head.copy().formatted(Formatting.ITALIC), width / 2, 30, LegacyUi.alpha(LegacyUi.PARCHMENT, fade));
+		Race[] races = Race.values();
+		int cols = 4;
+		int cellW = Math.min(150, (width - 40) / cols);
+		int cellH = Math.min(96, (height - 120) / 2);
+		int x0 = (width - cols * cellW) / 2;
+		int y0 = 48 + Math.max(0, (height - 120 - 2 * cellH) / 2);
+		int size = Math.min(48, cellH - 34);
+		for (Race race : races) {
+			int i = race.ordinal();
+			float a = Math.min(1, Math.max(0, (t - FADE - i * EMBLEM_EVERY) / 0.5f));
+			int cx = x0 + (i % cols) * cellW + cellW / 2;
+			int cy = y0 + (i / cols) * cellH;
+			int color = LegacyUi.argb(race.color);
 			if (a > 0) {
-				LegacyUi.glow(ctx, cx, ey + size / 2, 14, LegacyUi.argb(race.color), a);
+				LegacyUi.glow(ctx, cx, cy + size / 2, size, color, a * 0.8f);
 			}
 			if (LegacyUi.exists(LegacyUi.emblem(race))) {
-				LegacyUi.emblem(ctx, race, ex, ey, size, a > 0.5f);
+				LegacyUi.emblem(ctx, race, cx - size / 2, cy, size, a > 0.5f);
+				if (a < 1) {
+					ctx.fill(cx - size / 2, cy, cx + size / 2, cy + size, LegacyUi.alpha(0xFF000000, 0.75f * (1 - a)));
+				}
 			} else {
-				LegacyUi.diamond(ctx, cx, ey + size / 2, 5, LegacyUi.alpha(LegacyUi.argb(race.color), 0.3f + 0.7f * a));
+				LegacyUi.diamond(ctx, cx, cy + size / 2, size / 4, LegacyUi.alpha(color, 0.3f + 0.7f * a));
 			}
-			ex += size + gap;
+			if (a > 0) {
+				ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable("mages_legacy.race." + race.id()), cx, cy + size + 4, LegacyUi.alpha(color, a));
+				List<OrderedText> gift = textRenderer.wrapLines(Text.translatable("mages_legacy.race." + race.id() + ".gift").formatted(Formatting.ITALIC), cellW - 8);
+				int gy = cy + size + 15;
+				for (OrderedText line : gift) {
+					ctx.drawCenteredTextWithShadow(textRenderer, line, cx, gy, LegacyUi.alpha(LegacyUi.PARCHMENT, a));
+					gy += 10;
+				}
+			}
 		}
-
-		nextButton.active = t > 0.6f + (paragraphs.size() - 1) * PARAGRAPH_DELAY + FADE;
-		super.render(ctx, mouseX, mouseY, delta);
 	}
 
 	@Override

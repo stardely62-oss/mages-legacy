@@ -236,6 +236,19 @@ public final class FxRenderer {
 		return sb.toString().trim();
 	}
 
+	/** How far through the furthest-on effect of this kind is (0..1), or -1 if none is drawn: for the test harness. */
+	public static float progressOf(String kind) {
+		float best = -1;
+		for (List<Effect> list : List.of(EFFECTS, SCREENS)) {
+			for (Effect e : list) {
+				if (e.getClass().getSimpleName().equals(kind)) {
+					best = Math.max(best, (float) e.age / e.ticks);
+				}
+			}
+		}
+		return best;
+	}
+
 	/** Whether the server is carrying this player along a path right now (its steps are then smoothed). */
 	public static boolean inFlight() {
 		return ClientRaceState.clientTicks() <= flightUntil;
@@ -1994,7 +2007,7 @@ public final class FxRenderer {
 			double edge = Math.abs(normal.normalize().dotProduct(toCam.normalize()));
 			if (edge < 0.25) {
 				Vec3d[] f = facing(c, cam);
-				star(vc, m, c, f[0], f[1], r * 0.9, (float) (1 - edge / 0.25) * alpha);
+				star(vc, m, c, f[0], f[1], r * 0.45, 0.8f * (float) (1 - edge / 0.25) * alpha);
 			}
 		}
 	}
@@ -2154,7 +2167,7 @@ public final class FxRenderer {
 				double s = Math.max(0, t - (n - k) * 0.03);
 				trail.add(bezier(from, ctrl, to, s));
 				float head = (float) k / n;
-				widths[k] = 0.04f + 0.22f * head;
+				widths[k] = 0.06f + 0.36f * head;
 				colors[k] = lerpColor(color, 0xFFFFFF, head * 0.3f);
 				alphas[k] = head * 0.8f * fade;
 			}
@@ -2166,8 +2179,8 @@ public final class FxRenderer {
 			for (int i = 0; i < 12; i++) {
 				double a = Math.PI * 2 * i / 12;
 				Vec3d d = f[0].multiply(Math.cos(a)).add(f[1].multiply(Math.sin(a)));
-				rim.add(p.add(d.multiply(0.26)));
-				core.add(p.add(d.multiply(0.09)));
+				rim.add(p.add(d.multiply(0.42)));
+				core.add(p.add(d.multiply(0.14)));
 			}
 			fan(vc, m, p, rim, color, 0.7f * fade, 0);
 			fan(vc, m, p, core, 0xFFFFFF, 0.9f * fade, 0.3f * fade);
@@ -2295,8 +2308,8 @@ public final class FxRenderer {
 		void draw(Matrix4f m, VertexConsumer vc, Vec3d cam, float delta) {
 			float t = progress(delta);
 			float life = age + delta;
-			double w = 1.4;
-			double hs = 1.8;
+			double w = 1.8;
+			double hs = 2.3;
 			Vec3d up = new Vec3d(0, 1, 0);
 			// The frame: up one side, over the arch, down the other
 			List<Vec3d> frame = new ArrayList<>();
@@ -2406,7 +2419,7 @@ public final class FxRenderer {
 			float k = (t - 0.75f) / 0.25f;
 			flatRing(vc, m, base.add(0, 0.05, 0), 0.5 + 3.5 * k, 0.3 * (1 - k) + 0.05, rgb, 0.8f * (1 - k), 40);
 			Vec3d[] f = facing(c, cam);
-			star(vc, m, c, f[0], f[1], 0.6 * (1 - k) + 0.1, 1 - k);
+			star(vc, m, c, f[0], f[1], 0.35 * (1 - k) + 0.08, 1 - k);
 		}
 	}
 
@@ -2441,9 +2454,9 @@ public final class FxRenderer {
 			// The big heart at the source: in, one beat, out
 			float big = Math.min(1, life / 3f) * Math.max(0, 1 - life / (ticks * 0.7f));
 			if (big > 0) {
-				Vec3d c = pf.add(0, src.getHeight() * 0.35 + 0.3, 0);
+				Vec3d c = pf.add(0, src.getHeight() * 0.3 + 0.9, 0);
 				Vec3d[] f = facing(c, cam);
-				double size = 0.32 * (1 + 0.35 * heartbeat(Math.min(1, life / 14f)));
+				double size = 0.42 * (1 + 0.35 * heartbeat(Math.min(1, life / 14f)));
 				drawHeart(vc, m, c, f[0], f[1], f[2], size, rgb, 0x6A1838, big);
 			}
 			if (inkPass) {

@@ -517,7 +517,7 @@ public final class Mercenary {
 		ServerWorld world = player.getServerWorld();
 		Vec3d look = player.getRotationVec(1.0f).multiply(1, 0, 1);
 		look = look.lengthSquared() < 1.0E-4 ? new Vec3d(0, 0, 1) : look.normalize();
-		Fx.door(world, player.getPos().add(look.multiply(2.2)), player.getYaw(), 50, GOLD_RGB);
+		Fx.door(world, player.getPos().add(look.multiply(3.0)), player.getYaw(), 50, GOLD_RGB);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_WOODEN_DOOR_OPEN, SoundCategory.PLAYERS, 1.0f, 0.6f);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.0f, 1.2f);
 	}
