@@ -10,6 +10,7 @@ import euf.mageslegacy.mercenary.Shop;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilityResult;
+import euf.mageslegacy.tempter.Tempter;
 import euf.mageslegacy.race.Progression.UnlockResult;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
@@ -1337,6 +1338,68 @@ public class RaceGameTests implements FabricGameTest {
 		check(Mercenary.use(player, data, 2) == AbilityResult.OK && player.getStatusEffect(StatusEffects.RESISTANCE).getAmplifier() == 1
 				&& player.getEquippedStack(EquipmentSlot.CHEST).getDamage() > 0, "the armour pawned");
 		zombie.discard();
+		done(ctx, player);
+	}
+
+	static ServerPlayerEntity tempter(TestContext ctx, BlockPos at) {
+		ServerPlayerEntity player = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
+		player.changeGameMode(GameMode.SURVIVAL);
+		player.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
+		RaceState.of(player).reset(Race.TEMPTER);
+		return player;
+	}
+
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "tempter", tickLimit = 100)
+	public void temptersShareTheirWoundsAlongHeartThreads(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(3, 2, 1));
+		floor(world, at.add(-3, 0, -1), 7, 8);
+		ServerPlayerEntity player = tempter(ctx, at);
+		RaceData data = RaceState.of(player);
+		SpiderEntity left = beast(ctx, EntityType.SPIDER, at.add(-1, 0, 4));
+		SpiderEntity right = beast(ctx, EntityType.SPIDER, at.add(1, 0, 4));
+		ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(0, 0, 3));
+		left.setTarget(player);
+		right.setTarget(player);
+		zombie.setTarget(player);
+		Tempter.tickSecond(player, data);
+		check(Tempter.threaded(player).size() == 2, "two spiders on threads, the zombie has no heart: " + Tempter.threaded(player).size());
+
+		// A blow of 10: a tenth to each thread
+		player.timeUntilRegen = 0;
+		float spider = left.getHealth();
+		float taken = Tempter.modifyDamage(player, world.getDamageSources().mobAttack(left), 10);
+		check(Math.abs(taken - 8) < 0.01f, "the threads take 2 of 10, she takes " + taken);
+		check(left.getHealth() < spider, "and the spider feels its share");
+
+		// The Vow: half of an ally's wound comes to her
+		ServerPlayerEntity ally = (ServerPlayerEntity) ctx.createMockCreativeServerPlayerInWorld();
+		ally.changeGameMode(GameMode.SURVIVAL);
+		ally.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 2.5, 0, 0);
+		data.addResource(100);
+		player.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 20);
+		check(Tempter.use(player, data, 2) == AbilityResult.OK, "the vow to the ally in front");
+		ally.timeUntilRegen = 0;
+		float passed = Tempter.onAllyHurt(ally, world.getDamageSources().mobAttack(zombie), 10);
+		check(Math.abs(passed - 5) < 0.01f, "the ally keeps half, got " + passed);
+		ally.discard();
+
+		// The Gaze, the Kiss (never on the undead) and Jealousy
+		player.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 10);
+		data.addResource(100);
+		check(Tempter.use(player, data, 0) == AbilityResult.OK, "the gaze draws the monsters in front");
+		data.addResource(100);
+		player.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 20);
+		check(Tempter.use(player, data, 1) == AbilityResult.HINTED, "no kiss for the zombie in front");
+		zombie.discard();
+		player.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 14, 15);
+		player.setHealth(10);
+		check(Tempter.use(player, data, 1) == AbilityResult.OK && player.getHealth() > 10, "a kiss drinks the spider's life, now " + player.getHealth());
+		data.addResource(100);
+		check(Tempter.use(player, data, 3) == AbilityResult.OK, "jealousy between the two spiders");
+		check(Tempter.onHit(left, world.getDamageSources().playerAttack(player), 8) == 6, "her own hand is a quarter softer");
+		left.discard();
+		right.discard();
 		done(ctx, player);
 	}
 

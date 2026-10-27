@@ -425,7 +425,8 @@ public final class Mercenary {
 		if (staking && (melee || projectile)) {
 			bonus += 0.5f;
 		}
-		amount *= 1 + bonus;
+		// Everything that makes a blow harder adds up, to twice the blow at most (as the Bloodkin's)
+		amount *= 1 + Math.min(1.0f, bonus);
 		ServerWorld world = player.getServerWorld();
 		Strike strike = STRIKES.get(player.getUuid());
 		if (melee && strike != null && strike.until() >= now) {

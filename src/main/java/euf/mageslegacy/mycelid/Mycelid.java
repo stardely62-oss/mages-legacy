@@ -221,9 +221,15 @@ public final class Mycelid {
 			if (!node.getDimension().equals(world.getRegistryKey())) {
 				continue;
 			}
+			// The mycelium under them knows every step: they glow, and the threads in the ground hold them back
 			for (LivingEntity mob : world.getEntitiesByClass(LivingEntity.class, new Box(node.getPos()).expand(MIND_RADIUS),
 					e -> e instanceof Monster && e.isAlive())) {
 				mob.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 40, 0, true, false));
+				mob.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 40, 0, true, false));
+			}
+			// And the Mycelid on its own ground stands firm
+			if (node.getPos().isWithinDistance(player.getPos(), MIND_RADIUS)) {
+				refresh(player, StatusEffects.RESISTANCE, 0, 60, 30);
 			}
 		}
 	}

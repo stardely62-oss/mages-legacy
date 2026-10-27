@@ -241,6 +241,44 @@ public final class Talents {
 	public static final String CRAFT_MARK = add("craft_mark", Race.MERCENARY, 2, 3, 3, CRAFT_SECOND, Items.TARGET);
 	public static final String CRAFT_LEGEND = add("craft_legend", Race.MERCENARY, 2, 4, 5, CRAFT_WOLF, Items.NETHERITE_SWORD);
 
+	// Tempters: Threads (the tank: more threads, stronger, the Broken Heart), Kiss (drain and sustain, the Undying
+	// crown), Court (the party: vows, jealousy, auras).
+	public static final String THREAD_MORE = add("thread_more", Race.TEMPTER, 0, 1, 1, null, Items.RED_DYE);
+	public static final String THREAD_FAR = add("thread_far", Race.TEMPTER, 0, 1, 1, null, Items.STRING);
+	public static final String THREAD_GAZE = add("thread_gaze", Race.TEMPTER, 0, 1, 1, null, Items.ENDER_EYE);
+	public static final String THREAD_STING = add("thread_sting", Race.TEMPTER, 0, 2, 2, THREAD_MORE, Items.CACTUS);
+	public static final String THREAD_HOLD = add("thread_hold", Race.TEMPTER, 0, 2, 2, THREAD_STING, Items.COBWEB);
+	public static final String THREAD_PULL = add("thread_pull", Race.TEMPTER, 0, 2, 2, THREAD_FAR, Items.LEAD);
+	public static final String THREAD_FEED = add("thread_feed", Race.TEMPTER, 0, 2, 2, THREAD_GAZE, Items.PINK_TULIP);
+	public static final String THREAD_WARD = add("thread_ward", Race.TEMPTER, 0, 3, 3, THREAD_HOLD, Items.SHIELD);
+	public static final String THREAD_GUARD = add("thread_guard", Race.TEMPTER, 0, 3, 3, THREAD_PULL, Items.BELL);
+	public static final String THREAD_MEND = add("thread_mend", Race.TEMPTER, 0, 3, 3, THREAD_FEED, Items.GLISTERING_MELON_SLICE);
+	public static final String THREAD_BREAK = add("thread_break", Race.TEMPTER, 0, 4, 5, THREAD_WARD, Items.REDSTONE_BLOCK);
+
+	public static final String KISS_DEEP = add("kiss_deep", Race.TEMPTER, 1, 1, 1, null, Items.ROSE_BUSH);
+	public static final String KISS_CHEAP = add("kiss_cheap", Race.TEMPTER, 1, 1, 1, null, Items.SUGAR);
+	public static final String KISS_REACH = add("kiss_reach", Race.TEMPTER, 1, 1, 1, null, Items.FEATHER);
+	public static final String KISS_POISON = add("kiss_poison", Race.TEMPTER, 1, 2, 2, KISS_DEEP, Items.SPIDER_EYE);
+	public static final String KISS_CHARM = add("kiss_charm", Race.TEMPTER, 1, 2, 2, KISS_POISON, Items.POPPY);
+	public static final String KISS_QUICK = add("kiss_quick", Race.TEMPTER, 1, 2, 2, KISS_CHEAP, Items.RABBIT_FOOT);
+	public static final String KISS_SHARE = add("kiss_share", Race.TEMPTER, 1, 2, 2, KISS_REACH, Items.HONEY_BOTTLE);
+	public static final String KISS_LIFE = add("kiss_life", Race.TEMPTER, 1, 3, 3, KISS_CHARM, Items.GHAST_TEAR);
+	public static final String KISS_SHIELD = add("kiss_shield", Race.TEMPTER, 1, 3, 3, KISS_QUICK, Items.GOLDEN_APPLE);
+	public static final String KISS_ALLY = add("kiss_ally", Race.TEMPTER, 1, 3, 3, KISS_SHARE, Items.CAKE);
+	public static final String KISS_UNDYING = add("kiss_undying", Race.TEMPTER, 1, 4, 5, KISS_LIFE, Items.TOTEM_OF_UNDYING);
+
+	public static final String COURT_VOW = add("court_vow", Race.TEMPTER, 2, 1, 1, null, Items.GOLD_INGOT);
+	public static final String COURT_AURA = add("court_aura", Race.TEMPTER, 2, 1, 1, null, Items.AMETHYST_SHARD);
+	public static final String COURT_GOLEM = add("court_golem", Race.TEMPTER, 2, 1, 1, null, Items.POPPY);
+	public static final String COURT_JEALOUS = add("court_jealous", Race.TEMPTER, 2, 2, 2, COURT_VOW, Items.CLOCK);
+	public static final String COURT_QUARREL = add("court_quarrel", Race.TEMPTER, 2, 2, 2, COURT_JEALOUS, Items.IRON_SWORD);
+	public static final String COURT_CROWD = add("court_crowd", Race.TEMPTER, 2, 2, 2, COURT_AURA, Items.EMERALD);
+	public static final String COURT_COMPANY = add("court_company", Race.TEMPTER, 2, 2, 2, COURT_GOLEM, Items.LANTERN);
+	public static final String COURT_TWO_VOWS = add("court_two_vows", Race.TEMPTER, 2, 3, 3, COURT_QUARREL, Items.CHAIN);
+	public static final String COURT_RALLY = add("court_rally", Race.TEMPTER, 2, 3, 3, COURT_CROWD, Items.GOAT_HORN);
+	public static final String COURT_CHEAP_VOW = add("court_cheap_vow", Race.TEMPTER, 2, 3, 3, COURT_COMPANY, Items.BONE);
+	public static final String COURT_QUEEN = add("court_queen", Race.TEMPTER, 2, 4, 5, COURT_TWO_VOWS, Items.GOLDEN_HELMET);
+
 	private Talents() {
 	}
 

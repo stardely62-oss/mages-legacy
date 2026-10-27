@@ -36,6 +36,7 @@ public final class AbilitySlots {
 			case BLOODKIN -> Talents.FANG_FEAST;
 			case FROZEN -> Talents.FLOW_CURRENT;
 			case MERCENARY -> Talents.DEAL_STAKE;
+			case TEMPTER -> Talents.THREAD_BREAK;
 			default -> null;
 		};
 	}

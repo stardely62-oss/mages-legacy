@@ -11,8 +11,8 @@ public enum Race {
 	BLOODKIN(0xB23A48, true),
 	VOIDBORN(0x9B7FD4, true),
 	MERCENARY(0xC8823C, true),
-	/** Sleeping races: their legend is told on the choice screen, their powers are still to come. */
-	TEMPTER(0xD46A8E, false),
+	TEMPTER(0xD46A8E, true),
+	/** A sleeping race: its legend is told on the choice screen, its powers are still to come. */
 	MASKED(0xBFB6A3, false);
 
 	public final int color;

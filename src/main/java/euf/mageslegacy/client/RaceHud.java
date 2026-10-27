@@ -10,6 +10,7 @@ import euf.mageslegacy.race.Talents;
 import euf.mageslegacy.shepherd.Bonds;
 import euf.mageslegacy.shepherd.EchoType;
 import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.tempter.Tempter;
 import euf.mageslegacy.voidborn.Voidborn;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -47,13 +48,15 @@ public final class RaceHud {
 	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_whistle", "ability_song", "legion_army"};
 	public static final Item[] MERCENARY_ICONS = {Items.REDSTONE, Items.EMERALD, Items.IRON_CHESTPLATE, Items.WRITABLE_BOOK, Items.GOLD_BLOCK};
 	public static final String[] MERCENARY_ABILITY_ICONS = {"ability_credit_strike", "ability_exchange", "ability_pledge", "ability_shop", "deal_stake"};
+	public static final Item[] TEMPTER_ICONS = {Items.ENDER_EYE, Items.ROSE_BUSH, Items.LEAD, Items.FERMENTED_SPIDER_EYE, Items.REDSTONE_BLOCK};
+	public static final String[] TEMPTER_ABILITY_ICONS = {"ability_gaze", "ability_kiss", "ability_vow", "ability_jealousy", "thread_break"};
 
 	private RaceHud() {
 	}
 
 	public static boolean hasAbilities(Race race) {
 		return race == Race.MYCELID || race == Race.SHEPHERD || race == Race.FROZEN || race == Race.BLOODKIN || race == Race.VOIDBORN
-				|| race == Race.MERCENARY;
+				|| race == Race.MERCENARY || race == Race.TEMPTER;
 	}
 
 	/** The main abilities: three each; the Shepherds have a fourth (the Song), the Voidborn too (the Pocket). Keys past these: {@link #shown}. */
@@ -81,6 +84,7 @@ public final class RaceHud {
 			case BLOODKIN -> BLOODKIN_ABILITY_ICONS[slot];
 			case VOIDBORN -> VOIDBORN_ABILITY_ICONS[slot];
 			case MERCENARY -> MERCENARY_ABILITY_ICONS[slot];
+			case TEMPTER -> TEMPTER_ABILITY_ICONS[slot];
 			default -> null;
 		};
 	}
@@ -93,6 +97,15 @@ public final class RaceHud {
 		// The Mercenaries pay in health, hunger and armour, not from a bar
 		if (race == Race.MERCENARY) {
 			return 0;
+		}
+		if (race == Race.TEMPTER) {
+			return switch (slot) {
+				case 0 -> ClientRaceState.talents.contains(Talents.THREAD_GAZE) ? Tempter.GAZE_COST_CHEAP : Tempter.GAZE_COST;
+				case 1 -> ClientRaceState.talents.contains(Talents.KISS_CHEAP) ? Tempter.KISS_COST_CHEAP : Tempter.KISS_COST;
+				case 2 -> ClientRaceState.talents.contains(Talents.COURT_CHEAP_VOW) ? Tempter.VOW_COST_CHEAP : Tempter.VOW_COST;
+				case 3 -> Tempter.JEALOUSY_COST;
+				default -> Tempter.BREAK_COST;
+			};
 		}
 		if (race == Race.SHEPHERD) {
 			return switch (slot) {
@@ -185,6 +198,7 @@ public final class RaceHud {
 			case BLOODKIN -> "res_blood";
 			case VOIDBORN -> "res_void";
 			case MERCENARY -> "res_contract";
+			case TEMPTER -> "res_adoration";
 			default -> null;
 		};
 	}
@@ -205,6 +219,8 @@ public final class RaceHud {
 			ctx.drawItem(new ItemStack(VOIDBORN_ICONS[slot]), x, y);
 		} else if (race == Race.MERCENARY) {
 			ctx.drawItem(new ItemStack(MERCENARY_ICONS[slot]), x, y);
+		} else if (race == Race.TEMPTER) {
+			ctx.drawItem(new ItemStack(TEMPTER_ICONS[slot]), x, y);
 		} else if (race == Race.SHEPHERD) {
 			// The Call shows the first echo of its squad
 			EchoType echo = slot == 0 ? activeSquad().keySet().stream().findFirst().flatMap(EchoType::byId).orElse(null) : null;

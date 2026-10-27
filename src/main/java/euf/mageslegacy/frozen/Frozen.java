@@ -101,7 +101,8 @@ public final class Frozen {
 	private static final int CURRENT_SLOT = AbilitySlots.cooldownSlot(Race.FROZEN, 4);
 	private static final int CURRENT_TICKS = 600;
 	private static final int CURRENT_COOLDOWN = 6000;
-	private static final int LONG_COOLDOWN = 12000;
+	/** The Eternal Moment comes back in 20 minutes, like every race's one escape from death. */
+	private static final int LONG_COOLDOWN = 24000;
 	public static final float BLUR_CHANCE = 0.1f;
 	/** How long Quick Step and Quick Hand last after sand is spent. */
 	private static final int SPENT_TEMPO_TICKS = 160;

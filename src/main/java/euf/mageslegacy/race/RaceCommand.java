@@ -11,6 +11,7 @@ import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.shepherd.Shepherd;
 import euf.mageslegacy.mercenary.Mercenary;
+import euf.mageslegacy.tempter.Tempter;
 import euf.mageslegacy.voidborn.Pocket;
 import euf.mageslegacy.voidborn.Voidborn;
 import java.util.Arrays;
@@ -106,6 +107,9 @@ public final class RaceCommand {
 		}
 		if (data.race == Race.MERCENARY) {
 			Mercenary.cleanup(player);
+		}
+		if (data.race == Race.TEMPTER) {
+			Tempter.cleanup(player);
 		}
 		if (data.race == Race.VOIDBORN) {
 			Voidborn.cleanup(player);

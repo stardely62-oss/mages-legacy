@@ -15,6 +15,7 @@ import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.shepherd.Bonds;
 import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.tempter.Tempter;
 import euf.mageslegacy.voidborn.Voidborn;
 import java.util.Locale;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
@@ -147,6 +148,9 @@ public final class RacePackets {
 		if (race == Race.MERCENARY) {
 			player.sendMessage(Text.translatable("mages_legacy.message.mercenary_hint").formatted(Formatting.YELLOW), false);
 		}
+		if (race == Race.TEMPTER) {
+			player.sendMessage(Text.translatable("mages_legacy.message.tempter_hint").formatted(Formatting.YELLOW), false);
+		}
 		sync(player, data);
 		return true;
 	}
@@ -171,6 +175,7 @@ public final class RacePackets {
 			case BLOODKIN -> Bloodkin.use(player, data, slot);
 			case VOIDBORN -> Voidborn.use(player, data, slot);
 			case MERCENARY -> Mercenary.use(player, data, slot);
+			case TEMPTER -> Tempter.use(player, data, slot);
 			default -> AbilityResult.LOCKED;
 		};
 		if (result != AbilityResult.OK) {
@@ -218,7 +223,7 @@ public final class RacePackets {
 		buf.writeVarInt(data.chainLeft > 0 && now <= data.chainUntil ? data.chainLeft : 0);
 		// Race-specific extras: the Shepherd's capacity, bestiary and bonds
 		buf.writeNbt(data.race == Race.SHEPHERD ? Shepherd.clientInfo(player, data) : data.race == Race.VOIDBORN ? Voidborn.clientInfo(player)
-				: data.race == Race.MERCENARY ? Mercenary.clientInfo(player, data) : new NbtCompound());
+				: data.race == Race.MERCENARY ? Mercenary.clientInfo(player, data) : data.race == Race.TEMPTER ? Tempter.clientInfo(player) : new NbtCompound());
 		ServerPlayNetworking.send(player, SYNC, buf);
 	}
 }

@@ -67,7 +67,7 @@ public final class Shepherd {
 	private static final int GATHER_SLOT = 5;
 	private static final int GATHER_COOLDOWN = 160;
 	private static final int ARMY_SLOT = AbilitySlots.cooldownSlot(Race.SHEPHERD, 4);
-	private static final int ARMY_COOLDOWN = 12000;
+	private static final int ARMY_COOLDOWN = 6000;
 	private static final int ARMY_KINDS = 6;
 	private static final UUID FRAIL = UUID.fromString("2e8b5c1f-7a3d-4c6e-9f2b-1d5a8e3c7b99");
 

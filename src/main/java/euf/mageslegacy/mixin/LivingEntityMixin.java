@@ -8,6 +8,7 @@ import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.tempter.Tempter;
 import euf.mageslegacy.voidborn.Voidborn;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
@@ -45,7 +46,11 @@ public abstract class LivingEntityMixin {
 		amount = Frozen.onHit(self, source, amount);
 		amount = Bloodkin.onHit(self, source, amount);
 		amount = Mercenary.onHit(self, source, amount);
-		return Shepherd.modifyDamage(self, source, amount);
+		amount = Tempter.onHit(self, source, amount);
+		amount = Shepherd.modifyDamage(self, source, amount);
+		// Last: the Vow passes half of what's left to a Tempter, and her own threads share out what reaches her
+		amount = Tempter.onAllyHurt(self, source, amount);
+		return race == Race.TEMPTER ? Tempter.modifyDamage((ServerPlayerEntity) self, source, amount) : amount;
 	}
 
 	/** No friendly fire, no blow on a rewinding or blurred Frozen: it doesn't land at all (no knockback, no flash). */

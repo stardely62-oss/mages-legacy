@@ -6,6 +6,7 @@ import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.fx.ModParticles;
 import euf.mageslegacy.item.OblivionScrollItem;
 import euf.mageslegacy.mercenary.Mercenary;
+import euf.mageslegacy.tempter.Tempter;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.race.AbilitySlots;
@@ -91,6 +92,7 @@ public class MagesLegacy implements ModInitializer {
 			Bloodkin.reset();
 			Voidborn.reset();
 			Mercenary.reset();
+			Tempter.reset();
 			Echoes.reset();
 			Creatures.reset();
 		});
@@ -129,11 +131,12 @@ public class MagesLegacy implements ModInitializer {
 		ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
 			Mycelid.onDeath(entity);
 			Frozen.onDeath(entity);
+			Tempter.onDeath(entity, source);
 		});
 		ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
 			if (entity instanceof ServerPlayerEntity player) {
 				return Mycelid.allowDeath(player) && Frozen.allowDeath(player) && Bloodkin.allowDeath(player) && Voidborn.allowDeath(player)
-						&& Mercenary.allowDeath(player);
+						&& Mercenary.allowDeath(player) && Tempter.allowDeath(player);
 			}
 			// Echoes fade and bonded beasts go to rest instead of dying
 			return Echoes.allowDeath(entity) && Bonds.allowDeath(entity);
@@ -182,6 +185,7 @@ public class MagesLegacy implements ModInitializer {
 		Bloodkin.tick(server);
 		Voidborn.tick(server);
 		Mercenary.tick(server);
+		Tempter.tick(server);
 		int ticks = server.getTicks();
 		if (ticks % 20 == 0) {
 			Echoes.tickSecond(server);
@@ -205,6 +209,8 @@ public class MagesLegacy implements ModInitializer {
 					Voidborn.tickSecond(player, data);
 				} else if (data.race == Race.MERCENARY) {
 					Mercenary.tickSecond(player, data);
+				} else if (data.race == Race.TEMPTER) {
+					Tempter.tickSecond(player, data);
 				}
 			}
 			// The client registers our channels a moment after joining, so the prompt waits for the tick
