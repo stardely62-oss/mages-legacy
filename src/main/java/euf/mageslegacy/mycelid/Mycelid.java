@@ -60,7 +60,8 @@ public final class Mycelid {
 	public static final int CHAIN_COST = 5;
 	public static final int CLOUD_COST = 30;
 	public static final int NODE_COST = 40;
-	public static final int JUMP_DELAY = 8;
+	/** The longest flight of a spore jump, in ticks; see {@link #jumpDelay}. */
+	public static final int JUMP_DELAY = 17;
 	/** Glowing spore green, and dark moss laid on as real colour under it (see {@link Fx#INK}). */
 	private static final int SPORE_RGB = 0x9CFF8A;
 	private static final int MOSS_INK = Fx.INK | 0x4E7A3A;
@@ -86,7 +87,7 @@ public final class Mycelid {
 			Items.CRIMSON_FUNGUS, StatusEffects.FIRE_RESISTANCE,
 			Items.WARPED_FUNGUS, StatusEffects.SPEED);
 
-	private record PendingJump(UUID player, Vec3d target, long at, Vec3d from) {}
+	private record PendingJump(UUID player, Vec3d target, long at, Vec3d from, int ticks) {}
 
 	/** A spore cloud; one that follows sits on its owner while they are in the same world. */
 	private record Cloud(ServerWorld world, Vec3d center, UUID owner, double radius, int potency, long start, long until, boolean follows) {}
@@ -334,6 +335,11 @@ public final class Mycelid {
 		return data.has(Talents.NET_REACH) ? 22 : 16;
 	}
 
+	/** How long the spores fly to a spot this far: a far jump leaves the body standing longer. */
+	public static int jumpDelay(double distance) {
+		return Math.min(JUMP_DELAY, 6 + (int) Math.round(distance / 2));
+	}
+
 	public static AbilityResult sporeJump(ServerPlayerEntity player, RaceData data) {
 		long now = now(player);
 		boolean chained = data.chainLeft > 0 && now <= data.chainUntil;
@@ -347,7 +353,8 @@ public final class Mycelid {
 		if (JUMPS.stream().anyMatch(j -> j.player().equals(player.getUuid()))) {
 			return AbilityResult.COOLDOWN;
 		}
-		Vec3d target = landing(player, jumpRange(data));
+		// The chain's quick jumps are short hops, half the reach
+		Vec3d target = landing(player, chained ? jumpRange(data) / 2 : jumpRange(data));
 		if (target == null) {
 			return AbilityResult.NO_SPACE;
 		}
@@ -366,9 +373,10 @@ public final class Mycelid {
 		Fx.burst(world, player.getPos().add(0, 1, 0), 1.3f, 6, MOSS_INK);
 		// The body scatters into a puff of spores, and a comet of them flies ahead to where it will sprout
 		Fx.nebula(world, player.getPos(), null, 1.2f, 18, SPORE_RGB, 0xC8FFB0);
-		Fx.comet(world, player.getPos(), target, JUMP_DELAY, SPORE_RGB);
+		int delay = jumpDelay(target.distanceTo(player.getPos()));
+		Fx.comet(world, player.getPos(), target, delay, SPORE_RGB);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_FUNGUS_BREAK, SoundCategory.PLAYERS, 1.0f, 0.7f);
-		JUMPS.add(new PendingJump(player.getUuid(), target, now + JUMP_DELAY, player.getPos()));
+		JUMPS.add(new PendingJump(player.getUuid(), target, now + delay, player.getPos(), delay));
 		data.dirty = true;
 		return AbilityResult.OK;
 	}
@@ -609,7 +617,7 @@ public final class Mycelid {
 			if (jump.at() > now) {
 				ServerPlayerEntity flying = server.getPlayerManager().getPlayer(jump.player());
 				if (flying != null) {
-					double progress = 1 - (jump.at() - now) / (double) JUMP_DELAY;
+					double progress = 1 - (jump.at() - now) / (double) jump.ticks();
 					MycelidFx.arc(flying.getServerWorld(), jump.from(), jump.target(), progress);
 					MycelidFx.landingMark(flying.getServerWorld(), jump.target(), progress);
 				}

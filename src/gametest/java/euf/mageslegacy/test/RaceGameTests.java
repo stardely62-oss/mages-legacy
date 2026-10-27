@@ -312,6 +312,7 @@ public class RaceGameTests implements FabricGameTest {
 				double far = player.getPos().subtract(second).horizontalLength();
 				check(far > 12 && far <= 16.6, "a level jump should cover most of the 16 blocks, moved " + far);
 				// Looking up at the open sky: a spore never takes root in the air, it lands on a block or doesn't go
+				data.addResource(100);
 				Vec3d third = player.getPos();
 				player.refreshPositionAndAngles(third.x, third.y, third.z, 180, -50);
 				data.readyAt.clear();
