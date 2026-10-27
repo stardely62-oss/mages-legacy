@@ -373,7 +373,10 @@ public final class Mycelid {
 		return AbilityResult.OK;
 	}
 
-	/** Where the spore lands along the look: the block it hits (on top), or the end of the reach; null if no room. */
+	/**
+	 * Where the spore lands along the look: on top of the block it hits, or on whatever block is under the end of the
+	 * reach, never in the air; null if there is nothing to take root on.
+	 */
 	public static Vec3d landing(ServerPlayerEntity player, double range) {
 		ServerWorld world = player.getServerWorld();
 		Vec3d eye = player.getEyePos();
@@ -399,7 +402,7 @@ public final class Mycelid {
 		return null;
 	}
 
-	/** Lets the body settle on ground up to 4 blocks below; null if it is stuck in a block on the way down. */
+	/** Lets the body settle on a block up to 4 blocks below; null if it is stuck on the way down or there is nothing to land on. */
 	private static Vec3d drop(ServerPlayerEntity player, Vec3d feet) {
 		ServerWorld world = player.getServerWorld();
 		for (double down = 0; down <= 4; down += 0.25) {
@@ -411,8 +414,8 @@ public final class Mycelid {
 				return feet.subtract(0, down, 0);
 			}
 		}
-		// Nothing below within 4 blocks: hang where the spore is and fall from there
-		return feet;
+		// Nothing below within 4 blocks: a spore can't take root in the air
+		return null;
 	}
 
 	public static AbilityResult sporeCloud(ServerPlayerEntity player, RaceData data) {

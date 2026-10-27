@@ -283,7 +283,7 @@ public class RaceGameTests implements FabricGameTest {
 		done(ctx, player);
 	}
 
-	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "jump", tickLimit = 150)
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "jump", tickLimit = 200)
 	public void sporeJumpSproutsWhereYouLook(TestContext ctx) {
 		ServerWorld world = ctx.getWorld();
 		BlockPos start = ctx.getAbsolutePos(new BlockPos(1, 2, 0));
@@ -311,7 +311,18 @@ public class RaceGameTests implements FabricGameTest {
 			ctx.waitAndRun(Mycelid.JUMP_DELAY + 3, () -> {
 				double far = player.getPos().subtract(second).horizontalLength();
 				check(far > 12 && far <= 16.6, "a level jump should cover most of the 16 blocks, moved " + far);
-				done(ctx, player);
+				// Looking up at the open sky: a spore never takes root in the air, it lands on a block or doesn't go
+				Vec3d third = player.getPos();
+				player.refreshPositionAndAngles(third.x, third.y, third.z, 180, -50);
+				data.readyAt.clear();
+				data.chainLeft = 0;
+				AbilityResult up = Mycelid.sporeJump(player, data);
+				ctx.waitAndRun(Mycelid.JUMP_DELAY + 3, () -> {
+					check(up == AbilityResult.OK || up == AbilityResult.NO_SPACE, "a jump at the sky: " + up);
+					check(!world.isSpaceEmpty(player, player.getBoundingBox().offset(0, -0.3, 0)),
+							"never left hanging in the air, now at " + player.getPos());
+					done(ctx, player);
+				});
 			});
 		});
 	}
