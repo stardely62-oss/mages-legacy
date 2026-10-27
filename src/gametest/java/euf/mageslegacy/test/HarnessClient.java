@@ -2,6 +2,8 @@ package euf.mageslegacy.test;
 
 import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.client.ClientRaceState;
+import euf.mageslegacy.client.FaceVisuals;
+import euf.mageslegacy.masked.Face;
 import euf.mageslegacy.client.FxRenderer;
 import euf.mageslegacy.client.MagesLegacyClient;
 import euf.mageslegacy.client.RaceHud;
@@ -136,7 +138,13 @@ public class HarnessClient implements ClientModInitializer {
 				screen.select(Race.TEMPTER);
 			}
 		});
-		step(10, false, c -> screenshot(c, "choose_tempter"));
+		step(10, false, c -> {
+			screenshot(c, "choose_tempter");
+			if (c.currentScreen instanceof RaceSelectScreen screen) {
+				screen.select(Race.MASKED);
+			}
+		});
+		step(10, false, c -> screenshot(c, "choose_masked"));
 		step(20, false, c -> {
 			if (c.currentScreen instanceof RaceSelectScreen screen) {
 				screen.select(Race.MYCELID);
@@ -850,6 +858,41 @@ public class HarnessClient implements ClientModInitializer {
 		step(5, false, c -> {
 			screenshot(c, "credit_strike");
 			c.options.setPerspective(Perspective.FIRST_PERSON);
+		});
+
+		// ---- The Masked: a face torn off a weakened zombie, then a spider's; the wearer drawn as the monster ----
+		step(10, false, c -> {
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+			commands(c, "race set @a masked", "race xp @a 20000", "race resource @a 100", "kill @e[type=!player]",
+					String.format(Locale.ROOT, "summon zombie %d %d %d {NoAI:1b,Health:4f}", arena.getX(), arena.getY(), arena.getZ()));
+		});
+		step(20, false, c -> {
+			check("masked_chosen", serverRace(c) == Race.MASKED && ClientRaceState.race == Race.MASKED);
+			tp(c, Vec3d.ofBottomCenter(arena).add(-3, 0, 0), Vec3d.ofBottomCenter(arena).add(0, 1, 0));
+		});
+		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
+		step(30, false, c -> {
+			UUID me = c.player.getUuid();
+			check("masked_zombie_face", onServer(c, s -> RaceState.get(s).data(me).masked.worn == Face.ZOMBIE));
+			check("masked_drawn_as_zombie", FaceVisuals.of(c.player.getId()) == Face.ZOMBIE);
+			c.options.setPerspective(Perspective.THIRD_PERSON_FRONT);
+		});
+		step(10, false, c -> {
+			screenshot(c, "masked_zombie");
+			resetCooldowns(c);
+			commands(c, String.format(Locale.ROOT, "summon spider %d %d %d {NoAI:1b,Health:3f}", arena.getX(), arena.getY(), arena.getZ()));
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+		});
+		step(10, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[0].getDefaultKey()));
+		step(30, false, c -> {
+			check("masked_drawn_as_spider", FaceVisuals.of(c.player.getId()) == Face.SPIDER);
+			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+		});
+		step(10, false, c -> screenshot(c, "masked_spider"));
+		step(10, false, c -> {
+			c.options.setPerspective(Perspective.FIRST_PERSON);
+			// The HUD with the face's egg on V and Z
+			screenshot(c, "masked_hud");
 		});
 		step(20, false, this::finish);
 

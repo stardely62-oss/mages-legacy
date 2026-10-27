@@ -38,6 +38,11 @@ public final class FaceVisuals {
 		BODIES.int2ObjectEntrySet().removeIf(e -> FACES.get(e.getIntKey()) == null || !FACES.get(e.getIntKey()).look().equals(e.getValue().getType()));
 	}
 
+	/** The face this entity is drawn in, or null. */
+	public static Face of(int entityId) {
+		return FACES.get(entityId);
+	}
+
 	public static void clear() {
 		FACES.clear();
 		BODIES.clear();
