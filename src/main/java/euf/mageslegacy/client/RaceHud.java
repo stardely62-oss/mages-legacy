@@ -50,8 +50,8 @@ public final class RaceHud {
 	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_whistle", "ability_song", "legion_army"};
 	public static final Item[] MERCENARY_ICONS = {Items.REDSTONE, Items.EMERALD, Items.IRON_CHESTPLATE, Items.WRITABLE_BOOK, Items.GOLD_BLOCK};
 	public static final String[] MERCENARY_ABILITY_ICONS = {"ability_credit_strike", "ability_exchange", "ability_pledge", "ability_shop", "deal_stake"};
-	public static final Item[] TEMPTER_ICONS = {Items.ENDER_EYE, Items.ROSE_BUSH, Items.LEAD, Items.FERMENTED_SPIDER_EYE, Items.REDSTONE_BLOCK};
-	public static final String[] TEMPTER_ABILITY_ICONS = {"ability_gaze", "ability_kiss", "ability_vow", "ability_jealousy", "thread_break"};
+	public static final Item[] TEMPTER_ICONS = {Items.ROSE_BUSH, Items.PHANTOM_MEMBRANE, Items.ENDER_EYE, Items.WHITE_BED, Items.REDSTONE_BLOCK};
+	public static final String[] TEMPTER_ABILITY_ICONS = {"ability_kiss", "ability_wings", "ability_gaze", "ability_lullaby", "thread_break"};
 	public static final Item[] MASKED_ICONS = {Items.SHEARS, Items.ZOMBIE_HEAD, Items.ARMOR_STAND, Items.BELL, Items.CARVED_PUMPKIN};
 	public static final String[] MASKED_ABILITY_ICONS = {"ability_tear", "ability_power", "ability_change", "ability_kin", "gal_thousand"};
 
@@ -114,10 +114,10 @@ public final class RaceHud {
 		}
 		if (race == Race.TEMPTER) {
 			return switch (slot) {
-				case 0 -> ClientRaceState.talents.contains(Talents.THREAD_GAZE) ? Tempter.GAZE_COST_CHEAP : Tempter.GAZE_COST;
-				case 1 -> ClientRaceState.talents.contains(Talents.KISS_CHEAP) ? Tempter.KISS_COST_CHEAP : Tempter.KISS_COST;
-				case 2 -> ClientRaceState.talents.contains(Talents.COURT_CHEAP_VOW) ? Tempter.VOW_COST_CHEAP : Tempter.VOW_COST;
-				case 3 -> Tempter.JEALOUSY_COST;
+				case 0 -> ClientRaceState.talents.contains(Talents.KISS_CHEAP) ? Tempter.KISS_COST_CHEAP : Tempter.KISS_COST;
+				case 1 -> ClientRaceState.talents.contains(Talents.WING_CHEAP) ? Tempter.WINGS_COST_CHEAP : Tempter.WINGS_COST;
+				case 2 -> ClientRaceState.talents.contains(Talents.CHARM_CHEAP) ? Tempter.CHARM_COST_CHEAP : Tempter.CHARM_COST;
+				case 3 -> Tempter.LULLABY_COST;
 				default -> Tempter.BREAK_COST;
 			};
 		}

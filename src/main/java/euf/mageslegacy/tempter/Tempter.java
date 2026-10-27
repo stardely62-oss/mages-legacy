@@ -15,8 +15,12 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.attribute.EntityAttributeInstance;
+import net.minecraft.entity.attribute.EntityAttributeModifier;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.damage.DamageTypes;
+import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.MobEntity;
@@ -26,6 +30,8 @@ import net.minecraft.entity.passive.TameableEntity;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.ProjectileUtil;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.tag.DamageTypeTags;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -39,67 +45,70 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * The Tempters: the nameless mage's longing to be loved. They live on attention (Adoration) and are the tank of the
- * races: every monster after a Tempter is tied to it by a heart thread, and every blow on the Tempter is shared out
- * along the threads, a tenth to each, half at most. The Gaze (R) draws monsters on, the Kiss (V) drinks one, the Vow
- * (Z) ties an ally so their wounds come to the Tempter, Jealousy (H) sets the threaded on one another, and the Broken
- * Heart (Alt, crown) snaps every thread at once. The undead have no heart: no thread holds them.
+ * The Tempters: the nameless mage's longing to be loved, a hunter that lives by the kiss. The Kiss (R) rushes in,
+ * drinks a creature's life and leaves it infatuated: it won't raise a hand against her and takes her blows harder. The
+ * Wings (V) carry her through the air, the Charm (Z) makes a monster her thrall for a while, the Lullaby (H) puts the
+ * monsters around to sleep (a sleeper's kiss is twice as sweet), and the Broken Heart (Alt, crown) breaks every heart
+ * she has won. The undead have no heart: no kiss, charm or song takes them.
  */
 public final class Tempter {
-	/** Rose of the threads, and dark wine laid on as real colour under the glow (see {@link Fx#INK}). */
+	/** Rose of the kiss, and dark wine laid on as real colour under the glow (see {@link Fx#INK}). */
 	public static final int ROSE_RGB = 0xFF6FA8;
 	private static final int WINE_INK = Fx.INK | 0x6A1838;
+	private static final int DREAM_RGB = 0xC8A8FF;
 
-	public static final int GAZE_COST = 15;
-	public static final int GAZE_COST_CHEAP = 10;
-	public static final int KISS_COST = 25;
-	public static final int KISS_COST_CHEAP = 15;
-	public static final int VOW_COST = 30;
-	public static final int VOW_COST_CHEAP = 15;
-	public static final int JEALOUSY_COST = 40;
+	public static final int KISS_COST = 20;
+	public static final int KISS_COST_CHEAP = 12;
+	public static final int WINGS_COST = 15;
+	public static final int WINGS_COST_CHEAP = 8;
+	public static final int CHARM_COST = 30;
+	public static final int CHARM_COST_CHEAP = 20;
+	public static final int LULLABY_COST = 40;
 	public static final int BREAK_COST = 50;
-	private static final int GAZE_COOLDOWN = 160;
-	private static final int KISS_COOLDOWN = 240;
-	private static final int KISS_COOLDOWN_QUICK = 160;
-	private static final int VOW_COOLDOWN = 600;
-	private static final int JEALOUSY_COOLDOWN = 500;
+	private static final int KISS_COOLDOWN = 120;
+	private static final int KISS_COOLDOWN_QUICK = 80;
+	private static final int WINGS_COOLDOWN = 160;
+	private static final int CHARM_COOLDOWN = 400;
+	private static final int LULLABY_COOLDOWN = 600;
 	private static final int BREAK_COOLDOWN = 6000;
 	private static final int UNDYING_SLOT = 9;
 	private static final int UNDYING_COOLDOWN = 24000;
-	/** Each thread takes a tenth of a blow; five threads (six with Wide Heart) take half (three fifths). */
-	public static final float THREAD_SHARE = 0.1f;
-	private static final int VOW_TICKS = 400;
-	private static final int VOW_TICKS_LONG = 600;
-	private static final int JEALOUSY_TICKS = 120;
-	private static final int JEALOUSY_TICKS_LONG = 180;
-	/** A minute without a living soul near (three with Company) brings the longing. */
+	private static final int INFATUATION_TICKS = 120;
+	private static final int INFATUATION_TICKS_LONG = 200;
+	private static final int THRALL_TICKS = 200;
+	private static final int THRALL_TICKS_LONG = 300;
+	private static final int SLEEP_TICKS = 80;
+	private static final int SLEEP_TICKS_LONG = 120;
+	/** After the Wings, how long the second flight, the dive and the free kiss wait. */
+	private static final int AFTER_WINGS = 60;
+	/** A minute without a living soul near brings the longing. */
 	private static final int LONELY_AFTER = 1200;
-	private static final int LONELY_AFTER_LONG = 3600;
+	private static final UUID FRAIL_HEALTH = UUID.fromString("2b6c3f1e-7d4a-4f0b-8e21-5a9c0d3e6f11");
+	private static final UUID NIGHT_SPEED = UUID.fromString("2b6c3f1e-7d4a-4f0b-8e21-5a9c0d3e6f12");
 
-	/** A Vow: whose wounds go to which Tempter, until when. */
-	private record Vow(UUID tempter, long until) {}
+	/** A creature won over by a Tempter (infatuated, a thrall or asleep): for whom, until when. */
+	private record Spell(UUID tempter, long until) {}
 
-	/** The monsters tied to each Tempter, nearest first. */
-	private static final Map<UUID, List<UUID>> THREADS = new HashMap<>();
-	private static final Map<UUID, Vow> VOWS = new HashMap<>();
-	/** Monsters set on each other by Jealousy (or a charming Kiss): until when, and for whom. */
-	private record Jealousy(UUID tempter, long until) {}
-
-	private static final Map<UUID, Jealousy> JEALOUS = new HashMap<>();
-	/** Damage shared out along each Tempter's threads lately, fading by a tenth a second (the Broken Heart pays it back). */
-	private static final Map<UUID, Float> SHARED = new HashMap<>();
+	/** Infatuated: won't strike its Tempter and takes her blows a quarter harder. */
+	private static final Map<UUID, Spell> INFATUATED = new HashMap<>();
+	/** Thralls: fight the other monsters for their Tempter and never touch a player. */
+	private static final Map<UUID, Spell> THRALLS = new HashMap<>();
+	/** Asleep: no target, no step, until a blow (other than a kiss) wakes them. */
+	private static final Map<UUID, Spell> ASLEEP = new HashMap<>();
+	/** When each Tempter last spread her Wings (for the second flight, the dive and the free kiss). */
+	private static final Map<UUID, Long> WINGS = new HashMap<>();
+	private static final Map<UUID, Boolean> SECOND_FLIGHT = new HashMap<>();
 	private static final Map<UUID, Long> LAST_COMPANY = new HashMap<>();
-	/** Set while a Vow passes a wound on, so two Tempters vowed to each other don't pass it back and forth. */
-	private static boolean passing;
 
 	private Tempter() {
 	}
 
 	public static void reset() {
-		THREADS.clear();
-		VOWS.clear();
-		JEALOUS.clear();
-		SHARED.clear();
+		INFATUATED.clear();
+		THRALLS.clear();
+		ASLEEP.clear();
+		WINGS.clear();
+		SECOND_FLIGHT.clear();
 		LAST_COMPANY.clear();
 	}
 
@@ -120,28 +129,44 @@ public final class Tempter {
 		data.dirty = true;
 	}
 
-	/** Whether a creature has a heart a thread can hold: no undead, no golems. */
+	/** Whether a creature has a heart to win: no undead, no golems, no players. */
 	public static boolean hearted(LivingEntity e) {
-		return !e.isUndead() && !(e instanceof IronGolemEntity);
+		return !e.isUndead() && !(e instanceof IronGolemEntity) && !(e instanceof PlayerEntity);
 	}
 
-	public static int maxThreads(RaceData data) {
-		return data.has(Talents.THREAD_MORE) ? 6 : 5;
+	private static boolean held(Map<UUID, Spell> spells, Entity mob, long now) {
+		Spell spell = spells.get(mob.getUuid());
+		return spell != null && spell.until() > now;
 	}
 
-	public static double threadRange(RaceData data) {
-		return data.has(Talents.THREAD_FAR) ? 24 : 16;
+	private static boolean heldBy(Map<UUID, Spell> spells, Entity mob, PlayerEntity tempter, long now) {
+		Spell spell = spells.get(mob.getUuid());
+		return spell != null && spell.until() > now && spell.tempter().equals(tempter.getUuid());
 	}
 
-	/** The monsters threaded to this Tempter right now. */
-	public static List<LivingEntity> threaded(ServerPlayerEntity player) {
-		List<LivingEntity> list = new ArrayList<>();
-		for (UUID id : THREADS.getOrDefault(player.getUuid(), List.of())) {
-			if (player.getServerWorld().getEntity(id) instanceof LivingEntity living && living.isAlive()) {
-				list.add(living);
-			}
+	public static boolean infatuated(Entity mob, PlayerEntity tempter) {
+		return mob.getServer() != null && heldBy(INFATUATED, mob, tempter, now(mob.getServer()));
+	}
+
+	public static boolean asleep(Entity mob) {
+		return mob.getServer() != null && held(ASLEEP, mob, now(mob.getServer()));
+	}
+
+	public static boolean thrall(Entity mob) {
+		return mob.getServer() != null && held(THRALLS, mob, now(mob.getServer()));
+	}
+
+	/** Whether a creature leaves this player be: a sleeper and a thrall touch no one, the infatuated not their Tempter. */
+	public static boolean blocksTarget(MobEntity mob, PlayerEntity target) {
+		if (mob.getServer() == null) {
+			return false;
 		}
-		return list;
+		long now = now(mob.getServer());
+		return held(ASLEEP, mob, now) || held(THRALLS, mob, now) || heldBy(INFATUATED, mob, target, now);
+	}
+
+	private static boolean night(ServerWorld world) {
+		return world.isNight() || world.getDimension().hasFixedTime();
 	}
 
 	// ---- once a second ----
@@ -149,96 +174,145 @@ public final class Tempter {
 	public static void tickSecond(ServerPlayerEntity player, RaceData data) {
 		ServerWorld world = player.getServerWorld();
 		long now = now(player.getServer());
-		double range = threadRange(data);
-		// The threads: monsters with a heart that are after the Tempter (or quarrel for it), nearest first
-		List<LivingEntity> tied = new ArrayList<>(world.getEntitiesByClass(MobEntity.class, player.getBoundingBox().expand(range),
-				m -> m.isAlive() && m instanceof Monster && hearted(m) && (m.getTarget() == player || jealousFor(m, player, now))));
-		tied.sort(Comparator.comparingDouble(m -> m.squaredDistanceTo(player)));
-		List<UUID> ids = new ArrayList<>();
-		for (LivingEntity m : tied.subList(0, Math.min(tied.size(), maxThreads(data)))) {
-			ids.add(m.getUuid());
-			// A rose thread from the heart of each one to the Tempter, held as long as the thread holds
-			Fx.tendril(world, m, player, 24, WINE_INK, ROSE_RGB);
-			if (data.has(Talents.THREAD_HOLD)) {
-				m.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 30, 0, true, false));
+		// Adoration: a slow trickle of her own, more from every heart she holds and every friendly face near
+		int won = 0;
+		for (MobEntity m : world.getEntitiesByClass(MobEntity.class, player.getBoundingBox().expand(16), m -> m.isAlive())) {
+			if (heldBy(INFATUATED, m, player, now) || heldBy(THRALLS, m, player, now)) {
+				won++;
+			}
+			if (heldBy(ASLEEP, m, player, now) && data.has(Talents.SLEEP_DREAM)) {
+				// Sweet Dreams: the sleepers pay for their dreams
+				m.damage(world.getDamageSources().indirectMagic(player, player), 1);
+				won++;
 			}
 		}
-		THREADS.put(player.getUuid(), ids);
-		SHARED.computeIfPresent(player.getUuid(), (id, v) -> v * 0.9f);
-
-		// Adoration: the eyes on the Tempter feed it; company a little; loneliness drains it
-		boolean company = !world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(16),
+		int friends = world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(16),
+				e -> e != player && e.isAlive() && (e instanceof PlayerEntity || e instanceof VillagerEntity)).size();
+		boolean company = won > 0 || friends > 0 || !world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(16),
 				e -> e != player && e.isAlive() && !(e instanceof net.minecraft.entity.decoration.ArmorStandEntity)).isEmpty();
 		if (company) {
 			LAST_COMPANY.put(player.getUuid(), now);
 		}
 		long alone = now - LAST_COMPANY.computeIfAbsent(player.getUuid(), id -> now);
-		int friends = world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(16),
-				e -> e != player && e.isAlive() && (e instanceof PlayerEntity || e instanceof VillagerEntity)).size();
-		float gain = 0.25f + ids.size() * (data.has(Talents.THREAD_FEED) ? 0.75f : 0.5f) + friends * (data.has(Talents.COURT_CROWD) ? 0.6f : 0.3f);
-		if (alone > (data.has(Talents.COURT_COMPANY) ? LONELY_AFTER_LONG : LONELY_AFTER)) {
+		float gain = 0.4f + won * 0.4f + friends * 0.3f;
+		if (alone > LONELY_AFTER) {
 			gain = -0.5f;
 			refresh(player, StatusEffects.WEAKNESS, 0);
 		}
 		data.addResource(gain);
 
-		if (data.has(Talents.THREAD_WARD) && ids.size() >= 3) {
-			refresh(player, StatusEffects.RESISTANCE, 0);
+		// Frail: two hearts short of a plain human
+		EntityAttributeInstance health = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
+		if (health != null && health.getModifier(FRAIL_HEALTH) == null) {
+			health.addTemporaryModifier(new EntityAttributeModifier(FRAIL_HEALTH, "tempter_frail", -4, EntityAttributeModifier.Operation.ADDITION));
+			player.setHealth(Math.min(player.getHealth(), player.getMaxHealth()));
 		}
-		if (data.has(Talents.THREAD_MEND) && ids.size() >= 2) {
-			refresh(player, StatusEffects.REGENERATION, 0);
-		}
-		// They can't help being drawn: a monster near that is after another player turns to the Tempter
-		double pull = data.has(Talents.THREAD_GUARD) ? 12 : 8;
-		float chance = data.has(Talents.THREAD_GUARD) ? 0.6f : 0.3f;
-		for (MobEntity m : world.getEntitiesByClass(MobEntity.class, player.getBoundingBox().expand(pull),
-				m -> m.isAlive() && m instanceof Monster && hearted(m) && m.getTarget() instanceof PlayerEntity other && other != player)) {
-			if (player.getRandom().nextFloat() < chance) {
-				m.setTarget(player);
+		// Night Huntress: quicker under the moon
+		EntityAttributeInstance speed = player.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
+		boolean nightSpeed = data.has(Talents.WING_NIGHT) && night(world);
+		if (speed != null && nightSpeed != (speed.getModifier(NIGHT_SPEED) != null)) {
+			if (nightSpeed) {
+				speed.addTemporaryModifier(new EntityAttributeModifier(NIGHT_SPEED, "tempter_night", 0.1, EntityAttributeModifier.Operation.MULTIPLY_BASE));
+			} else {
+				speed.removeModifier(NIGHT_SPEED);
 			}
 		}
-		// Village golems can't stand a Tempter (Peace with Golems softens them)
-		if (!data.has(Talents.COURT_GOLEM)) {
-			for (IronGolemEntity golem : world.getEntitiesByClass(IronGolemEntity.class, player.getBoundingBox().expand(16),
-					g -> g.isAlive() && !g.isPlayerCreated() && g.getTarget() == null)) {
-				golem.setTarget(player);
-			}
+		// Village golems can't stand a Tempter
+		for (IronGolemEntity golem : world.getEntitiesByClass(IronGolemEntity.class, player.getBoundingBox().expand(16),
+				g -> g.isAlive() && !g.isPlayerCreated() && g.getTarget() == null)) {
+			golem.setTarget(player);
 		}
 	}
 
-	private static void refresh(ServerPlayerEntity player, net.minecraft.entity.effect.StatusEffect effect, int amplifier) {
+	private static void refresh(ServerPlayerEntity player, StatusEffect effect, int amplifier) {
 		StatusEffectInstance current = player.getStatusEffect(effect);
 		if (current == null || current.getDuration() <= 30) {
 			player.addStatusEffect(new StatusEffectInstance(effect, 60, amplifier, true, false, true));
 		}
 	}
 
-	private static boolean jealousFor(LivingEntity mob, ServerPlayerEntity player, long now) {
-		Jealousy j = JEALOUS.get(mob.getUuid());
-		return j != null && j.until() > now && j.tempter().equals(player.getUuid());
-	}
-
 	// ---- every tick ----
 
 	public static void tick(MinecraftServer server) {
 		long now = now(server);
-		VOWS.values().removeIf(v -> v.until() < now);
-		JEALOUS.values().removeIf(j -> j.until() < now);
-		if (now % 10 != 0) {
-			return;
+		INFATUATED.values().removeIf(s -> s.until() < now);
+		ASLEEP.values().removeIf(s -> s.until() < now);
+		// A thrall whose charm ends stays infatuated a while (Lingering Heart)
+		THRALLS.entrySet().removeIf(e -> {
+			if (e.getValue().until() >= now) {
+				return false;
+			}
+			ServerPlayerEntity tempter = server.getPlayerManager().getPlayer(e.getValue().tempter());
+			if (tempter != null && RaceState.of(tempter).has(Talents.CHARM_HEART)) {
+				INFATUATED.put(e.getKey(), new Spell(tempter.getUuid(), now + 200));
+				RaceState.of(tempter).addResource(10);
+			}
+			return true;
+		});
+		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+			// Gliding Wings: held crouching in the air, she glides
+			if (player.isSneaking() && !player.isOnGround() && player.getVelocity().y < 0 && is(player) && RaceState.of(player).has(Talents.WING_GLIDE)) {
+				player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 10, 0, true, false, false));
+			}
+			Long flew = WINGS.get(player.getUuid());
+			// Swooping Dive: the first landing after the Wings shakes the ground
+			if (flew != null && now - flew > 4 && now - flew < 80 && player.isOnGround() && is(player)) {
+				WINGS.remove(player.getUuid());
+				if (RaceState.of(player).has(Talents.WING_DIVE)) {
+					dive(player, RaceState.of(player));
+				}
+			}
 		}
-		// The jealous turn on the nearest other monster, never on the one they quarrel over
+		if (now % 5 == 0) {
+			holdSleepers(server, now);
+		}
+		if (now % 10 == 0) {
+			leadThralls(server, now);
+		}
+	}
+
+	private static void holdSleepers(MinecraftServer server, long now) {
 		for (ServerWorld world : server.getWorlds()) {
-			for (Map.Entry<UUID, Jealousy> e : JEALOUS.entrySet()) {
+			for (Map.Entry<UUID, Spell> e : ASLEEP.entrySet()) {
+				if (world.getEntity(e.getKey()) instanceof MobEntity mob && mob.isAlive()) {
+					mob.setTarget(null);
+					mob.getNavigation().stop();
+					mob.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 10, 9, true, false));
+					if (now % 20 == 0) {
+						world.spawnParticles(ParticleTypes.NOTE, mob.getX(), mob.getY() + mob.getHeight() + 0.3, mob.getZ(), 1, 0.2, 0, 0.2, 0.5);
+					}
+				}
+			}
+		}
+	}
+
+	/** Thralls turn on the nearest monster that isn't another of hers, and keep near her otherwise. */
+	private static void leadThralls(MinecraftServer server, long now) {
+		for (ServerWorld world : server.getWorlds()) {
+			for (Map.Entry<UUID, Spell> e : THRALLS.entrySet()) {
 				if (!(world.getEntity(e.getKey()) instanceof MobEntity mob) || !mob.isAlive()) {
 					continue;
 				}
+				ServerPlayerEntity tempter = server.getPlayerManager().getPlayer(e.getValue().tempter());
+				if (tempter == null || tempter.getWorld() != world) {
+					continue;
+				}
 				LivingEntity target = mob.getTarget();
-				if (target == null || !target.isAlive() || target instanceof PlayerEntity || !(target instanceof Monster)) {
-					LivingEntity rival = world.getEntitiesByClass(LivingEntity.class, mob.getBoundingBox().expand(12),
-							o -> o != mob && o.isAlive() && o instanceof Monster).stream()
+				if (target == null || !target.isAlive() || target instanceof PlayerEntity || held(THRALLS, target, now)) {
+					LivingEntity rival = world.getEntitiesByClass(MobEntity.class, mob.getBoundingBox().expand(12),
+							o -> o != mob && o.isAlive() && o instanceof Monster && !held(THRALLS, o, now) && !held(ASLEEP, o, now)).stream()
 							.min(Comparator.comparingDouble(o -> o.squaredDistanceTo(mob))).orElse(null);
 					mob.setTarget(rival);
+					if (rival == null && mob.squaredDistanceTo(tempter) > 64) {
+						mob.getNavigation().startMovingTo(tempter, 1.2);
+					}
+				}
+				// Bait: the monsters around the thrall go for it, not for her
+				if (RaceState.of(tempter).has(Talents.CHARM_LURE)) {
+					for (MobEntity other : world.getEntitiesByClass(MobEntity.class, mob.getBoundingBox().expand(8),
+							o -> o != mob && o.isAlive() && o instanceof Monster && o.getTarget() == tempter && !held(THRALLS, o, now))) {
+						other.setTarget(mob);
+					}
 				}
 			}
 		}
@@ -248,117 +322,90 @@ public final class Tempter {
 
 	public static AbilityResult use(ServerPlayerEntity player, RaceData data, int slot) {
 		return switch (slot) {
-			case 0 -> gaze(player, data);
-			case 1 -> kiss(player, data);
-			case 2 -> vow(player, data);
-			case 3 -> jealousy(player, data);
+			case 0 -> kiss(player, data);
+			case 1 -> wings(player, data);
+			case 2 -> charm(player, data);
+			case 3 -> lullaby(player, data);
 			case 4 -> data.has(Talents.THREAD_BREAK) ? breakHeart(player, data) : RaceData.talentLocked(player, Talents.THREAD_BREAK);
 			default -> AbilityResult.LOCKED;
 		};
-	}
-
-	public static int gazeCost(RaceData data) {
-		return data.has(Talents.THREAD_GAZE) ? GAZE_COST_CHEAP : GAZE_COST;
 	}
 
 	public static int kissCost(RaceData data) {
 		return data.has(Talents.KISS_CHEAP) ? KISS_COST_CHEAP : KISS_COST;
 	}
 
-	public static int vowCost(RaceData data) {
-		return data.has(Talents.COURT_CHEAP_VOW) ? VOW_COST_CHEAP : VOW_COST;
+	public static int wingsCost(RaceData data) {
+		return data.has(Talents.WING_CHEAP) ? WINGS_COST_CHEAP : WINGS_COST;
 	}
 
-	/** The Gaze (R): every monster in front within 12 blocks turns to the Tempter and is tied at once. */
-	public static AbilityResult gaze(ServerPlayerEntity player, RaceData data) {
-		if (!ready(player, data, 0)) {
-			return AbilityResult.COOLDOWN;
-		}
-		int cost = gazeCost(data);
-		if (data.resource < cost) {
-			return AbilityResult.NO_RESOURCE;
-		}
-		ServerWorld world = player.getServerWorld();
-		Vec3d eye = player.getEyePos();
-		Vec3d look = player.getRotationVec(1.0f).normalize();
-		double cos = data.has(Talents.THREAD_GAZE) ? 0.707 : 0.866;
-		List<MobEntity> drawn = world.getEntitiesByClass(MobEntity.class, player.getBoundingBox().expand(12), m -> {
-			Vec3d to = m.getPos().add(0, m.getHeight() / 2, 0).subtract(eye);
-			return m.isAlive() && m instanceof Monster && to.lengthSquared() < 144 && to.normalize().dotProduct(look) > cos;
-		});
-		if (drawn.isEmpty()) {
-			return AbilityResult.NO_ENEMIES;
-		}
-		data.addResource(-cost);
-		cooldown(player, data, 0, GAZE_COOLDOWN);
-		List<UUID> ids = THREADS.computeIfAbsent(player.getUuid(), id -> new ArrayList<>());
-		for (MobEntity m : drawn) {
-			m.setTarget(player);
-			if (hearted(m) && ids.size() < maxThreads(data) && !ids.contains(m.getUuid())) {
-				ids.add(m.getUuid());
-			}
-			if (data.has(Talents.THREAD_PULL)) {
-				Vec3d toward = player.getPos().subtract(m.getPos()).normalize().multiply(0.8);
-				m.addVelocity(toward.x, 0.25, toward.z);
-				m.velocityModified = true;
-			}
-			Fx.tendril(world, player, m, 16, WINE_INK, ROSE_RGB);
-		}
-		if (data.has(Talents.COURT_RALLY)) {
-			for (PlayerEntity friend : world.getEntitiesByClass(PlayerEntity.class, player.getBoundingBox().expand(8), p -> p != player && p.isAlive())) {
-				friend.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 100, 0, true, true, true));
-			}
-		}
-		// The look that turns heads: a rose wave out in front, a beat of the heart
-		Fx.ring(world, player.getPos(), 0.4f, 12, 14, ROSE_RGB);
-		Fx.burst(world, eye, 1.2f, 7, ROSE_RGB);
-		Fx.pulse(player, 1, 14, ROSE_RGB);
-		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ALLAY_ITEM_THROWN, SoundCategory.PLAYERS, 1.0f, 0.6f);
-		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 1.0f, 1.4f);
-		return AbilityResult.OK;
+	public static int charmCost(RaceData data) {
+		return data.has(Talents.CHARM_CHEAP) ? CHARM_COST_CHEAP : CHARM_COST;
 	}
 
 	public static double kissReach(RaceData data) {
 		return data.has(Talents.KISS_REACH) ? 12 : 8;
 	}
 
+	private static boolean justFlew(ServerPlayerEntity player) {
+		Long flew = WINGS.get(player.getUuid());
+		return flew != null && now(player.getServer()) - flew <= AFTER_WINGS;
+	}
+
 	/**
-	 * The Kiss (V): a rush to the creature you look at and a kiss that drinks 6 of its life into yours, leaving it weak.
-	 * No heart, no kiss: the undead give nothing.
+	 * The Kiss (R): a rush to the creature you look at and a kiss that drinks 6 of its life into yours (twice as much
+	 * from a sleeper, half again by night with the Succubus crown); it stays infatuated for 6 seconds. No heart, no kiss.
+	 * With Kiss of Life, R at a player heals them instead.
 	 */
 	public static AbilityResult kiss(ServerPlayerEntity player, RaceData data) {
-		if (!ready(player, data, 1)) {
+		if (!ready(player, data, 0)) {
 			return AbilityResult.COOLDOWN;
 		}
-		int cost = kissCost(data);
+		boolean free = data.has(Talents.WING_KISS) && justFlew(player);
+		int cost = free ? 0 : kissCost(data);
 		if (data.resource < cost) {
 			return AbilityResult.NO_RESOURCE;
 		}
-		LivingEntity target = lookedAt(player, kissReach(data), e -> !(e instanceof PlayerEntity) && !(e instanceof TameableEntity tame && tame.isTamed()));
+		LivingEntity target = lookedAt(player, kissReach(data), e -> !(e instanceof TameableEntity tame && tame.isTamed())
+				&& (data.has(Talents.KISS_ALLY) || !(e instanceof PlayerEntity)));
 		if (target == null) {
 			return AbilityResult.NO_SIGHT;
+		}
+		ServerWorld world = player.getServerWorld();
+		boolean moon = data.has(Talents.WING_SUCCUBUS) && night(world);
+		int cd = data.has(Talents.KISS_QUICK) ? KISS_COOLDOWN_QUICK : KISS_COOLDOWN;
+		if (target instanceof PlayerEntity friend) {
+			data.addResource(-cost);
+			cooldown(player, data, 0, moon ? cd * 3 / 4 : cd);
+			friend.heal(6);
+			friend.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 0, true, true, true));
+			Fx.tendril(world, player, friend, 14, WINE_INK, ROSE_RGB);
+			world.spawnParticles(ParticleTypes.HEART, friend.getX(), friend.getY() + friend.getHeight() + 0.2, friend.getZ(), 4, 0.3, 0.2, 0.3, 0);
+			world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ALLAY_ITEM_GIVEN, SoundCategory.PLAYERS, 1.0f, 1.2f);
+			return AbilityResult.OK;
 		}
 		if (!hearted(target)) {
 			player.sendMessage(Text.translatable("mages_legacy.tempter.no_heart"), true);
 			return AbilityResult.HINTED;
 		}
 		data.addResource(-cost);
-		cooldown(player, data, 1, data.has(Talents.KISS_QUICK) ? KISS_COOLDOWN_QUICK : KISS_COOLDOWN);
-		ServerWorld world = player.getServerWorld();
+		cooldown(player, data, 0, moon ? cd * 3 / 4 : cd);
+		long now = now(player.getServer());
+		boolean sleeper = held(ASLEEP, target, now);
 		// The rush: up to the creature's side
 		Vec3d side = target.getPos().add(player.getPos().subtract(target.getPos()).normalize().multiply(target.getWidth() / 2 + 0.8));
 		Vec3d from = player.getPos();
 		player.requestTeleport(side.x, target.getY(), side.z);
-		float drain = data.has(Talents.KISS_DEEP) ? 9 : 6;
+		float drain = (data.has(Talents.KISS_DEEP) ? 9 : 6) * (sleeper ? 2 : 1) * (moon ? 1.5f : 1);
 		target.damage(world.getDamageSources().indirectMagic(player, player), drain);
 		player.heal(drain);
-		target.addStatusEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 100, 0));
+		// The kiss doesn't wake a sleeper: it deepens the dream into love
+		INFATUATED.put(target.getUuid(), new Spell(player.getUuid(), now + (data.has(Talents.KISS_CHARM) ? INFATUATION_TICKS_LONG : INFATUATION_TICKS)));
+		if (target instanceof MobEntity mob && mob.getTarget() == player) {
+			mob.setTarget(null);
+		}
 		if (data.has(Talents.KISS_POISON)) {
 			target.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, 80, 1));
-		}
-		if (data.has(Talents.KISS_CHARM) && target instanceof MobEntity mob) {
-			JEALOUS.put(mob.getUuid(), new Jealousy(player.getUuid(), now(player.getServer()) + 80));
-			mob.setTarget(null);
 		}
 		if (data.has(Talents.KISS_SHIELD)) {
 			player.setAbsorptionAmount(Math.min(8, player.getAbsorptionAmount() + 4));
@@ -368,87 +415,161 @@ public final class Tempter {
 				friend.heal(drain / 2);
 			}
 		}
-		Progression.addXp(player, data, "tempter_kiss", 1, 20);
+		if (data.has(Talents.WING_RUSH)) {
+			player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 60, 1, true, true, true));
+		}
+		Progression.addXp(player, data, "tempter_kiss", 1, 30);
 		// A rose streak where she went, the life drawn out in a thread, a heartbeat
 		Fx.ribbon(world, List.of(from, player.getPos()), 12, WINE_INK, ROSE_RGB, 1.0f);
 		Fx.tendril(world, target, player, 14, WINE_INK, ROSE_RGB);
 		Fx.burst(world, target.getPos().add(0, target.getHeight() * 0.7, 0), 1.0f + target.getWidth(), 7, ROSE_RGB);
 		Fx.pulse(player, 2, 20, ROSE_RGB);
-		world.spawnParticles(net.minecraft.particle.ParticleTypes.HEART, target.getX(), target.getY() + target.getHeight() + 0.2, target.getZ(), 3, 0.3, 0.2, 0.3, 0);
+		world.spawnParticles(ParticleTypes.HEART, target.getX(), target.getY() + target.getHeight() + 0.2, target.getZ(), sleeper ? 6 : 3, 0.3, 0.2, 0.3, 0);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_GENERIC_DRINK, SoundCategory.PLAYERS, 0.8f, 1.5f);
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ALLAY_AMBIENT_WITH_ITEM, SoundCategory.PLAYERS, 1.0f, 0.7f);
 		return AbilityResult.OK;
 	}
 
-	/** The Vow (Z): a thread to an ally (a player or a tamed beast you look at): half of what hurts them, the Tempter takes. */
-	public static AbilityResult vow(ServerPlayerEntity player, RaceData data) {
-		if (!ready(player, data, 2)) {
+	/**
+	 * The Wings (V): a leap through the air the way she looks, and a slow fall after. With Second Flight the next one
+	 * within 3 seconds is free.
+	 */
+	public static AbilityResult wings(ServerPlayerEntity player, RaceData data) {
+		long now = now(player.getServer());
+		boolean second = data.has(Talents.WING_TWICE) && justFlew(player) && SECOND_FLIGHT.getOrDefault(player.getUuid(), false);
+		if (!second && !ready(player, data, 1)) {
 			return AbilityResult.COOLDOWN;
 		}
-		int cost = vowCost(data);
+		int cost = second ? 0 : wingsCost(data);
 		if (data.resource < cost) {
 			return AbilityResult.NO_RESOURCE;
 		}
-		LivingEntity ally = lookedAt(player, 16, e -> e instanceof PlayerEntity || e instanceof TameableEntity tame && tame.isTamed());
-		if (ally == null) {
-			return AbilityResult.NO_SIGHT;
-		}
-		data.addResource(-cost);
-		cooldown(player, data, 2, VOW_COOLDOWN);
-		long now = now(player.getServer());
-		int allowed = data.has(Talents.COURT_TWO_VOWS) ? 2 : 1;
-		List<UUID> mine = VOWS.entrySet().stream().filter(e -> e.getValue().tempter().equals(player.getUuid())).map(Map.Entry::getKey).toList();
-		for (int i = 0; i <= mine.size() - allowed; i++) {
-			VOWS.remove(mine.get(i));
-		}
-		int ticks = data.has(Talents.COURT_VOW) ? VOW_TICKS_LONG : VOW_TICKS;
-		VOWS.put(ally.getUuid(), new Vow(player.getUuid(), now + ticks));
-		if (data.has(Talents.KISS_ALLY)) {
-			ally.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, ticks, 0, true, true, true));
-		}
 		ServerWorld world = player.getServerWorld();
-		Fx.tendril(world, player, ally, 30, WINE_INK, ROSE_RGB);
-		Fx.helix(world, ally, ally.getWidth() + 0.5f, ally.getHeight() + 0.3f, 2, true, 20, ROSE_RGB);
-		Fx.aura(world, ally, ticks, ROSE_RGB, Fx.MOTES);
-		world.playSound(null, ally.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.2f, 0.8f);
-		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ALLAY_ITEM_GIVEN, SoundCategory.PLAYERS, 1.0f, 0.9f);
+		data.addResource(-cost);
+		if (!second) {
+			int cd = data.has(Talents.WING_NIGHT) && night(world) ? WINGS_COOLDOWN / 2 : WINGS_COOLDOWN;
+			cooldown(player, data, 1, cd);
+		}
+		SECOND_FLIGHT.put(player.getUuid(), !second);
+		WINGS.put(player.getUuid(), now);
+		Vec3d look = player.getRotationVec(1.0f);
+		double power = data.has(Talents.WING_FAR) ? 1.6 : 1.2;
+		Vec3d flat = new Vec3d(look.x, 0, look.z);
+		flat = flat.lengthSquared() < 1.0E-4 ? Vec3d.ZERO : flat.normalize();
+		player.setVelocity(flat.x * power, 0.55 + Math.max(0, look.y) * 0.5, flat.z * power);
+		player.velocityModified = true;
+		player.fallDistance = 0;
+		player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 50, 0, true, false, true));
+		// Dark wings beating once: a rose ring where she sprang, a streak along the way
+		Fx.ring(world, player.getPos(), 0.4f, 3.0f, 10, ROSE_RGB);
+		Fx.ribbon(world, List.of(player.getPos(), player.getPos().add(flat.x * 5, 2.5, flat.z * 5)), 14, WINE_INK, ROSE_RGB, 1.4f);
+		Fx.fov(player, 0.15f, 10);
+		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ENDER_DRAGON_FLAP, SoundCategory.PLAYERS, 0.6f, 1.6f);
 		return AbilityResult.OK;
 	}
 
-	/** Jealousy (H): for 6 seconds every threaded monster fights the others over the Tempter, and leaves her alone. */
-	public static AbilityResult jealousy(ServerPlayerEntity player, RaceData data) {
+	/** Swooping Dive: landing after the Wings knocks the creatures around back for 5, and with Swoon infatuates them. */
+	private static void dive(ServerPlayerEntity player, RaceData data) {
+		ServerWorld world = player.getServerWorld();
+		long now = now(player.getServer());
+		for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(3),
+				e -> e != player && e.isAlive() && !(e instanceof PlayerEntity) && !held(THRALLS, e, now) && !(e instanceof TameableEntity t && t.isTamed()))) {
+			e.damage(world.getDamageSources().indirectMagic(player, player), 5);
+			Vec3d push = e.getPos().subtract(player.getPos()).normalize();
+			e.addVelocity(push.x * 0.8, 0.3, push.z * 0.8);
+			e.velocityModified = true;
+			if (data.has(Talents.WING_SWOON) && hearted(e)) {
+				INFATUATED.put(e.getUuid(), new Spell(player.getUuid(), now + INFATUATION_TICKS));
+				if (e instanceof MobEntity mob && mob.getTarget() == player) {
+					mob.setTarget(null);
+				}
+			}
+		}
+		Fx.ring(world, player.getPos(), 0.5f, 4, 12, ROSE_RGB);
+		Fx.shake(player, 1.2f, 8);
+		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_GENERIC_SMALL_FALL, SoundCategory.PLAYERS, 1.2f, 0.6f);
+	}
+
+	/** The Charm (Z): the creature you look at (16 blocks) becomes a thrall for 10 seconds and fights the other monsters. */
+	public static AbilityResult charm(ServerPlayerEntity player, RaceData data) {
+		if (!ready(player, data, 2)) {
+			return AbilityResult.COOLDOWN;
+		}
+		int cost = charmCost(data);
+		if (data.resource < cost) {
+			return AbilityResult.NO_RESOURCE;
+		}
+		LivingEntity target = lookedAt(player, 16, e -> e instanceof MobEntity && !(e instanceof TameableEntity tame && tame.isTamed()));
+		if (!(target instanceof MobEntity mob)) {
+			return AbilityResult.NO_SIGHT;
+		}
+		if (!hearted(mob)) {
+			player.sendMessage(Text.translatable("mages_legacy.tempter.no_heart"), true);
+			return AbilityResult.HINTED;
+		}
+		data.addResource(-cost);
+		cooldown(player, data, 2, CHARM_COOLDOWN);
+		long now = now(player.getServer());
+		// One thrall at a time (two with Two Hearts): a new one lets the oldest go
+		int allowed = data.has(Talents.CHARM_MORE) ? 2 : 1;
+		List<UUID> mine = new ArrayList<>(THRALLS.entrySet().stream().filter(e -> e.getValue().tempter().equals(player.getUuid()))
+				.sorted(Comparator.comparingLong(e -> e.getValue().until())).map(Map.Entry::getKey).toList());
+		while (mine.size() >= allowed) {
+			THRALLS.remove(mine.remove(0));
+		}
+		int ticks = data.has(Talents.CHARM_LONG) ? THRALL_TICKS_LONG : THRALL_TICKS;
+		THRALLS.put(mob.getUuid(), new Spell(player.getUuid(), now + ticks));
+		ASLEEP.remove(mob.getUuid());
+		mob.setTarget(null);
+		if (data.has(Talents.CHARM_STRONG)) {
+			mob.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, ticks, 0));
+			mob.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, ticks, 0));
+		}
+		ServerWorld world = player.getServerWorld();
+		Fx.tendril(world, player, mob, 24, WINE_INK, ROSE_RGB);
+		Fx.helix(world, mob, mob.getWidth() + 0.5f, mob.getHeight() + 0.3f, 2, true, 20, ROSE_RGB);
+		Fx.aura(world, mob, ticks, ROSE_RGB, Fx.MOTES);
+		world.spawnParticles(ParticleTypes.HEART, mob.getX(), mob.getY() + mob.getHeight() + 0.2, mob.getZ(), 5, 0.3, 0.2, 0.3, 0);
+		world.playSound(null, mob.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.2f, 0.8f);
+		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_EVOKER_PREPARE_WOLOLO, SoundCategory.PLAYERS, 0.7f, 1.6f);
+		return AbilityResult.OK;
+	}
+
+	/** The Lullaby (H): every monster with a heart within 8 blocks falls asleep for 4 seconds; any blow but a kiss wakes it. */
+	public static AbilityResult lullaby(ServerPlayerEntity player, RaceData data) {
 		if (!ready(player, data, 3)) {
 			return AbilityResult.COOLDOWN;
 		}
-		if (data.resource < JEALOUSY_COST) {
+		if (data.resource < LULLABY_COST) {
 			return AbilityResult.NO_RESOURCE;
 		}
-		List<LivingEntity> tied = threaded(player);
-		if (tied.size() < 2) {
-			player.sendMessage(Text.translatable("mages_legacy.tempter.no_rivals"), true);
-			return AbilityResult.HINTED;
-		}
-		data.addResource(-JEALOUSY_COST);
-		cooldown(player, data, 3, JEALOUSY_COOLDOWN);
-		long until = now(player.getServer()) + (data.has(Talents.COURT_JEALOUS) ? JEALOUSY_TICKS_LONG : JEALOUSY_TICKS);
 		ServerWorld world = player.getServerWorld();
-		for (LivingEntity m : tied) {
-			JEALOUS.put(m.getUuid(), new Jealousy(player.getUuid(), until));
-			if (m instanceof MobEntity mob) {
-				mob.setTarget(null);
-			}
-			Fx.burst(world, m.getPos().add(0, m.getHeight() + 0.3, 0), 0.8f, 8, ROSE_RGB);
-			world.spawnParticles(net.minecraft.particle.ParticleTypes.ANGRY_VILLAGER, m.getX(), m.getY() + m.getHeight() + 0.3, m.getZ(), 2, 0.3, 0.2, 0.3, 0);
+		long now = now(player.getServer());
+		double radius = data.has(Talents.SLEEP_WIDE) ? 12 : 8;
+		List<MobEntity> sleepers = world.getEntitiesByClass(MobEntity.class, player.getBoundingBox().expand(radius),
+				m -> m.isAlive() && m instanceof Monster && hearted(m) && !held(THRALLS, m, now) && m.squaredDistanceTo(player) <= radius * radius);
+		if (sleepers.isEmpty()) {
+			return AbilityResult.NO_ENEMIES;
 		}
-		Fx.ring(world, player.getPos(), 0.5f, 10, 16, ROSE_RGB);
-		Fx.mark(world, player.getPos(), player, 2.0f, 30, ROSE_RGB, Fx.RIPPLES);
-		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_EVOKER_PREPARE_WOLOLO, SoundCategory.PLAYERS, 0.8f, 1.4f);
+		data.addResource(-LULLABY_COST);
+		cooldown(player, data, 3, LULLABY_COOLDOWN);
+		long until = now + (data.has(Talents.SLEEP_LONG) ? SLEEP_TICKS_LONG : SLEEP_TICKS);
+		for (MobEntity m : sleepers) {
+			ASLEEP.put(m.getUuid(), new Spell(player.getUuid(), until));
+			m.setTarget(null);
+			m.getNavigation().stop();
+			Fx.burst(world, m.getPos().add(0, m.getHeight() + 0.3, 0), 0.6f, 10, DREAM_RGB);
+		}
+		Fx.ring(world, player.getPos(), 0.5f, (float) radius, 24, DREAM_RGB);
+		Fx.mark(world, player.getPos(), null, (float) radius, 40, DREAM_RGB, Fx.RIPPLES);
+		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_CHIME.value(), SoundCategory.PLAYERS, 1.2f, 0.7f);
+		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 1.0f, 0.6f);
 		return AbilityResult.OK;
 	}
 
 	/**
-	 * The Broken Heart (Alt, the Threads' crown): every thread snaps at once; each monster on one takes 8 and half of
-	 * what the threads carried lately (30 at most), and staggers.
+	 * The Broken Heart (Alt, the Charm's crown): every heart she has won within 16 blocks (infatuated, a thrall or asleep
+	 * under her song) breaks: 8 damage and a quarter of its life, 30 at most, and it staggers.
 	 */
 	public static AbilityResult breakHeart(ServerPlayerEntity player, RaceData data) {
 		if (!ready(player, data, 4)) {
@@ -457,23 +578,26 @@ public final class Tempter {
 		if (data.resource < BREAK_COST) {
 			return AbilityResult.NO_RESOURCE;
 		}
-		List<LivingEntity> tied = threaded(player);
-		if (tied.isEmpty()) {
-			return AbilityResult.NO_ENEMIES;
+		ServerWorld world = player.getServerWorld();
+		long now = now(player.getServer());
+		List<MobEntity> won = world.getEntitiesByClass(MobEntity.class, player.getBoundingBox().expand(16),
+				m -> m.isAlive() && (heldBy(INFATUATED, m, player, now) || heldBy(THRALLS, m, player, now) || heldBy(ASLEEP, m, player, now)));
+		if (won.isEmpty()) {
+			player.sendMessage(Text.translatable("mages_legacy.tempter.no_hearts"), true);
+			return AbilityResult.HINTED;
 		}
 		data.addResource(-BREAK_COST);
 		cooldown(player, data, 4, BREAK_COOLDOWN);
-		float blow = Math.min(30, 8 + SHARED.getOrDefault(player.getUuid(), 0f) * 0.5f);
-		ServerWorld world = player.getServerWorld();
-		for (LivingEntity m : tied) {
-			m.damage(world.getDamageSources().indirectMagic(player, player), blow);
+		for (MobEntity m : won) {
+			INFATUATED.remove(m.getUuid());
+			THRALLS.remove(m.getUuid());
+			ASLEEP.remove(m.getUuid());
+			m.damage(world.getDamageSources().indirectMagic(player, player), Math.min(30, 8 + m.getMaxHealth() * 0.25f));
 			m.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 40, 3));
 			Fx.burst(world, m.getPos().add(0, m.getHeight() / 2, 0), 1.2f + m.getWidth(), 9, ROSE_RGB);
 			Fx.slash(world, m.getPos().add(0, m.getHeight() * 0.6, 0), m.getPos().subtract(player.getPos()), 0.8f + m.getWidth(), 90, 9, WINE_INK);
 		}
-		THREADS.remove(player.getUuid());
-		SHARED.remove(player.getUuid());
-		Fx.ring(world, player.getPos(), 0.5f, 14, 18, ROSE_RGB);
+		Fx.ring(world, player.getPos(), 0.5f, 16, 18, ROSE_RGB);
 		Fx.burst(world, player.getPos().add(0, 1, 0), 3.0f, 10, WINE_INK);
 		Fx.screen(player, 18, ROSE_RGB);
 		Fx.shake(player, 2.0f, 12);
@@ -494,155 +618,89 @@ public final class Tempter {
 
 	// ---- damage ----
 
-	/**
-	 * A blow on a Tempter is shared out along the threads: each threaded monster takes a tenth of it (half again with
-	 * Thorny Threads), and the Tempter is spared as much. Nothing that bypasses invulnerability is shared.
-	 */
+	/** A fall on a Tempter: Soft Wings halve it. */
 	public static float modifyDamage(ServerPlayerEntity player, DamageSource source, float amount) {
 		RaceData data = RaceState.of(player);
-		// Not while the body is still in its moment of invulnerability: those blows mostly don't land at all
-		if (data == null || amount <= 0 || source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY) || player.timeUntilRegen > 10) {
-			return amount;
+		if (data != null && data.has(Talents.WING_SOFT) && source.isIn(DamageTypeTags.IS_FALL)) {
+			return amount * 0.5f;
 		}
-		List<LivingEntity> tied = threaded(player);
-		if (tied.isEmpty()) {
-			return amount;
-		}
-		ServerWorld world = player.getServerWorld();
-		float each = amount * THREAD_SHARE;
-		float onThem = each * (data.has(Talents.THREAD_STING) ? 1.5f : 1.0f);
-		for (LivingEntity m : tied) {
-			m.damage(world.getDamageSources().indirectMagic(player, player), onThem);
-		}
-		float shared = each * tied.size();
-		SHARED.merge(player.getUuid(), shared, Float::sum);
-		Progression.addXp(player, data, "tempter_threads", Math.max(1, Math.round(shared / 5)), 40);
-		return amount - shared;
+		return amount;
 	}
 
 	/**
-	 * Any creature's blow, for the Tempters' sake: a Tempter's own hand is soft; Warm Thirst drinks from the threaded;
-	 * the Court near a Tempter strikes harder; quarrelling monsters hit each other harder (Quarrel).
+	 * Any creature's blow, for the Tempters' sake: a blow wakes a sleeper (her kiss doesn't); her own blows strike the
+	 * infatuated a quarter harder (and heal her a little with the Lover's Bite).
 	 */
 	public static float onHit(LivingEntity victim, DamageSource source, float amount) {
-		Entity attacker = source.getAttacker();
-		if (amount <= 0 || attacker == null || attacker == victim) {
+		if (amount <= 0 || victim.getServer() == null) {
 			return amount;
 		}
-		if (attacker instanceof ServerPlayerEntity player && is(player)) {
+		Entity attacker = source.getAttacker();
+		boolean kiss = attacker instanceof ServerPlayerEntity p && is(p) && source.isOf(DamageTypes.INDIRECT_MAGIC);
+		if (!kiss) {
+			ASLEEP.remove(victim.getUuid());
+		}
+		if (attacker instanceof ServerPlayerEntity player && is(player) && infatuated(victim, player)) {
+			amount *= 1.25f;
 			RaceData data = RaceState.of(player);
 			if (source.isOf(DamageTypes.PLAYER_ATTACK) && source.getSource() == player) {
-				amount *= 0.75f;
-				if (data.has(Talents.KISS_LIFE) && THREADS.getOrDefault(player.getUuid(), List.of()).contains(victim.getUuid())) {
-					player.heal(amount * 0.1f);
+				data.addResource(3);
+				if (data.has(Talents.KISS_LIFE)) {
+					player.heal(amount * 0.15f);
 				}
-			}
-			return amount;
-		}
-		if (attacker instanceof PlayerEntity other && other.getServer() != null) {
-			for (ServerPlayerEntity tempter : courtNear(other, 16)) {
-				RaceData data = RaceState.of(tempter);
-				if (data.has(Talents.COURT_AURA) && tempter.squaredDistanceTo(other) < 64) {
-					amount *= 1.1f;
-				}
-				if (data.has(Talents.COURT_QUEEN) && threaded(tempter).size() >= 3) {
-					amount *= 1.1f;
-				}
-			}
-			return amount;
-		}
-		if (attacker instanceof MobEntity mob && victim instanceof Monster && attacker.getServer() != null) {
-			Jealousy j = JEALOUS.get(mob.getUuid());
-			ServerPlayerEntity tempter = j == null ? null : attacker.getServer().getPlayerManager().getPlayer(j.tempter());
-			if (tempter != null && RaceState.of(tempter).has(Talents.COURT_QUARREL)) {
-				amount *= 1.5f;
 			}
 		}
 		return amount;
 	}
 
-	/** The Tempters within {@code range} of a player (not the player itself). */
-	private static List<ServerPlayerEntity> courtNear(PlayerEntity player, double range) {
-		List<ServerPlayerEntity> list = new ArrayList<>();
-		for (PlayerEntity p : player.getWorld().getPlayers()) {
-			if (p != player && p instanceof ServerPlayerEntity sp && is(sp) && sp.squaredDistanceTo(player) < range * range) {
-				list.add(sp);
-			}
-		}
-		return list;
-	}
-
-	/**
-	 * A blow on someone a Tempter has vowed to: half of it goes to the Tempter instead (and from there along the
-	 * threads); the Court's queen spares players near her a sixth.
-	 */
-	public static float onAllyHurt(LivingEntity victim, DamageSource source, float amount) {
-		if (amount <= 0 || victim.getServer() == null || passing || source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY) || victim.timeUntilRegen > 10) {
-			return amount;
-		}
-		if (victim instanceof PlayerEntity player && !is(player)) {
-			for (ServerPlayerEntity tempter : courtNear(player, 16)) {
-				if (RaceState.of(tempter).has(Talents.COURT_QUEEN) && threaded(tempter).size() >= 3) {
-					amount *= 0.85f;
-				}
-			}
-		}
-		Vow vow = VOWS.get(victim.getUuid());
-		if (vow == null) {
-			return amount;
-		}
-		ServerPlayerEntity tempter = victim.getServer().getPlayerManager().getPlayer(vow.tempter());
-		if (tempter == null || !tempter.isAlive() || tempter == victim || tempter.getWorld() != victim.getWorld() || tempter.squaredDistanceTo(victim) > 32 * 32) {
-			return amount;
-		}
-		float taken = amount * 0.5f;
-		passing = true;
-		try {
-			tempter.damage(tempter.getDamageSources().magic(), taken);
-		} finally {
-			passing = false;
-		}
-		RaceData data = RaceState.of(tempter);
-		Progression.addXp(tempter, data, "tempter_vow", Math.max(1, Math.round(taken / 5)), 30);
-		Fx.tendril(tempter.getServerWorld(), victim, tempter, 10, WINE_INK, ROSE_RGB);
-		return amount - taken;
-	}
-
-	/** A monster killed while tied to a Tempter, or by one quarrelling over her: the courtship pays. */
+	/** A monster died: by a thrall's hand (Grateful Thrall pays), or won by her (the hunt pays). */
 	public static void onDeath(LivingEntity victim, DamageSource source) {
 		if (!(victim instanceof Monster) || victim.getServer() == null) {
 			return;
 		}
-		for (Map.Entry<UUID, List<UUID>> e : THREADS.entrySet()) {
-			if (e.getValue().contains(victim.getUuid())) {
-				ServerPlayerEntity tempter = victim.getServer().getPlayerManager().getPlayer(e.getKey());
-				if (tempter != null) {
-					Progression.addXp(tempter, RaceState.of(tempter), Progression.HUNT, 2, Progression.HUNT_CAP);
+		long now = now(victim.getServer());
+		Spell spell = THRALLS.get(victim.getUuid());
+		if (spell == null) {
+			spell = INFATUATED.get(victim.getUuid());
+		}
+		INFATUATED.remove(victim.getUuid());
+		THRALLS.remove(victim.getUuid());
+		ASLEEP.remove(victim.getUuid());
+		if (spell != null && spell.until() > now) {
+			ServerPlayerEntity tempter = victim.getServer().getPlayerManager().getPlayer(spell.tempter());
+			if (tempter != null) {
+				Progression.addXp(tempter, RaceState.of(tempter), Progression.HUNT, 2, Progression.HUNT_CAP);
+				if (RaceState.of(tempter).has(Talents.WING_SUCCUBUS)) {
+					// The Succubus: every heart won and taken lets her fly again at once
+					RaceState.of(tempter).readyAt.put(1, 0L);
+					RaceState.of(tempter).dirty = true;
 				}
-				return;
 			}
 		}
-		if (source.getAttacker() instanceof MobEntity killer) {
-			Jealousy j = JEALOUS.get(killer.getUuid());
-			ServerPlayerEntity tempter = j == null ? null : victim.getServer().getPlayerManager().getPlayer(j.tempter());
-			if (tempter != null) {
-				Progression.addXp(tempter, RaceState.of(tempter), Progression.HUNT, 3, Progression.HUNT_CAP);
+		Spell master = source.getAttacker() == null ? null : THRALLS.get(source.getAttacker().getUuid());
+		ServerPlayerEntity tempter = master == null ? null : victim.getServer().getPlayerManager().getPlayer(master.tempter());
+		if (tempter != null) {
+			RaceData data = RaceState.of(tempter);
+			Progression.addXp(tempter, data, Progression.HUNT, 2, Progression.HUNT_CAP);
+			if (data.has(Talents.CHARM_RETURN)) {
+				data.addResource(5);
+				tempter.heal(2);
 			}
 		}
 	}
 
-	/** The Undying (the Kiss's crown): a killing blow takes the life of a threaded monster instead, once in 20 minutes. */
+	/** The Undying (the Kiss's crown): a killing blow takes the life of the nearest creature with a heart instead, once in 20 minutes. */
 	public static boolean allowDeath(ServerPlayerEntity player) {
 		RaceData data = RaceState.of(player);
 		if (data == null || data.race != Race.TEMPTER || !data.has(Talents.KISS_UNDYING) || !ready(player, data, UNDYING_SLOT)) {
 			return true;
 		}
-		List<LivingEntity> tied = threaded(player);
-		if (tied.isEmpty()) {
+		ServerWorld world = player.getServerWorld();
+		LivingEntity instead = world.getEntitiesByClass(MobEntity.class, player.getBoundingBox().expand(8), m -> m.isAlive() && hearted(m)).stream()
+				.min(Comparator.comparingDouble(m -> m.squaredDistanceTo(player))).orElse(null);
+		if (instead == null) {
 			return true;
 		}
-		LivingEntity instead = tied.get(0);
-		ServerWorld world = player.getServerWorld();
 		instead.damage(world.getDamageSources().indirectMagic(player, player), Float.MAX_VALUE);
 		player.setHealth(player.getMaxHealth() * 0.3f);
 		data.readyAt.put(UNDYING_SLOT, now(player.getServer()) + UNDYING_COOLDOWN);
@@ -655,18 +713,37 @@ public final class Tempter {
 		return false;
 	}
 
-	/** Takes the Tempter's threads and vows away (the race was reset or changed). */
+	/** Takes the Tempter's spells and changes away (the race was reset or changed). */
 	public static void cleanup(ServerPlayerEntity player) {
-		THREADS.remove(player.getUuid());
-		SHARED.remove(player.getUuid());
-		VOWS.values().removeIf(v -> v.tempter().equals(player.getUuid()));
-		JEALOUS.values().removeIf(j -> j.tempter().equals(player.getUuid()));
+		UUID id = player.getUuid();
+		INFATUATED.values().removeIf(s -> s.tempter().equals(id));
+		THRALLS.values().removeIf(s -> s.tempter().equals(id));
+		ASLEEP.values().removeIf(s -> s.tempter().equals(id));
+		WINGS.remove(id);
+		SECOND_FLIGHT.remove(id);
+		EntityAttributeInstance health = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
+		if (health != null) {
+			health.removeModifier(FRAIL_HEALTH);
+		}
+		EntityAttributeInstance speed = player.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
+		if (speed != null) {
+			speed.removeModifier(NIGHT_SPEED);
+		}
 	}
 
-	/** What the HUD needs: how many threads hold. */
-	public static net.minecraft.nbt.NbtCompound clientInfo(ServerPlayerEntity player) {
-		net.minecraft.nbt.NbtCompound nbt = new net.minecraft.nbt.NbtCompound();
-		nbt.putInt("threads", THREADS.getOrDefault(player.getUuid(), List.of()).size());
+	/** What the HUD needs: how many hearts she holds now. */
+	public static NbtCompound clientInfo(ServerPlayerEntity player) {
+		NbtCompound nbt = new NbtCompound();
+		long now = now(player.getServer());
+		int hearts = 0;
+		for (Map<UUID, Spell> spells : List.of(INFATUATED, THRALLS)) {
+			for (Spell s : spells.values()) {
+				if (s.tempter().equals(player.getUuid()) && s.until() > now) {
+					hearts++;
+				}
+			}
+		}
+		nbt.putInt("hearts", hearts);
 		return nbt;
 	}
 }

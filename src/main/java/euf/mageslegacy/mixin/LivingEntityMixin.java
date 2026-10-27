@@ -54,8 +54,6 @@ public abstract class LivingEntityMixin {
 		amount = Tempter.onHit(self, source, amount);
 		amount = Masked.onHit(self, source, amount);
 		amount = Shepherd.modifyDamage(self, source, amount);
-		// Last: the Vow passes half of what's left to a Tempter, and her own threads share out what reaches her
-		amount = Tempter.onAllyHurt(self, source, amount);
 		return race == Race.TEMPTER ? Tempter.modifyDamage((ServerPlayerEntity) self, source, amount) : amount;
 	}
 
