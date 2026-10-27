@@ -35,6 +35,18 @@ rm -f "$CLIENT"/mods/journeymap-*.jar
 curl -sSfL -o "$CLIENT/mods/journeymap-fabric-1.20.1-6.0.7.jar" "$JM_URL"
 echo "$JM_SHA512  $CLIENT/mods/journeymap-fabric-1.20.1-6.0.7.jar" | sha512sum -c -
 
+# Trial VFX libraries, only in the harness (the mod doesn't depend on them): Photon and Lodestone with what it needs
+fetch() {
+	curl -sSfL -o "$CLIENT/mods/$1" "$2"
+	echo "$3  $CLIENT/mods/$1" | sha512sum -c -
+}
+fetch photon-fabric-1.20.1-1.1.17.jar https://cdn.modrinth.com/data/gzevkJbM/versions/Fh02Gr1l/photon-fabric-1.20.1-1.1.17.jar \
+	c549a551fb4839631463f05e93c44eecc3641cff787593e3eac9b61f48733cf49a137b842d9f1ebf1b872a70e4994e004ee5160fb61cde4fb628f39831c2d91c
+fetch lodestone-1.20.1-1.6.2.3f-fabric.jar https://cdn.modrinth.com/data/bN3xUWdo/versions/IRyjw8OM/lodestone-1.20.1-1.6.2.3f-fabric.jar \
+	55bd6e3bfe397a1ab32b8d8418192bab206f8d5ac94d1f957cb76697b4d977e8928bd6eefe1f0933420baa25f40653e48995e3b8cf273dda4d8c262c75385f5e
+fetch cardinal-components-api-5.2.3.jar https://cdn.modrinth.com/data/K01OU20C/versions/Ielhod3p/cardinal-components-api-5.2.3.jar \
+	f20484d5bc780bee9b388ff6075e7c3bd130c7f8cae75a425bfd1fb68d03ca19288c09b0729992987fd32f3a2433b49c25162e086de82abd8d06ee45e4e3c917
+
 # Skip first-launch screens and keep running without window focus. The third ability sits on G, as it did before
 # JourneyMap's G was known: the mod has to move it back to its free default by itself.
 # (version: 1.20.1's data version, or the options datafixer chokes on modern key names and drops the whole file)

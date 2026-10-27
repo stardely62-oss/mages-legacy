@@ -65,11 +65,31 @@ tasks.named('runGametest') {
 	}
 }
 
+repositories {
+	// Trial VFX libraries, compiled against by the harness only (see FxPrototypes)
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = 'Modrinth'
+				url = 'https://api.modrinth.com/maven'
+			}
+		}
+		filter {
+			includeGroup 'maven.modrinth'
+		}
+	}
+}
+
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+	// Not shipped and not loaded by the mod: the harness compares them with our own renderer
+	modCompileOnly('maven.modrinth:photon-editor:mc1.20.1-1.1.17-fabric') { transitive = false }
+	modCompileOnly('maven.modrinth:ldlib:mc1.20.1-1.0.42-fabric') { transitive = false }
+	modCompileOnly('maven.modrinth:lodestonelib:1.20.1-1.6.2.3f') { transitive = false }
 }
 
 processResources {
