@@ -18,6 +18,18 @@ public final class FxLayers extends RenderLayer {
 					.writeMaskState(COLOR_MASK)
 					.build(false));
 
+	/**
+	 * Solid shapes with a body (a heart with thickness, a wing's bones and skin): real colour that writes depth, so
+	 * their own faces hide one another properly; both faces shown.
+	 */
+	public static final RenderLayer SOLID = of("mages_legacy_solid", VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS, 1 << 16, false, true,
+			MultiPhaseParameters.builder()
+					.program(COLOR_PROGRAM)
+					.transparency(TRANSLUCENT_TRANSPARENCY)
+					.cull(DISABLE_CULLING)
+					.writeMaskState(ALL_MASK)
+					.build(false));
+
 	private FxLayers(String name, VertexFormat format, VertexFormat.DrawMode mode, int size, boolean crumbling, boolean translucent, Runnable start,
 			Runnable end) {
 		super(name, format, mode, size, crumbling, translucent, start, end);

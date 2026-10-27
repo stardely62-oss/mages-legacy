@@ -55,6 +55,7 @@ public final class Fx {
 	public static final int MASK = 37;
 	public static final int MASKS = 38;
 	public static final int WEB = 39;
+	public static final int DOOR_CLOSE = 40;
 	/**
 	 * A flag on a colour: lay it on as real colour under its glow, the way blood should look, rather than glow alone
 	 * (which a bright day washes to pink, and which can't show a dark colour at all).
@@ -358,12 +359,23 @@ public final class Fx {
 		send(world, on.getPos(), buf);
 	}
 
-	/** An arched door of light standing at {@code at} facing {@code yaw}: it traces itself, swings open on warm light, and shuts. */
-	public static void door(ServerWorld world, Vec3d at, float yaw, int ticks, int rgb) {
+	/**
+	 * An arched door of light standing at {@code at} facing {@code yaw}: it traces itself and swings open on warm light,
+	 * and stays open until {@link #doorClose} for its {@code owner} (or {@code ticks} at most, or the owner leaves).
+	 */
+	public static void door(ServerWorld world, Vec3d at, float yaw, Entity owner, int ticks, int rgb) {
 		PacketByteBuf buf = start(DOOR, ticks, rgb);
 		writeVec(buf, at);
 		buf.writeFloat(yaw);
+		buf.writeVarInt(owner.getId());
 		send(world, at, buf);
+	}
+
+	/** The door {@code owner} opened swings shut and fades. */
+	public static void doorClose(ServerWorld world, Entity owner) {
+		PacketByteBuf buf = start(DOOR_CLOSE, 1, 0);
+		buf.writeVarInt(owner.getId());
+		send(world, owner.getPos(), buf);
 	}
 
 	/** A giant coin tossed above an entity's head: it spins, hangs, and comes down on it. */

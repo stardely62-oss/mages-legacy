@@ -308,4 +308,11 @@ public class MercShopScreen extends Screen {
 	public boolean shouldPause() {
 		return false;
 	}
+
+	/** Leaving the Shop: its door swings shut behind the Mercenary. */
+	@Override
+	public void removed() {
+		super.removed();
+		MagesLegacyClient.sendMerc(6, 0, "");
+	}
 }

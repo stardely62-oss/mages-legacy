@@ -512,14 +512,21 @@ public final class Mercenary {
 		return false;
 	}
 
-	/** The Mage's Shop is called: its door stands in the air before the Mercenary, opens on warm light, and shuts. */
+	/** The Mage's Shop is called: its door stands in the air before the Mercenary and opens on warm light, until it is left. */
 	public static void openedShop(ServerPlayerEntity player) {
 		ServerWorld world = player.getServerWorld();
 		Vec3d look = player.getRotationVec(1.0f).multiply(1, 0, 1);
 		look = look.lengthSquared() < 1.0E-4 ? new Vec3d(0, 0, 1) : look.normalize();
-		Fx.door(world, player.getPos().add(look.multiply(3.0)), player.getYaw(), 50, GOLD_RGB);
+		Fx.door(world, player.getPos().add(look.multiply(3.0)), player.getYaw(), player, 6000, GOLD_RGB);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_WOODEN_DOOR_OPEN, SoundCategory.PLAYERS, 1.0f, 0.6f);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.0f, 1.2f);
+	}
+
+	/** The Mercenary left the Shop: the door swings shut behind them. */
+	public static void closedShop(ServerPlayerEntity player) {
+		ServerWorld world = player.getServerWorld();
+		Fx.doorClose(world, player);
+		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_WOODEN_DOOR_CLOSE, SoundCategory.PLAYERS, 1.0f, 0.6f);
 	}
 
 	/** What the client's Shop screen needs: the account in the Shop and today's prices. */

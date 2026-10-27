@@ -903,15 +903,15 @@ public class HarnessClient implements ClientModInitializer {
 		step(9, false, c -> key(4));
 		shotWhen("Flip", 0.35f, "fx_merc_stake_flip");
 		shotWhen("Flip", 0.8f, "fx_merc_stake_coins");
+		// The Shop's door: open while the Shop is (the screen itself would hide it, so only the message is sent), shut after
 		step(10, false, c -> {
-			c.options.setPerspective(Perspective.FIRST_PERSON);
-			key(3);
-		});
-		step(3, false, c -> {
-			c.setScreen(null);
 			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+			MagesLegacyClient.sendMerc(5, 0, "");
 		});
-		shotWhen("Door", 0.45f, "fx_merc_door");
+		shotWhen("Door", 0.005f, "fx_merc_door");
+		step(60, false, c -> check("shop_door_stays_open", FxRenderer.progressOf("Door") >= 0));
+		step(40, false, c -> MagesLegacyClient.sendMerc(6, 0, ""));
+		step(5, false, c -> check("shop_door_shuts", FxRenderer.progressOf("Door") < 0));
 
 		// ---- The Tempters: the Kiss's hearts, the Wings, the Charm's heart, the Lullaby's moons, the Broken Heart ----
 		step(10, false, c -> {
