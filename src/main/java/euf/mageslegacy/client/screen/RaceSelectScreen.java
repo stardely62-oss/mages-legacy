@@ -2,6 +2,7 @@ package euf.mageslegacy.client.screen;
 
 import euf.mageslegacy.client.MagesLegacyClient;
 import euf.mageslegacy.client.RaceHud;
+import euf.mageslegacy.race.AbilitySlots;
 import euf.mageslegacy.race.Race;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +22,7 @@ public class RaceSelectScreen extends Screen {
 	private static final int CARD_Y = 24;
 	private static final int CARD_H = 52;
 	private static final int TILE_H = 38;
+	private static final int TILES_PER_ROW = 3;
 
 	private Race selected = Race.MYCELID;
 	private LegacyButton chooseButton;
@@ -214,8 +216,11 @@ public class RaceSelectScreen extends Screen {
 		int top = detailTop();
 		int bottom = detailBottom();
 		LegacyUi.panel(ctx, x - 6, top - 6, x + w + 6, bottom);
-		boolean abilities = I18n.hasTranslation("mages_legacy.ability." + selected.id() + ".1.name");
-		int listBottom = bottom - (abilities ? TILE_H + 18 : 22);
+		int count = abilityCount(selected);
+		boolean abilities = count > 0;
+		int rows = (count + TILES_PER_ROW - 1) / TILES_PER_ROW;
+		int tilesH = rows * TILE_H + (rows - 1) * 4;
+		int listBottom = bottom - (abilities ? tilesH + 18 : 22);
 
 		// Strengths and weaknesses scroll above the ability tiles
 		ctx.enableScissor(x - 2, top, x + w + 2, listBottom);
@@ -238,12 +243,18 @@ public class RaceSelectScreen extends Screen {
 			ctx.drawCenteredTextWithShadow(textRenderer, soon, x + w / 2, cy, LegacyUi.MUTED);
 			return 0;
 		}
-		int ty = bottom - TILE_H - 6;
-		LegacyUi.divider(ctx, x, x + w, ty - 8, LegacyUi.argb(selected.color));
-		int tileW = (w - 8) / 3;
+		int tilesTop = bottom - tilesH - 6;
+		LegacyUi.divider(ctx, x, x + w, tilesTop - 8, LegacyUi.argb(selected.color));
+		int tileW = (w - 4 * (TILES_PER_ROW - 1)) / TILES_PER_ROW;
 		int hovered = 0;
-		for (int slot = 1; slot <= 3; slot++) {
-			int tx = x + (slot - 1) * (tileW + 4);
+		for (int slot = 1; slot <= count; slot++) {
+			int row = (slot - 1) / TILES_PER_ROW;
+			int col = (slot - 1) % TILES_PER_ROW;
+			// A shorter last row sits in the middle
+			int inRow = Math.min(TILES_PER_ROW, count - row * TILES_PER_ROW);
+			int rowX = x + (w - inRow * tileW - (inRow - 1) * 4) / 2;
+			int tx = rowX + col * (tileW + 4);
+			int ty = tilesTop + row * (TILE_H + 4);
 			boolean hot = mouseX >= tx && mouseX < tx + tileW && mouseY >= ty && mouseY < ty + TILE_H;
 			if (hot) {
 				hovered = slot;
@@ -259,6 +270,15 @@ public class RaceSelectScreen extends Screen {
 			ctx.drawCenteredTextWithShadow(textRenderer, textRenderer.trimToWidth(name.getString(), tileW - 4), cx, ty + 23, LegacyUi.GOLD);
 		}
 		return hovered;
+	}
+
+	/** How many abilities a race has: the main three plus whatever it has on H and Alt; 0 for a race not awakened yet. */
+	private static int abilityCount(Race race) {
+		int count = 0;
+		while (count < AbilitySlots.KEYS && I18n.hasTranslation("mages_legacy.ability." + race.id() + "." + (count + 1) + ".name")) {
+			count++;
+		}
+		return count;
 	}
 
 	private int section(DrawContext ctx, Text title, int x, int y, int color) {

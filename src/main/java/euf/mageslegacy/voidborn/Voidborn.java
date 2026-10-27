@@ -60,7 +60,7 @@ public final class Voidborn {
 	public static final int WELL_COST = 40;
 	public static final int EXCISE_COST = 35;
 	public static final int POCKET_COST = 20;
-	public static final double STEP_RANGE = 14;
+	public static final double STEP_RANGE = 24;
 	private static final int STEP_TICKS = 10;
 	private static final int STEP_COOLDOWN = 160;
 	private static final int WELL_TICKS = 80;
@@ -137,7 +137,7 @@ public final class Voidborn {
 	}
 
 	public static double stepRange(RaceData data) {
-		return data.has(Talents.STEP_FAR) ? 18 : STEP_RANGE;
+		return data.has(Talents.STEP_FAR) ? 32 : STEP_RANGE;
 	}
 
 	public static int exciseCost(boolean cheap) {
@@ -322,7 +322,7 @@ public final class Voidborn {
 	}
 
 	/**
-	 * Void Step: half a second's passage through the void, 14 blocks where you look, through walls, floors and
+	 * Void Step: half a second's passage through the void, 24 blocks where you look, through walls, floors and
 	 * ceilings alike, coming out where the body fits (never inside the rock, never in lava). Bedrock and other
 	 * unbreakable things stop it. What it passes through on the way takes 4 and is slowed.
 	 */

@@ -287,7 +287,7 @@ public class RaceGameTests implements FabricGameTest {
 	public void sporeJumpSproutsWhereYouLook(TestContext ctx) {
 		ServerWorld world = ctx.getWorld();
 		BlockPos start = ctx.getAbsolutePos(new BlockPos(1, 2, 0));
-		floor(world, start.add(-1, 0, 0), 3, 20);
+		floor(world, start.add(-1, 0, 0), 3, 30);
 		ServerPlayerEntity player = mycelid(ctx, start);
 		// Yaw 0 looks south (+Z), a little down so the spore lands on the floor
 		player.refreshPositionAndAngles(start.getX() + 0.5, start.getY(), start.getZ() + 0.5, 0, 25);
@@ -299,7 +299,7 @@ public class RaceGameTests implements FabricGameTest {
 		check(Mycelid.sporeJump(player, data) == AbilityResult.COOLDOWN, "no second jump right away");
 		ctx.waitAndRun(Mycelid.JUMP_DELAY + 3, () -> {
 			double moved = player.getPos().subtract(from).horizontalLength();
-			check(moved > 2 && moved <= 8.6, "the player should sprout up to 8 blocks ahead, moved " + moved);
+			check(moved > 2 && moved <= 16.6, "the player should sprout up to 16 blocks ahead, moved " + moved);
 			check(player.getZ() > from.z, "forward is south, now at " + player.getPos());
 			check(!world.isSpaceEmpty(player, player.getBoundingBox().offset(0, -0.3, 0)), "landed on the floor");
 			// Looking almost level: the spore flies the full reach and the Mycelid settles on the floor there
@@ -310,7 +310,7 @@ public class RaceGameTests implements FabricGameTest {
 			check(Mycelid.sporeJump(player, data) == AbilityResult.OK, "the level jump should start");
 			ctx.waitAndRun(Mycelid.JUMP_DELAY + 3, () -> {
 				double far = player.getPos().subtract(second).horizontalLength();
-				check(far > 6 && far <= 8.6, "a level jump should cover most of the 8 blocks, moved " + far);
+				check(far > 12 && far <= 16.6, "a level jump should cover most of the 16 blocks, moved " + far);
 				done(ctx, player);
 			});
 		});
@@ -1166,7 +1166,7 @@ public class RaceGameTests implements FabricGameTest {
 	public void theVoidStepPassesThroughWallsButNeverIntoThem(TestContext ctx) {
 		ServerWorld world = ctx.getWorld();
 		BlockPos at = ctx.getAbsolutePos(new BlockPos(3, 2, 1));
-		floor(world, at.add(-2, 0, -1), 5, 18);
+		floor(world, at.add(-2, 0, -1), 5, 28);
 		// A wall three blocks thick, two blocks ahead (yaw 0 looks south, +Z)
 		for (int dx = -2; dx <= 2; dx++) {
 			for (int dy = 0; dy <= 3; dy++) {
@@ -1191,11 +1191,11 @@ public class RaceGameTests implements FabricGameTest {
 	public void theVoidStepNeverLeavesTheBodyInRockOrPastBedrock(TestContext ctx) {
 		ServerWorld world = ctx.getWorld();
 		BlockPos at = ctx.getAbsolutePos(new BlockPos(3, 2, 1));
-		floor(world, at.add(-2, 0, -1), 5, 18);
+		floor(world, at.add(-2, 0, -1), 5, 28);
 		// Solid rock all the way ahead: nowhere to come out, so it doesn't go and costs nothing
 		for (int dx = -2; dx <= 2; dx++) {
 			for (int dy = -1; dy <= 4; dy++) {
-				for (int dz = 1; dz <= 16; dz++) {
+				for (int dz = 1; dz <= 26; dz++) {
 					world.setBlockState(at.add(dx, dy, dz), Blocks.STONE.getDefaultState());
 				}
 			}
@@ -1206,7 +1206,7 @@ public class RaceGameTests implements FabricGameTest {
 		// Bedrock: the step stops short of it, it never passes through
 		for (int dx = -2; dx <= 2; dx++) {
 			for (int dy = -1; dy <= 4; dy++) {
-				for (int dz = 1; dz <= 16; dz++) {
+				for (int dz = 1; dz <= 26; dz++) {
 					world.setBlockState(at.add(dx, dy, dz), dz == 3 ? Blocks.BEDROCK.getDefaultState() : dy == -1 ? Blocks.STONE.getDefaultState()
 							: Blocks.AIR.getDefaultState());
 				}

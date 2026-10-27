@@ -331,7 +331,7 @@ public final class Mycelid {
 	}
 
 	public static double jumpRange(RaceData data) {
-		return data.has(Talents.NET_REACH) ? 12 : 8;
+		return data.has(Talents.NET_REACH) ? 22 : 16;
 	}
 
 	public static AbilityResult sporeJump(ServerPlayerEntity player, RaceData data) {
