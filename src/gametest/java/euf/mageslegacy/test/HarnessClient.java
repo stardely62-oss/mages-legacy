@@ -1034,7 +1034,15 @@ public class HarnessClient implements ClientModInitializer {
 				resetCooldowns(c);
 			});
 			step(10, false, this::trialCamera);
-			step(6, false, c -> trialKiss(c, backend));
+			step(4, false, c -> {
+				if (backend.equals("own")) {
+					trialLook(c);
+				}
+			});
+			step(6, false, c -> {
+				c.inGameHud.getChatHud().clear(false);
+				trialKiss(c, backend);
+			});
 			step(10, false, c -> screenshot(c, "trial_" + backend + "_kiss_a"));
 			step(20, false, c -> screenshot(c, "trial_" + backend + "_kiss_b"));
 			step(10, false, c -> commands(c, "kill @e[type=spider]", spider(arena, 0, 16), "race resource @a 100"));
@@ -1082,6 +1090,14 @@ public class HarnessClient implements ClientModInitializer {
 		client.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 	}
 
+	/** The player turns to the trial's spider where it stands (on the server, so the ability sees it). */
+	private static void trialLook(MinecraftClient client) {
+		net.minecraft.entity.Entity target = trialTarget(client);
+		if (target != null) {
+			tp(client, client.player.getPos(), target.getPos().add(0, 0.4, 0));
+		}
+	}
+
 	private static void trialKiss(MinecraftClient client, String backend) {
 		net.minecraft.entity.Entity target = trialTarget(client);
 		if (target == null) {
@@ -1091,11 +1107,7 @@ public class HarnessClient implements ClientModInitializer {
 			case "photon" -> FxPrototypes.photonKiss(target, client.player);
 			case "lodestone" -> FxPrototypes.lodestoneKiss(target, client.player);
 			default -> {
-				// Our own: the real Kiss, looking at the spider for it
-				Vec3d eye = client.player.getEyePos();
-				Vec3d d = target.getPos().add(0, 0.4, 0).subtract(eye);
-				client.player.setYaw((float) Math.toDegrees(Math.atan2(-d.x, d.z)));
-				client.player.setPitch((float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z))));
+				// Our own: the real Kiss (the server turned the player to the spider a moment before, see trialLook)
 				key(0);
 			}
 		}
@@ -1114,12 +1126,10 @@ public class HarnessClient implements ClientModInitializer {
 			}
 			case "lodestone" -> FxPrototypes.lodestoneCharmTick(target, tick);
 			default -> {
-				if (tick == 0) {
-					Vec3d eye = client.player.getEyePos();
-					Vec3d d = target.getPos().add(0, 0.4, 0).subtract(eye);
-					client.player.setYaw((float) Math.toDegrees(Math.atan2(-d.x, d.z)));
-					client.player.setPitch((float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z))));
+				if (tick == 2) {
 					key(2);
+				} else if (tick == 0) {
+					trialLook(client);
 				}
 			}
 		}
