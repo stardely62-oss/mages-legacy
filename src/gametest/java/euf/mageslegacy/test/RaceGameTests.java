@@ -1291,7 +1291,14 @@ public class RaceGameTests implements FabricGameTest {
 		check(Contracts.deliver(player, data, 0) && data.merc.active.isEmpty() && data.merc.tokens == 20, "the ingots are handed in");
 		check(player.getInventory().count(Items.IRON_INGOT) == 2, "and two stay, got " + player.getInventory().count(Items.IRON_INGOT));
 
-		// The shop: goods for anyone, learning for the Mercenary, dearer each time, three a day
+		// The shop: today's goods for anyone (only what's out today), learning for the Mercenary, dearer each time, three a day
+		Shop.restock(player, data);
+		check(data.merc.stock.size() == Shop.STOCK && data.merc.stock.contains(data.merc.deal), "seven goods out, one a deal: " + data.merc.stock);
+		check(data.merc.stock.stream().noneMatch(id -> Shop.ware(id).get().tier() > 1), "only open tiers in stock");
+		data.merc.stock.remove("pearls");
+		check(!Shop.buy(player, data, "pearls"), "nothing that isn't out today");
+		data.merc.stock.add("arrows");
+		data.merc.deal = "";
 		check(Shop.buy(player, data, "arrows") && data.merc.tokens == 17 && player.getInventory().count(Items.ARROW) == 32, "arrows bought");
 		int xpBefore = data.xp + RaceData.xpForNext(0) * data.level;
 		data.merc.tokens = 100;

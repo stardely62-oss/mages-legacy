@@ -826,6 +826,11 @@ public class HarnessClient implements ClientModInitializer {
 			onServer(c, s -> {
 				RaceData data = RaceState.get(s).data(me);
 				data.merc.tokens = 60;
+				// Arrows out today at the full price, whatever the roll
+				if (!data.merc.stock.contains("arrows")) {
+					data.merc.stock.add("arrows");
+				}
+				data.merc.deal = "";
 				RacePackets.sync(s.getPlayerManager().getPlayer(me), data);
 				return null;
 			});

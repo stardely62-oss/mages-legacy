@@ -7,6 +7,7 @@ import java.util.Map;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.nbt.NbtString;
 
 /**
  * A Mercenary's account in the Mage's Shop: tokens (they exist nowhere but here), the board of offered contracts,
@@ -22,6 +23,9 @@ public class MercData {
 	/** Shop id -> how many bought today. */
 	public final Map<String, Integer> bought = new HashMap<>();
 	public int completed;
+	/** Today's goods in the shop (ware ids), rolled with the board; one of them is the deal of the day. */
+	public final List<String> stock = new ArrayList<>();
+	public String deal = "";
 
 	public void clear() {
 		tokens = 0;
@@ -31,6 +35,8 @@ public class MercData {
 		rerolls = 0;
 		bought.clear();
 		completed = 0;
+		stock.clear();
+		deal = "";
 	}
 
 	public NbtCompound toNbt() {
@@ -44,6 +50,10 @@ public class MercData {
 		bought.forEach(today::putInt);
 		nbt.put("bought", today);
 		nbt.putInt("completed", completed);
+		NbtList wares = new NbtList();
+		stock.forEach(id -> wares.add(NbtString.of(id)));
+		nbt.put("stock", wares);
+		nbt.putString("deal", deal);
 		return nbt;
 	}
 
@@ -59,6 +69,10 @@ public class MercData {
 			bought.put(id, today.getInt(id));
 		}
 		completed = nbt.getInt("completed");
+		for (NbtElement e : nbt.getList("stock", NbtElement.STRING_TYPE)) {
+			stock.add(e.asString());
+		}
+		deal = nbt.getString("deal");
 	}
 
 	private static NbtList list(List<Contract> contracts) {

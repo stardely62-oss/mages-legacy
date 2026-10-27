@@ -147,6 +147,7 @@ public final class Contracts {
 		merc.rerolls = 0;
 		merc.bought.clear();
 		fill(player, data);
+		Shop.restock(player, data);
 	}
 
 	/** Lays out a fresh board. */

@@ -519,11 +519,15 @@ public final class Mercenary {
 	/** What the client's Shop screen needs: the account in the Shop and today's prices. */
 	public static net.minecraft.nbt.NbtCompound clientInfo(ServerPlayerEntity player, RaceData data) {
 		Contracts.refresh(player, data);
+		Shop.ensureStock(player, data);
 		net.minecraft.nbt.NbtCompound nbt = data.merc.toNbt();
 		nbt.putInt("slots", Contracts.slots(data));
 		nbt.putInt("rerollPrice", Shop.discounted(data, Contracts.rerollPrice(data)));
 		net.minecraft.nbt.NbtCompound prices = new net.minecraft.nbt.NbtCompound();
 		for (Shop.Ware ware : Shop.CATALOG) {
+			if (ware.kind() == Shop.Kind.GOODS && !data.merc.stock.contains(ware.id())) {
+				continue;
+			}
 			prices.putInt(ware.id(), Shop.soldOut(data, ware) ? -1 : Progression.tierOpen(player, ware.tier()) ? Shop.price(data, ware) : -2);
 		}
 		nbt.put("prices", prices);

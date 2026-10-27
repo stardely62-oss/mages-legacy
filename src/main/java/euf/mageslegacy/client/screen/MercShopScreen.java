@@ -118,7 +118,7 @@ public class MercShopScreen extends Screen {
 		NbtCompound prices = merc().getCompound("prices");
 		int tokens = merc().getInt("tokens");
 		List<Shop.Ware> services = Shop.CATALOG.stream().filter(w -> w.kind() == Shop.Kind.SERVICE).toList();
-		List<Shop.Ware> goods = Shop.CATALOG.stream().filter(w -> w.kind() == Shop.Kind.GOODS).toList();
+		List<Shop.Ware> goods = todaysGoods();
 		for (int column = 0; column < 2; column++) {
 			List<Shop.Ware> wares = column == 0 ? services : goods;
 			int x = column == 0 ? left() : right();
@@ -132,6 +132,15 @@ public class MercShopScreen extends Screen {
 						b -> MagesLegacyClient.sendMerc(4, 0, ware.id())).accent(color())).active = price >= 0 && tokens >= price;
 			}
 		}
+	}
+
+	/** The goods the shop has out today, in the order the server rolled them. */
+	private List<Shop.Ware> todaysGoods() {
+		List<Shop.Ware> goods = new ArrayList<>();
+		for (net.minecraft.nbt.NbtElement e : merc().getList("stock", net.minecraft.nbt.NbtElement.STRING_TYPE)) {
+			Shop.ware(e.asString()).ifPresent(goods::add);
+		}
+		return goods;
 	}
 
 	/** Ware rows are tight, so the whole catalogue fits a GUI scale of 3. */
@@ -252,7 +261,7 @@ public class MercShopScreen extends Screen {
 		ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.merc.services").formatted(Formatting.BOLD), left(), TOP, LegacyUi.GOLD);
 		ctx.drawTextWithShadow(textRenderer, Text.translatable("mages_legacy.merc.goods").formatted(Formatting.BOLD), right(), TOP, LegacyUi.GOLD);
 		List<Shop.Ware> services = Shop.CATALOG.stream().filter(w -> w.kind() == Shop.Kind.SERVICE).toList();
-		List<Shop.Ware> goods = Shop.CATALOG.stream().filter(w -> w.kind() == Shop.Kind.GOODS).toList();
+		List<Shop.Ware> goods = todaysGoods();
 		for (int column = 0; column < 2; column++) {
 			List<Shop.Ware> wares = column == 0 ? services : goods;
 			int x = column == 0 ? left() : right();
@@ -264,10 +273,14 @@ public class MercShopScreen extends Screen {
 				ctx.drawItem(stack, x + 1, y);
 				ctx.drawItemInSlot(textRenderer, stack, x + 1, y);
 				Text name = Text.translatable("mages_legacy.shop." + ware.id());
-				ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(name.getString(), colW() - 80), x + 21, y + 5, LegacyUi.TEXT);
+				boolean deal = ware.id().equals(merc().getString("deal"));
+				ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(name.getString(), colW() - 80), x + 21, y + 5, deal ? LegacyUi.GOLD : LegacyUi.TEXT);
 				List<Text> lines = new ArrayList<>();
 				lines.add(name.copy().formatted(Formatting.GOLD));
 				TalentScreen.wrapInto(lines, Text.translatable("mages_legacy.shop." + ware.id() + ".desc").formatted(Formatting.GRAY));
+				if (deal) {
+					lines.add(Text.translatable("mages_legacy.merc.deal").formatted(Formatting.YELLOW));
+				}
 				if (ware.dailyMax() > 0) {
 					lines.add(Text.translatable("mages_legacy.merc.daily", ware.dailyMax()).formatted(Formatting.DARK_GRAY));
 				}

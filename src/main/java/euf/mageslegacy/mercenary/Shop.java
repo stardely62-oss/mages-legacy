@@ -4,14 +4,21 @@ import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.RaceData;
 import euf.mageslegacy.race.Talents;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.enchantment.EnchantmentLevelEntry;
+import net.minecraft.enchantment.Enchantments;
+import net.minecraft.item.EnchantedBookItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.potion.PotionUtil;
+import net.minecraft.potion.Potions;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
@@ -36,20 +43,50 @@ public final class Shop {
 	/** Race experience the Mage's Learning gives: dearer than a contract's, so the work stays the way to grow. */
 	public static final int LEARNING_XP = 60;
 
+	/** How many goods the shop has on a given day, out of the whole pool below. */
+	public static final int STOCK = 7;
+	/** The deal of the day is this much cheaper. */
+	private static final float DEAL = 0.7f;
+
+	/**
+	 * Services are always there; goods come and go: each day the shop puts out {@link #STOCK} of them, rolled from the
+	 * pool of the tiers the Mercenary has opened, one of them at a discount.
+	 */
 	public static final List<Ware> CATALOG = List.of(
 			new Ware("learning", Kind.SERVICE, 12, 1, 3, 6, () -> new ItemStack(Items.EXPERIENCE_BOTTLE)),
 			new Ware("hire_strength", Kind.SERVICE, 10, 1, 0, 0, () -> new ItemStack(Items.BLAZE_POWDER)),
 			new Ware("hire_guard", Kind.SERVICE, 12, 1, 0, 0, () -> new ItemStack(Items.SHIELD)),
 			new Ware("hire_haste", Kind.SERVICE, 8, 1, 0, 0, () -> new ItemStack(Items.GOLDEN_PICKAXE)),
 			new Ware("arrows", Kind.GOODS, 3, 1, 0, 0, () -> new ItemStack(Items.ARROW, 32)),
+			new Ware("spectral_arrows", Kind.GOODS, 5, 1, 0, 0, () -> new ItemStack(Items.SPECTRAL_ARROW, 16)),
+			new Ware("torches", Kind.GOODS, 2, 1, 0, 0, () -> new ItemStack(Items.TORCH, 32)),
+			new Ware("steak", Kind.GOODS, 4, 1, 0, 0, () -> new ItemStack(Items.COOKED_BEEF, 16)),
+			new Ware("iron", Kind.GOODS, 6, 1, 0, 0, () -> new ItemStack(Items.IRON_INGOT, 8)),
 			new Ware("name_tag", Kind.GOODS, 6, 1, 0, 0, () -> new ItemStack(Items.NAME_TAG)),
 			new Ware("saddle", Kind.GOODS, 6, 1, 0, 0, () -> new ItemStack(Items.SADDLE)),
+			new Ware("leads", Kind.GOODS, 4, 1, 0, 0, () -> new ItemStack(Items.LEAD, 2)),
 			new Ware("pearls", Kind.GOODS, 10, 1, 0, 0, () -> new ItemStack(Items.ENDER_PEARL, 4)),
 			new Ware("bottles", Kind.GOODS, 8, 1, 0, 0, () -> new ItemStack(Items.EXPERIENCE_BOTTLE, 8)),
+			new Ware("healing", Kind.GOODS, 8, 1, 0, 0, () -> PotionUtil.setPotion(new ItemStack(Items.POTION), Potions.STRONG_HEALING)),
 			new Ware("golden_apple", Kind.GOODS, 15, 1, 0, 0, () -> new ItemStack(Items.GOLDEN_APPLE)),
 			new Ware("oblivion", Kind.GOODS, 40, 1, 0, 0, () -> new ItemStack(MagesLegacy.OBLIVION_SCROLL)),
 			new Ware("blaze_rods", Kind.GOODS, 10, 2, 0, 0, () -> new ItemStack(Items.BLAZE_ROD, 4)),
+			new Ware("fire_resistance", Kind.GOODS, 10, 2, 0, 0, () -> PotionUtil.setPotion(new ItemStack(Items.POTION), Potions.LONG_FIRE_RESISTANCE)),
+			new Ware("ghast_tears", Kind.GOODS, 12, 2, 0, 0, () -> new ItemStack(Items.GHAST_TEAR, 2)),
+			new Ware("diamonds", Kind.GOODS, 18, 2, 1, 0, () -> new ItemStack(Items.DIAMOND, 2)),
+			new Ware("book", Kind.GOODS, 20, 2, 1, 0, () -> new ItemStack(Items.ENCHANTED_BOOK)),
+			new Ware("ender_eyes", Kind.GOODS, 14, 3, 0, 0, () -> new ItemStack(Items.ENDER_EYE, 4)),
+			new Ware("shulker_shells", Kind.GOODS, 30, 3, 1, 0, () -> new ItemStack(Items.SHULKER_SHELL, 2)),
+			new Ware("totem", Kind.GOODS, 45, 3, 1, 0, () -> new ItemStack(Items.TOTEM_OF_UNDYING)),
 			new Ware("netherite_scrap", Kind.GOODS, 60, 4, 1, 0, () -> new ItemStack(Items.NETHERITE_SCRAP)));
+
+	/** What a random book of the shop can hold: useful enchantments at a good level, never the best of the best. */
+	private static final List<EnchantmentLevelEntry> BOOKS = List.of(
+			new EnchantmentLevelEntry(Enchantments.MENDING, 1), new EnchantmentLevelEntry(Enchantments.UNBREAKING, 3),
+			new EnchantmentLevelEntry(Enchantments.SHARPNESS, 4), new EnchantmentLevelEntry(Enchantments.PROTECTION, 3),
+			new EnchantmentLevelEntry(Enchantments.EFFICIENCY, 4), new EnchantmentLevelEntry(Enchantments.FORTUNE, 2),
+			new EnchantmentLevelEntry(Enchantments.LOOTING, 2), new EnchantmentLevelEntry(Enchantments.POWER, 4),
+			new EnchantmentLevelEntry(Enchantments.FEATHER_FALLING, 4), new EnchantmentLevelEntry(Enchantments.SILK_TOUCH, 1));
 
 	private Shop() {
 	}
@@ -63,9 +100,30 @@ public final class Shop {
 		return data.has(Talents.CON_DISCOUNT) ? (int) Math.ceil(price * 0.85f) : price;
 	}
 
-	/** What the ware costs this Mercenary now, with today's purchases and the discount. */
+	/** What the ware costs this Mercenary now, with today's purchases, the deal of the day and the discount. */
 	public static int price(RaceData data, Ware ware) {
-		return discounted(data, ware.price() + ware.step() * data.merc.bought.getOrDefault(ware.id(), 0));
+		int price = ware.price() + ware.step() * data.merc.bought.getOrDefault(ware.id(), 0);
+		if (ware.id().equals(data.merc.deal)) {
+			price = Math.max(1, Math.round(price * DEAL));
+		}
+		return discounted(data, price);
+	}
+
+	/** Puts out today's goods: a fresh roll from the open tiers, one of them the deal of the day. */
+	public static void restock(ServerPlayerEntity player, RaceData data) {
+		List<Ware> pool = new ArrayList<>(CATALOG.stream().filter(w -> w.kind() == Kind.GOODS && Progression.tierOpen(player, w.tier())).toList());
+		Collections.shuffle(pool, new java.util.Random(player.getRandom().nextLong()));
+		data.merc.stock.clear();
+		pool.stream().limit(STOCK).forEach(w -> data.merc.stock.add(w.id()));
+		data.merc.deal = data.merc.stock.isEmpty() ? "" : data.merc.stock.get(player.getRandom().nextInt(data.merc.stock.size()));
+		data.dirty = true;
+	}
+
+	/** A shop from before the goods rotated has none out yet: put them out now. */
+	public static void ensureStock(ServerPlayerEntity player, RaceData data) {
+		if (data.merc.stock.isEmpty()) {
+			restock(player, data);
+		}
 	}
 
 	public static boolean soldOut(RaceData data, Ware ware) {
@@ -75,6 +133,10 @@ public final class Shop {
 	public static boolean buy(ServerPlayerEntity player, RaceData data, String id) {
 		Ware ware = ware(id).orElse(null);
 		if (ware == null) {
+			return false;
+		}
+		if (ware.kind() == Kind.GOODS && !data.merc.stock.contains(id)) {
+			player.sendMessage(Text.translatable("mages_legacy.merc.not_today"), true);
 			return false;
 		}
 		if (!Progression.tierOpen(player, ware.tier())) {
@@ -98,6 +160,7 @@ public final class Shop {
 			case "hire_strength" -> hire(player, StatusEffects.STRENGTH, 0);
 			case "hire_guard" -> hire(player, StatusEffects.RESISTANCE, 0);
 			case "hire_haste" -> hire(player, StatusEffects.HASTE, 1);
+			case "book" -> player.getInventory().offerOrDrop(EnchantedBookItem.forEnchantment(BOOKS.get(player.getRandom().nextInt(BOOKS.size()))));
 			default -> player.getInventory().offerOrDrop(ware.icon().get());
 		}
 		player.playSound(SoundEvents.ENTITY_VILLAGER_TRADE, SoundCategory.PLAYERS, 0.7f, 0.9f);
