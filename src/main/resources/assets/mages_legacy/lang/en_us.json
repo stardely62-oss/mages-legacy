@@ -78,7 +78,7 @@
 	"mages_legacy.ability.mycelid.3.desc": "Grows a node of your network (up to 3). Right click a node to travel to the next one within 150 blocks. Anyone may use it. Opens after the Nether. 40 spores.",
 	"mages_legacy.ability.mycelid.4.name": "Mycelium Carpet",
 	"mages_legacy.ability.mycelid.4.lore": "The Mycelids carry their soil with them: where one stands, the mycelium grows.",
-	"mages_legacy.ability.mycelid.4.desc": "Mycelium spreads around you for 20 seconds, 5 blocks across. For Mycelids it is real mycelium: spores grow faster and the body mends, even in dry lands. Monsters on it stick fast (Slowness II). 35 spores, once in 30 seconds.",
+	"mages_legacy.ability.mycelid.4.desc": "Mycelium spreads around you for 20 seconds, 6 blocks across. For Mycelids it is real mycelium: spores grow faster and the body mends, even in dry lands; other players on it regenerate. Monsters on it stick fast (Slowness III) while the threads drink them: 1.5 damage a second to each, and 2 spores to you from each. 25 spores, once in 30 seconds.",
 	"mages_legacy.ability.mycelid.5.name": "Great Bloom",
 	"mages_legacy.ability.mycelid.5.lore": "Death in the swarm only starts a new swarm.",
 	"mages_legacy.ability.mycelid.5.desc": "The Swarm's crown. Every monster within 12 blocks takes the spores in for 10 seconds: poisoned and glowing, and one that dies bursts into a spore cloud. While the bloom lasts, whatever dies in your clouds bursts into a new one too: a chain through the whole crowd. 50 spores, once in 5 minutes.",

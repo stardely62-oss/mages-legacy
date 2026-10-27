@@ -30,6 +30,7 @@ import net.minecraft.entity.effect.StatusEffectCategory;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.Monster;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.FoodComponent;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -69,10 +70,13 @@ public final class Mycelid {
 	private static final int MOSS_INK = Fx.INK | 0x4E7A3A;
 	public static final int CLOUD_KILL_XP = 4;
 	public static final int DARK_KILL_XP = 3;
-	public static final int CARPET_COST = 35;
+	public static final int CARPET_COST = 25;
 	private static final int CARPET_COOLDOWN = 600;
 	private static final int CARPET_TICKS = 400;
-	private static final double CARPET_RADIUS = 5;
+	private static final double CARPET_RADIUS = 6;
+	/** What the carpet takes from each monster on it every second, and gives its Mycelid back in spores. */
+	private static final float CARPET_BITE = 1.5f;
+	private static final float CARPET_SPORES = 2;
 	public static final int BLOOM_COST = 50;
 	private static final int BLOOM_COOLDOWN = 6000;
 	private static final int BLOOM_TICKS = 200;
@@ -113,8 +117,8 @@ public final class Mycelid {
 
 	private static final List<PendingJump> JUMPS = new ArrayList<>();
 	private static final List<Cloud> CLOUDS = new ArrayList<>();
-	/** A Mycelium Carpet: ground that counts as mycelium for the Mycelids and holds monsters fast. */
-	private record Carpet(ServerWorld world, Vec3d center, double radius, long until) {}
+	/** A Mycelium Carpet: ground that counts as mycelium for the Mycelids, holds monsters fast and feeds on them. */
+	private record Carpet(ServerWorld world, Vec3d center, UUID owner, double radius, long until) {}
 
 	/** A monster the Great Bloom infected: until when, and whose spores burst out of it if it dies. */
 	private record Infection(UUID owner, long until) {}
@@ -452,6 +456,9 @@ public final class Mycelid {
 				RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, player));
 		Vec3d end = hit.getType() == HitResult.Type.MISS ? eye.add(look.multiply(range))
 				: hit.getPos().subtract(look.multiply(0.4));
+		// Spores that flew into the open sky drift down: they settle on whatever lies below the end of their flight, so
+		// a jump aimed a little upwards carries as far as one aimed level instead of landing at the Mycelid's feet
+		double fall = hit.getType() == HitResult.Type.MISS ? range + 4 : 4;
 		// The spore marks where the feet go; walk back towards the player until the body fits, then settle on ground
 		for (double back = 0; back <= range; back += 0.5) {
 			Vec3d feet = end.subtract(look.multiply(back));
@@ -461,7 +468,7 @@ public final class Mycelid {
 			if (feet.isInRange(player.getPos(), 1.5)) {
 				break;
 			}
-			Vec3d grounded = drop(player, feet);
+			Vec3d grounded = drop(player, feet, fall);
 			if (grounded != null) {
 				return grounded;
 			}
@@ -471,8 +478,13 @@ public final class Mycelid {
 
 	/** Lets the body settle on a block up to 4 blocks below; null if it is stuck on the way down or there is nothing to land on. */
 	private static Vec3d drop(ServerPlayerEntity player, Vec3d feet) {
+		return drop(player, feet, 4);
+	}
+
+	/** Lets the body settle on a block up to {@code depth} blocks below; null if it is stuck on the way or nothing is there. */
+	private static Vec3d drop(ServerPlayerEntity player, Vec3d feet, double depth) {
 		ServerWorld world = player.getServerWorld();
-		for (double down = 0; down <= 4; down += 0.25) {
+		for (double down = 0; down <= depth; down += 0.25) {
 			Box box = player.getDimensions(player.getPose()).getBoxAt(feet.subtract(0, down, 0));
 			if (!world.isSpaceEmpty(player, box)) {
 				return null;
@@ -481,7 +493,7 @@ public final class Mycelid {
 				return feet.subtract(0, down, 0);
 			}
 		}
-		// Nothing below within 4 blocks: a spore can't take root in the air
+		// Nothing below within reach: a spore can't take root in the air
 		return null;
 	}
 
@@ -583,7 +595,8 @@ public final class Mycelid {
 
 	/**
 	 * Mycelium Carpet (H): mycelium runs out over the ground around the Mycelid for 20 seconds. For any Mycelid it is
-	 * mycelium (spores grow fast, the body mends, even in dry lands); monsters on it stick fast.
+	 * mycelium (spores grow fast, the body mends, even in dry lands) and other players on it mend too; monsters on it
+	 * stick fast while the threads drink them, and what they drink comes back to the Mycelid as spores.
 	 */
 	public static AbilityResult carpet(ServerPlayerEntity player, RaceData data) {
 		if (!ready(player, data, 3)) {
@@ -600,7 +613,7 @@ public final class Mycelid {
 		data.addResource(-CARPET_COST);
 		cooldown(player, data, 3, CARPET_COOLDOWN);
 		long now = now(player);
-		CARPETS.add(new Carpet(world, center, CARPET_RADIUS, now + CARPET_TICKS));
+		CARPETS.add(new Carpet(world, center, player.getUuid(), CARPET_RADIUS, now + CARPET_TICKS));
 		Fx.mark(world, center, null, (float) CARPET_RADIUS, CARPET_TICKS, SPORE_RGB, Fx.MYCELIUM);
 		Fx.threads(world, center, (float) CARPET_RADIUS * 0.6f, 1.4f, 9, 30, SPORE_RGB);
 		Fx.burst(world, center.add(0, 0.3, 0), (float) CARPET_RADIUS, 8, MOSS_INK);
@@ -833,13 +846,27 @@ public final class Mycelid {
 		INFECTED.values().removeIf(infection -> infection.until() <= now);
 		BLOOMING.values().removeIf(until -> until <= now);
 		if (now % 20 == 0) {
-			// The carpet holds monsters fast; spores drift up from it
+			// The carpet holds monsters fast and drinks them for its Mycelid; friends on it mend; spores drift up from it
 			for (Carpet carpet : CARPETS) {
 				Vec3d c = carpet.center();
 				double r = carpet.radius();
+				ServerPlayerEntity owner = server.getPlayerManager().getPlayer(carpet.owner());
+				RaceData ownerData = owner == null ? null : RaceState.of(owner);
 				for (LivingEntity mob : carpet.world().getEntitiesByClass(LivingEntity.class, new Box(c, c).expand(r, 2, r),
 						e -> e instanceof Monster && e.isAlive() && onCarpet(e))) {
-					mob.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 30, 1));
+					mob.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 30, 2));
+					if (owner != null) {
+						mob.damage(carpet.world().getDamageSources().indirectMagic(owner, owner), CARPET_BITE);
+						Fx.tendril(carpet.world(), mob, owner, 10, MOSS_INK, SPORE_RGB);
+						if (ownerData != null && ownerData.race == Race.MYCELID) {
+							ownerData.addResource(CARPET_SPORES);
+						}
+					}
+				}
+				for (PlayerEntity friend : carpet.world().getPlayers(p -> p.isAlive() && !p.isSpectator() && onCarpet(p))) {
+					if (RaceState.raceOf(friend).orElse(null) != Race.MYCELID) {
+						friend.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 40, 0, true, false, true));
+					}
 				}
 				carpet.world().spawnParticles(ModParticles.SPORE, c.x, c.y + 0.2, c.z, 12, r * 0.5, 0.1, r * 0.5, 0.01);
 			}

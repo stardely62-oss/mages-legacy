@@ -369,15 +369,17 @@ public class RaceGameTests implements FabricGameTest {
 			ctx.waitAndRun(Mycelid.JUMP_DELAY + 3, () -> {
 				double far = player.getPos().subtract(second).horizontalLength();
 				check(far > 12 && far <= 16.6, "a level jump should cover most of the 16 blocks, moved " + far);
-				// Looking up at the open sky: a spore never takes root in the air, it lands on a block or doesn't go
+				// Looking a little up into the open sky: the spores drift down and settle on the floor far ahead, never in
+				// the air and never right at the Mycelid's feet
 				data.addResource(100);
 				Vec3d third = player.getPos();
-				player.refreshPositionAndAngles(third.x, third.y, third.z, 180, -50);
+				player.refreshPositionAndAngles(third.x, third.y, third.z, 180, -15);
 				data.readyAt.clear();
 				data.chainLeft = 0;
 				AbilityResult up = Mycelid.sporeJump(player, data);
 				ctx.waitAndRun(Mycelid.JUMP_DELAY + 3, () -> {
-					check(up == AbilityResult.OK || up == AbilityResult.NO_SPACE, "a jump at the sky: " + up);
+					double upward = player.getPos().subtract(third).horizontalLength();
+					check(up == AbilityResult.OK && upward > 10, "a jump aimed a little up carries far, moved " + upward + " (" + up + ")");
 					check(!world.isSpaceEmpty(player, player.getBoundingBox().offset(0, -0.3, 0)),
 							"never left hanging in the air, now at " + player.getPos());
 					done(ctx, player);
