@@ -1020,55 +1020,36 @@ public class HarnessClient implements ClientModInitializer {
 		// ---- Trial VFX libraries: the Kiss and the Charm in our renderer, in Photon and in Lodestone, same spot, same camera ----
 		step(10, false, c -> {
 			c.options.setPerspective(Perspective.FIRST_PERSON);
-			commands(c, "race set @a tempter", "race xp @a 20000", "race resource @a 100", "kill @e[type=!player]", "time set night",
-					spider(arena, 0, 16));
+			commands(c, "race set @a tempter", "race xp @a 20000", "kill @e[type=!player]", "time set 18000");
 		});
 		step(20, false, c -> {
 			check("trial_photon_loaded", FxPrototypes.photonLoaded());
 			check("trial_lodestone_loaded", FxPrototypes.lodestoneLoaded());
-			trialCamera(c);
 		});
-		step(4, false, c -> key(0));
-		shotWhen("Hearts", 0.3f, "trial_own_kiss");
-		step(30, false, c -> trialCamera(c));
-		step(4, false, c -> {
-			if (FxPrototypes.photonLoaded()) {
-				FxPrototypes.photonKiss(trialTarget(c), c.player);
+		String[] backends = {"own", "photon", "lodestone"};
+		for (String backend : backends) {
+			// A fresh spider each time, so nothing of the last trial lingers on it
+			step(10, false, c -> {
+				commands(c, "kill @e[type=spider]", spider(arena, 0, 16), "race resource @a 100");
+				resetCooldowns(c);
+			});
+			step(10, false, this::trialCamera);
+			step(6, false, c -> trialKiss(c, backend));
+			step(10, false, c -> screenshot(c, "trial_" + backend + "_kiss_a"));
+			step(20, false, c -> screenshot(c, "trial_" + backend + "_kiss_b"));
+			step(10, false, c -> commands(c, "kill @e[type=spider]", spider(arena, 0, 16), "race resource @a 100"));
+			step(10, false, this::trialCamera);
+			for (int i = 0; i < 26; i++) {
+				long tick = i;
+				step(1, false, c -> trialCharm(c, backend, tick));
 			}
-		});
-		step(4, false, c -> screenshot(c, "trial_photon_kiss_a"));
-		step(30, false, c -> screenshot(c, "trial_photon_kiss_b"));
-		step(4, false, c -> {
-			if (FxPrototypes.lodestoneLoaded()) {
-				FxPrototypes.lodestoneKiss(trialTarget(c), c.player);
-			}
-		});
-		step(4, false, c -> screenshot(c, "trial_lodestone_kiss_a"));
-		step(30, false, c -> screenshot(c, "trial_lodestone_kiss_b"));
-		step(4, false, c -> {
-			resetCooldowns(c);
-			commands(c, "race resource @a 100");
-			key(2);
-		});
-		shotWhen("Sigil", 0.12f, "trial_own_charm");
-		step(4, false, c -> {
-			if (FxPrototypes.photonLoaded()) {
-				FxPrototypes.photonCharm(trialTarget(c));
-			}
-		});
-		step(30, false, c -> screenshot(c, "trial_photon_charm"));
-		step(4, false, c -> FxPrototypes.stopPhoton());
-		for (int i = 0; i < 24; i++) {
-			long tick = i;
-			step(1, false, c -> {
-				if (FxPrototypes.lodestoneLoaded()) {
-					FxPrototypes.lodestoneCharmTick(trialTarget(c), tick);
-				}
+			step(4, false, c -> {
+				screenshot(c, "trial_" + backend + "_charm");
+				FxPrototypes.stopPhoton();
 			});
 		}
-		step(2, false, c -> screenshot(c, "trial_lodestone_charm"));
 		step(10, false, c -> {
-			commands(c, "time set day");
+			commands(c, "time set day", "kill @e[type=spider]");
 			c.options.setPerspective(Perspective.FIRST_PERSON);
 		});
 
@@ -1095,10 +1076,53 @@ public class HarnessClient implements ClientModInitializer {
 		});
 	}
 
-	/** The camera for the trial effects: five blocks off the target, from behind and above the player. */
+	/** The camera for the trial effects: the player off to one side, the spider in the left half of the view. */
 	private void trialCamera(MinecraftClient client) {
-		tp(client, Vec3d.ofBottomCenter(arena).add(-5, 0, 1.5), Vec3d.ofBottomCenter(arena).add(0, 0.8, 0));
+		tp(client, Vec3d.ofBottomCenter(arena).add(-4, 0, 3), Vec3d.ofBottomCenter(arena).add(2, 1, 3));
 		client.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+	}
+
+	private static void trialKiss(MinecraftClient client, String backend) {
+		net.minecraft.entity.Entity target = trialTarget(client);
+		if (target == null) {
+			return;
+		}
+		switch (backend) {
+			case "photon" -> FxPrototypes.photonKiss(target, client.player);
+			case "lodestone" -> FxPrototypes.lodestoneKiss(target, client.player);
+			default -> {
+				// Our own: the real Kiss, looking at the spider for it
+				Vec3d eye = client.player.getEyePos();
+				Vec3d d = target.getPos().add(0, 0.4, 0).subtract(eye);
+				client.player.setYaw((float) Math.toDegrees(Math.atan2(-d.x, d.z)));
+				client.player.setPitch((float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z))));
+				key(0);
+			}
+		}
+	}
+
+	private static void trialCharm(MinecraftClient client, String backend, long tick) {
+		net.minecraft.entity.Entity target = trialTarget(client);
+		if (target == null) {
+			return;
+		}
+		switch (backend) {
+			case "photon" -> {
+				if (tick == 0) {
+					FxPrototypes.photonCharm(target);
+				}
+			}
+			case "lodestone" -> FxPrototypes.lodestoneCharmTick(target, tick);
+			default -> {
+				if (tick == 0) {
+					Vec3d eye = client.player.getEyePos();
+					Vec3d d = target.getPos().add(0, 0.4, 0).subtract(eye);
+					client.player.setYaw((float) Math.toDegrees(Math.atan2(-d.x, d.z)));
+					client.player.setPitch((float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z))));
+					key(2);
+				}
+			}
+		}
 	}
 
 	/** The spider the trial effects are played on. */
