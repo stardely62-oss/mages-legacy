@@ -68,10 +68,15 @@ public final class Bloodkin {
 	private static final int DOUBLE_WINDOW = 60;
 	private static final int HARVEST_COOLDOWN = 400;
 	private static final int SACRIFICE_COOLDOWN = 400;
-	private static final int SWARM_SLOT = AbilitySlots.cooldownSlot(Race.BLOODKIN, 4);
+	private static final int SWARM_SLOT = AbilitySlots.cooldownSlot(Race.BLOODKIN, 3);
 	private static final int SWARM_COOLDOWN = 600;
 	private static final int SWARM_TICKS = 60;
-	private static final int FEAST_SLOT = AbilitySlots.cooldownSlot(Race.BLOODKIN, 3);
+	/** Long Flight: the swarm holds longer and gathers again sooner. */
+	private static final int SWARM_COOLDOWN_LONG = 400;
+	private static final int SWARM_TICKS_LONG = 100;
+	/** All the ways a blow grows (Thirst, the night, Execution, a mark, an Ambush) add up, to twice the blow at most. */
+	private static final float MAX_BONUS = 1.0f;
+	private static final int FEAST_SLOT = AbilitySlots.cooldownSlot(Race.BLOODKIN, 4);
 	private static final int FEAST_TICKS = 160;
 	private static final int PRINCE_SLOT = 6;
 	private static final int LONG_COOLDOWN = 24000;
@@ -311,29 +316,31 @@ public final class Bloodkin {
 		// A real blow (a weapon, a fist, the Dash), not the Harvest's pull or a bleeding wound: only those drink
 		boolean melee = source.isOf(DamageTypes.PLAYER_ATTACK) && source.getSource() == player;
 		boolean night = isNight(world);
+		float bonus = 0;
 		if (thirsty(data)) {
-			amount *= data.has(Talents.THIRST_HUNGER) ? 1.35f : 1.2f;
+			bonus += data.has(Talents.THIRST_HUNGER) ? 0.35f : 0.2f;
 		}
 		if (night && data.has(Talents.NIGHT_PRINCE)) {
-			amount *= 1.25f;
+			bonus += 0.25f;
 		} else if (night && data.has(Talents.NIGHT_HUNTER)) {
-			amount *= 1.15f;
+			bonus += 0.15f;
 		}
 		if (data.has(Talents.FANG_EXECUTE) && victim.getHealth() < victim.getMaxHealth() * 0.25f) {
-			amount *= 1.5f;
+			bonus += 0.5f;
 		}
 		Long mark = MARKED.get(victim.getUuid());
 		if (mark != null && mark > now) {
-			amount *= 1.25f;
+			bonus += 0.25f;
 		}
 		// Ambush: a blow at a back that doesn't see you
 		if (melee && data.has(Talents.NIGHT_AMBUSH)) {
 			Vec3d facing = victim.getRotationVec(1.0f).multiply(1, 0, 1);
 			Vec3d toPlayer = player.getPos().subtract(victim.getPos()).multiply(1, 0, 1);
 			if (facing.lengthSquared() > 0 && toPlayer.lengthSquared() > 0 && facing.normalize().dotProduct(toPlayer.normalize()) < -0.3) {
-				amount *= 1.3f;
+				bonus += 0.3f;
 			}
 		}
+		amount *= 1 + Math.min(MAX_BONUS, bonus);
 		if (!melee || !hasBlood(victim)) {
 			return amount;
 		}
@@ -448,8 +455,8 @@ public final class Bloodkin {
 				LivingEntity friend = lookedAtFriend(player, 8);
 				yield friend != null ? transfuse(player, data, friend) : sacrifice(player, data);
 			}
-			case 3 -> data.has(Talents.FANG_FEAST) ? feast(player, data) : RaceData.talentLocked(player, Talents.FANG_FEAST);
-			case 4 -> data.has(Talents.NIGHT_BATS) ? swarm(player, data) : RaceData.talentLocked(player, Talents.NIGHT_BATS);
+			case 3 -> swarm(player, data);
+			case 4 -> data.has(Talents.FANG_FEAST) ? feast(player, data) : RaceData.talentLocked(player, Talents.FANG_FEAST);
 			default -> AbilityResult.LOCKED;
 		};
 	}
@@ -782,12 +789,13 @@ public final class Bloodkin {
 			return AbilityResult.NO_RESOURCE;
 		}
 		data.addResource(-SWARM_COST);
-		cooldown(player, data, SWARM_SLOT, SWARM_COOLDOWN);
+		cooldown(player, data, SWARM_SLOT, data.has(Talents.NIGHT_BATS) ? SWARM_COOLDOWN_LONG : SWARM_COOLDOWN);
 		startSwarm(player, data);
 		return AbilityResult.OK;
 	}
 
 	private static void startSwarm(ServerPlayerEntity player, RaceData data) {
+		int ticks = data.has(Talents.NIGHT_BATS) ? SWARM_TICKS_LONG : SWARM_TICKS;
 		ServerWorld world = player.getServerWorld();
 		List<BatEntity> bats = new ArrayList<>();
 		for (int i = 0; i < 7; i++) {
@@ -806,13 +814,13 @@ public final class Bloodkin {
 			world.spawnEntity(bat);
 			bats.add(bat);
 		}
-		SWARMS.add(new Swarm(player, now(player.getServer()) + SWARM_TICKS, bats));
-		player.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY, SWARM_TICKS + 4, 0, true, false, false));
+		SWARMS.add(new Swarm(player, now(player.getServer()) + ticks, bats));
+		player.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY, ticks + 4, 0, true, false, false));
 		// The body bursts into a cloud of bats: a flash of dark blood, bats flung out, and a flock that circles it
-		Fx.swarm(world, player, 26, SWARM_TICKS);
+		Fx.swarm(world, player, 26, ticks);
 		Fx.burst(world, player.getPos().add(0, 1, 0), 2.4f, 8, WINE_INK);
 		Fx.ring(world, player.getPos(), 0.4f, 3.5f, 12, BLOOD_INK);
-		Fx.fov(player, 0.16f, SWARM_TICKS);
+		Fx.fov(player, 0.16f, ticks);
 		Fx.shake(player, 1.6f, 8);
 		world.spawnParticles(ModParticles.BLOOD_MIST, player.getX(), player.getY() + 1, player.getZ(), 24, 0.5, 0.7, 0.5, 0.06);
 		world.spawnParticles(ModParticles.BAT, player.getX(), player.getY() + 1.1, player.getZ(), 16, 0.3, 0.4, 0.3, 0.35);

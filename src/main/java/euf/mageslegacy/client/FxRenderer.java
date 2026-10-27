@@ -783,7 +783,7 @@ public final class FxRenderer {
 
 		@Override
 		float inkStrength() {
-			return style == Fx.POOL || style == Fx.CRACKS ? 1.0f : 0.7f;
+			return style == Fx.POOL || style == Fx.CRACKS || style == Fx.MYCELIUM ? 1.0f : 0.7f;
 		}
 
 		@Override
@@ -803,6 +803,7 @@ public final class FxRenderer {
 				case Fx.POOL -> pool(m, vc, center, life, fade);
 				case Fx.CLOCK -> clock(m, vc, center, life, fade);
 				case Fx.CRACKS -> cracks(m, vc, center, life, fade);
+				case Fx.MYCELIUM -> mycelium(m, vc, center, life, fade);
 				default -> ripples(m, vc, center, life, fade);
 			}
 		}
@@ -918,6 +919,54 @@ public final class FxRenderer {
 					}
 					p = next;
 				}
+			}
+		}
+
+		/**
+		 * Mycelium spreading over the ground: dark moss threads laid on as colour, forking as they run out from the
+		 * middle, lit along their length, buds of light at the forks and the tips that breathe slowly.
+		 */
+		private void mycelium(Matrix4f m, VertexConsumer vc, Vec3d c, float life, float fade) {
+			float grow = easeOut(Math.min(1, life / 14f));
+			Vec3d up = new Vec3d(0, 1, 0);
+			int roots = 11;
+			for (int i = 0; i < roots; i++) {
+				double angle = Math.PI * 2 * i / roots + hash(seed, i) * 0.5;
+				thread(m, vc, c, angle, radius * (0.75 + 0.25 * hash(seed, i + 40)) * grow, 6, i * 97, 2, up, life, fade);
+			}
+		}
+
+		/** One thread of the mycelium and the forks it sends off, {@code depth} levels down. */
+		private void thread(Matrix4f m, VertexConsumer vc, Vec3d from, double angle, double length, int steps, int salt, int depth, Vec3d up,
+				float life, float fade) {
+			Vec3d p = from;
+			for (int s = 0; s < steps; s++) {
+				angle += (hash(seed, salt + s) - 0.5) * 0.9;
+				Vec3d next = p.add(Math.cos(angle) * length / steps, 0, Math.sin(angle) * length / steps);
+				double width = (depth == 2 ? 0.16 : depth == 1 ? 0.1 : 0.06) * (1 - 0.6 * s / steps);
+				if (inkPass) {
+					Vec3d dir = next.subtract(p).normalize();
+					Vec3d side = new Vec3d(-dir.z, 0, dir.x).multiply(width);
+					quad(vc, m, p.subtract(side), next.subtract(side), next.add(side), p.add(side), 0x2E4A22, 0.9f * fade, 0.9f * fade, 0.9f * fade,
+							0.9f * fade);
+				} else {
+					glowLine(vc, m, p, next, up, width * 2.2, rgb, 0.45f * fade);
+					glowLine(vc, m, p, next, up, width * 0.5, 0xE6FFD8, 0.35f * fade);
+				}
+				// A fork: a thinner thread runs off to one side
+				if (depth > 0 && hash(seed, salt + s + 300) < 0.35) {
+					double side = hash(seed, salt + s + 400) < 0.5 ? -0.9 : 0.9;
+					thread(m, vc, next, angle + side, length * 0.45, 3, salt * 7 + s * 13 + 1, depth - 1, up, life, fade);
+				}
+				// Buds of light along the way, breathing out of step
+				if (!inkPass && (s == steps - 1 || hash(seed, salt + s + 500) < 0.25)) {
+					float breath = fade * (0.45f + 0.55f * (0.5f + 0.5f * MathHelper.sin(life * 0.15f + salt + s)));
+					double size = 0.05 + 0.03 * depth;
+					Vec3d q = next.add(0, 0.01, 0);
+					quad(vc, m, q.add(-size, 0, -size), q.add(size, 0, -size), q.add(size, 0, size), q.add(-size, 0, size), 0xD8FFC8, breath, breath, breath,
+							breath);
+				}
+				p = next;
 			}
 		}
 

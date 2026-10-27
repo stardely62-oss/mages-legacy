@@ -262,6 +262,30 @@ public class RaceGameTests implements FabricGameTest {
 		});
 	}
 
+	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "carpet", tickLimit = 100)
+	public void theCarpetIsMyceliumAndTheBloomBurstsTheCrowd(TestContext ctx) {
+		ServerWorld world = ctx.getWorld();
+		BlockPos at = ctx.getAbsolutePos(new BlockPos(4, 2, 4));
+		floor(world, at.add(-4, 0, -4), 9, 9);
+		ServerPlayerEntity player = mycelid(ctx, at);
+		RaceData data = RaceState.of(player);
+		data.addResource(100);
+		ZombieEntity zombie = beast(ctx, EntityType.ZOMBIE, at.add(3, 0, 0));
+		// The carpet: the ground around counts as mycelium, and holds the monster on it
+		check(Mycelid.use(player, data, 3) == AbilityResult.OK, "the carpet spreads");
+		check(Mycelid.onMycelium(player) && Mycelid.onCarpet(zombie), "the Mycelid stands on mycelium, the zombie on the carpet");
+		check(Mycelid.use(player, data, 3) == AbilityResult.COOLDOWN, "one carpet at a time");
+		// The Great Bloom is the Swarm's crown, on Alt
+		check(Mycelid.use(player, data, 4) == AbilityResult.HINTED, "without the crown Alt only says which talent opens it");
+		data.talents.add(Talents.SWARM_BLOOM);
+		data.addResource(100);
+		check(Mycelid.use(player, data, 4) == AbilityResult.OK && zombie.hasStatusEffect(StatusEffects.GLOWING), "the bloom infects the zombie");
+		int clouds = Mycelid.activeClouds();
+		zombie.kill();
+		check(Mycelid.activeClouds() == clouds + 1, "the infected zombie bursts into a spore cloud");
+		done(ctx, player);
+	}
+
 	@GameTest(templateName = EMPTY_STRUCTURE, batchId = "scroll")
 	public void theScrollOfOblivionGivesEveryPointBack(TestContext ctx) {
 		ServerPlayerEntity player = mycelid(ctx, ctx.getAbsolutePos(new BlockPos(1, 2, 1)));
@@ -937,9 +961,20 @@ public class RaceGameTests implements FabricGameTest {
 		check(Math.abs(player.getHealth() - 10) < 0.01f, "the Shepherd heals 2 hearts, now " + player.getHealth());
 		foe.discard();
 
-		// The Gather (Alt) brings the creatures to the Shepherd, on its own cooldown
-		echo.refreshPositionAndAngles(at.getX() + 3.5, at.getY(), at.getZ() - 3.5, 0, 0);
-		check(Shepherd.use(player, data, 4) == AbilityResult.OK && echo.squaredDistanceTo(player) < 16, "the Gather brings the echo close");
+		// Whistling the pack back to "Follow" brings the far ones to the Shepherd's side
+		echo.refreshPositionAndAngles(at.getX() + 12.5, at.getY(), at.getZ() + 0.5, 0, 0);
+		for (int i = 0; i < 3; i++) {
+			data.readyAt.clear();
+			Shepherd.whistle(player, data);
+		}
+		check(data.shepherd.stance == ShepherdData.FOLLOW && echo.squaredDistanceTo(player) < 16, "Follow gathers the far echo, now "
+				+ Math.sqrt(echo.squaredDistanceTo(player)));
+
+		// Alt is the Army of Oblivion crown
+		data.addResource(100);
+		check(Shepherd.use(player, data, 4) == AbilityResult.HINTED, "without the crown Alt only says which talent opens it");
+		data.talents.add(Talents.LEGION_ARMY);
+		check(Shepherd.use(player, data, 4) == AbilityResult.OK && data.resource <= 100 - Shepherd.ARMY_COST, "the Army rises for its voice");
 
 		// Light Bonds: a wolf takes one slot instead of two
 		RaceData light = data;
@@ -1124,6 +1159,14 @@ public class RaceGameTests implements FabricGameTest {
 		data.addResource(-100);
 		check(Bloodkin.onHit(zombie, world.getDamageSources().playerAttack(player), 10) == 12, "in Thirst blows are 20% harder");
 		check(Bloodkin.naturalHealing(player) == 0, "in Thirst natural healing stops");
+		// The ways a blow grows add up rather than multiply: Deep Thirst +35% and Execution +50% make +85%, not x2.03
+		data.talents.add(Talents.THIRST_HUNGER);
+		data.talents.add(Talents.FANG_EXECUTE);
+		zombie.setHealth(2);
+		float stacked = Bloodkin.onHit(zombie, world.getDamageSources().playerAttack(player), 10);
+		check(Math.abs(stacked - 18.5f) < 0.01f, "bonuses add up: 10 -> 18.5, got " + stacked);
+		data.talents.remove(Talents.THIRST_HUNGER);
+		data.talents.remove(Talents.FANG_EXECUTE);
 		data.addResource(50);
 		Bloodkin.tickSecond(player, data);
 		check(data.resource < 50, "blood drains away by itself");

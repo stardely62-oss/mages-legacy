@@ -10,6 +10,7 @@ import euf.mageslegacy.frozen.Frozen;
 import euf.mageslegacy.mycelid.Mycelid;
 import euf.mageslegacy.net.RacePackets;
 import euf.mageslegacy.shepherd.Shepherd;
+import euf.mageslegacy.voidborn.Pocket;
 import euf.mageslegacy.voidborn.Voidborn;
 import java.util.Arrays;
 import java.util.Collection;
@@ -90,7 +91,7 @@ public final class RaceCommand {
 		});
 	}
 
-	/** What the old race left on the player: Mycelid armour and health bonuses, a Shepherd's echoes and beasts. */
+	/** What the old race left on the player: Mycelid armour and health bonuses, a Shepherd's echoes and beasts, a Voidborn in its pocket. */
 	private static void cleanup(ServerPlayerEntity player, RaceData data) {
 		Mycelid.removeCapArmor(player);
 		if (data.race == Race.SHEPHERD) {
@@ -104,6 +105,10 @@ public final class RaceCommand {
 		}
 		if (data.race == Race.VOIDBORN) {
 			Voidborn.cleanup(player);
+			// Without the race there is no key to come back out: step out of the pocket now
+			if (Pocket.in(player)) {
+				Pocket.leave(player, data, false);
+			}
 		}
 	}
 }

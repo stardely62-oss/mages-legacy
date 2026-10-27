@@ -577,35 +577,34 @@ public class HarnessClient implements ClientModInitializer {
 				return null;
 			});
 		});
-		// Alt with the Swarm talent: the bat swarm, the way a player presses it
+		// H: the bat swarm, the way a player presses it
 		step(5, false, c -> {
 			resetCooldowns(c);
 			UUID me = c.player.getUuid();
 			onServer(c, s -> {
 				ServerPlayerEntity player = s.getPlayerManager().getPlayer(me);
 				RaceData data = RaceState.get(s).data(me);
-				data.talents.add(Talents.NIGHT_BATS);
 				data.addResource(100);
 				player.setHealth(player.getMaxHealth());
 				RacePackets.sync(player, data);
 				return null;
 			});
 		});
-		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[4].getDefaultKey()));
+		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[3].getDefaultKey()));
 		step(5, false, c -> {
 			UUID me = c.player.getUuid();
 			boolean sneakSeen = onServer(c, s -> RaceState.get(s).data(me).readyAt.getOrDefault(4, 0L) > s.getTicks());
 			boolean sacrificed = onServer(c, s -> s.getPlayerManager().getPlayer(me).getHealth() < s.getPlayerManager().getPlayer(me).getMaxHealth());
 			int bats = onServer(c, s -> s.getOverworld().getEntitiesByClass(BatEntity.class, new Box(arena).expand(24), b -> true).size());
-			LOGGER.info("[harness] Alt: swarm cooldown {}, sacrificed {}, bats {}", sneakSeen, sacrificed, bats);
-			check("alt_swarm", sneakSeen && !sacrificed && bats > 0);
+			LOGGER.info("[harness] H: swarm cooldown {}, sacrificed {}, bats {}", sneakSeen, sacrificed, bats);
+			check("h_swarm", sneakSeen && !sacrificed && bats > 0);
 			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 		});
 		step(10, false, c -> {
 			screenshot(c, "bat_swarm");
 			c.options.setPerspective(Perspective.FIRST_PERSON);
 		});
-		// H with the Feast crown: the crown of blood, seen from behind
+		// Alt with the Feast crown: the crown of blood, seen from behind
 		step(60, false, c -> {
 			resetCooldowns(c);
 			UUID me = c.player.getUuid();
@@ -618,10 +617,10 @@ public class HarnessClient implements ClientModInitializer {
 				return null;
 			});
 		});
-		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[3].getDefaultKey()));
+		step(4, false, c -> KeyBinding.onKeyPressed(MagesLegacyClient.ABILITY_KEYS[4].getDefaultKey()));
 		step(8, false, c -> {
 			UUID me = c.player.getUuid();
-			check("h_feast", onServer(c, s -> RaceState.get(s).data(me).readyAt.getOrDefault(5, 0L) > s.getTicks()));
+			check("alt_feast", onServer(c, s -> RaceState.get(s).data(me).readyAt.getOrDefault(5, 0L) > s.getTicks()));
 			c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
 		});
 		step(6, false, c -> {

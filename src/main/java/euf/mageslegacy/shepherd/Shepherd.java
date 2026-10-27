@@ -57,15 +57,16 @@ public final class Shepherd {
 	public static final int RALLY_COST = 25;
 	public static final float RALLY_HEAL = 0.3f;
 	public static final float RALLY_HEAL_WARM = 0.5f;
-	public static final int GATHER_COST = 10;
+	public static final int ARMY_COST = 40;
 	public static final int CREATURE_KILL_XP = 3;
 	public static final int ECHO_LEARNED_XP = 20;
 	private static final int CALL_COOLDOWN = 20;
 	private static final int RALLY_COOLDOWN = 600;
 	private static final int WHISTLE_COOLDOWN = 10;
-	private static final int GATHER_SLOT = AbilitySlots.cooldownSlot(Race.SHEPHERD, 4);
+	/** The Gather that comes with the Whistle's "Follow": its own quiet cooldown, no key. */
+	private static final int GATHER_SLOT = 5;
 	private static final int GATHER_COOLDOWN = 160;
-	private static final int ARMY_SLOT = 7;
+	private static final int ARMY_SLOT = AbilitySlots.cooldownSlot(Race.SHEPHERD, 4);
 	private static final int ARMY_COOLDOWN = 12000;
 	private static final int ARMY_KINDS = 6;
 	private static final UUID FRAIL = UUID.fromString("2e8b5c1f-7a3d-4c6e-9f2b-1d5a8e3c7b99");
@@ -278,7 +279,7 @@ public final class Shepherd {
 			case 1 -> rally(player, data);
 			case 2 -> whistle(player, data);
 			case 3 -> Bonds.song(player, data);
-			case 4 -> gather(player, data);
+			case 4 -> data.has(Talents.LEGION_ARMY) ? army(player, data) : RaceData.talentLocked(player, Talents.LEGION_ARMY);
 			default -> AbilityResult.LOCKED;
 		};
 	}
@@ -433,7 +434,7 @@ public final class Shepherd {
 
 	/**
 	 * Rally: every creature within 24 blocks grows stronger and faster for 10 seconds (Loud Rally adds resistance)
-	 * and heals; the players around heal 2 hearts. The Army of Oblivion crown calls every echo you know for 30 s.
+	 * and heals; the players around heal 2 hearts.
 	 */
 	public static AbilityResult rally(ServerPlayerEntity player, RaceData data) {
 		if (!ready(player, data, 1)) {
@@ -446,12 +447,6 @@ public final class Shepherd {
 		cooldown(player, data, 1, RALLY_COOLDOWN);
 		ServerWorld world = player.getServerWorld();
 		boolean loud = data.has(Talents.VOICE_RALLY);
-		if (data.has(Talents.LEGION_ARMY) && ready(player, data, ARMY_SLOT)) {
-			// The six mightiest kinds learned (by the voice their Call costs), not every one
-			EchoType.ALL.stream().filter(type -> learned(data, type)).sorted((a, b) -> Integer.compare(b.voice(), a.voice())).limit(ARMY_KINDS)
-					.forEach(type -> Echoes.summon(player, data, type, Creatures.near(player), true, 600, 0));
-			cooldown(player, data, ARMY_SLOT, ARMY_COOLDOWN);
-		}
 		// The horn heals the pack a lot (30% of their health, half with Warm Hands, which also cleanse them) and the
 		// players around only a little
 		boolean warm = data.has(Talents.VOICE_MEND);
@@ -485,20 +480,51 @@ public final class Shepherd {
 		return AbilityResult.OK;
 	}
 
-	/** The Gather (Alt): your creatures within 64 blocks come to your side, on their own cooldown. */
-	public static AbilityResult gather(ServerPlayerEntity player, RaceData data) {
-		ServerWorld world = player.getServerWorld();
-		if (!ready(player, data, GATHER_SLOT)) {
+	/**
+	 * The Army of Oblivion (Alt, the Legion's crown): one echo of each of the six mightiest kinds learned (by the voice
+	 * their Call costs) rises at once for 30 seconds, outside the bond capacity.
+	 */
+	public static AbilityResult army(ServerPlayerEntity player, RaceData data) {
+		if (!ready(player, data, ARMY_SLOT)) {
 			return AbilityResult.COOLDOWN;
 		}
-		if (data.resource < GATHER_COST) {
+		List<EchoType> mightiest = EchoType.ALL.stream().filter(type -> learned(data, type))
+				.sorted((a, b) -> Integer.compare(b.voice(), a.voice())).limit(ARMY_KINDS).toList();
+		if (mightiest.isEmpty()) {
+			return AbilityResult.NO_ECHO;
+		}
+		if (data.resource < ARMY_COST) {
 			return AbilityResult.NO_RESOURCE;
 		}
-		// Beasts told to stay keep their post
+		data.addResource(-ARMY_COST);
+		cooldown(player, data, ARMY_SLOT, ARMY_COOLDOWN);
+		mightiest.forEach(type -> Echoes.summon(player, data, type, Creatures.near(player), true, 600, 0));
+		ServerWorld world = player.getServerWorld();
+		// Everyone ever beaten rises at once: a spirit wave, the horn's gold behind it
+		Fx.ring(world, player.getPos(), 0.5f, 14, 22, SPIRIT_RGB);
+		Fx.aurora(world, player.getPos(), 5.0f, 90, SPIRIT_RGB, GOLD_RGB);
+		Fx.burst(world, player.getPos().add(0, 1, 0), 3.5f, 10, SPIRIT_RGB);
+		Fx.shake(player, 2.0f, 12);
+		world.spawnParticles(Echoes.SPIRIT, player.getX(), player.getY() + 1, player.getZ(), 60, 2.5, 0.8, 2.5, 0.04);
+		world.playSound(null, player.getBlockPos(), SoundEvents.EVENT_RAID_HORN.value(), SoundCategory.PLAYERS, 1.0f, 0.6f);
+		world.playSound(null, player.getBlockPos(), SoundEvents.PARTICLE_SOUL_ESCAPE, SoundCategory.PLAYERS, 2.0f, 0.5f);
+		return AbilityResult.OK;
+	}
+
+	/**
+	 * The Gather, part of the Whistle's "Follow": your creatures within 64 blocks come to your side, at most once in
+	 * 8 seconds. Returns whether anyone came.
+	 */
+	private static boolean gather(ServerPlayerEntity player, RaceData data) {
+		ServerWorld world = player.getServerWorld();
+		if (!ready(player, data, GATHER_SLOT)) {
+			return false;
+		}
+		// Beasts told to stay keep their post, and those close by simply turn
 		List<LivingEntity> creatures = Creatures.around(player, 64);
-		creatures.removeIf(c -> c.getCommandTags().contains(Creatures.STAY_TAG));
+		creatures.removeIf(c -> c.getCommandTags().contains(Creatures.STAY_TAG) || c.squaredDistanceTo(player) < 8 * 8);
 		if (creatures.isEmpty()) {
-			return AbilityResult.NO_CREATURE;
+			return false;
 		}
 		for (int i = 0; i < creatures.size(); i++) {
 			LivingEntity c = creatures.get(i);
@@ -514,15 +540,14 @@ public final class Shepherd {
 		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 0.7f, 1.2f);
 		Fx.ring(world, player.getPos(), 10, 1, 12, SPIRIT_RGB);
 		Fx.helix(world, player, 2.0f, 2.2f, 3, true, 14, SPIRIT_RGB);
-		data.addResource(-GATHER_COST);
 		cooldown(player, data, GATHER_SLOT, GATHER_COOLDOWN);
-		return AbilityResult.OK;
+		return true;
 	}
 
 	/**
-	 * The Whistle: the pack's order changes, Follow (close, fighting only back), Guard (in a ring around you, picking
-	 * off what comes near, taking less damage) or Hunt (going after every monster within 24 blocks). It costs no
-	 * voice.
+	 * The Whistle: the pack's order changes, Follow (close, fighting only back; the far ones come to your side at once),
+	 * Guard (in a ring around you, picking off what comes near, taking less damage) or Hunt (going after every monster
+	 * within 24 blocks). It costs no voice.
 	 */
 	public static AbilityResult whistle(ServerPlayerEntity player, RaceData data) {
 		ServerWorld world = player.getServerWorld();
@@ -547,6 +572,9 @@ public final class Shepherd {
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.2f, pitch);
 		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 1.0f, pitch * 0.85f);
 		player.sendMessage(Text.translatable("mages_legacy.whistle." + shepherd.stance).formatted(Formatting.GOLD), true);
+		if (shepherd.stance == ShepherdData.FOLLOW) {
+			gather(player, data);
+		}
 		return AbilityResult.OK;
 	}
 

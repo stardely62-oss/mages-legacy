@@ -87,9 +87,10 @@ public final class Frozen {
 	private static final int QUICKEN_SPEED = 10;
 	private static final int QUICKEN_MAX = 27;
 	private static final double QUICKEN_RANGE = 8;
-	private static final int FREEZE_SLOT = AbilitySlots.cooldownSlot(Race.FROZEN, 4);
+	private static final int FREEZE_SLOT = AbilitySlots.cooldownSlot(Race.FROZEN, 3);
 	private static final int FREEZE_COOLDOWN = 400;
 	private static final int FREEZE_TICKS = 60;
+	private static final float SHATTER_DAMAGE = 6;
 	private static final int STOP_SLOT = 5;
 	private static final int STOP_COOLDOWN = 6000;
 	private static final int STOP_TICKS = 60;
@@ -97,12 +98,14 @@ public final class Frozen {
 	private static final int STRIKE_TICKS = 80;
 	private static final int ETERNAL_SLOT = 7;
 	private static final int ETERNAL_TICKS = 120;
-	private static final int CURRENT_SLOT = AbilitySlots.cooldownSlot(Race.FROZEN, 3);
+	private static final int CURRENT_SLOT = AbilitySlots.cooldownSlot(Race.FROZEN, 4);
 	private static final int CURRENT_TICKS = 600;
 	private static final int CURRENT_COOLDOWN = 6000;
 	private static final int LONG_COOLDOWN = 12000;
 	public static final float BLUR_CHANCE = 0.1f;
-	public static final float BLUR_CHANCE_OVERTAKE = 0.2f;
+	/** How long Quick Step and Quick Hand last after sand is spent. */
+	private static final int SPENT_TEMPO_TICKS = 160;
+	public static final float BLUR_CHANCE_OVERTAKE = 0.15f;
 
 	/** Colours of the glowing effects: pale ice, golden sand, the white of a stopped moment. */
 	private static final int ICE_RGB = 0x9FCBF2;
@@ -173,6 +176,9 @@ public final class Frozen {
 
 	private record Eternal(long until, float health) {}
 
+	/** Shattered Moment: when the Stopping Gaze lets go, its enemy cracks. */
+	private record Shatter(ServerWorld world, UUID owner, long at) {}
+
 	private static final Map<UUID, ArrayDeque<Point>> TRAILS = new HashMap<>();
 	private static final List<Flight> FLIGHTS = new ArrayList<>();
 	private static final Map<UUID, Way> WAYS = new HashMap<>();
@@ -180,6 +186,7 @@ public final class Frozen {
 	private static final List<Quick> QUICK = new ArrayList<>();
 	private static final Map<UUID, Hold> HELD_MOBS = new HashMap<>();
 	private static final Map<UUID, Eternal> ETERNAL = new HashMap<>();
+	private static final Map<UUID, Shatter> SHATTER = new HashMap<>();
 	/** Strike from the Past: until when the next blow of a Frozen is doubled. */
 	private static final Map<UUID, Long> STRIKE = new HashMap<>();
 	/** Doubled Moment: blows landed since the last doubled one. */
@@ -204,6 +211,7 @@ public final class Frozen {
 		QUICK.clear();
 		HELD_MOBS.clear();
 		ETERNAL.clear();
+		SHATTER.clear();
 		STRIKE.clear();
 		HITS.clear();
 		CURRENT.clear();
@@ -238,9 +246,18 @@ public final class Frozen {
 		data.dirty = true;
 	}
 
-	/** Takes the sand; spending teaches: a point of race experience for every 10 grains. */
+	/**
+	 * Takes the sand; spending teaches (a point of race experience for every 10 grains), and with Quick Step and Quick
+	 * Hand the time let run carries the Frozen on for a few seconds.
+	 */
 	private static void spend(ServerPlayerEntity player, RaceData data, float cost) {
 		data.addResource(-cost);
+		if (data.has(Talents.FLOW_SWIFT)) {
+			player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, SPENT_TEMPO_TICKS, 0, true, false, true));
+		}
+		if (data.has(Talents.FLOW_HASTE)) {
+			player.addStatusEffect(new StatusEffectInstance(StatusEffects.HASTE, SPENT_TEMPO_TICKS, 0, true, false, true));
+		}
 		float total = SPENT.getOrDefault(player.getUuid(), 0f) + cost;
 		int xp = (int) (total / 10);
 		SPENT.put(player.getUuid(), total - xp * 10);
@@ -274,6 +291,7 @@ public final class Frozen {
 			sendQuickened(server, now);
 		}
 		tickHeld(server, now);
+		tickShatter(server, now);
 		tickShapes(now);
 		ETERNAL.entrySet().removeIf(e -> {
 			if (e.getValue().until() > now) {
@@ -326,12 +344,6 @@ public final class Frozen {
 		// A full hourglass stops: time stands still in the Frozen until they let some sand run
 		if (data.resource >= RaceData.MAX_RESOURCE) {
 			refresh(player, StatusEffects.SLOWNESS, 0, 60, 30);
-		}
-		if (data.has(Talents.FLOW_HASTE)) {
-			refresh(player, StatusEffects.HASTE, 0, 60, 30);
-		}
-		if (data.has(Talents.FLOW_SWIFT)) {
-			refresh(player, StatusEffects.SPEED, 0, 60, 30);
 		}
 		for (Dome dome : DOMES) {
 			// Quiet Harbour: players under the Dome mend
@@ -506,8 +518,8 @@ public final class Frozen {
 			case 0 -> rewind(player, data);
 			case 1 -> dome(player, data);
 			case 2 -> quicken(player, data);
-			case 3 -> data.has(Talents.FLOW_CURRENT) ? current(player, data) : RaceData.talentLocked(player, Talents.FLOW_CURRENT);
-			case 4 -> data.has(Talents.STASIS_FREEZE) ? freeze(player, data) : RaceData.talentLocked(player, Talents.STASIS_FREEZE);
+			case 3 -> freeze(player, data);
+			case 4 -> data.has(Talents.FLOW_CURRENT) ? current(player, data) : RaceData.talentLocked(player, Talents.FLOW_CURRENT);
 			default -> AbilityResult.LOCKED;
 		};
 	}
@@ -913,7 +925,7 @@ public final class Frozen {
 		}
 	}
 
-	/** Stopping Gaze (sneak + V): the enemy you look at freezes still for 3 seconds. */
+	/** The Stopping Gaze (H): the enemy you look at freezes still for 3 seconds; Shattered Moment cracks it after. */
 	public static AbilityResult freeze(ServerPlayerEntity player, RaceData data) {
 		if (!ready(player, data, FREEZE_SLOT)) {
 			return AbilityResult.COOLDOWN;
@@ -928,6 +940,9 @@ public final class Frozen {
 		spend(player, data, FREEZE_COST);
 		cooldown(player, data, FREEZE_SLOT, FREEZE_COOLDOWN);
 		HELD_MOBS.put(target.getUuid(), new Hold(player.getServerWorld(), now(player.getServer()) + FREEZE_TICKS));
+		if (data.has(Talents.STASIS_FREEZE)) {
+			SHATTER.put(target.getUuid(), new Shatter(player.getServerWorld(), player.getUuid(), now(player.getServer()) + FREEZE_TICKS));
+		}
 		// A beam of frozen time from the eye to the enemy, and the enemy sealed in ice
 		ServerWorld here = player.getServerWorld();
 		Fx.tendril(here, player, target, 12, STILL_RGB, ICE_RGB);
@@ -936,6 +951,26 @@ public final class Frozen {
 		here.spawnParticles(ICE, target.getX(), target.getY() + target.getHeight() / 2, target.getZ(), 16, 0.4, 0.4, 0.4, 0);
 		player.getServerWorld().playSound(null, target.getBlockPos(), SoundEvents.BLOCK_GLASS_PLACE, SoundCategory.PLAYERS, 1.0f, 0.5f);
 		return AbilityResult.OK;
+	}
+
+	/** Shattered Moment: the ice a Stopping Gaze leaves cracks as it lets go, 6 damage and a heavy slowness. */
+	private static void tickShatter(MinecraftServer server, long now) {
+		SHATTER.entrySet().removeIf(e -> {
+			Shatter shatter = e.getValue();
+			if (shatter.at() > now) {
+				return false;
+			}
+			ServerPlayerEntity owner = server.getPlayerManager().getPlayer(shatter.owner());
+			if (owner != null && shatter.world().getEntity(e.getKey()) instanceof LivingEntity living && living.isAlive()) {
+				living.damage(shatter.world().getDamageSources().indirectMagic(owner, owner), SHATTER_DAMAGE);
+				living.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 1));
+				Vec3d center = living.getPos().add(0, living.getHeight() / 2, 0);
+				Fx.burst(shatter.world(), center, 1.4f + living.getWidth(), 8, ICE_RGB);
+				shatter.world().spawnParticles(ICE, center.x, center.y, center.z, 24, 0.4, 0.5, 0.4, 0.15);
+				shatter.world().playSound(null, living.getBlockPos(), SoundEvents.BLOCK_GLASS_BREAK, SoundCategory.PLAYERS, 1.2f, 0.7f);
+			}
+			return true;
+		});
 	}
 
 	private static void tickHeld(MinecraftServer server, long now) {

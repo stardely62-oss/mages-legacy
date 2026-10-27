@@ -31,20 +31,20 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class RaceHud {
 	/** Item icons, the fallback while the Codex icons are missing. */
-	public static final Item[] MYCELID_ICONS = {Items.RED_MUSHROOM, Items.SPORE_BLOSSOM, Items.MYCELIUM};
-	public static final String[] MYCELID_ABILITY_ICONS = {"ability_spore_jump", "ability_spore_cloud", "ability_network"};
-	public static final int[] MYCELID_COSTS = {15, 30, 40};
+	public static final Item[] MYCELID_ICONS = {Items.RED_MUSHROOM, Items.SPORE_BLOSSOM, Items.MYCELIUM, Items.MOSS_CARPET, Items.WITHER_ROSE};
+	public static final String[] MYCELID_ABILITY_ICONS = {"ability_spore_jump", "ability_spore_cloud", "ability_network", "ability_carpet", "swarm_bloom"};
+	public static final int[] MYCELID_COSTS = {15, 30, 40, Mycelid.CARPET_COST, Mycelid.BLOOM_COST};
 	/** The Whistle's orders as marks on its slot: Follow, Guard, Hunt. */
 	public static final String[] STANCE_MARKS = {"↩", "◈", "⚔"};
 	// Keys H and Alt: the abilities talents open show their talent's icon
-	public static final Item[] BLOODKIN_ICONS = {Items.REDSTONE, Items.NETHER_WART, Items.IRON_SWORD, Items.ENCHANTED_GOLDEN_APPLE, Items.BAT_SPAWN_EGG};
-	public static final String[] BLOODKIN_ABILITY_ICONS = {"ability_dash", "ability_harvest", "ability_sacrifice", "fang_feast", "night_bats"};
-	public static final Item[] FROZEN_ICONS = {Items.CLOCK, Items.PACKED_ICE, Items.SAND, Items.HEART_OF_THE_SEA, Items.ICE};
-	public static final String[] FROZEN_ABILITY_ICONS = {"ability_rewind", "ability_dome", "ability_quicken", "flow_current", "stasis_freeze"};
+	public static final Item[] BLOODKIN_ICONS = {Items.REDSTONE, Items.NETHER_WART, Items.IRON_SWORD, Items.BAT_SPAWN_EGG, Items.ENCHANTED_GOLDEN_APPLE};
+	public static final String[] BLOODKIN_ABILITY_ICONS = {"ability_dash", "ability_harvest", "ability_sacrifice", "ability_swarm", "fang_feast"};
+	public static final Item[] FROZEN_ICONS = {Items.CLOCK, Items.PACKED_ICE, Items.SAND, Items.ICE, Items.HEART_OF_THE_SEA};
+	public static final String[] FROZEN_ABILITY_ICONS = {"ability_rewind", "ability_dome", "ability_quicken", "ability_stop_gaze", "flow_current"};
 	public static final Item[] VOIDBORN_ICONS = {Items.ENDER_PEARL, Items.CRYING_OBSIDIAN, Items.CHORUS_FRUIT, Items.ENDER_CHEST, Items.NETHER_STAR};
 	public static final String[] VOIDBORN_ABILITY_ICONS = {"ability_void_step", "ability_well", "ability_excise", "ability_pocket", "abyss_gaze"};
-	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.FEATHER, Items.NOTE_BLOCK, Items.LEAD};
-	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_whistle", "ability_song", "ability_gather"};
+	public static final Item[] SHEPHERD_ICONS = {Items.BONE, Items.GOAT_HORN, Items.FEATHER, Items.NOTE_BLOCK, Items.WHITE_BANNER};
+	public static final String[] SHEPHERD_ABILITY_ICONS = {"ability_call", "ability_rally", "ability_whistle", "ability_song", "legion_army"};
 
 	private RaceHud() {
 	}
@@ -91,7 +91,7 @@ public final class RaceHud {
 				case 0 -> squadCost(false);
 				case 1 -> Shepherd.RALLY_COST;
 				case 3 -> Bonds.SONG_COST;
-				case 4 -> Shepherd.GATHER_COST;
+				case 4 -> Shepherd.ARMY_COST;
 				default -> 0;
 			};
 		}
@@ -100,8 +100,8 @@ public final class RaceHud {
 			return switch (slot) {
 				case 0 -> Bloodkin.DASH_COST;
 				case 1 -> Bloodkin.HARVEST_COST;
-				case 3 -> Bloodkin.FEAST_COST;
-				case 4 -> Bloodkin.SWARM_COST;
+				case 3 -> Bloodkin.SWARM_COST;
+				case 4 -> Bloodkin.FEAST_COST;
 				default -> 0;
 			};
 		}
@@ -118,8 +118,8 @@ public final class RaceHud {
 			return switch (slot) {
 				case 0 -> Frozen.rewindCost(ClientRaceState.talents.contains(Talents.LOOP_CHEAP));
 				case 1 -> Frozen.domeCost(ClientRaceState.talents.contains(Talents.STASIS_CHEAP));
-				case 3 -> Frozen.CURRENT_COST;
-				case 4 -> Frozen.FREEZE_COST;
+				case 3 -> Frozen.FREEZE_COST;
+				case 4 -> Frozen.CURRENT_COST;
 				default -> Frozen.QUICKEN_COST;
 			};
 		}

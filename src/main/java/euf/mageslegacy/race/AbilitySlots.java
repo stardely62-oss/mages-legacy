@@ -1,9 +1,9 @@
 package euf.mageslegacy.race;
 
 /**
- * The ability keys: R, V, Z for every race's three main abilities, then H and left Alt for the ones a race has beyond them,
- * most of which a talent opens (the Bloodkin's Feast and Swarm, say). Each has a key of its own: sneaking is never what
- * picks an ability, since the server can't always tell a crouch from a keypress.
+ * The ability keys, the same plan for every race: R, V, Z and H for its four own abilities, opened by race levels, and
+ * left Alt for its crown, the one active crown at the end of its tree. Each has a key of its own: sneaking is never
+ * what picks an ability, since the server can't always tell a crouch from a keypress.
  */
 public final class AbilitySlots {
 	/** Keys the client sends: 0..2 the main three, 3 is H, 4 is left Alt. */
@@ -18,15 +18,20 @@ public final class AbilitySlots {
 
 	/** The talent that opens the ability on key {@code slot}, {@link #OPEN}, or null when the race has nothing there. */
 	public static String talent(Race race, int slot) {
-		if (slot < 3) {
+		if (slot < 4) {
 			return OPEN;
 		}
+		return crown(race);
+	}
+
+	/** The race's active crown, on left Alt. */
+	public static String crown(Race race) {
 		return switch (race) {
-			case SHEPHERD -> OPEN;
-			case VOIDBORN -> slot == 3 ? OPEN : Talents.ABYSS_GAZE;
-			case BLOODKIN -> slot == 3 ? Talents.FANG_FEAST : Talents.NIGHT_BATS;
-			case FROZEN -> slot == 3 ? Talents.FLOW_CURRENT : Talents.STASIS_FREEZE;
-			default -> null;
+			case MYCELID -> Talents.SWARM_BLOOM;
+			case SHEPHERD -> Talents.LEGION_ARMY;
+			case VOIDBORN -> Talents.ABYSS_GAZE;
+			case BLOODKIN -> Talents.FANG_FEAST;
+			case FROZEN -> Talents.FLOW_CURRENT;
 		};
 	}
 
@@ -75,7 +80,7 @@ public final class AbilitySlots {
 			case 0 -> 1;
 			case 1 -> 5;
 			case 2 -> 10;
-			case 3 -> 0;
+			case 3 -> 15;
 			default -> 0;
 		};
 	}
@@ -86,9 +91,9 @@ public final class AbilitySlots {
 			return slot;
 		}
 		return switch (race) {
-			case SHEPHERD -> 5;
-			case BLOODKIN -> slot == 3 ? 5 : 4;
-			case FROZEN -> slot == 3 ? 8 : 4;
+			case SHEPHERD -> 7;
+			case BLOODKIN -> slot == 3 ? 4 : 5;
+			case FROZEN -> slot == 3 ? 4 : 8;
 			default -> slot;
 		};
 	}

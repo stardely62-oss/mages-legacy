@@ -61,6 +61,8 @@ public final class Voidborn {
 	public static final int EXCISE_COST = 35;
 	public static final int POCKET_COST = 20;
 	public static final double STEP_RANGE = 24;
+	/** The share of arrows and fireballs that pass through a Voidborn. */
+	public static final float PROJECTILE_PASS = 0.15f;
 	private static final int STEP_TICKS = 10;
 	private static final int STEP_COOLDOWN = 160;
 	private static final int WELL_TICKS = 80;
@@ -227,7 +229,7 @@ public final class Voidborn {
 		}
 	}
 
-	/** Nothing touches a Voidborn inside the rock; and one arrow or fireball in four passes through the rest of them. */
+	/** Nothing touches a Voidborn inside the rock; and about one arrow or fireball in seven passes through the rest of them. */
 	public static boolean avoids(LivingEntity self, DamageSource source) {
 		if (!(self instanceof ServerPlayerEntity player) || !is(player)) {
 			return false;
@@ -235,7 +237,7 @@ public final class Voidborn {
 		if (phasing(player)) {
 			return true;
 		}
-		if (source.isIn(DamageTypeTags.IS_PROJECTILE) && player.getRandom().nextFloat() < 0.25f) {
+		if (source.isIn(DamageTypeTags.IS_PROJECTILE) && player.getRandom().nextFloat() < PROJECTILE_PASS) {
 			ServerWorld world = player.getServerWorld();
 			world.spawnParticles(ModParticles.VOID_MOTE, player.getX(), player.getY() + 1.2, player.getZ(), 10, 0.25, 0.4, 0.25, 0.03);
 			world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 0.4f, 1.8f);
@@ -871,6 +873,12 @@ public final class Voidborn {
 		Long hurt = LAST_HURT.get(player.getUuid());
 		if (in && hurt != null && now(player.getServer()) - hurt < POCKET_CALM) {
 			player.sendMessage(Text.translatable("mages_legacy.voidborn.pocket_calm"), true);
+			return AbilityResult.HINTED;
+		}
+		// The pocket is a home, not a way out of a fight: it won't open while monsters near are after you
+		if (in && !player.getServerWorld().getEntitiesByClass(MobEntity.class, player.getBoundingBox().expand(16),
+				m -> m.isAlive() && m.getTarget() == player).isEmpty()) {
+			player.sendMessage(Text.translatable("mages_legacy.voidborn.pocket_hunted"), true);
 			return AbilityResult.HINTED;
 		}
 		if (in) {

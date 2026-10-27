@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttribute;
 import net.minecraft.entity.attribute.EntityAttributeInstance;
@@ -68,6 +69,14 @@ public final class Mycelid {
 	private static final int MOSS_INK = Fx.INK | 0x4E7A3A;
 	public static final int CLOUD_KILL_XP = 4;
 	public static final int DARK_KILL_XP = 3;
+	public static final int CARPET_COST = 35;
+	private static final int CARPET_COOLDOWN = 600;
+	private static final int CARPET_TICKS = 400;
+	private static final double CARPET_RADIUS = 5;
+	public static final int BLOOM_COST = 50;
+	private static final int BLOOM_COOLDOWN = 6000;
+	private static final int BLOOM_TICKS = 200;
+	private static final double BLOOM_RADIUS = 12;
 	/** Experience from eating (raw mushrooms and stews together) and from kills, at most this much in ten minutes. */
 	private static final String DIET_XP = "mycelid_diet";
 	/** A taste lasts 45 seconds (a minute with Rich Tastes), and the same one comes back 2 minutes after it was eaten. */
@@ -104,6 +113,16 @@ public final class Mycelid {
 
 	private static final List<PendingJump> JUMPS = new ArrayList<>();
 	private static final List<Cloud> CLOUDS = new ArrayList<>();
+	/** A Mycelium Carpet: ground that counts as mycelium for the Mycelids and holds monsters fast. */
+	private record Carpet(ServerWorld world, Vec3d center, double radius, long until) {}
+
+	/** A monster the Great Bloom infected: until when, and whose spores burst out of it if it dies. */
+	private record Infection(UUID owner, long until) {}
+
+	private static final List<Carpet> CARPETS = new ArrayList<>();
+	private static final Map<UUID, Infection> INFECTED = new HashMap<>();
+	/** Until when each Mycelid's Great Bloom lasts: then monsters dying in its clouds burst into new ones. */
+	private static final Map<UUID, Long> BLOOMING = new HashMap<>();
 	/** When each player may taste each effect again. Not saved: a relog costs at most one aftertaste. */
 	private static final Map<UUID, Map<StatusEffect, Long>> TASTED = new HashMap<>();
 
@@ -114,6 +133,9 @@ public final class Mycelid {
 		JUMPS.clear();
 		CLOUDS.clear();
 		TASTED.clear();
+		CARPETS.clear();
+		INFECTED.clear();
+		BLOOMING.clear();
 		MycelidFx.reset();
 	}
 
@@ -124,6 +146,9 @@ public final class Mycelid {
 	}
 
 	public static boolean onMycelium(ServerPlayerEntity player) {
+		if (onCarpet(player)) {
+			return true;
+		}
 		BlockState below = player.getWorld().getBlockState(player.getBlockPos().down());
 		return below.isOf(Blocks.MYCELIUM) || below.isOf(Blocks.PODZOL) || below.isOf(Blocks.RED_MUSHROOM_BLOCK)
 				|| below.isOf(Blocks.BROWN_MUSHROOM_BLOCK) || below.isOf(Blocks.MUSHROOM_STEM) || below.isOf(MagesLegacy.MYCELIUM_NODE);
@@ -342,6 +367,8 @@ public final class Mycelid {
 			case 0 -> sporeJump(player, data);
 			case 1 -> sporeCloud(player, data);
 			case 2 -> placeNode(player, data);
+			case 3 -> carpet(player, data);
+			case 4 -> data.has(Talents.SWARM_BLOOM) ? bloom(player, data) : RaceData.talentLocked(player, Talents.SWARM_BLOOM);
 			default -> AbilityResult.LOCKED;
 		};
 	}
@@ -543,6 +570,90 @@ public final class Mycelid {
 		return data.has(Talents.NET_FAR) ? 500 : 150;
 	}
 
+	/** Whether an entity stands on a Mycelium Carpet. */
+	public static boolean onCarpet(Entity entity) {
+		for (Carpet carpet : CARPETS) {
+			if (carpet.world() == entity.getWorld() && Math.abs(entity.getY() - carpet.center().y) < 2.5
+					&& entity.getPos().multiply(1, 0, 1).isInRange(carpet.center().multiply(1, 0, 1), carpet.radius())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Mycelium Carpet (H): mycelium runs out over the ground around the Mycelid for 20 seconds. For any Mycelid it is
+	 * mycelium (spores grow fast, the body mends, even in dry lands); monsters on it stick fast.
+	 */
+	public static AbilityResult carpet(ServerPlayerEntity player, RaceData data) {
+		if (!ready(player, data, 3)) {
+			return AbilityResult.COOLDOWN;
+		}
+		if (data.resource < CARPET_COST) {
+			return AbilityResult.NO_RESOURCE;
+		}
+		ServerWorld world = player.getServerWorld();
+		Vec3d center = drop(player, player.getPos());
+		if (center == null) {
+			return AbilityResult.NO_SPACE;
+		}
+		data.addResource(-CARPET_COST);
+		cooldown(player, data, 3, CARPET_COOLDOWN);
+		long now = now(player);
+		CARPETS.add(new Carpet(world, center, CARPET_RADIUS, now + CARPET_TICKS));
+		Fx.mark(world, center, null, (float) CARPET_RADIUS, CARPET_TICKS, SPORE_RGB, Fx.MYCELIUM);
+		Fx.threads(world, center, (float) CARPET_RADIUS * 0.6f, 1.4f, 9, 30, SPORE_RGB);
+		Fx.burst(world, center.add(0, 0.3, 0), (float) CARPET_RADIUS, 8, MOSS_INK);
+		world.spawnParticles(ParticleTypes.MYCELIUM, center.x, center.y + 0.2, center.z, 80, CARPET_RADIUS * 0.5, 0.1, CARPET_RADIUS * 0.5, 0.0);
+		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_ROOTS_PLACE, SoundCategory.PLAYERS, 1.2f, 0.6f);
+		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_MOSS_PLACE, SoundCategory.PLAYERS, 1.2f, 0.7f);
+		if (!world.getEntitiesByClass(LivingEntity.class, new Box(center, center).expand(CARPET_RADIUS, 2, CARPET_RADIUS),
+				e -> e instanceof Monster && e.isAlive()).isEmpty()) {
+			Progression.addXp(player, data, "mycelid_carpet", 3, 15);
+		}
+		return AbilityResult.OK;
+	}
+
+	/**
+	 * The Great Bloom (Alt, the Swarm's crown): every monster within 12 blocks takes the spores in. For 10 seconds an
+	 * infected monster that dies bursts into a spore cloud, and monsters dying in this Mycelid's clouds burst too:
+	 * a chain through the whole crowd.
+	 */
+	public static AbilityResult bloom(ServerPlayerEntity player, RaceData data) {
+		if (!ready(player, data, 4)) {
+			return AbilityResult.COOLDOWN;
+		}
+		if (data.resource < BLOOM_COST) {
+			return AbilityResult.NO_RESOURCE;
+		}
+		ServerWorld world = player.getServerWorld();
+		List<LivingEntity> crowd = world.getEntitiesByClass(LivingEntity.class, player.getBoundingBox().expand(BLOOM_RADIUS, 4, BLOOM_RADIUS),
+				e -> e instanceof Monster && e.isAlive() && e.getPos().isInRange(player.getPos(), BLOOM_RADIUS));
+		if (crowd.isEmpty()) {
+			return AbilityResult.NO_ENEMIES;
+		}
+		data.addResource(-BLOOM_COST);
+		cooldown(player, data, 4, BLOOM_COOLDOWN);
+		long now = now(player);
+		BLOOMING.put(player.getUuid(), now + BLOOM_TICKS);
+		for (LivingEntity mob : crowd) {
+			INFECTED.put(mob.getUuid(), new Infection(player.getUuid(), now + BLOOM_TICKS));
+			mob.addStatusEffect(new StatusEffectInstance(mob.isUndead() ? StatusEffects.WITHER : StatusEffects.POISON, BLOOM_TICKS, 0));
+			mob.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, BLOOM_TICKS, 0, false, false));
+			// A thread of mycelium from the Mycelid into every one of them
+			Fx.tendril(world, player, mob, 14, MOSS_INK, SPORE_RGB);
+		}
+		Fx.mark(world, player.getPos(), null, (float) BLOOM_RADIUS, BLOOM_TICKS, SPORE_RGB, Fx.MYCELIUM);
+		Fx.nebula(world, player.getPos(), null, (float) BLOOM_RADIUS * 0.6f, 50, SPORE_RGB, 0xC8FFB0);
+		Fx.threads(world, player.getPos(), 3.0f, 2.2f, 16, 40, SPORE_RGB);
+		Fx.burst(world, player.getPos().add(0, 1, 0), (float) BLOOM_RADIUS, 10, SPORE_RGB);
+		Fx.shake(player, 2.5f, 14);
+		Fx.fov(player, 0.2f, 16);
+		world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_SPORE_BLOSSOM_BREAK, SoundCategory.PLAYERS, 2.0f, 0.4f);
+		world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_WARDEN_ROAR, SoundCategory.PLAYERS, 0.4f, 1.6f);
+		return AbilityResult.OK;
+	}
+
 	public static AbilityResult placeNode(ServerPlayerEntity player, RaceData data) {
 		if (!Progression.tierOpen(player, 2)) {
 			return AbilityResult.LOCKED;
@@ -718,6 +829,22 @@ public final class Mycelid {
 			}
 		}
 
+		CARPETS.removeIf(carpet -> carpet.until() <= now);
+		INFECTED.values().removeIf(infection -> infection.until() <= now);
+		BLOOMING.values().removeIf(until -> until <= now);
+		if (now % 20 == 0) {
+			// The carpet holds monsters fast; spores drift up from it
+			for (Carpet carpet : CARPETS) {
+				Vec3d c = carpet.center();
+				double r = carpet.radius();
+				for (LivingEntity mob : carpet.world().getEntitiesByClass(LivingEntity.class, new Box(c, c).expand(r, 2, r),
+						e -> e instanceof Monster && e.isAlive() && onCarpet(e))) {
+					mob.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 30, 1));
+				}
+				carpet.world().spawnParticles(ModParticles.SPORE, c.x, c.y + 0.2, c.z, 12, r * 0.5, 0.1, r * 0.5, 0.01);
+			}
+		}
+
 		for (Iterator<Cloud> it = CLOUDS.iterator(); it.hasNext(); ) {
 			Cloud cloud = it.next();
 			if (cloud.until() <= now) {
@@ -783,6 +910,12 @@ public final class Mycelid {
 		if (!(entity instanceof Monster) || entity.getServer() == null) {
 			return;
 		}
+		// Infected by a Great Bloom: the spores burst out of the body
+		Infection infection = INFECTED.remove(entity.getUuid());
+		if (infection != null && entity.getWorld() instanceof ServerWorld world) {
+			burstFrom(world, entity, infection.owner());
+			return;
+		}
 		for (Cloud cloud : CLOUDS) {
 			if (cloud.world() == entity.getWorld() && entity.getPos().isInRange(centerOf(cloud), cloud.radius() + 0.5)) {
 				ServerPlayerEntity owner = entity.getServer().getPlayerManager().getPlayer(cloud.owner());
@@ -795,12 +928,23 @@ public final class Mycelid {
 					data.addResource(10);
 					Progression.addXp(owner, data, Progression.HUNT, 6, Progression.HUNT_CAP);
 				}
-				if (data.has(Talents.SWARM_BLOOM)) {
-					spawnCloud(cloud.world(), entity.getPos(), cloud.owner(), 3, cloud.potency(), 60);
+				// In a Great Bloom the clouds carry it on: whatever dies in them bursts into a cloud of its own
+				if (BLOOMING.getOrDefault(cloud.owner(), 0L) > cloud.world().getServer().getTicks()) {
+					burstFrom(cloud.world(), entity, cloud.owner());
 				}
 				return;
 			}
 		}
+	}
+
+	/** A body bursts into a small spore cloud of its Mycelid's (the Great Bloom's chain). */
+	private static void burstFrom(ServerWorld world, LivingEntity body, UUID owner) {
+		ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(owner);
+		RaceData data = player == null ? null : RaceState.of(player);
+		spawnCloud(world, body.getPos(), owner, 3, data != null && data.has(Talents.SWARM_POTENT) ? 2 : 1, 60);
+		Fx.nebula(world, body.getPos(), null, 3.0f, 60, SPORE_RGB, 0xC8FFB0);
+		Fx.burst(world, body.getPos().add(0, body.getHeight() / 2, 0), 2.5f, 7, SPORE_RGB);
+		world.playSound(null, body.getBlockPos(), SoundEvents.BLOCK_FUNGUS_BREAK, SoundCategory.HOSTILE, 1.2f, 0.6f);
 	}
 
 	/** A Mycelid killed a monster with its own hands in the dark: the hunt the race was made for. */

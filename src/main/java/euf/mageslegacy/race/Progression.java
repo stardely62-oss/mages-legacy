@@ -45,9 +45,12 @@ public final class Progression {
 		return tier;
 	}
 
-	/** How much stronger a race's abilities are at its level: 1.5% a level, three quarters more at level 50. */
+	/**
+	 * How much stronger a race's abilities are at its level: 3% a level, two and a half times at level 50, so race
+	 * magic keeps up with enchanted weapons late in the game.
+	 */
 	public static float power(RaceData data) {
-		return 1 + 0.015f * data.level;
+		return 1 + 0.03f * data.level;
 	}
 
 	/**
