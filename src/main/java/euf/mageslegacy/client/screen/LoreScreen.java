@@ -1,5 +1,6 @@
 package euf.mageslegacy.client.screen;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import euf.mageslegacy.race.Race;
 import java.util.List;
 import net.minecraft.client.gui.DrawContext;
@@ -25,7 +26,9 @@ public class LoreScreen extends Screen {
 	private static final float LETTERS = 45;
 	private static final float FADE = 0.5f;
 	/** On the division page, one emblem every this many seconds. */
-	private static final float EMBLEM_EVERY = 0.45f;
+	private static final float EMBLEM_EVERY = 0.8f;
+	/** How long one emblem takes to come up out of the dark. */
+	private static final float EMBLEM_FADE = 1.1f;
 
 	private int page;
 	private long pageAt;
@@ -91,7 +94,7 @@ public class LoreScreen extends Screen {
 	private boolean done() {
 		float t = elapsed();
 		if (page == DIVISION) {
-			return t >= FADE + Race.values().length * EMBLEM_EVERY;
+			return t >= FADE + (Race.values().length - 1) * EMBLEM_EVERY + EMBLEM_FADE + 0.6f;
 		}
 		return t >= FADE + text().getString().length() / LETTERS;
 	}
@@ -175,44 +178,60 @@ public class LoreScreen extends Screen {
 		}
 	}
 
-	/** The division: the eight peoples' emblems lighting up in turn, each with what the mage gave it. */
+	/**
+	 * The division: the eight peoples' emblems coming up out of the dark one after another, slowly, each settling into
+	 * a soft breathing glow; its name and what the mage gave it appear once the emblem has lit, below the glow.
+	 */
 	private void renderDivision(DrawContext ctx, float t, float fade) {
 		Text head = text();
 		ctx.drawCenteredTextWithShadow(textRenderer, head.copy().formatted(Formatting.ITALIC), width / 2, 30, LegacyUi.alpha(LegacyUi.PARCHMENT, fade));
 		Race[] races = Race.values();
 		int cols = 4;
 		int cellW = Math.min(150, (width - 40) / cols);
-		int cellH = Math.min(96, (height - 120) / 2);
+		// Each cell: the emblem, a margin for its glow, the name and up to two lines of the gift
+		int top = 48;
+		int size = Math.max(24, Math.min(44, (height - top - 60) / 2 - 46));
+		int glow = size * 3 / 4;
+		int cellH = size + (glow - size / 2) + 4 + 10 + 22;
+		int y0 = top + Math.max(0, (height - top - 50 - 2 * cellH) / 2);
 		int x0 = (width - cols * cellW) / 2;
-		int y0 = 48 + Math.max(0, (height - 120 - 2 * cellH) / 2);
-		int size = Math.min(48, cellH - 34);
 		for (Race race : races) {
 			int i = race.ordinal();
-			float a = Math.min(1, Math.max(0, (t - FADE - i * EMBLEM_EVERY) / 0.5f));
+			float lit = smooth((t - FADE - i * EMBLEM_EVERY) / EMBLEM_FADE);
+			float words = smooth((t - FADE - i * EMBLEM_EVERY - EMBLEM_FADE * 0.6f) / 0.6f);
 			int cx = x0 + (i % cols) * cellW + cellW / 2;
 			int cy = y0 + (i / cols) * cellH;
 			int color = LegacyUi.argb(race.color);
-			if (a > 0) {
-				LegacyUi.glow(ctx, cx, cy + size / 2, size, color, a * 0.8f);
+			if (lit > 0) {
+				// Once lit it breathes, slowly, each in its own time
+				float breath = 0.85f + 0.15f * (float) Math.sin(t * 1.6f + i * 0.8f);
+				LegacyUi.glow(ctx, cx, cy + size / 2, glow, color, lit * breath * 0.9f);
 			}
 			if (LegacyUi.exists(LegacyUi.emblem(race))) {
-				LegacyUi.emblem(ctx, race, cx - size / 2, cy, size, a > 0.5f);
-				if (a < 1) {
-					ctx.fill(cx - size / 2, cy, cx + size / 2, cy + size, LegacyUi.alpha(0xFF000000, 0.75f * (1 - a)));
-				}
+				float shade = 0.35f + 0.65f * lit;
+				RenderSystem.enableBlend();
+				RenderSystem.setShaderColor(shade, shade, shade, 0.25f + 0.75f * lit);
+				ctx.drawTexture(LegacyUi.emblem(race), cx - size / 2, cy, size, size, 0, 0, 64, 64, 64, 64);
+				RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
 			} else {
-				LegacyUi.diamond(ctx, cx, cy + size / 2, size / 4, LegacyUi.alpha(color, 0.3f + 0.7f * a));
+				LegacyUi.diamond(ctx, cx, cy + size / 2, size / 4, LegacyUi.alpha(color, 0.3f + 0.7f * lit));
 			}
-			if (a > 0) {
-				ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable("mages_legacy.race." + race.id()), cx, cy + size + 4, LegacyUi.alpha(color, a));
+			if (words > 0.02f) {
+				int ty = cy + size / 2 + glow + 4;
+				ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable("mages_legacy.race." + race.id()), cx, ty, LegacyUi.alpha(color, words));
 				List<OrderedText> gift = textRenderer.wrapLines(Text.translatable("mages_legacy.race." + race.id() + ".gift").formatted(Formatting.ITALIC), cellW - 8);
-				int gy = cy + size + 15;
+				int gy = ty + 11;
 				for (OrderedText line : gift) {
-					ctx.drawCenteredTextWithShadow(textRenderer, line, cx, gy, LegacyUi.alpha(LegacyUi.PARCHMENT, a));
+					ctx.drawCenteredTextWithShadow(textRenderer, line, cx, gy, LegacyUi.alpha(LegacyUi.PARCHMENT, words));
 					gy += 10;
 				}
 			}
 		}
+	}
+
+	private static float smooth(float t) {
+		t = Math.max(0, Math.min(1, t));
+		return t * t * (3 - 2 * t);
 	}
 
 	@Override
