@@ -28,7 +28,7 @@ declare -A P=(
   [talent_step_ally]="$ICON $VOID Subject: two blocky figures walking side by side through a glowing violet rift."
   [talent_awakening_worlds]="$ICON $VOID Subject: two glowing violet rifts facing each other, joined by a bright arc of stars."
   [talent_worlds_long]="$ICON $VOID Subject: a stable glowing violet portal ring held open by four small stone pillars."
-  [talent_worlds_far]="$ICON $VOID Subject: a violet portal with a distant tiny second portal far behind it on a long starry path."
+  [talent_worlds_far_old]="$ICON $VOID Subject: a violet portal with a distant tiny second portal far behind it on a long starry path."
   [talent_worlds_train]="$ICON $VOID Subject: a horse and a dog walking into a glowing violet portal."
   [talent_grav_wide]="$ICON $VOID Subject: a heavy dark violet sphere pressing on cracked ground, wide circular shockwave rings around it."
   [talent_grav_slow]="$ICON $VOID Subject: a heavy lead weight with violet glow, crushing a small boot."
@@ -64,6 +64,8 @@ declare -A P=(
   [talent_step_homeward]="$ICON $VOID Subject: a small floating island with a violet arrow leaping from it."
   [talent_step_rupture]="$ICON $VOID Subject: a jagged violet tear slashing through a red monster silhouette."
   [talent_pocket_hold]="$ICON $VOID Subject: a heavy violet weight resting on the threshold of a rift door."
+  [talent_worlds_charge_2]="$ICON $VOID Subject: two violet ripple rings spreading in dark space around a tiny glowing figure."
+  [talent_worlds_charge_3]="$ICON $VOID Subject: three violet ripple rings spreading in dark space around a tiny glowing figure, a small star above."
 )
 NAMES=("$@")
 [ ${#NAMES[@]} -eq 0 ] && NAMES=("${!P[@]}")
