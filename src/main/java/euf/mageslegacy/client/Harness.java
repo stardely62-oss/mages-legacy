@@ -420,6 +420,9 @@ final class Harness {
 				&& euf.mageslegacy.mycelid.Awaken.exhausted(player())), 20);
 		run(() -> server().execute(() -> {
 			ServerPlayer player = player();
+			// The testing mode refills the spores every tick: off, to see the storm take them
+			euf.mageslegacy.race.Talents.setNoCooldown(player, false);
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player).cooldown, 0);
 			RaceState.setResource(player, RaceState.MAX_RESOURCE);
 			husk = EntityType.HUSK.create(player.serverLevel());
 			husk.moveTo(player.getX() + 5, player.getY(), player.getZ(), 0, 0);
@@ -430,7 +433,8 @@ final class Harness {
 		run(() -> MagesLegacyClient.useAbility(4), 25);
 		run(() -> {
 			var weak = husk.getEffect(net.minecraft.world.effect.MobEffects.WEAKNESS);
-			check("the Spore Storm weakens hard and takes the spores", weak != null && weak.getAmplifier() >= 1 && RaceState.resource(player()) < 50);
+			check("the Spore Storm weakens hard (" + (weak == null ? "none" : weak.getAmplifier()) + ")", weak != null && weak.getAmplifier() >= 1);
+			check("the Spore Storm takes the spores (" + RaceState.resource(player()) + ")", RaceState.resource(player()) < 50);
 		}, 0);
 		film("storm", 6, 4);
 		// Mycelial Rebirth: a reserve body at the Mother Mycelium, a killing blow far away
@@ -439,6 +443,7 @@ final class Harness {
 			husk.discard();
 			euf.mageslegacy.race.Talents.reset(player);
 			euf.mageslegacy.race.Talents.learnAll(player, "rebirth", "bloom");
+			euf.mageslegacy.race.Talents.setNoCooldown(player, true);
 			player.connection.teleport(41.5, y[0], 42.5, 0, 0);
 		}), 10);
 		run(() -> MagesLegacyClient.useAbility(2), 10);
