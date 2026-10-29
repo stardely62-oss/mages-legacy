@@ -7,7 +7,9 @@ import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceState;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -55,6 +57,11 @@ public final class Pocket {
 	private static final int HURT_LOCK = 5 * 20;
 	/** How far around the platform stray blocks are cleared every second. */
 	private static final int GUARD = 2;
+	/** The rift opens first; this many ticks later it takes the travellers through. */
+	private static final int OPENING = 16;
+	/** Rifts opening now: who opened them and how long until they take the travellers. */
+	private static final Map<UUID, Integer> OPENING_IN = new HashMap<>();
+	private static final Map<UUID, Boolean> OPENING_OUT = new HashMap<>();
 
 	private Pocket() {
 	}
@@ -101,14 +108,31 @@ public final class Pocket {
 
 	// ---- Entering and leaving --------------------------------------------------------------------------------
 
+	/** Opens the rift; {@link #OPENING} ticks later it takes the Voidborn and the 3×3 around them through. */
 	public static Abilities.Refusal enter(ServerPlayer owner) {
-		MinecraftServer server = owner.server;
-		ServerLevel pocket = server.getLevel(DIMENSION);
-		if (pocket == null) {
+		if (owner.server.getLevel(DIMENSION) == null) {
 			return new Abilities.Refusal("mages_legacy.refuse.no_pocket");
+		}
+		if (OPENING_IN.containsKey(owner.getUUID())) {
+			return new Abilities.Refusal("mages_legacy.refuse.busy");
 		}
 		if (Voidborn.hurtRecently(owner, HURT_LOCK)) {
 			return new Abilities.Refusal("mages_legacy.refuse.pocket_hurt");
+		}
+		ServerLevel from = owner.serverLevel();
+		Fx.play(from, Fx.POCKET_RIFT, owner.position().add(owner.getLookAngle().multiply(1, 0, 1).normalize().scale(1.2)).add(0, 1, 0),
+				OPENING + 24);
+		from.playSound(null, owner.getX(), owner.getY(), owner.getZ(), SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, SoundSource.PLAYERS, 0.9f, 0.6f);
+		OPENING_IN.put(owner.getUUID(), OPENING);
+		OPENING_OUT.put(owner.getUUID(), false);
+		return null;
+	}
+
+	private static void pass(ServerPlayer owner) {
+		MinecraftServer server = owner.server;
+		ServerLevel pocket = server.getLevel(DIMENSION);
+		if (pocket == null || !owner.isAlive()) {
+			return;
 		}
 		PocketRooms rooms = PocketRooms.get(server);
 		int room = rooms.roomOf(owner.getUUID());
@@ -122,9 +146,6 @@ public final class Pocket {
 				going.add(guest);
 			}
 		}
-		ServerLevel from = owner.serverLevel();
-		Fx.play(from, Fx.POCKET_RIFT, owner.position().add(owner.getLookAngle().multiply(1, 0, 1).normalize().scale(1.2)).add(0, 1, 0), 40);
-		from.playSound(null, owner.getX(), owner.getY(), owner.getZ(), SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, SoundSource.PLAYERS, 0.9f, 0.6f);
 		BlockPos c = centre(room);
 		for (int i = 0; i < going.size(); i++) {
 			ServerPlayer player = going.get(i);
@@ -138,11 +159,26 @@ public final class Pocket {
 		}
 		Fx.play(pocket, Fx.POCKET_RIFT, new Vec3(c.getX() + 0.5, FLOOR + 2, c.getZ() + 3.5), 40);
 		pocket.playSound(null, c.getX(), FLOOR + 1, c.getZ(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 0.5f);
-		return null;
 	}
 
 	/** The owner leaving takes every guest of their room home too; a Voidborn visiting leaves alone. */
 	public static Abilities.Refusal leave(ServerPlayer player) {
+		if (OPENING_IN.containsKey(player.getUUID())) {
+			return new Abilities.Refusal("mages_legacy.refuse.busy");
+		}
+		Fx.play(player.serverLevel(), Fx.POCKET_RIFT, player.position().add(player.getLookAngle().multiply(1, 0, 1).normalize().scale(1.2)).add(0, 1, 0),
+				OPENING + 24);
+		player.serverLevel().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, SoundSource.PLAYERS,
+				0.9f, 0.6f);
+		OPENING_IN.put(player.getUUID(), OPENING);
+		OPENING_OUT.put(player.getUUID(), true);
+		return null;
+	}
+
+	private static void passOut(ServerPlayer player) {
+		if (!isPocket(player.level())) {
+			return;
+		}
 		ServerLevel pocket = player.serverLevel();
 		int room = roomAt(player.getX());
 		UUID owner = PocketRooms.get(player.server).ownerOf(room);
@@ -155,17 +191,16 @@ public final class Pocket {
 				}
 			}
 		}
-		Fx.play(pocket, Fx.POCKET_RIFT, player.position().add(0, 1, 0), 40);
 		for (ServerPlayer p : going) {
 			sendHome(p);
 		}
-		return null;
 	}
 
 	/** Takes a player out of a Pocket if they are in one (a lost race, a reset). */
 	public static void leaveIfInside(ServerPlayer player) {
+		OPENING_IN.remove(player.getUUID());
 		if (isPocket(player.level())) {
-			leave(player);
+			passOut(player);
 		}
 	}
 
@@ -288,7 +323,24 @@ public final class Pocket {
 			}
 		}
 		skipNightIfRested(server, pocket);
-	}
+		// Rifts that have finished opening take their travellers
+		for (UUID id : new ArrayList<>(OPENING_IN.keySet())) {
+			int left = OPENING_IN.get(id) - 1;
+			if (left > 0) {
+				OPENING_IN.put(id, left);
+				continue;
+			}
+			OPENING_IN.remove(id);
+			boolean out = Boolean.TRUE.equals(OPENING_OUT.remove(id));
+			ServerPlayer player = server.getPlayerList().getPlayer(id);
+			if (player != null) {
+				if (out) {
+					passOut(player);
+				} else if (!isPocket(player.level())) {
+					pass(player);
+				}
+			}
+		}
 
 	private static void clearEdge(ServerLevel pocket, int room, int size) {
 		BlockPos c = centre(room);
@@ -402,6 +454,8 @@ public final class Pocket {
 
 	/** A host who leaves the game sends their guests home. */
 	private static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+		OPENING_IN.remove(event.getEntity().getUUID());
+		OPENING_OUT.remove(event.getEntity().getUUID());
 		if (event.getEntity() instanceof ServerPlayer player && isPocket(player.level())) {
 			int room = roomAt(player.getX());
 			if (player.getUUID().equals(PocketRooms.get(player.server).ownerOf(room))) {

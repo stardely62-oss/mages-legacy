@@ -60,12 +60,12 @@ public final class VoidFx {
 		int open = Math.max(10, ticks);
 		PhotonFx.play(level, at, null, 0,
 				// The seam: dark ink drawn inwards
-				new PhotonFx.Emitter(open).sphere(0.5f * size, 0.2f).scale(0.35f, 2.2f, 0.35f).flow(10 * size).burst((int) (30 * size))
-						.life(10, 18).speed(0, 0.01f).size(0.18f * size, 0.32f * size).sizeCurve(0.4f, 1f, 0f)
+				new PhotonFx.Emitter(open).sphere(0.6f * size, 0.3f).scale(0.35f, 2.4f, 0.35f).flow(16 * size).burst((int) (40 * size))
+						.life(10, 18).speed(0, 0.01f).size(0.22f * size, 0.38f * size).sizeCurve(0.4f, 1f, 0f)
 						.colors(INK_FADE, INK, INK, INK_FADE).swirl(-4, 0).ink(),
 				// Violet sparks spiralling in at the edges
-				new PhotonFx.Emitter(open).sphere(0.9f * size, 0.3f).scale(0.6f, 1.8f, 0.6f).flow(6 * size).burst((int) (24 * size))
-						.life(12, 22).speed(0, 0.01f).size(0.05f, 0.1f).sizeCurve(0.2f, 1f, 0f)
+				new PhotonFx.Emitter(open).sphere(0.9f * size, 0.3f).scale(0.6f, 1.9f, 0.6f).flow(12 * size).burst((int) (36 * size))
+						.life(12, 22).speed(0, 0.01f).size(0.07f, 0.13f).sizeCurve(0.2f, 1f, 0f)
 						.colors(0x00B27CFF, VIOLET, VIOLET_DEEP, 0x006A3AC8).swirl(-6, 8).glow(),
 				// The ring closing in once, as the rift opens
 				new PhotonFx.Emitter(4).sphere(1.6f * size, 0.05f).scale(1f, 1.4f, 1f).burst((int) (60 * size))

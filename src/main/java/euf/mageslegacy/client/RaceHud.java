@@ -87,6 +87,12 @@ public final class RaceHud {
 		float t = 1 - left / 25f;
 		// Dark at once on entering, nearly black in the middle (the inside of walls is never seen), lifting at the end
 		float depth = (float) Math.min(1, Math.sin(Math.PI * Math.min(1, Math.max(0, t))) * 1.6);
+		// Seen from outside the body, only a tint: the walk itself should be visible
+		if (!Minecraft.getInstance().options.getCameraType().isFirstPerson()) {
+			int tint = LegacyUi.alpha(0xFF0A0418, 0.25f * depth);
+			graphics.fill(0, 0, width, height, tint);
+			return;
+		}
 		int core = LegacyUi.alpha(0xFF0A0418, 0.7f + 0.28f * depth);
 		graphics.fill(0, 0, width, height, core);
 		int edge = LegacyUi.alpha(0xFF6A3AB0, 0.35f * depth);
