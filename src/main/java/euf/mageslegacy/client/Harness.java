@@ -95,10 +95,10 @@ final class Harness {
 		shot("hud");
 
 		// The Void Step through a wall
-		run(() -> MagesLegacyClient.useAbility(0), 5);
+		run(() -> MagesLegacyClient.useAbility(0), 12);
 		shot("step_mid");
 		run(() -> {
-		}, 20);
+		}, 30);
 		run(() -> {
 			ServerPlayer player = player();
 			check("void step went through the wall (z=" + String.format("%.1f", player.getZ()) + ")",
@@ -115,9 +115,9 @@ final class Harness {
 		}), 10);
 		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 5);
 		run(() -> MagesLegacyClient.useAbility(0), 1);
-		film("step", 10, 2);
+		film("step", 18, 2);
 		run(() -> {
-		}, 15);
+		}, 5);
 
 		// A glance at the ground a few blocks ahead leads onto that ground, not into "nowhere to come out"
 		run(() -> server().execute(() -> {

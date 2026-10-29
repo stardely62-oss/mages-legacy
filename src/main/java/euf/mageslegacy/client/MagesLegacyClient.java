@@ -49,6 +49,7 @@ public class MagesLegacyClient {
 		modBus.addListener(MagesLegacyClient::onRegisterLayers);
 		NeoForge.EVENT_BUS.addListener(MagesLegacyClient::onTick);
 		euf.mageslegacy.client.fx.VoidRender.register();
+		ClientStep.register();
 		NeoForge.EVENT_BUS.addListener(MagesLegacyClient::onInteract);
 		NeoForge.EVENT_BUS.addListener(MagesLegacyClient::onBlockOverlay);
 		NeoForge.EVENT_BUS.addListener(ScreenFx::onAngles);

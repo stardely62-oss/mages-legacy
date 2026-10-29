@@ -79,8 +79,8 @@ public final class Voidborn {
 
 	/** Void per tick: 1 a second, half again in the dark, twice in the End and the Pocket. */
 	private static final float REGEN = 1f / 20;
-	/** Half a second through the void, as in the first version: a dash, not a stroll. */
-	private static final int STEP_TICKS = 10;
+	/** A second and a quarter in the void between worlds, then out at the far end. */
+	private static final int STEP_TICKS = 25;
 	private static final int GRAVITY_TICKS = 4 * 20;
 	/** A mark in space lasts 5 minutes and can be walked to from 32 blocks. */
 	private static final int MARK_TICKS = 5 * 60 * 20;
@@ -330,12 +330,13 @@ public final class Voidborn {
 		int ticks = stepTicks(player);
 		boolean door = Talents.has(player, Talent.STEP_DOOR);
 		begin(player, from, to, ticks, false);
-		// The first version's walk: a rift at each end, a streak between them, the view sinking into the void
-		Fx.rift(level, from.add(0, 1, 0), 2.4f, 1.3f, door ? ticks + DOOR_TICKS : 16);
-		Fx.rift(level, to.add(0, 1, 0), 2.4f, 1.3f, door ? ticks + DOOR_TICKS : ticks + 14);
-		Fx.ribbon(level, from, to, ticks + 12, 1.1f);
-		Fx.burst(level, from.add(0, 1, 0), 1.3f, 6, true);
-		Fx.sparkle(level, from.add(0, 1, 0), 24, 0.06f);
+		// The body sinks into the void where it stood: darkness folding in, motes drawn after it
+		sinkFx(level, from);
+		// Open Door: the way stays open, so the rifts are there for allies to see
+		if (door) {
+			Fx.rift(level, from.add(0, 1.2, 0), 2.4f, 1.3f, ticks + DOOR_TICKS);
+			Fx.rift(level, to.add(0, 1.2, 0), 2.4f, 1.3f, ticks + DOOR_TICKS);
+		}
 		level.playSound(null, from.x, from.y, from.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0f, 0.5f);
 		level.playSound(null, from.x, from.y, from.z, SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.PLAYERS, 0.6f, 1.6f);
 		if (door) {
@@ -444,9 +445,7 @@ public final class Voidborn {
 		int ticks = stepTicks(player);
 		begin(player, from, back, ticks, false);
 		state.step.echo = true;
-		Fx.rift(level, from.add(0, 1, 0), 2.0f, 1.1f, 16);
-		Fx.rift(level, back.add(0, 1, 0), 2.0f, 1.1f, ticks + 14);
-		Fx.ribbon(level, from, back, ticks + 12, 0.9f);
+		sinkFx(level, from);
 		level.playSound(null, from.x, from.y, from.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 0.8f);
 		return true;
 	}
@@ -459,31 +458,39 @@ public final class Voidborn {
 		player.setDeltaMovement(Vec3.ZERO);
 		// The body is gone into the void: only the cloud it leaves along the way is seen
 		player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, ticks + 4, 0, true, false, false));
+		// The walker's own view goes into the void (ClientStep); the world's sounds come from far away
 		PacketDistributor.sendToPlayer(player, new StepPayload(from, to, ticks));
-		Fx.stepTrail(player.serverLevel(), player, ticks);
-		Fx.voidScreen(player, ticks + 4);
-		Fx.fov(player, 0.3f, ticks + 6);
-		// In the in-between the world's sounds come from far away
 		Fx.muffle(player, ticks + 4);
+	}
+
+	private static void sinkFx(ServerLevel level, Vec3 at) {
+		Fx.burst(level, at.add(0, 1, 0), 1.1f, 7, true);
+		Fx.sparkle(level, at.add(0, 1, 0), 24, 0.05f);
+		if (onGround(level, at)) {
+			Fx.cracks(level, at, null, 1.1f, 30);
+		}
+	}
+
+	/** Whether something solid lies right under these feet (marks on the ground only go where there is ground). */
+	private static boolean onGround(ServerLevel level, Vec3 feet) {
+		BlockPos below = BlockPos.containing(feet.x, feet.y - 0.2, feet.z);
+		return !level.getBlockState(below).getCollisionShape(level, below).isEmpty();
 	}
 
 	private static void tickStep(ServerPlayer player, State state) {
 		Step step = state.step;
 		step.tick++;
-		double t = Math.min(1, step.tick / (double) step.ticks);
-		// Slow to leave, fast through the middle, slow to arrive
-		double eased = t * t * (3 - 2 * t);
-		Vec3 at = step.from.lerp(step.to, eased);
-		Vec3 was = player.position();
-		player.connection.teleport(at.x, at.y, at.z, 0, 0, Set.of(RelativeMovement.X_ROT, RelativeMovement.Y_ROT));
+		// In the void the body hangs still; it comes out at the far end all at once
 		player.setDeltaMovement(Vec3.ZERO);
 		player.fallDistance = 0;
-		// Rupture: whatever the walk passes through is torn a little
-		if (!step.companion && Talents.has(player, Talent.STEP_RUPTURE)) {
-			rupture(player, step, new AABB(was, at).inflate(0.6, 0, 0.6).expandTowards(0, 1.8, 0));
-		}
 		if (step.tick < step.ticks) {
 			return;
+		}
+		Vec3 at = step.to;
+		player.connection.teleport(at.x, at.y, at.z, 0, 0, Set.of(RelativeMovement.X_ROT, RelativeMovement.Y_ROT));
+		// Rupture: whatever stood along the way is torn a little
+		if (!step.companion && Talents.has(player, Talent.STEP_RUPTURE)) {
+			rupture(player, step);
 		}
 		state.step = null;
 		player.setNoGravity(false);
@@ -491,12 +498,13 @@ public final class Voidborn {
 		player.removeEffect(MobEffects.INVISIBILITY);
 		player.hurtMarked = true;
 		ServerLevel level = player.serverLevel();
-		// Coming out, as in the first version: a flash of the void, a wave, the ground cracked, motes and stars thrown out
-		Fx.burst(level, at.add(0, 1, 0), 1.7f, 7, false);
-		Fx.ring(level, at, 0.3f, 2.8f, 10);
-		Fx.cracks(level, at, null, 1.6f, 40);
-		Fx.sparkle(level, at.add(0, 1, 0), 30, 0.12f);
-		Fx.shake(player, 1.2f, 7);
+		// Coming out: a flash of the void, motes and stars thrown out, and on solid ground a wave and cracks
+		Fx.burst(level, at.add(0, 1, 0), 1.5f, 7, false);
+		Fx.sparkle(level, at.add(0, 1, 0), 30, 0.1f);
+		if (onGround(level, at)) {
+			Fx.ring(level, at, 0.3f, 2.6f, 10);
+			Fx.cracks(level, at, null, 1.5f, 40);
+		}
 		level.playSound(null, at.x, at.y, at.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0f, 1.2f);
 		if (step.companion) {
 			return;
@@ -549,15 +557,25 @@ public final class Voidborn {
 		RaceState.sync(player);
 	}
 
-	private static void rupture(ServerPlayer player, Step step, AABB swept) {
+	private static void rupture(ServerPlayer player, Step step) {
 		ServerLevel level = player.serverLevel();
+		Vec3 a = step.from.add(0, 0.9, 0);
+		Vec3 b = step.to.add(0, 0.9, 0);
+		AABB swept = new AABB(step.from, step.to).inflate(1.2, 1.2, 1.2).expandTowards(0, 1.8, 0);
 		for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, swept, e -> e != player && e.isAlive() && isEnemy(player, e))) {
-			if (step.struck.add(e.getUUID())) {
+			if (distanceToSegment(e.position().add(0, e.getBbHeight() / 2, 0), a, b) <= 1.2 && step.struck.add(e.getUUID())) {
 				e.hurt(player.damageSources().indirectMagic(player, player), RUPTURE_DAMAGE);
 				e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 0, false, true), player);
 				Fx.press(level, e);
 			}
 		}
+	}
+
+	private static double distanceToSegment(Vec3 p, Vec3 a, Vec3 b) {
+		Vec3 ab = b.subtract(a);
+		double len = ab.lengthSqr();
+		double t = len < 1.0E-6 ? 0 : Math.max(0, Math.min(1, p.subtract(a).dot(ab) / len));
+		return p.distanceTo(a.add(ab.scale(t)));
 	}
 
 	/** Whether the player's standing body fits at this point: no blocks, no lava, inside the world. */
@@ -700,6 +718,11 @@ public final class Voidborn {
 		boolean chain = Talents.has(player, Talent.GRAV_CHAIN);
 		long until = player.level().getGameTime() + 40;
 		List<LivingEntity> targets = gravityTargets(player);
+		// Each pulse is heard as a heavy beat and seen as a ring tightening from the field's edge
+		player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.2f, 0.55f);
+		if (!targets.isEmpty()) {
+			player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.25f, 0.5f);
+		}
 		// The Weight Feeds: every held enemy gives a little Void back, up to 3 a pulse
 		if (Talents.has(player, Talent.GRAV_DRAIN) && !targets.isEmpty()) {
 			RaceState.setResource(player, RaceState.resource(player) + Math.min(3, targets.size()));
@@ -713,6 +736,19 @@ public final class Voidborn {
 			PRESSED_UNTIL.put(target.getUUID(), until);
 			target.hurt(player.damageSources().indirectMagic(player, player), 1);
 			Fx.press(player.serverLevel(), target);
+			// The weight drives it into the ground: dust of whatever it stands on bursts out from under it
+			ServerLevel level = player.serverLevel();
+			BlockPos under = BlockPos.containing(target.getX(), target.getY() - 0.2, target.getZ());
+			var ground = level.getBlockState(under);
+			if (!ground.isAir()) {
+				level.sendParticles(new net.minecraft.core.particles.BlockParticleOption(net.minecraft.core.particles.ParticleTypes.BLOCK, ground),
+						target.getX(), target.getY() + 0.1, target.getZ(), 14, target.getBbWidth() * 0.4, 0.05, target.getBbWidth() * 0.4, 0.15);
+			}
+			if (!target.getType().is(Tags.EntityTypes.BOSSES)) {
+				Vec3 v = target.getDeltaMovement();
+				target.setDeltaMovement(v.x * 0.5, Math.min(v.y, -0.35), v.z * 0.5);
+				target.hurtMarked = true;
+			}
 			Progression.addXp(player, Progression.GRAVITY, 1, 30);
 			if (pull && !target.getType().is(Tags.EntityTypes.BOSSES)) {
 				Vec3 in = player.position().subtract(target.position()).multiply(1, 0, 1);
@@ -725,7 +761,7 @@ public final class Voidborn {
 	}
 
 	public static double gravityReach(ServerPlayer player) {
-		return Talents.has(player, Talent.GRAV_WIDE) ? 3 : 2;
+		return Talents.has(player, Talent.GRAV_WIDE) ? 4.5 : 3;
 	}
 
 	private static AABB gravityArea(ServerPlayer player) {
@@ -735,7 +771,10 @@ public final class Voidborn {
 	}
 
 	public static List<LivingEntity> gravityTargets(ServerPlayer player) {
-		return player.level().getEntitiesOfClass(LivingEntity.class, gravityArea(player), e -> e != player && e.isAlive() && isEnemy(player, e));
+		double reach = gravityReach(player);
+		// A circle, as the field is drawn on the ground
+		return player.level().getEntitiesOfClass(LivingEntity.class, gravityArea(player), e -> e != player && e.isAlive() && isEnemy(player, e)
+				&& Math.hypot(e.getX() - player.getX(), e.getZ() - player.getZ()) <= reach + e.getBbWidth() / 2);
 	}
 
 	/** Monsters, and anything that has set its mind on this player; never players, pets or armour stands. */

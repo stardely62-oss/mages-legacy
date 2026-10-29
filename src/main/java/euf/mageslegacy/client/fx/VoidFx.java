@@ -229,7 +229,7 @@ public final class VoidFx {
 		@Override
 		void draw(FxDraw draw, float partial) {
 			float t = progress(partial);
-			float half = to + 0.5f;
+			float half = Math.max(from, to) + 0.5f;
 			float r = (from + (to - from) * VoidRender.easeOut(t)) / half;
 			draw.quad(FxDraw.GROUND, at, new Vec3(half, 0, 0), new Vec3(0, 0, half), r, 0.5f, FxDraw.RING, (float) Math.pow(1 - t, 1.5));
 		}
@@ -312,7 +312,7 @@ public final class VoidFx {
 		@Override
 		boolean tick() {
 			Vec3 c = caster.position();
-			for (int i = 0; i < 3; i++) {
+			for (int i = 0; i < Math.round(reach * 1.5f); i++) {
 				double a = VoidRender.rand(0, Math.PI * 2);
 				double r = reach * Math.sqrt(VoidRender.rand(0.1, 1));
 				VoidRender.Particle streak = new VoidRender.Particle(c.add(Math.cos(a) * r, VoidRender.rand(2.6, 3.6), Math.sin(a) * r),
@@ -328,6 +328,14 @@ public final class VoidFx {
 			float fade = Math.min(1, life / 4f) * Math.min(1, (ticks - life) / 8f);
 			Vec3 c = caster.getPosition(partial).add(0, 0.05, 0);
 			draw.quad(FxDraw.GROUND, c, new Vec3(reach, 0, 0), new Vec3(0, 0, reach), 1, seed, FxDraw.LENS, fade);
+			// The field's edge, always there so the eye knows where the weight ends, and a ring tightening in with each beat
+			float half = reach + 0.5f;
+			Vec3 ex = new Vec3(half, 0, 0);
+			Vec3 ez = new Vec3(0, 0, half);
+			draw.quad(FxDraw.GROUND, c.add(0, 0.01, 0), ex, ez, reach / half, 0.5f, FxDraw.RING, fade * 0.85f);
+			float beat = (life % 20) / 20f;
+			float squeeze = reach * (1 - VoidRender.easeOut(Math.min(1, beat * 1.4f)));
+			draw.quad(FxDraw.GROUND, c.add(0, 0.02, 0), ex, ez, squeeze / half, 0.5f, FxDraw.RING, fade * (1 - beat) * 0.95f);
 			// The fold: for its first 8 ticks a shell of void closes in on the caster
 			if (life < 8) {
 				float t = life / 8f;
