@@ -28,7 +28,8 @@ final class MycelidFx {
 	private static void decal(FxDraw draw, String tex, Vec3 at, float half, double angle, float a, float glow) {
 		Vec3 u = new Vec3(Math.cos(angle) * half, 0, Math.sin(angle) * half);
 		Vec3 v = new Vec3(-Math.sin(angle) * half, 0, Math.cos(angle) * half);
-		draw.paint(tex, at, u, v, 1, 1, 1, a, glow);
+		// A calmer green than the painting's own, so a decal lying under the eyes never floods the view
+		draw.paint(tex, at, u, v, 0.72f, 0.85f, 0.75f, a, glow);
 	}
 
 	/** A camera-facing band of a painted texture from a to b, this wide; the texture runs along it. */
@@ -84,8 +85,8 @@ final class MycelidFx {
 			float a = fade(life, ticks, 6, 12);
 			Vec3 c = (follow != null ? follow.getPosition(partial) : at).add(0, 0.06, 0);
 			float breathe = 1 + 0.04f * (float) Math.sin(life * 0.15);
-			decal(draw, FxDraw.CLOUD, c, radius * breathe, spin + life * 0.012, a * 0.5f, 0.06f);
-			decal(draw, FxDraw.CLOUD, c.add(0, 0.02, 0), radius * 0.75f / breathe, spin * 2 - life * 0.02, a * 0.35f, 0.04f);
+			decal(draw, FxDraw.CLOUD, c, radius * breathe, spin + life * 0.012, a * 0.38f, 0);
+			decal(draw, FxDraw.CLOUD, c.add(0, 0.02, 0), radius * 0.75f / breathe, spin * 2 - life * 0.02, a * 0.25f, 0);
 		}
 	}
 
@@ -179,9 +180,9 @@ final class MycelidFx {
 			Vec3 c = heart.getPosition(partial);
 			// Two vortices on the ground turning at different speeds (the height of the storm is its motes: a flat layer
 			// in the air would cut through the eyes)
-			decal(draw, FxDraw.SPIRAL, c.add(0, 0.07, 0), radius, -life * 0.06, a * 0.6f, 0.08f);
-			decal(draw, FxDraw.SPIRAL, c.add(0, 0.09, 0), radius * 0.6f, -life * 0.11 + 1.0, a * 0.45f, 0.06f);
-			decal(draw, FxDraw.CLOUD, c.add(0, 0.11, 0), radius * 0.35f, life * 0.03, a * 0.4f, 0.03f);
+			decal(draw, FxDraw.SPIRAL, c.add(0, 0.07, 0), radius, -life * 0.06, a * 0.4f, 0);
+			decal(draw, FxDraw.SPIRAL, c.add(0, 0.09, 0), radius * 0.6f, -life * 0.11 + 1.0, a * 0.28f, 0);
+			decal(draw, FxDraw.CLOUD, c.add(0, 0.11, 0), radius * 0.35f, life * 0.03, a * 0.25f, 0);
 		}
 	}
 
@@ -258,7 +259,7 @@ final class MycelidFx {
 			float life = life(partial);
 			float fieldA = Math.min(1, life / 20f) * (withering < 0 ? 1 : s);
 			decal(draw, FxDraw.FIELD, base.add(0, 0.05, 0), field, life * 0.004, fieldA * 0.7f, 0.25f);
-			decal(draw, FxDraw.CLOUD, base.add(0, 0.06, 0), 4.5f * s, -life * 0.01, fieldA * 0.3f, 0.04f);
+			decal(draw, FxDraw.CLOUD, base.add(0, 0.06, 0), 4.5f * s, -life * 0.01, fieldA * 0.25f, 0);
 			float time = life / 20f;
 			Vec3 sway = new Vec3(Math.sin(time * 1.3) * 0.1, 0, Math.cos(time * 1.1) * 0.1);
 			// The spots breathe: the glow of the cap rises and falls
