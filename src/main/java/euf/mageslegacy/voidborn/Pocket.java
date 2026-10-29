@@ -6,6 +6,11 @@ import euf.mageslegacy.race.Abilities;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceState;
+import euf.mageslegacy.race.Talent;
+import euf.mageslegacy.race.Talents;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.LivingEntity;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -53,6 +58,9 @@ public final class Pocket {
 	static final int FLOOR = 63;
 	static final int BELOW = 32;
 	static final int ABOVE = 64;
+	/** With High Vaults. */
+	static final int BELOW_TALL = 60;
+	static final int ABOVE_TALL = 128;
 	/** No entering for this long after taking a blow: the Pocket is a home, not a way out of a fight. */
 	private static final int HURT_LOCK = 5 * 20;
 	/** How far around the platform stray blocks are cleared every second. */
@@ -100,10 +108,42 @@ public final class Pocket {
 		if (owner == null) {
 			return false;
 		}
-		int half = PocketRooms.get(server).sizeOf(owner) / 2;
+		PocketRooms rooms = PocketRooms.get(server);
+		int half = rooms.sizeOf(owner) / 2;
 		BlockPos c = centre(room);
-		return Math.abs(pos.getX() - c.getX()) <= half && Math.abs(pos.getZ() - c.getZ()) <= half && pos.getY() >= FLOOR - BELOW
-				&& pos.getY() <= FLOOR + ABOVE;
+		int below = below(rooms, owner);
+		int above = above(rooms, owner);
+		return Math.abs(pos.getX() - c.getX()) <= half && Math.abs(pos.getZ() - c.getZ()) <= half && pos.getY() >= FLOOR - below
+				&& pos.getY() <= FLOOR + above;
+	}
+
+	static int below(PocketRooms rooms, UUID owner) {
+		return owner != null && rooms.isTall(owner) ? BELOW_TALL : BELOW;
+	}
+
+	static int above(PocketRooms rooms, UUID owner) {
+		return owner != null && rooms.isTall(owner) ? ABOVE_TALL : ABOVE;
+	}
+
+	/** The platform's width from the Voidborn's talents: 5, 9, 15 or 21. */
+	public static int sizeFor(ServerPlayer owner) {
+		if (Talents.has(owner, Talent.POCKET_WIDE_3)) {
+			return 21;
+		}
+		if (Talents.has(owner, Talent.POCKET_WIDE_2)) {
+			return 15;
+		}
+		return Talents.has(owner, Talent.POCKET_WIDE_1) ? 9 : 5;
+	}
+
+	/** Brings the room in line with the talents: its size (laid out at once, nothing built is lost) and its height. */
+	public static void refresh(ServerPlayer owner) {
+		if (!RaceState.is(owner, Race.VOIDBORN)) {
+			return;
+		}
+		PocketRooms rooms = PocketRooms.get(owner.server);
+		rooms.setTall(owner.getUUID(), Talents.has(owner, Talent.POCKET_VAULT));
+		grow(owner, sizeFor(owner));
 	}
 
 	// ---- Entering and leaving --------------------------------------------------------------------------------
@@ -144,9 +184,11 @@ public final class Pocket {
 		}
 		PocketRooms rooms = PocketRooms.get(server);
 		int room = rooms.roomOf(owner.getUUID());
+		rooms.setSize(owner.getUUID(), sizeFor(owner));
 		buildPlatform(pocket, room, rooms.sizeOf(owner.getUUID()));
-		// The 3×3 around the Voidborn goes along
-		AABB around = new AABB(owner.getX() - 1.5, owner.getY() - 1, owner.getZ() - 1.5, owner.getX() + 1.5, owner.getY() + 2, owner.getZ() + 1.5);
+		// The 3×3 around the Voidborn goes along (5×5 with Hospitality)
+		double side = Talents.has(owner, Talent.POCKET_GUESTS) ? 2.5 : 1.5;
+		AABB around = new AABB(owner.getX() - side, owner.getY() - 1, owner.getZ() - side, owner.getX() + side, owner.getY() + 2, owner.getZ() + side);
 		List<ServerPlayer> going = new ArrayList<>();
 		going.add(owner);
 		for (Player other : owner.level().getEntitiesOfClass(Player.class, around, p -> p != owner && p.isAlive() && !p.isSpectator())) {
@@ -249,9 +291,18 @@ public final class Pocket {
 			int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, spawn.getX(), spawn.getZ());
 			safe = new Vec3(spawn.getX() + 0.5, y, spawn.getZ() + 0.5);
 		}
+		boolean host = tag.hasUUID("owner") && tag.getUUID("owner").equals(player.getUUID());
 		player.removeData(RaceState.POCKET_RETURN);
 		player.teleportTo(level, safe.x, safe.y, safe.z, yaw, pitch);
 		player.fallDistance = 0;
+		// The Door's Recoil: what waits outside is slowed as the Voidborn steps back into the world
+		if (host && Talents.has(player, Talent.DOOR_RECOIL)) {
+			for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(4, 2, 4),
+					e -> e != player && e.isAlive() && Voidborn.isEnemy(player, e))) {
+				e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 1, false, true), player);
+			}
+			Fx.ring(level, safe, 0.3f, 4.2f, 12);
+		}
 		Fx.rift(level, safe.add(0, 1.3, 0), 2.8f, 1.7f, 14);
 		Fx.burst(level, safe.add(0, 1, 0), 1.2f, 6, false);
 		level.playSound(null, safe.x, safe.y, safe.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 0.6f);
@@ -328,7 +379,26 @@ public final class Pocket {
 				if (!seen.contains(room)) {
 					seen.add(room);
 					UUID owner = rooms.ownerOf(room);
-					clearEdge(pocket, room, owner == null ? 5 : rooms.sizeOf(owner));
+					clearEdge(pocket, room, owner == null ? 5 : rooms.sizeOf(owner), below(rooms, owner), above(rooms, owner));
+				}
+			}
+		}
+		if (server.getTickCount() % 40 == 0) {
+			PocketRooms rooms = PocketRooms.get(server);
+			for (ServerPlayer player : pocket.players()) {
+				UUID owner = rooms.ownerOf(roomAt(player.getX()));
+				if (owner == null) {
+					continue;
+				}
+				if (owner.equals(player.getUUID())) {
+					// Time at home counts towards the Rift of Space's trial
+					Talents.addProgress(player, Talents.POCKET_TICKS, 40);
+					continue;
+				}
+				// Hospitality: guests rest well while their host is home
+				ServerPlayer host = server.getPlayerList().getPlayer(owner);
+				if (host != null && isPocket(host.level()) && Talents.has(host, Talent.POCKET_GUESTS)) {
+					player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 60, 0, true, true));
 				}
 			}
 		}
@@ -353,7 +423,7 @@ public final class Pocket {
 		}
 	}
 
-	private static void clearEdge(ServerLevel pocket, int room, int size) {
+	private static void clearEdge(ServerLevel pocket, int room, int size, int below, int above) {
 		BlockPos c = centre(room);
 		int half = size / 2;
 		int outer = half + GUARD;
@@ -363,7 +433,7 @@ public final class Pocket {
 				if (Math.abs(dx) <= half && Math.abs(dz) <= half) {
 					continue;
 				}
-				for (int y = FLOOR - BELOW; y <= FLOOR + ABOVE; y++) {
+				for (int y = FLOOR - below; y <= FLOOR + above; y++) {
 					pos.set(c.getX() + dx, y, c.getZ() + dz);
 					if (!pocket.getBlockState(pos).isAir()) {
 						pocket.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
@@ -441,6 +511,11 @@ public final class Pocket {
 			player.stopSleepInBed(false, true);
 			if (RaceState.is(player, Race.VOIDBORN)) {
 				Progression.addXp(player, 10);
+			}
+			// The Void's Cradle: a full Void and a little shield for the morning
+			if (Talents.has(player, Talent.POCKET_CRADLE)) {
+				RaceState.setResource(player, RaceState.MAX_RESOURCE);
+				player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 5 * 60 * 20, 0, true, true));
 			}
 		}
 		for (ServerPlayer player : overworld.players()) {

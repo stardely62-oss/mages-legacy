@@ -46,6 +46,14 @@ public final class RaceCommand {
 							float amount = FloatArgumentType.getFloat(ctx, "amount");
 							return each(ctx, player -> RaceState.setResource(player, amount));
 						}))))
+				.then(Commands.literal("talents").then(Commands.argument("targets", EntityArgument.players())
+						.then(Commands.literal("reset").executes(ctx -> each(ctx, Talents::reset)))
+						.then(Commands.literal("learn").then(Commands.argument("talent", StringArgumentType.word())
+								.suggests((ctx, builder) -> SharedSuggestionProvider.suggest(Arrays.stream(Talent.values()).map(Talent::id), builder))
+								.executes(ctx -> {
+									String id = StringArgumentType.getString(ctx, "talent");
+									return each(ctx, player -> Talents.learn(player, id));
+								})))))
 				.then(Commands.literal("cooldowns").then(Commands.argument("targets", EntityArgument.players()).executes(ctx -> each(ctx, player -> {
 					var state = euf.mageslegacy.voidborn.Voidborn.state(player);
 					Arrays.fill(state.cooldown, 0);

@@ -169,6 +169,28 @@ final class Harness {
 		}, 5);
 		shot("pocket_back");
 
+		// The talent tree: open it, learn three talents, see the Pocket grow
+		run(() -> server().execute(() -> Progression.setLevel(player(), 20)), 10);
+		run(() -> mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen()), 20);
+		shot("talents");
+		run(() -> {
+			var screen = (euf.mageslegacy.client.screen.TalentScreen) mc.screen;
+			screen.learn(euf.mageslegacy.race.Talent.POCKET_WIDE_1);
+			screen.learn(euf.mageslegacy.race.Talent.STEP_FAR);
+			screen.learn(euf.mageslegacy.race.Talent.GRAV_WIDE);
+		}, 20);
+		run(() -> {
+			ServerPlayer player = player();
+			check("talents learnt", euf.mageslegacy.race.Talents.has(player, euf.mageslegacy.race.Talent.POCKET_WIDE_1)
+					&& euf.mageslegacy.race.Talents.has(player, euf.mageslegacy.race.Talent.STEP_FAR)
+					&& euf.mageslegacy.race.Talents.has(player, euf.mageslegacy.race.Talent.GRAV_WIDE));
+			check("pocket grew to 9x9", Pocket.sizeFor(player) == 9
+					&& Pocket.canBuild(server(), Pocket.platformCentre(server(), player.getUUID()).offset(4, 1, 4)));
+			check("an awakening can't be learnt yet", euf.mageslegacy.race.Talents.refusal(player, euf.mageslegacy.race.Talent.AWAKENING_HOLE) != null);
+		}, 5);
+		shot("talents_learnt");
+		run(() -> mc.setScreen(null), 5);
+
 		// Water burns
 		run(() -> server().execute(() -> {
 			ServerPlayer player = player();

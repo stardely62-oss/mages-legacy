@@ -6,6 +6,7 @@ import euf.mageslegacy.net.OpenChoicePayload;
 import euf.mageslegacy.net.SyncPayload;
 import euf.mageslegacy.voidborn.Pocket;
 import euf.mageslegacy.voidborn.Voidborn;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import net.minecraft.ChatFormatting;
@@ -37,6 +38,13 @@ public final class RaceState {
 	/** Where a player who went into a Pocket came from, and whose Pocket it is. */
 	public static final Supplier<AttachmentType<CompoundTag>> POCKET_RETURN = ATTACHMENTS.register("pocket_return",
 			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).build());
+
+	/** Learnt talent ids (the core and basic abilities aren't listed: they come with the level). */
+	public static final Supplier<AttachmentType<List<String>>> TALENTS = ATTACHMENTS.register("talents",
+			() -> AttachmentType.builder(() -> (List<String>) List.<String>of()).serialize(Codec.STRING.listOf()).copyOnDeath().build());
+	/** What the Awakening trials have counted so far. */
+	public static final Supplier<AttachmentType<CompoundTag>> PROGRESS = ATTACHMENTS.register("progress",
+			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).copyOnDeath().build());
 
 	public static final float MAX_RESOURCE = 100;
 	/** How often the client hears about its race, in ticks (and at once after anything changes). */
@@ -107,6 +115,9 @@ public final class RaceState {
 		player.setData(LEVEL, 1);
 		player.setData(XP, 0);
 		player.setData(RESOURCE, MAX_RESOURCE);
+		player.setData(TALENTS, List.of());
+		player.setData(PROGRESS, new CompoundTag());
+		Pocket.refresh(player);
 		sync(player);
 	}
 

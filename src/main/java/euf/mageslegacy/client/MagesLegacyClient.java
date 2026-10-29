@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.client.fx.VoidFx;
 import euf.mageslegacy.client.screen.LoreScreen;
+import euf.mageslegacy.client.screen.TalentScreen;
 import euf.mageslegacy.net.AbilityPayload;
 import euf.mageslegacy.net.ChooseRacePayload;
 import euf.mageslegacy.net.FxPayload;
@@ -111,7 +112,7 @@ public class MagesLegacyClient {
 			if (ClientRace.race() == null) {
 				client.setScreen(new LoreScreen());
 			} else {
-				client.player.displayClientMessage(Component.translatable("mages_legacy.message.tree_soon"), true);
+				client.setScreen(new TalentScreen());
 			}
 		}
 	}

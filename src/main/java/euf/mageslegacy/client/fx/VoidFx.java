@@ -238,9 +238,9 @@ public final class VoidFx {
 			emitters.add(new PhotonFx.Emitter(life).points(points, null).delay(s).burst(points.size()).life(life, life).speed(0, 0)
 					.size(width * 1.3f, width * 1.4f).colors(hold(CRACK, 1f, life)).flat().ink());
 			emitters.add(new PhotonFx.Emitter(life).points(points, null).delay(s).burst(points.size()).life(life, life).speed(0, 0)
-					.size(width * 2.4f, width * 2.6f).colors(hold(VOID, 0.5f, life)).flat().glow());
+					.size(width * 2.4f, width * 2.6f).colors(hold(VOID, 0.14f, life)).flat().glow());
 			emitters.add(new PhotonFx.Emitter(life).points(points, null).delay(s).burst(points.size()).life(life, life).speed(0, 0)
-					.size(width * 0.35f, width * 0.4f).colors(hold(STARLIGHT, 0.5f, life)).flat().glow());
+					.size(width * 0.35f, width * 0.4f).colors(hold(STARLIGHT, 0.22f, life)).flat().glow());
 		}
 		emitters.add(new PhotonFx.Emitter(ticks).points(stars, null).delay(2).burst(stars.size()).life(ticks, ticks).speed(0, 0).size(0.08f, 0.1f)
 				.colors(0x00FFFFFF, 0xFFFFFFFF, 0x50FFFFFF, 0xFFFFFFFF, 0x50FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).texture(STAR).flat().glow());

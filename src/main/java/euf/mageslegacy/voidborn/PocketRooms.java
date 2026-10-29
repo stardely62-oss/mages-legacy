@@ -14,6 +14,8 @@ public final class PocketRooms extends SavedData {
 
 	private final Map<UUID, Integer> rooms = new HashMap<>();
 	private final Map<UUID, Integer> sizes = new HashMap<>();
+	/** Rooms with High Vaults: twice the build space above and below. */
+	private final Map<UUID, Boolean> tall = new HashMap<>();
 	private int next;
 
 	public static PocketRooms get(MinecraftServer server) {
@@ -41,6 +43,15 @@ public final class PocketRooms extends SavedData {
 		setDirty();
 	}
 
+	public boolean isTall(UUID owner) {
+		return tall.getOrDefault(owner, false);
+	}
+
+	public void setTall(UUID owner, boolean value) {
+		tall.put(owner, value);
+		setDirty();
+	}
+
 	/** Whose room this index is, or null. */
 	public UUID ownerOf(int room) {
 		for (Map.Entry<UUID, Integer> entry : rooms.entrySet()) {
@@ -58,6 +69,7 @@ public final class PocketRooms extends SavedData {
 			CompoundTag entry = new CompoundTag();
 			entry.putInt("room", room);
 			entry.putInt("size", sizeOf(owner));
+			entry.putBoolean("tall", isTall(owner));
 			list.put(owner.toString(), entry);
 		});
 		tag.put("rooms", list);
@@ -73,6 +85,7 @@ public final class PocketRooms extends SavedData {
 			CompoundTag entry = list.getCompound(key);
 			data.rooms.put(owner, entry.getInt("room"));
 			data.sizes.put(owner, entry.getInt("size"));
+			data.tall.put(owner, entry.getBoolean("tall"));
 		}
 		data.next = tag.getInt("next");
 		return data;

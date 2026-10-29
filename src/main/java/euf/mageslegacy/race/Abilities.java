@@ -30,6 +30,7 @@ public final class Abilities {
 		}
 		Ability ability = found.get();
 		Voidborn.State state = Voidborn.state(player);
+		int cost = cost(player, ability);
 		// Leaving the Pocket is always free and never waits
 		boolean free = ability == Ability.POCKET && Pocket.isPocket(player.level());
 		if (RaceState.level(player) < ability.level) {
@@ -40,7 +41,12 @@ public final class Abilities {
 			refuse(player, Component.translatable("mages_legacy.refuse.cooldown", String.format("%.1f", state.cooldown[slot] / 20f)));
 			return;
 		}
-		if (!free && RaceState.resource(player) < ability.cost) {
+		// A mark in space (Space Mark talent) is left with a sneak, free and without waiting
+		if (ability == Ability.VOID_STEP && RaceState.level(player) >= ability.level && Voidborn.tryMark(player)) {
+			RaceState.sync(player);
+			return;
+		}
+		if (!free && RaceState.resource(player) < cost) {
 			refuse(player, Component.translatable("mages_legacy.refuse.resource." + race.get().id()));
 			return;
 		}
@@ -54,13 +60,28 @@ public final class Abilities {
 			return;
 		}
 		if (!free) {
-			RaceState.setResource(player, RaceState.resource(player) - ability.cost);
+			RaceState.setResource(player, RaceState.resource(player) - cost);
 			// The Void Step's cooldown starts when the walk ends
 			if (ability != Ability.VOID_STEP) {
-				state.startCooldown(slot, ability.cooldown);
+				state.startCooldown(slot, cooldown(player, ability));
 			}
 		}
 		RaceState.sync(player);
+	}
+
+	/** What an ability costs this player, talents counted. */
+	public static int cost(ServerPlayer player, Ability ability) {
+		if (ability == Ability.POCKET && Talents.has(player, Talent.POCKET_CHEAP)) {
+			return 10;
+		}
+		return ability.cost;
+	}
+
+	public static int cooldown(ServerPlayer player, Ability ability) {
+		if (ability == Ability.POCKET && Talents.has(player, Talent.POCKET_CHEAP)) {
+			return 5 * 20;
+		}
+		return ability.cooldown;
 	}
 
 	public static void refuse(ServerPlayer player, Component why) {
