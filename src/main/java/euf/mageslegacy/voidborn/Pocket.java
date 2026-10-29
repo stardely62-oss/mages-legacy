@@ -341,6 +341,7 @@ public final class Pocket {
 				}
 			}
 		}
+	}
 
 	private static void clearEdge(ServerLevel pocket, int room, int size) {
 		BlockPos c = centre(room);
