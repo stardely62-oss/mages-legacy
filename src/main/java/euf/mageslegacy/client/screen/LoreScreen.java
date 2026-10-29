@@ -1,15 +1,14 @@
 package euf.mageslegacy.client.screen;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import euf.mageslegacy.race.Race;
 import java.util.List;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.text.OrderedText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Util;
+import net.minecraft.ChatFormatting;
+import net.minecraft.Util;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
 
 /**
  * The legend of the nameless mage, told as a short book before the choice of race: a page at a time, each with its
@@ -19,7 +18,7 @@ import net.minecraft.util.Util;
 public class LoreScreen extends Screen {
 	/** Pictures per page; a page whose picture isn't there yet shows the mage's. */
 	private static final String[] PICTURES = {"lore_people", "lore_mage", null, "lore_sleep", "lore_wake"};
-	private static final Identifier FALLBACK = LegacyUi.gui("lore_mage");
+	private static final ResourceLocation FALLBACK = LegacyUi.gui("lore_mage");
 	private static final int PAGES = PICTURES.length;
 	private static final int DIVISION = 2;
 	/** Letters written per second, and how long the page takes to fade in. */
@@ -37,22 +36,23 @@ public class LoreScreen extends Screen {
 	private LegacyButton nextButton;
 
 	public LoreScreen() {
-		super(Text.translatable("mages_legacy.lore.intro.title"));
+		super(Component.translatable("mages_legacy.lore.intro.title"));
 	}
 
 	@Override
 	protected void init() {
 		if (pageAt == 0) {
-			pageAt = Util.getMeasuringTimeMs();
+			pageAt = Util.getMillis();
 		}
-		backButton = addDrawableChild(new LegacyButton(width / 2 - 170, height - 28, 110, 20, Text.translatable("mages_legacy.screen.back"), b -> turn(-1)));
-		nextButton = addDrawableChild(new LegacyButton(width / 2 + 60, height - 28, 110, 20, Text.translatable("mages_legacy.screen.next"), b -> advance())
-				.primary());
+		backButton = addRenderableWidget(new LegacyButton(width / 2 - 170, height - 28, 110, 20, Component.translatable("mages_legacy.screen.back"),
+				b -> turn(-1)));
+		nextButton = addRenderableWidget(new LegacyButton(width / 2 + 60, height - 28, 110, 20, Component.translatable("mages_legacy.screen.next"),
+				b -> advance()).primary());
 	}
 
 	/** Straight to the choice of race (the harness, and the last page's button). */
 	public void next() {
-		client.setScreen(new RaceSelectScreen());
+		minecraft.setScreen(new RaceSelectScreen());
 	}
 
 	/** Finishes writing the page at once; also used by the harness before its screenshot. */
@@ -78,16 +78,16 @@ public class LoreScreen extends Screen {
 
 	private void turn(int by) {
 		page = Math.max(0, Math.min(PAGES - 1, page + by));
-		pageAt = Util.getMeasuringTimeMs();
+		pageAt = Util.getMillis();
 		revealed = false;
 	}
 
 	private float elapsed() {
-		return revealed ? 1000 : (Util.getMeasuringTimeMs() - pageAt) / 1000f;
+		return revealed ? 1000 : (Util.getMillis() - pageAt) / 1000f;
 	}
 
-	private Text text() {
-		return Text.translatable("mages_legacy.lore.page." + (page + 1));
+	private Component text() {
+		return Component.translatable("mages_legacy.lore.page." + (page + 1));
 	}
 
 	/** Whether the page has finished writing itself out. */
@@ -109,31 +109,35 @@ public class LoreScreen extends Screen {
 	}
 
 	@Override
-	public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-		LegacyUi.background(ctx, width, height, null);
+	public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+		LegacyUi.background(graphics, width, height);
+	}
+
+	@Override
+	public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+		backButton.visible = page > 0;
+		nextButton.setMessage(Component.translatable(page == PAGES - 1 && done() ? "mages_legacy.lore.choose" : "mages_legacy.screen.next"));
+		super.render(graphics, mouseX, mouseY, delta);
 		float t = elapsed();
 		float fade = Math.min(1, t / FADE);
-		LegacyUi.heading(ctx, title.copy().formatted(Formatting.BOLD), width / 2, 10, LegacyUi.GOLD);
+		LegacyUi.heading(graphics, title.copy().withStyle(ChatFormatting.BOLD), width / 2, 10, LegacyUi.GOLD);
 		if (page == DIVISION) {
-			renderDivision(ctx, t, fade);
+			renderDivision(graphics, t, fade);
 		} else {
-			renderPage(ctx, t, fade);
+			renderPage(graphics, t, fade);
 		}
 		// Where we are in the book
 		int dots = PAGES * 12;
 		for (int i = 0; i < PAGES; i++) {
-			LegacyUi.diamond(ctx, width / 2 - dots / 2 + i * 12 + 6, height - 18, i == page ? 4 : 3, i == page ? LegacyUi.GOLD : LegacyUi.RIM);
+			LegacyUi.diamond(graphics, width / 2 - dots / 2 + i * 12 + 6, height - 18, i == page ? 4 : 3, i == page ? LegacyUi.GOLD : LegacyUi.RIM);
 		}
-		backButton.visible = page > 0;
-		nextButton.setMessage(Text.translatable(page == PAGES - 1 && done() ? "mages_legacy.lore.choose" : "mages_legacy.screen.next"));
-		super.render(ctx, mouseX, mouseY, delta);
 	}
 
 	/** A picture as large as the screen allows above, the page's words writing themselves out below. */
-	private void renderPage(DrawContext ctx, float t, float fade) {
-		Text text = text();
+	private void renderPage(GuiGraphics graphics, float t, float fade) {
+		Component text = text();
 		int textWidth = Math.min(320, width - 60);
-		List<OrderedText> lines = textRenderer.wrapLines(text.copy().formatted(Formatting.ITALIC), textWidth);
+		List<FormattedCharSequence> lines = font.split(text.copy().withStyle(ChatFormatting.ITALIC), textWidth);
 		int textHeight = lines.size() * 11;
 		int top = 28;
 		int room = height - top - textHeight - 70;
@@ -142,25 +146,24 @@ public class LoreScreen extends Screen {
 		if (imageH >= 48) {
 			int imageW = imageH * 3 / 2;
 			int ix = (width - imageW) / 2;
-			Identifier picture = PICTURES[page] == null ? FALLBACK : LegacyUi.gui(PICTURES[page]);
+			ResourceLocation picture = PICTURES[page] == null ? FALLBACK : LegacyUi.gui(PICTURES[page]);
 			if (!LegacyUi.exists(picture)) {
 				picture = FALLBACK;
 			}
-			LegacyUi.panel(ctx, ix - 4, y - 4, ix + imageW + 4, y + imageH + 4);
+			LegacyUi.panel(graphics, ix - 4, y - 4, ix + imageW + 4, y + imageH + 4);
 			if (LegacyUi.exists(picture)) {
-				ctx.drawTexture(picture, ix, y, imageW, imageH, 0, 0, 144, 96, 144, 96);
+				graphics.blit(picture, ix, y, imageW, imageH, 0, 0, 144, 96, 144, 96);
 			}
 			// The picture comes up out of the dark
 			if (fade < 1) {
-				ctx.fill(ix, y, ix + imageW, y + imageH, LegacyUi.alpha(0xFF000000, 1 - fade));
+				graphics.fill(ix, y, ix + imageW, y + imageH, LegacyUi.alpha(0xFF000000, 1 - fade));
 			}
 			y += imageH + 14;
 		}
-		// The words, letter by letter, the newest letters still fading in
+		// The words, letter by letter
 		int shown = (int) Math.max(0, (t - FADE) * LETTERS);
-		int x = (width - textWidth) / 2;
 		int seen = 0;
-		for (OrderedText line : lines) {
+		for (FormattedCharSequence line : lines) {
 			StringBuilder sb = new StringBuilder();
 			line.accept((index, style, codePoint) -> {
 				sb.appendCodePoint(codePoint);
@@ -169,9 +172,9 @@ public class LoreScreen extends Screen {
 			String full = sb.toString();
 			int take = Math.max(0, Math.min(full.length(), shown - seen));
 			if (take > 0) {
-				int lineWidth = textRenderer.getWidth(full);
-				Text part = Text.literal(full.substring(0, take)).formatted(Formatting.ITALIC);
-				ctx.drawText(textRenderer, part, (width - lineWidth) / 2, y, LegacyUi.PARCHMENT, true);
+				Component fullLine = Component.literal(full).withStyle(ChatFormatting.ITALIC);
+				Component part = Component.literal(full.substring(0, take)).withStyle(ChatFormatting.ITALIC);
+				graphics.drawString(font, part, (width - font.width(fullLine)) / 2, y, LegacyUi.PARCHMENT, true);
 			}
 			seen += full.length();
 			y += 11;
@@ -182,9 +185,9 @@ public class LoreScreen extends Screen {
 	 * The division: the eight peoples' emblems coming up out of the dark one after another, slowly, each settling into
 	 * a soft breathing glow; its name and what the mage gave it appear once the emblem has lit, below the glow.
 	 */
-	private void renderDivision(DrawContext ctx, float t, float fade) {
-		Text head = text();
-		ctx.drawCenteredTextWithShadow(textRenderer, head.copy().formatted(Formatting.ITALIC), width / 2, 30, LegacyUi.alpha(LegacyUi.PARCHMENT, fade));
+	private void renderDivision(GuiGraphics graphics, float t, float fade) {
+		Component head = text();
+		graphics.drawCenteredString(font, head.copy().withStyle(ChatFormatting.ITALIC), width / 2, 30, LegacyUi.alpha(LegacyUi.PARCHMENT, fade));
 		Race[] races = Race.values();
 		int cols = 4;
 		int cellW = Math.min(150, (width - 40) / cols);
@@ -205,24 +208,20 @@ public class LoreScreen extends Screen {
 			if (lit > 0) {
 				// Once lit it breathes, slowly, each in its own time
 				float breath = 0.85f + 0.15f * (float) Math.sin(t * 1.6f + i * 0.8f);
-				LegacyUi.glow(ctx, cx, cy + size / 2, glow, color, lit * breath * 0.9f);
+				LegacyUi.glow(graphics, cx, cy + size / 2, glow, color, lit * breath * 0.9f);
 			}
 			if (LegacyUi.exists(LegacyUi.emblem(race))) {
-				float shade = 0.35f + 0.65f * lit;
-				RenderSystem.enableBlend();
-				RenderSystem.setShaderColor(shade, shade, shade, 0.25f + 0.75f * lit);
-				ctx.drawTexture(LegacyUi.emblem(race), cx - size / 2, cy, size, size, 0, 0, 64, 64, 64, 64);
-				RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+				LegacyUi.emblem(graphics, race, cx - size / 2, cy, size, 0.35f + 0.65f * lit, 0.25f + 0.75f * lit);
 			} else {
-				LegacyUi.diamond(ctx, cx, cy + size / 2, size / 4, LegacyUi.alpha(color, 0.3f + 0.7f * lit));
+				LegacyUi.diamond(graphics, cx, cy + size / 2, size / 4, LegacyUi.alpha(color, 0.3f + 0.7f * lit));
 			}
 			if (words > 0.02f) {
 				int ty = cy + size / 2 + glow + 4;
-				ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable("mages_legacy.race." + race.id()), cx, ty, LegacyUi.alpha(color, words));
-				List<OrderedText> gift = textRenderer.wrapLines(Text.translatable("mages_legacy.race." + race.id() + ".gift").formatted(Formatting.ITALIC), cellW - 8);
+				graphics.drawCenteredString(font, Component.translatable(race.key()), cx, ty, LegacyUi.alpha(color, words));
+				List<FormattedCharSequence> gift = font.split(Component.translatable(race.key() + ".gift").withStyle(ChatFormatting.ITALIC), cellW - 8);
 				int gy = ty + 11;
-				for (OrderedText line : gift) {
-					ctx.drawCenteredTextWithShadow(textRenderer, line, cx, gy, LegacyUi.alpha(LegacyUi.PARCHMENT, words));
+				for (FormattedCharSequence line : gift) {
+					graphics.drawCenteredString(font, line, cx, gy, LegacyUi.alpha(LegacyUi.PARCHMENT, words));
 					gy += 10;
 				}
 			}
@@ -234,13 +233,14 @@ public class LoreScreen extends Screen {
 		return t * t * (3 - 2 * t);
 	}
 
+	/** While every race still sleeps the choice can be put off; once one wakes, it has to be made. */
 	@Override
 	public boolean shouldCloseOnEsc() {
-		return false;
+		return !Race.anyPlayable();
 	}
 
 	@Override
-	public boolean shouldPause() {
+	public boolean isPauseScreen() {
 		return false;
 	}
 }

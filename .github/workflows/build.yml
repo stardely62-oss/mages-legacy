@@ -33,18 +33,16 @@ jobs:
           chmod +x gradlew
           ./gradlew build -Pbuild_number=${{ github.run_number }} --stacktrace
 
-      - name: GameTests
-        run: |
-          ./gradlew runGametest --stacktrace || true
-          python3 scripts/check-junit.py build/gametest/junit.xml
+      - name: Photon and its libraries for the client run
+        run: bash scripts/fetch-runtime-mods.sh
 
       - name: Install Xvfb and software OpenGL
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri libglx-mesa0 > /dev/null
 
-      - name: Client scenario and screenshot
+      - name: Client scenario and screenshots
         run: bash scripts/ci-harness.sh
 
-      - name: Upload jar, reports, logs and screenshots
+      - name: Upload jar, logs and screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -52,27 +50,23 @@ jobs:
           if-no-files-found: ignore
           path: |
             build/libs/*.jar
-            build/gametest/junit.xml
-            build/gametest/logs/latest.log
-            build/harness-server/logs/latest.log
-            build/harness-client/logs/latest.log
-            build/harness-client/harness-result.txt
-            build/harness-client/screenshots/
-            build/harness-client/crash-reports/
+            run/logs/latest.log
+            run/harness-result.txt
+            run/screenshots/
+            run/crash-reports/
 
-      - name: Publish dev build
+      # NeoForge builds go to their own prerelease: the old `dev` release (Fabric 1.20.1) still feeds the modpack
+      - name: Publish NeoForge dev build
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           JAR=$(ls build/libs/mages-legacy-*.jar | grep -v -- '-sources' | head -1)
-          cp build/harness-client/screenshots/choose_mycelid.png screenshot.png
-          zip -j mages-legacy-updater.zip tools/update-mages-legacy.bat tools/update-mages-legacy.ps1
-          gh release delete dev --yes --cleanup-tag || true
-          gh release create dev "$JAR" screenshot.png build/harness-client/screenshots/*.png mages-legacy-updater.zip \
+          gh release delete neo-dev --yes --cleanup-tag || true
+          gh release create neo-dev "$JAR" run/screenshots/*.png \
             --prerelease --target "$GITHUB_SHA" \
-            --title "Dev build ${{ github.run_number }}" \
-            --notes "Свежая сборка из main (коммит ${GITHUB_SHA::7}). Поставить: скачай mages-legacy-updater.zip, распакуй и запусти update-mages-legacy.bat. Тесты: GameTest + клиент, скриншоты приложены."
+            --title "NeoForge 1.21.1 dev build ${{ github.run_number }}" \
+            --notes "Сборка для NeoForge 1.21.1 из main (коммит ${GITHUB_SHA::7}). Нужны Photon 2.2.9+ и LDLib2. Пока только легенда и экран выбора расы; все расы спят."
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -80,5 +74,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           JAR=$(ls build/libs/mages-legacy-*.jar | grep -v -- '-sources' | head -1)
-          zip -j mages-legacy-updater.zip tools/update-mages-legacy.bat tools/update-mages-legacy.ps1
-          gh release create "$GITHUB_REF_NAME" "$JAR" build/harness-client/screenshots/*.png mages-legacy-updater.zip --generate-notes
+          gh release create "$GITHUB_REF_NAME" "$JAR" --title "Mage's Legacy $GITHUB_REF_NAME" --generate-notes
