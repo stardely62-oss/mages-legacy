@@ -56,6 +56,7 @@ public final class Mycelid {
 	public static final String JOURNEYS = "net_journeys";
 	public static final String INFECTED_KILLS = "infected_kills";
 	public static final String SHARED = "symbiosis_shared";
+	public static final String NODES = "net_nodes";
 	/** Spores per tick: one a second. */
 	private static final float REGEN = 1f / 20;
 	private static final ResourceLocation SPEED = MagesLegacy.id("symbiosis_speed");
@@ -145,6 +146,10 @@ public final class Mycelid {
 			regen = Talents.has(player, Talent.SYM_ENV) ? regen / 2 : 0;
 		} else if (Talents.has(player, Talent.SYM_NIGHT) && (!player.level().isDay() || !player.level().canSeeSky(player.blockPosition().above()))) {
 			regen *= 1.5f;
+		}
+		// Exhausted after an Awakening: half as fast
+		if (Awaken.exhausted(player)) {
+			regen /= 2;
 		}
 		RaceState.setResource(player, RaceState.resource(player) + regen);
 	}
@@ -497,6 +502,7 @@ public final class Mycelid {
 
 	/** Forgets a player's live state (a new race). */
 	public static void reset(ServerPlayer player) {
+		Awaken.reset(player);
 		BONDS.remove(player.getUUID());
 		unbond(player);
 		AURAS.remove(player.getUUID());

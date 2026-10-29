@@ -38,6 +38,15 @@ public final class Talents {
 	private static final int OLD_RIFT = 60 * 60 * 20;
 	private static final int OLD_WORLDS = 2000;
 	private static final int OLD_HOLE = 100;
+	/**
+	 * The Mycelid's first trials: Great Bloom, a network of 5 nodes and 15 journeys through it; Spore Storm, 40 enemies
+	 * killed while infected; Mycelial Rebirth, Neurosymbiosis shared 15 times and at least 2 nodes grown.
+	 */
+	public static final int BLOOM_NODES = 5;
+	public static final int BLOOM_JOURNEYS = 15;
+	public static final int STORM_KILLS = 40;
+	public static final int REBIRTH_SHARED = 15;
+	public static final int REBIRTH_NODES = 2;
 	/** Set once the superlate trial (the Void's Trial) is passed. */
 	public static final String SUPERLATE = "superlate";
 	private Talents() {
@@ -104,10 +113,6 @@ public final class Talents {
 	 * level 45 and the superlate trial, a third never opens.
 	 */
 	public static String awakeningRefusal(List<String> owned, int level, Talent talent, CompoundTag progress) {
-		// The Mycelid's Awakenings come in the next part of the race
-		if (talent.race == Race.MYCELID) {
-			return "mages_legacy.talent.state.awakening_later";
-		}
 		int awakened = Awakenings.owned(owned).size();
 		if (awakened >= 2) {
 			return "mages_legacy.talent.state.third_closed";
@@ -133,6 +138,11 @@ public final class Talents {
 					|| p.getInt(STEP_BLOCKS) >= OLD_WORLDS;
 			case AWAKENING_HOLE -> p.getInt(GRAVITY_KILLS) >= HOLE_KILLS && p.getInt(GRAVITY_FLIERS) >= HOLE_FLIERS
 					|| p.getInt(GRAVITY_KILLS) >= OLD_HOLE;
+			case AWAKENING_BLOOM -> p.getInt(euf.mageslegacy.mycelid.Mycelid.NODES) >= BLOOM_NODES
+					&& p.getInt(euf.mageslegacy.mycelid.Mycelid.JOURNEYS) >= BLOOM_JOURNEYS;
+			case AWAKENING_STORM -> p.getInt(euf.mageslegacy.mycelid.Mycelid.INFECTED_KILLS) >= STORM_KILLS;
+			case AWAKENING_REBIRTH -> p.getInt(euf.mageslegacy.mycelid.Mycelid.SHARED) >= REBIRTH_SHARED
+					&& p.getInt(euf.mageslegacy.mycelid.Mycelid.NODES) >= REBIRTH_NODES;
 			default -> false;
 		};
 	}
@@ -193,7 +203,7 @@ public final class Talents {
 		Progression.setLevel(player, Progression.MAX_LEVEL);
 		RaceState.setResource(player, RaceState.MAX_RESOURCE);
 		List<String> list = new ArrayList<>();
-		for (String pick : new String[] {z, alt, "rift", "worlds", "hole"}) {
+		for (String pick : new String[] {z, alt}) {
 			Talent.byId("awakening_" + pick).filter(t -> t.race == race && !list.contains(t.id())).ifPresent(t -> list.add(t.id()));
 		}
 		for (Talent t : Talent.of(race)) {

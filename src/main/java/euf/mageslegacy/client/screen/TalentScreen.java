@@ -63,7 +63,7 @@ public class TalentScreen extends Screen {
 
 	private static int[] progress() {
 		SyncPayload state = ClientRace.state();
-		return state == null || state.progress().length < 10 ? new int[10] : state.progress();
+		return state == null || state.progress().length < 17 ? new int[17] : state.progress();
 	}
 
 	private static int openTiers() {
@@ -92,6 +92,9 @@ public class TalentScreen extends Screen {
 		tag.putBoolean("done_" + Talent.AWAKENING_RIFT.id(), p[7] > 0);
 		tag.putBoolean("done_" + Talent.AWAKENING_WORLDS.id(), p[8] > 0);
 		tag.putBoolean("done_" + Talent.AWAKENING_HOLE.id(), p[9] > 0);
+		tag.putBoolean("done_" + Talent.AWAKENING_BLOOM.id(), p[14] > 0);
+		tag.putBoolean("done_" + Talent.AWAKENING_STORM.id(), p[15] > 0);
+		tag.putBoolean("done_" + Talent.AWAKENING_REBIRTH.id(), p[16] > 0);
 		return tag;
 	}
 
@@ -292,6 +295,7 @@ public class TalentScreen extends Screen {
 				line(graphics, x0, y0, x1, y1, 2, LegacyUi.alpha(0xFFF2E8FF, 0.8f * pulse));
 			}
 		}
+		drawWaves(graphics, color);
 		Talent hovered = null;
 		for (Talent t : tree) {
 			if (drawNode(graphics, t, mouseX, mouseY, color)) {
@@ -623,6 +627,66 @@ public class TalentScreen extends Screen {
 		graphics.pose().popPose();
 	}
 
+	/** Light running from the core along the threads to each newly learnt node (talent id → when it was learnt). */
+	private static final java.util.Map<String, Long> WAVES = new java.util.HashMap<>();
+	private static final long WAVE_MS = 700;
+	private List<String> seen;
+
+	/** The path from the core to a node, through the neighbours already learnt. */
+	private static List<Talent> pathTo(Talent t) {
+		List<Talent> path = new ArrayList<>();
+		Talent at = t;
+		while (at != null && path.size() < 12) {
+			path.add(0, at);
+			Talent next = null;
+			for (Talent near : at.requires()) {
+				if (owned(near) && (next == null || near.ring < next.ring)) {
+					next = near;
+				}
+			}
+			at = next;
+		}
+		return path;
+	}
+
+	private void drawWaves(GuiGraphics graphics, int color) {
+		List<String> now = learnt();
+		if (seen != null) {
+			for (String id : now) {
+				if (!seen.contains(id)) {
+					WAVES.put(id, System.currentTimeMillis());
+				}
+			}
+		}
+		seen = new ArrayList<>(now);
+		long ms = System.currentTimeMillis();
+		for (java.util.Iterator<java.util.Map.Entry<String, Long>> it = WAVES.entrySet().iterator(); it.hasNext(); ) {
+			java.util.Map.Entry<String, Long> wave = it.next();
+			Talent t = Talent.byId(wave.getKey()).orElse(null);
+			float p = (ms - wave.getValue()) / (float) WAVE_MS;
+			if (t == null || p > 1.5f) {
+				it.remove();
+				continue;
+			}
+			List<Talent> path = pathTo(t);
+			int segments = Math.max(1, path.size() - 1);
+			for (int i = 0; i < path.size() - 1; i++) {
+				float f = p * segments - i;
+				if (f < 0 || f > 1) {
+					continue;
+				}
+				int x = Math.round(nodeX(path.get(i)) + (nodeX(path.get(i + 1)) - nodeX(path.get(i))) * f);
+				int y = Math.round(nodeY(path.get(i)) + (nodeY(path.get(i + 1)) - nodeY(path.get(i))) * f);
+				LegacyUi.glow(graphics, x, y, 10, color, 1f);
+				graphics.fill(x - 1, y - 1, x + 2, y + 2, 0xFFFFFFFF);
+			}
+			// The node lights up as the light arrives
+			if (p >= 1) {
+				LegacyUi.glow(graphics, nodeX(t), nodeY(t), 26, color, (1.5f - p) * 2);
+			}
+		}
+	}
+
 	/** A node's slim frame: a one-pixel rim with clipped corners round a dark body, no stone slab. */
 	private static void frame(GuiGraphics graphics, int x, int y, int s, int rim) {
 		graphics.fill(x + 1, y + 1, x + s - 1, y + s - 1, 0xE0120E16);
@@ -697,7 +761,15 @@ public class TalentScreen extends Screen {
 			if (net.minecraft.client.resources.language.I18n.exists(t.key() + ".trial")) {
 				wrapInto(lines, Component.translatable(t.key() + ".trial", trialProgress(t)).withStyle(ChatFormatting.LIGHT_PURPLE));
 			}
-			if (t.race == Race.VOIDBORN && progress()[t == Talent.AWAKENING_RIFT ? 7 : t == Talent.AWAKENING_WORLDS ? 8 : 9] > 0) {
+			int met = switch (t) {
+				case AWAKENING_RIFT -> 7;
+				case AWAKENING_WORLDS -> 8;
+				case AWAKENING_HOLE -> 9;
+				case AWAKENING_BLOOM -> 14;
+				case AWAKENING_STORM -> 15;
+				default -> 16;
+			};
+			if (progress()[met] > 0) {
 				lines.add(Component.translatable("mages_legacy.talent.trial_met").withStyle(ChatFormatting.GREEN));
 			}
 			wrapInto(lines, Component.translatable("mages_legacy.talent.two_of_three").withStyle(ChatFormatting.DARK_PURPLE));
@@ -731,6 +803,11 @@ public class TalentScreen extends Screen {
 					Talents.WORLDS_NETHER};
 			case AWAKENING_HOLE -> new Object[] {Math.min(p[2], Talents.HOLE_KILLS), Talents.HOLE_KILLS, Math.min(p[6], Talents.HOLE_FLIERS),
 					Talents.HOLE_FLIERS};
+			case AWAKENING_BLOOM -> new Object[] {Math.min(p[10], Talents.BLOOM_NODES), Talents.BLOOM_NODES, Math.min(p[11], Talents.BLOOM_JOURNEYS),
+					Talents.BLOOM_JOURNEYS};
+			case AWAKENING_STORM -> new Object[] {Math.min(p[12], Talents.STORM_KILLS), Talents.STORM_KILLS};
+			case AWAKENING_REBIRTH -> new Object[] {Math.min(p[13], Talents.REBIRTH_SHARED), Talents.REBIRTH_SHARED, Math.min(p[10], Talents.REBIRTH_NODES),
+					Talents.REBIRTH_NODES};
 			default -> new Object[0];
 		};
 	}

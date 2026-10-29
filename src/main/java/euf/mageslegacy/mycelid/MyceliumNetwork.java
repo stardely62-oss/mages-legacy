@@ -114,6 +114,11 @@ public final class MyceliumNetwork extends SavedData {
 	/** Threads between two nodes ("a|b", sorted): the game time they are grown by (0 once grown). */
 	private final Map<String, Long> links = new HashMap<>();
 	private final Map<UUID, Integer> nutrients = new HashMap<>();
+	/** Reserve bodies (Mycelial Rebirth): whose, at which node, grown by when. One per Mycelid. */
+	private final Map<UUID, String> bodies = new HashMap<>();
+	private final Map<UUID, Long> bodyReady = new HashMap<>();
+	private static final int BODY_COST = 40;
+	private static final int BODY_TICKS = 3 * 60 * 20;
 	/** The talents of each grower as last seen online (a network works while its grower is away). */
 	private final Map<UUID, Set<String>> growerTalents = new HashMap<>();
 
@@ -279,6 +284,11 @@ public final class MyceliumNetwork extends SavedData {
 		net.remember(player);
 		net.joinNear(node);
 		net.setDirty();
+		// The Great Bloom's trial counts the biggest network the Mycelid has had
+		int count = net.nodesOf(player.getUUID()).size();
+		if (count > Talents.progress(player, Mycelid.NODES)) {
+			Talents.addProgress(player, Mycelid.NODES, count - Talents.progress(player, Mycelid.NODES));
+		}
 		level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, pos.getX() + 0.5, pos.getY() + 0.8, pos.getZ() + 0.5, 40, 1.2, 0.6, 1.2, 0.02);
 		level.sendParticles(ParticleTypes.HAPPY_VILLAGER, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 12, 0.6, 0.4, 0.6, 0);
 		level.playSound(null, pos, SoundEvents.FUNGUS_PLACE, SoundSource.BLOCKS, 1f, 0.7f);
@@ -368,6 +378,76 @@ public final class MyceliumNetwork extends SavedData {
 		return hops;
 	}
 
+	// ---- Reserve bodies (Mycelial Rebirth) ----------------------------------------------------------------------
+
+	/** Grows a reserve body at the own node the Mycelid stands by; with one already, says how it is. */
+	public static Abilities.Refusal growBody(ServerPlayer player) {
+		MyceliumNetwork net = get(player.server);
+		long now = player.serverLevel().getGameTime();
+		String had = net.bodies.get(player.getUUID());
+		if (had != null && net.nodes.containsKey(had)) {
+			long left = net.bodyReady.getOrDefault(player.getUUID(), 0L) - now;
+			player.displayClientMessage(left > 0 ? Component.translatable("mages_legacy.message.body_growing", net.nodes.get(had).name, left / 20 + 1)
+					: Component.translatable("mages_legacy.message.body_ready", net.nodes.get(had).name), true);
+			return null;
+		}
+		Node at = null;
+		for (Node n : net.nodesOf(player.getUUID())) {
+			if (n.dim == player.level().dimension() && Vec3.atCenterOf(n.pos).distanceTo(player.position()) <= 6) {
+				at = n;
+			}
+		}
+		if (at == null) {
+			return new Abilities.Refusal("mages_legacy.refuse.body_node");
+		}
+		int cost = Talents.has(player, Talent.REBIRTH_CHEAP) ? BODY_COST / 2 : BODY_COST;
+		if (net.nutrients(player.getUUID()) < cost) {
+			return new Abilities.Refusal("mages_legacy.refuse.nutrients");
+		}
+		int ticks = Talents.has(player, Talent.REBIRTH_FAST) ? BODY_TICKS / 2 : BODY_TICKS;
+		net.addNutrients(player.getUUID(), -cost);
+		net.bodies.put(player.getUUID(), at.key);
+		net.bodyReady.put(player.getUUID(), now + ticks);
+		net.setDirty();
+		ServerLevel level = player.serverLevel();
+		level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, at.pos.getX() + 0.5, at.pos.getY() + 1, at.pos.getZ() + 0.5, 40, 0.6, 0.8, 0.6, 0.02);
+		level.playSound(null, at.pos, SoundEvents.ROOTED_DIRT_PLACE, SoundSource.BLOCKS, 1f, 0.6f);
+		player.displayClientMessage(Component.translatable("mages_legacy.message.body_started", at.name, ticks / 20).withStyle(ChatFormatting.GREEN), true);
+		return null;
+	}
+
+	/** Where a woken reserve body stands. */
+	public record Waking(ServerLevel level, Vec3 at) {
+	}
+
+	/** Takes the Mycelid's grown reserve body (if there is one at a node still alive) and says where it wakes. */
+	public static Waking takeBody(ServerPlayer player) {
+		MyceliumNetwork net = get(player.server);
+		String key = net.bodies.get(player.getUUID());
+		Node node = key == null ? null : net.nodes.get(key);
+		long ready = net.bodyReady.getOrDefault(player.getUUID(), Long.MAX_VALUE);
+		if (node == null || ready > player.serverLevel().getGameTime()) {
+			return null;
+		}
+		ServerLevel level = player.server.getLevel(node.dim);
+		Vec3 at = level == null ? null : arrival(level, player, node.pos);
+		if (at == null) {
+			return null;
+		}
+		net.bodies.remove(player.getUUID());
+		net.bodyReady.remove(player.getUUID());
+		net.setDirty();
+		return new Waking(level, at);
+	}
+
+	/** For the harness: the reserve body is grown at once. */
+	public static void ripenBody(ServerPlayer player) {
+		MyceliumNetwork net = get(player.server);
+		if (net.bodies.containsKey(player.getUUID())) {
+			net.bodyReady.put(player.getUUID(), 0L);
+		}
+	}
+
 	// ---- The screen ------------------------------------------------------------------------------------------
 
 	/** A click on a node: where it leads, and for its grower its threads and settings. */
@@ -450,6 +530,11 @@ public final class MyceliumNetwork extends SavedData {
 			}
 		}
 		tag.put("own", own);
+		String body = bodies.get(player.getUUID());
+		if (body != null && nodes.containsKey(body)) {
+			tag.putString("body", nodes.get(body).name);
+			tag.putInt("bodySecs", (int) Math.max(0, (bodyReady.getOrDefault(player.getUUID(), 0L) - now) / 20));
+		}
 		return tag;
 	}
 
@@ -751,6 +836,9 @@ public final class MyceliumNetwork extends SavedData {
 					}
 				}
 			}
+			if (bodies.containsValue(n.key)) {
+				level.sendParticles(ParticleTypes.GLOW, c.x, c.y + 0.9, c.z, 4, 0.3, 0.5, 0.3, 0.01);
+			}
 			if (server.getTickCount() % 200 == 0) {
 				level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 0.6, c.z, 3, 0.4, 0.3, 0.4, 0);
 			}
@@ -840,6 +928,14 @@ public final class MyceliumNetwork extends SavedData {
 			known.put(k.toString(), ids);
 		});
 		tag.put("talents", known);
+		CompoundTag reserve = new CompoundTag();
+		bodies.forEach((k, v) -> {
+			CompoundTag b = new CompoundTag();
+			b.putString("node", v);
+			b.putLong("ready", bodyReady.getOrDefault(k, 0L));
+			reserve.put(k.toString(), b);
+		});
+		tag.put("bodies", reserve);
 		return tag;
 	}
 
@@ -868,6 +964,11 @@ public final class MyceliumNetwork extends SavedData {
 				ids.add(id.getAsString());
 			}
 			net.growerTalents.put(UUID.fromString(k), ids);
+		}
+		CompoundTag reserve = tag.getCompound("bodies");
+		for (String k : reserve.getAllKeys()) {
+			net.bodies.put(UUID.fromString(k), reserve.getCompound(k).getString("node"));
+			net.bodyReady.put(UUID.fromString(k), reserve.getCompound(k).getLong("ready"));
 		}
 		return net;
 	}

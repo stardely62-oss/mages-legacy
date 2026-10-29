@@ -23,7 +23,8 @@ public enum Ability {
 	NEUROSYMBIOSIS(Race.MYCELID, 1, 5, 30, 35 * 20),
 	GREAT_BLOOM(Race.MYCELID, -1, Talent.AWAKENING_LEVEL, 60, 5 * 60 * 20),
 	SPORE_STORM(Race.MYCELID, -1, Talent.AWAKENING_LEVEL, 50, 5 * 60 * 20),
-	MYCELIAL_REBIRTH(Race.MYCELID, -1, Talent.AWAKENING_LEVEL, 0, 20 * 60 * 20);
+	// The Rebirth's key grows a reserve body; its own 20-minute cooldown starts when a body wakes
+	MYCELIAL_REBIRTH(Race.MYCELID, -1, Talent.AWAKENING_LEVEL, 0, 2 * 20);
 
 	public static final int SLOTS = 5;
 	/** Key names as they stand by default, for the HUD and the choice screen. */

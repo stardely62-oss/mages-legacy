@@ -403,6 +403,57 @@ final class Harness {
 		run(() -> mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen()), 20);
 		shot("talents_mycelid");
 		run(() -> mc.setScreen(null), 5);
+
+		// The Awakenings: the Great Bloom on Z and the Spore Storm on Alt
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			Progression.setLevel(player, 50);
+			euf.mageslegacy.race.Talents.learnAll(player, "bloom", "storm");
+			euf.mageslegacy.race.Talents.setNoCooldown(player, true);
+			player.connection.teleport(46.5, y[0], 46.5, 135, 10);
+		}), 10);
+		run(() -> MagesLegacyClient.useAbility(2), 40);
+		run(() -> check("the Great Bloom grows", euf.mageslegacy.mycelid.Awaken.blooming(player())), 0);
+		film("bloom", 8, 4);
+		run(() -> MagesLegacyClient.useAbility(2), 10);
+		run(() -> check("pressed again, the Bloom ends and exhausts", !euf.mageslegacy.mycelid.Awaken.blooming(player())
+				&& euf.mageslegacy.mycelid.Awaken.exhausted(player())), 20);
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			RaceState.setResource(player, RaceState.MAX_RESOURCE);
+			husk = EntityType.HUSK.create(player.serverLevel());
+			husk.moveTo(player.getX() + 5, player.getY(), player.getZ(), 0, 0);
+			husk.setNoAi(true);
+			husk.setPersistenceRequired();
+			player.serverLevel().addFreshEntity(husk);
+		}), 5);
+		run(() -> MagesLegacyClient.useAbility(4), 25);
+		run(() -> {
+			var weak = husk.getEffect(net.minecraft.world.effect.MobEffects.WEAKNESS);
+			check("the Spore Storm weakens hard and takes the spores", weak != null && weak.getAmplifier() >= 1 && RaceState.resource(player()) < 50);
+		}, 0);
+		film("storm", 6, 4);
+		// Mycelial Rebirth: a reserve body at the Mother Mycelium, a killing blow far away
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			husk.discard();
+			euf.mageslegacy.race.Talents.reset(player);
+			euf.mageslegacy.race.Talents.learnAll(player, "rebirth", "bloom");
+			player.connection.teleport(41.5, y[0], 42.5, 0, 0);
+		}), 10);
+		run(() -> MagesLegacyClient.useAbility(2), 10);
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			euf.mageslegacy.mycelid.MyceliumNetwork.ripenBody(player);
+			player.connection.teleport(90.5, y[0], 90.5, 0, 0);
+		}), 10);
+		run(() -> server().execute(() -> player().hurt(player().damageSources().fellOutOfWorld(), 1000)), 10);
+		run(() -> {
+			ServerPlayer player = player();
+			check("a killing blow wakes the reserve body by the Mother Mycelium (alive=" + player.isAlive() + ", x=" + String.format("%.1f", player.getX())
+					+ ")", player.isAlive() && Math.abs(player.getX() - 40.5) < 3 && Math.abs(player.getZ() - 40.5) < 3);
+			server().execute(() -> euf.mageslegacy.race.Talents.setNoCooldown(player, false));
+		}, 5);
 	}
 
 	private static MinecraftServer server() {

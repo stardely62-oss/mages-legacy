@@ -59,7 +59,13 @@ public record SyncPayload(String race, int level, int xp, int xpNext, float reso
 				tag.getInt(Talents.SUPERLATE), Progression.openTiers(player), tag.getInt(Talents.STEP_THROUGH_NETHER), tag.getInt(Talents.GRAVITY_FLIERS),
 				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_RIFT, owned, tag) ? 1 : 0,
 				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_WORLDS, owned, tag) ? 1 : 0,
-				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_HOLE, owned, tag) ? 1 : 0};
+				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_HOLE, owned, tag) ? 1 : 0,
+				// 10..16 the Mycelid's: nodes, journeys, infected kills, shared symbioses, then Bloom, Storm, Rebirth met
+				tag.getInt(euf.mageslegacy.mycelid.Mycelid.NODES), tag.getInt(euf.mageslegacy.mycelid.Mycelid.JOURNEYS),
+				tag.getInt(euf.mageslegacy.mycelid.Mycelid.INFECTED_KILLS), tag.getInt(euf.mageslegacy.mycelid.Mycelid.SHARED),
+				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_BLOOM, owned, tag) ? 1 : 0,
+				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_STORM, owned, tag) ? 1 : 0,
+				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_REBIRTH, owned, tag) ? 1 : 0};
 	}
 
 	private void write(FriendlyByteBuf buf) {

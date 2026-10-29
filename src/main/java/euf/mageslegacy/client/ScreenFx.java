@@ -41,6 +41,11 @@ public final class ScreenFx {
 			case Fx.FOV -> FOVS.add(new float[] {payload.ticks(), 0, payload.a()});
 			case Fx.THIRD_PERSON -> {
 				var options = Minecraft.getInstance().options;
+				if (payload.ticks() <= 0) {
+					// Over early: back to one's own eyes on the next tick
+					outside = Math.min(outside, 1);
+					return;
+				}
 				if (outside <= 0) {
 					before = options.getCameraType();
 				}

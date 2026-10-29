@@ -50,6 +50,8 @@ public final class Fx {
 	public static final int HIDE = 15;
 	/** The player's own view steps back behind them for a while (third person), then returns. */
 	public static final int THIRD_PERSON = 16;
+	/** The Great Bloom: the giant mushroom grown where a Mycelid stands (follows them); 0 ticks withers it now. */
+	public static final int BLOOM = 17;
 
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
@@ -94,6 +96,10 @@ public final class Fx {
 	/** {@code gather}: how many of its ticks the singularity spends being born before it pulls. */
 	public static void vortex(ServerLevel level, Entity around, float radius, int ticks, int gather) {
 		send(level, around.position(), new FxPayload(VORTEX, around.getId(), around.position(), around.position(), ticks, radius, gather));
+	}
+
+	public static void bloom(ServerLevel level, Entity body, int ticks) {
+		send(level, body.position(), new FxPayload(BLOOM, body.getId(), body.position(), body.position(), ticks, 0, 0));
 	}
 
 	public static void thirdPerson(ServerPlayer player, int ticks) {

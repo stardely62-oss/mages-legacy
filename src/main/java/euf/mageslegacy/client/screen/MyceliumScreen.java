@@ -92,6 +92,12 @@ public class MyceliumScreen extends Screen {
 		graphics.drawCenteredString(font, sub, cx, 26, LegacyUi.MUTED);
 		if (view.getBoolean("mycelid")) {
 			graphics.drawString(font, Component.translatable("mages_legacy.network.nutrients", view.getInt("nutrients")), 10, 10, LegacyUi.GREEN);
+			if (view.contains("body")) {
+				Component body = view.getInt("bodySecs") > 0
+						? Component.translatable("mages_legacy.network.body_growing", view.getString("body"), view.getInt("bodySecs"))
+						: Component.translatable("mages_legacy.network.body_ready", view.getString("body"));
+				graphics.drawString(font, body, 10, 22, LegacyUi.GOLD);
+			}
 		}
 		if (atNode()) {
 			drawDestinations(graphics, mouseX, mouseY);

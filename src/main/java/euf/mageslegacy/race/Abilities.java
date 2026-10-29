@@ -46,7 +46,8 @@ public final class Abilities {
 			return;
 		}
 		// Leaving the Pocket and ending an arena are always free and never wait
-		boolean free = ability == Ability.POCKET && Pocket.isPocket(player.level()) || ability == Ability.RIFT_ARENA && Arena.endsNow(player);
+		boolean free = ability == Ability.POCKET && Pocket.isPocket(player.level()) || ability == Ability.RIFT_ARENA && Arena.endsNow(player)
+				|| ability == Ability.GREAT_BLOOM && euf.mageslegacy.mycelid.Awaken.bloomEndsNow(player);
 		// An arena holds whoever is on it until it ends
 		if (ability == Ability.POCKET && Arena.isArena(player.level())) {
 			refuse(player, Component.translatable("mages_legacy.refuse.arena_here"));
@@ -87,7 +88,9 @@ public final class Abilities {
 			case MYCELIUM_NETWORK -> euf.mageslegacy.mycelid.MyceliumNetwork.openColony(player);
 			case NEUROSPORES -> euf.mageslegacy.mycelid.Mycelid.neurospores(player);
 			case NEUROSYMBIOSIS -> euf.mageslegacy.mycelid.Mycelid.symbiosis(player);
-			case GREAT_BLOOM, SPORE_STORM, MYCELIAL_REBIRTH -> new Refusal("mages_legacy.talent.state.awakening_later");
+			case GREAT_BLOOM -> euf.mageslegacy.mycelid.Awaken.bloom(player);
+			case SPORE_STORM -> euf.mageslegacy.mycelid.Awaken.storm(player);
+			case MYCELIAL_REBIRTH -> euf.mageslegacy.mycelid.Awaken.rebirth(player);
 		};
 		if (refusal != null) {
 			refuse(player, Component.translatable(refusal.key()));
@@ -96,7 +99,7 @@ public final class Abilities {
 		if (!free) {
 			RaceState.setResource(player, RaceState.resource(player) - cost);
 			// The Void Step's cooldown starts when the walk ends, the arena's when the arena does
-			if (ability != Ability.VOID_STEP && ability != Ability.RIFT_ARENA) {
+			if (ability != Ability.VOID_STEP && ability != Ability.RIFT_ARENA && ability != Ability.GREAT_BLOOM) {
 				state.startCooldown(slot, cooldown(player, ability));
 			}
 		}
@@ -105,6 +108,14 @@ public final class Abilities {
 
 	/** What an ability costs this player, talents counted. */
 	public static int cost(ServerPlayer player, Ability ability) {
+		// The Spore Storm takes every spore itself (and needs at least 50)
+		if (ability == Ability.SPORE_STORM) {
+			return 0;
+		}
+		// Exhausted after an Awakening, the basic abilities cost a quarter more
+		if ((ability == Ability.NEUROSPORES || ability == Ability.NEUROSYMBIOSIS) && euf.mageslegacy.mycelid.Awaken.exhausted(player)) {
+			return (int) Math.ceil(ability.cost * 1.25);
+		}
 		if (ability == Ability.POCKET && Talents.has(player, Talent.POCKET_CHEAP)) {
 			return 10;
 		}

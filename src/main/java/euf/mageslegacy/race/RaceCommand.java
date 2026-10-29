@@ -67,7 +67,7 @@ public final class RaceCommand {
 								})))))
 				.then(Commands.literal("trial").then(Commands.argument("targets", EntityArgument.players())
 						.then(Commands.argument("trial", StringArgumentType.word())
-								.suggests((ctx, builder) -> SharedSuggestionProvider.suggest(java.util.List.of("rift", "worlds", "hole", "superlate"), builder))
+								.suggests((ctx, builder) -> SharedSuggestionProvider.suggest(java.util.List.of("rift", "worlds", "hole", "bloom", "storm", "rebirth", "superlate"), builder))
 								.executes(ctx -> {
 									String trial = StringArgumentType.getString(ctx, "trial");
 									return each(ctx, player -> {
@@ -75,6 +75,9 @@ public final class RaceCommand {
 											case "rift" -> Talents.passTrial(player, Talent.AWAKENING_RIFT);
 											case "worlds" -> Talents.passTrial(player, Talent.AWAKENING_WORLDS);
 											case "hole" -> Talents.passTrial(player, Talent.AWAKENING_HOLE);
+											case "bloom" -> Talents.passTrial(player, Talent.AWAKENING_BLOOM);
+											case "storm" -> Talents.passTrial(player, Talent.AWAKENING_STORM);
+											case "rebirth" -> Talents.passTrial(player, Talent.AWAKENING_REBIRTH);
 											default -> Talents.addProgress(player, Talents.SUPERLATE, 1);
 										}
 									});
@@ -91,7 +94,7 @@ public final class RaceCommand {
 
 	private static java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> awakenings(CommandContext<CommandSourceStack> ctx,
 			com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
-		return SharedSuggestionProvider.suggest(java.util.List.of("rift", "worlds", "hole"), builder);
+		return SharedSuggestionProvider.suggest(java.util.List.of("rift", "worlds", "hole", "bloom", "storm", "rebirth"), builder);
 	}
 
 	private static int race(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
