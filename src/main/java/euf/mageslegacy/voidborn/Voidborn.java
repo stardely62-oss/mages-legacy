@@ -207,9 +207,13 @@ public final class Voidborn {
 		player.setDeltaMovement(Vec3.ZERO);
 		level.playSound(null, from.x, from.y, from.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.7f, 0.5f);
 		level.playSound(null, from.x, from.y, from.z, SoundEvents.PORTAL_AMBIENT, SoundSource.PLAYERS, 0.5f, 1.6f);
-		Fx.play(level, Fx.RIFT, from.add(0, 1, 0), 30);
-		Fx.play(level, Fx.STEP_PATH, null, from.add(0, 1, 0), to.add(0, 1, 0), STEP_TICKS);
-		Fx.play(level, Fx.STEP_VEIL, player, from, to, STEP_TICKS);
+		// The first version's walk: a rift at each end, a streak between them, the view sinking into the void
+		Fx.rift(level, from.add(0, 1, 0), 2.4f, 1.3f, 16);
+		Fx.rift(level, to.add(0, 1, 0), 2.4f, 1.3f, STEP_TICKS + 14);
+		Fx.ribbon(level, from, to, STEP_TICKS + 12, 1.1f);
+		Fx.burst(level, from.add(0, 1, 0), 1.3f, 6, true);
+		Fx.voidScreen(player, STEP_TICKS + 4);
+		Fx.fov(player, 0.3f, STEP_TICKS + 6);
 		return null;
 	}
 
@@ -223,9 +227,6 @@ public final class Voidborn {
 		player.connection.teleport(at.x, at.y, at.z, 0, 0, Set.of(RelativeMovement.X_ROT, RelativeMovement.Y_ROT));
 		player.setDeltaMovement(Vec3.ZERO);
 		player.fallDistance = 0;
-		if (step.tick == STEP_TICKS - 4) {
-			Fx.play(player.serverLevel(), Fx.RIFT, step.to.add(0, 1, 0), 30);
-		}
 		if (step.tick >= STEP_TICKS) {
 			state.step = null;
 			player.setNoGravity(false);
@@ -264,7 +265,11 @@ public final class Voidborn {
 		state.gravity = GRAVITY_TICKS;
 		ServerLevel level = player.serverLevel();
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.8f, 0.5f);
-		Fx.play(level, Fx.GRAVITY, player, player.position(), player.position(), GRAVITY_TICKS);
+		// The ground cracks open onto the void under the caster, a wave goes out, the void's motes fall in
+		Fx.ring(level, player.position(), 0.3f, 2.8f, 10);
+		Fx.cracks(level, player.position(), player, 2.2f, GRAVITY_TICKS + 10);
+		Fx.motes(level, player, 2.6f, GRAVITY_TICKS);
+		Fx.shake(player, 0.8f, 8);
 		pressDown(player, true);
 		return null;
 	}
@@ -273,6 +278,7 @@ public final class Voidborn {
 		state.gravity--;
 		if ((GRAVITY_TICKS - state.gravity) % 20 == 0) {
 			pressDown(player, true);
+			Fx.ring(player.serverLevel(), player.position(), 0.3f, 2.2f, 8);
 		}
 		if (state.gravity == 0) {
 			player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 0.6f, 0.6f);

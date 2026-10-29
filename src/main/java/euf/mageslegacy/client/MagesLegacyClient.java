@@ -48,6 +48,8 @@ public class MagesLegacyClient {
 		NeoForge.EVENT_BUS.addListener(MagesLegacyClient::onTick);
 		NeoForge.EVENT_BUS.addListener(MagesLegacyClient::onInteract);
 		NeoForge.EVENT_BUS.addListener(MagesLegacyClient::onBlockOverlay);
+		NeoForge.EVENT_BUS.addListener(ScreenFx::onAngles);
+		NeoForge.EVENT_BUS.addListener(ScreenFx::onFov);
 		modBus.addListener(MagesLegacyClient::onDimensionEffects);
 		if (Boolean.getBoolean("mages_legacy.harness")) {
 			Harness.start();
@@ -63,6 +65,7 @@ public class MagesLegacyClient {
 
 	private static void onRegisterLayers(RegisterGuiLayersEvent event) {
 		event.registerAbove(VanillaGuiLayers.HOTBAR, MagesLegacy.id("race_hud"), RaceHud::render);
+		event.registerAboveAll(MagesLegacy.id("void_screen"), ScreenFx::render);
 	}
 
 	public static void openChoice() {
@@ -88,6 +91,7 @@ public class MagesLegacyClient {
 	private static void onTick(ClientTickEvent.Post event) {
 		Minecraft client = Minecraft.getInstance();
 		ClientRace.tick();
+		ScreenFx.tick();
 		// The loading screen closes itself when the terrain arrives, so the legend waits for it instead of being closed with it
 		if (choicePending && client.player != null && !(client.screen instanceof ReceivingLevelScreen) && client.getOverlay() == null) {
 			choicePending = false;
@@ -114,7 +118,7 @@ public class MagesLegacyClient {
 
 	/** Walking through a wall shows the void, not the wall's texture pressed against the eyes. */
 	private static void onBlockOverlay(RenderBlockScreenEffectEvent event) {
-		if (ClientRace.stepping()) {
+		if (ClientRace.stepping() || ScreenFx.inVoid()) {
 			event.setCanceled(true);
 		}
 	}

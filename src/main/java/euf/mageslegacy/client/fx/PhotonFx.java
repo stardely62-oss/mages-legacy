@@ -8,6 +8,7 @@ import com.lowdragmc.photon.client.gameobject.IFXObject;
 import com.lowdragmc.photon.client.gameobject.emitter.data.EmissionSetting;
 import com.lowdragmc.photon.client.gameobject.emitter.data.MaterialSetting;
 import com.lowdragmc.photon.client.gameobject.emitter.data.material.BlendMode;
+import com.lowdragmc.photon.client.gameobject.emitter.data.material.TextureMaterial;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunction;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunction3;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.RandomConstant;
@@ -19,6 +20,8 @@ import com.lowdragmc.photon.client.gameobject.emitter.data.shape.IShape;
 import com.lowdragmc.photon.client.gameobject.emitter.data.shape.Sphere;
 import com.lowdragmc.photon.client.gameobject.emitter.particle.ParticleConfig;
 import com.lowdragmc.photon.client.gameobject.emitter.particle.ParticleEmitter;
+import com.lowdragmc.photon.client.gameobject.emitter.particle.ParticleRendererSetting;
+import net.minecraft.resources.ResourceLocation;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.world.entity.Entity;
@@ -70,6 +73,36 @@ final class PhotonFx {
 		/** Stretches the shape (a tall thin rift from a sphere). */
 		Emitter scale(float x, float y, float z) {
 			config.shape.setScale(new NumberFunction3(x, y, z));
+			return this;
+		}
+
+		/** Particles laid on these points (relative to the effect), in order, with these starting velocities (or none). */
+		Emitter points(List<Vector3f> points, List<Vector3f> velocities) {
+			return shape(new PointsShape(points, velocities));
+		}
+
+		/** Particles lie flat, facing up (marks on the ground), or stand upright. */
+		Emitter flat() {
+			config.renderer.setRenderMode(ParticleRendererSetting.Mode.Horizontal);
+			return this;
+		}
+
+		/** Waits this many ticks before the first particle. */
+		Emitter delay(int ticks) {
+			config.setStartDelay(NumberFunction.constant(ticks));
+			return this;
+		}
+
+		/** Draws the particles with this sprite instead of Photon's soft circle. */
+		Emitter texture(ResourceLocation texture) {
+			MaterialSetting old = config.renderer.getMaterials().isEmpty() ? null : config.renderer.getMaterials().get(0);
+			MaterialSetting material = new MaterialSetting(new TextureMaterial(texture));
+			if (old != null) {
+				material.setRenderStateSource(old.getRenderStateSource());
+				material.setBlend(old.getBlendMode());
+			}
+			config.renderer.getMaterials().clear();
+			config.renderer.getMaterials().add(material);
 			return this;
 		}
 
@@ -170,15 +203,24 @@ final class PhotonFx {
 		}
 	}
 
+	/** Moves, turns or stretches the whole effect each frame; {@code age} is in ticks since it started. */
+	interface Animation {
+		void frame(IFXObject root, float age);
+	}
+
 	/** Anchors a played effect: a fixed point, or an entity followed frame by frame. */
 	private static final class Anchor implements IEffectExecutor {
 		private final Level level;
 		private final Entity follow;
+		private final Animation animation;
+		private final long start;
 		private FXRuntime runtime;
 
-		Anchor(Level level, Entity follow) {
+		Anchor(Level level, Entity follow, Animation animation) {
 			this.level = level;
 			this.follow = follow;
+			this.animation = animation;
+			this.start = level.getGameTime();
 		}
 
 		@Override
@@ -193,6 +235,9 @@ final class PhotonFx {
 
 		@Override
 		public void updateFXObjectFrame(IFXObject object, float partialTicks) {
+			if (animation != null && runtime != null && object == runtime.root) {
+				animation.frame(object, level.getGameTime() - start + partialTicks);
+			}
 			if (follow != null && runtime != null && object == runtime.root) {
 				if (follow.isRemoved()) {
 					runtime.destroy(false);
@@ -206,12 +251,16 @@ final class PhotonFx {
 
 	/** Plays the emitters together at a point, or following an entity (then {@code at} is ignored), after a delay in ticks. */
 	static void play(Level level, Vec3 at, Entity follow, int delay, Emitter... emitters) {
+		play(level, at, follow, delay, null, emitters);
+	}
+
+	static void play(Level level, Vec3 at, Entity follow, int delay, Animation animation, Emitter... emitters) {
 		List<IFXObject> objects = new ArrayList<>();
 		for (Emitter emitter : emitters) {
 			objects.add(emitter.emitter);
 		}
 		FXRuntime runtime = new FXRuntime(new FXData(objects));
-		Anchor anchor = new Anchor(level, follow);
+		Anchor anchor = new Anchor(level, follow, animation);
 		anchor.runtime = runtime;
 		Vec3 start = follow != null ? follow.position() : at;
 		runtime.root.updatePos(new Vector3f((float) start.x, (float) start.y, (float) start.z));

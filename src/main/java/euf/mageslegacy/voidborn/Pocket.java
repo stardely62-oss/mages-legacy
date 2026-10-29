@@ -120,12 +120,20 @@ public final class Pocket {
 			return new Abilities.Refusal("mages_legacy.refuse.pocket_hurt");
 		}
 		ServerLevel from = owner.serverLevel();
-		Fx.play(from, Fx.POCKET_RIFT, owner.position().add(owner.getLookAngle().multiply(1, 0, 1).normalize().scale(1.2)).add(0, 1, 0),
-				OPENING + 24);
+		openDoor(owner);
 		from.playSound(null, owner.getX(), owner.getY(), owner.getZ(), SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, SoundSource.PLAYERS, 0.9f, 0.6f);
 		OPENING_IN.put(owner.getUUID(), OPENING);
 		OPENING_OUT.put(owner.getUUID(), false);
 		return null;
+	}
+
+	/** The door of the first version: a tall rift ahead of the Voidborn, the view sinking into the void as they go. */
+	private static void openDoor(ServerPlayer player) {
+		Vec3 ahead = player.getLookAngle().multiply(1, 0, 1);
+		ahead = ahead.lengthSqr() < 1.0E-4 ? Vec3.ZERO : ahead.normalize().scale(1.2);
+		Fx.rift(player.serverLevel(), player.position().add(ahead).add(0, 1.3, 0), 2.8f, 1.7f, OPENING + 18);
+		Fx.voidScreen(player, OPENING * 2 + 6);
+		Fx.fov(player, -0.15f, OPENING + 4);
 	}
 
 	private static void pass(ServerPlayer owner) {
@@ -157,7 +165,9 @@ public final class Pocket {
 					player.getXRot());
 			player.fallDistance = 0;
 		}
-		Fx.play(pocket, Fx.POCKET_RIFT, new Vec3(c.getX() + 0.5, FLOOR + 2, c.getZ() + 3.5), 40);
+		Vec3 arrival = new Vec3(c.getX() + 0.5, FLOOR + 1, c.getZ() + 0.5);
+		Fx.rift(pocket, arrival.add(0, 1.3, 2.5), 2.8f, 1.7f, 14);
+		Fx.burst(pocket, arrival.add(0, 1, 0), 1.2f, 6, false);
 		pocket.playSound(null, c.getX(), FLOOR + 1, c.getZ(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 0.5f);
 	}
 
@@ -166,8 +176,7 @@ public final class Pocket {
 		if (OPENING_IN.containsKey(player.getUUID())) {
 			return new Abilities.Refusal("mages_legacy.refuse.busy");
 		}
-		Fx.play(player.serverLevel(), Fx.POCKET_RIFT, player.position().add(player.getLookAngle().multiply(1, 0, 1).normalize().scale(1.2)).add(0, 1, 0),
-				OPENING + 24);
+		openDoor(player);
 		player.serverLevel().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, SoundSource.PLAYERS,
 				0.9f, 0.6f);
 		OPENING_IN.put(player.getUUID(), OPENING);
@@ -243,7 +252,8 @@ public final class Pocket {
 		player.removeData(RaceState.POCKET_RETURN);
 		player.teleportTo(level, safe.x, safe.y, safe.z, yaw, pitch);
 		player.fallDistance = 0;
-		Fx.play(level, Fx.POCKET_RIFT, safe.add(0, 1, 0), 40);
+		Fx.rift(level, safe.add(0, 1.3, 0), 2.8f, 1.7f, 14);
+		Fx.burst(level, safe.add(0, 1, 0), 1.2f, 6, false);
 		level.playSound(null, safe.x, safe.y, safe.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 0.6f);
 	}
 
