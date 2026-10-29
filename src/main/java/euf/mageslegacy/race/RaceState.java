@@ -39,6 +39,10 @@ public final class RaceState {
 	public static final Supplier<AttachmentType<CompoundTag>> POCKET_RETURN = ATTACHMENTS.register("pocket_return",
 			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).build());
 
+	/** Two Doors: the place the Voidborn last went into their Pocket from (the second door out). */
+	public static final Supplier<AttachmentType<CompoundTag>> POCKET_LAST_ENTRY = ATTACHMENTS.register("pocket_last_entry",
+			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).copyOnDeath().build());
+
 	/** Where a player taken onto an arena came from. */
 	public static final Supplier<AttachmentType<CompoundTag>> ARENA_RETURN = ATTACHMENTS.register("arena_return",
 			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).build());

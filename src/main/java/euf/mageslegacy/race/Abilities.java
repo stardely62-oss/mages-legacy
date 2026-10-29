@@ -52,6 +52,11 @@ public final class Abilities {
 			refuse(player, Component.translatable("mages_legacy.refuse.level", ability.level));
 			return;
 		}
+		// Echo of the Step: right after a walk the same key walks back, free, while the cooldown runs on
+		if (ability == Ability.VOID_STEP && Voidborn.tryEcho(player)) {
+			RaceState.sync(player);
+			return;
+		}
 		if (!free && state.cooldown[slot] > 0) {
 			refuse(player, Component.translatable("mages_legacy.refuse.cooldown", String.format("%.1f", state.cooldown[slot] / 20f)));
 			return;

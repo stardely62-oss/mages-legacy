@@ -70,6 +70,10 @@ public final class Pocket {
 	/** Rifts opening now: who opened them and how long until they take the travellers. */
 	private static final Map<UUID, Integer> OPENING_IN = new HashMap<>();
 	private static final Map<UUID, Boolean> OPENING_OUT = new HashMap<>();
+	/** Two Doors: who is leaving by the second door. */
+	private static final java.util.Set<UUID> FAR_OUT = new java.util.HashSet<>();
+	/** Sanctuary: the hurt lock with the talent. */
+	private static final int HURT_LOCK_SHORT = 2 * 20;
 
 	private Pocket() {
 	}
@@ -156,7 +160,12 @@ public final class Pocket {
 		if (OPENING_IN.containsKey(owner.getUUID())) {
 			return new Abilities.Refusal("mages_legacy.refuse.busy");
 		}
-		if (Voidborn.hurtRecently(owner, HURT_LOCK)) {
+		// Sanctuary shortens the lock; Heavy Threshold lifts it while Heavier Gravity holds
+		int lock = Talents.has(owner, Talent.POCKET_SANCTUARY) ? HURT_LOCK_SHORT : HURT_LOCK;
+		if (Talents.has(owner, Talent.POCKET_HOLD) && Voidborn.state(owner).gravity > 0) {
+			lock = 0;
+		}
+		if (lock > 0 && Voidborn.hurtRecently(owner, lock)) {
 			return new Abilities.Refusal("mages_legacy.refuse.pocket_hurt");
 		}
 		ServerLevel from = owner.serverLevel();
@@ -200,7 +209,16 @@ public final class Pocket {
 		BlockPos c = centre(room);
 		for (int i = 0; i < going.size(); i++) {
 			ServerPlayer player = going.get(i);
-			player.setData(RaceState.POCKET_RETURN, returnTag(player, owner.getUUID()));
+			CompoundTag back = returnTag(player, owner.getUUID());
+			if (i == 0) {
+				// Two Doors: the place the owner came in from last time stays as a second way out
+				CompoundTag last = player.getData(RaceState.POCKET_LAST_ENTRY);
+				if (last.contains("dim")) {
+					back.put("far", last);
+				}
+				player.setData(RaceState.POCKET_LAST_ENTRY, returnTag(player, owner.getUUID()));
+			}
+			player.setData(RaceState.POCKET_RETURN, back);
 			// The owner arrives at the middle, guests around them
 			double angle = i == 0 ? 0 : (i - 1) * Math.PI / 4;
 			double r = i == 0 ? 0 : 1.5;
@@ -226,7 +244,24 @@ public final class Pocket {
 				0.6f);
 		OPENING_IN.put(player.getUUID(), OPENING);
 		OPENING_OUT.put(player.getUUID(), true);
+		if (player.isShiftKeyDown() && Talents.has(player, Talent.POCKET_TWO_DOORS)) {
+			FAR_OUT.add(player.getUUID());
+		} else {
+			FAR_OUT.remove(player.getUUID());
+		}
 		return null;
+	}
+
+	/** Saving Rift: takes the Voidborn (and whoever stands by) into the Pocket at once; false if there is no Pocket. */
+	public static boolean rescue(ServerPlayer owner) {
+		if (owner.server.getLevel(DIMENSION) == null || isPocket(owner.level())) {
+			return false;
+		}
+		OPENING_IN.remove(owner.getUUID());
+		openDoor(owner);
+		owner.serverLevel().playSound(null, owner.getX(), owner.getY(), owner.getZ(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1f, 0.5f);
+		pass(owner);
+		return true;
 	}
 
 	private static void passOut(ServerPlayer player) {
@@ -245,14 +280,16 @@ public final class Pocket {
 				}
 			}
 		}
+		boolean far = FAR_OUT.remove(player.getUUID());
 		for (ServerPlayer p : going) {
-			sendHome(p);
+			sendHome(p, far && p == player);
 		}
 	}
 
 	/** Takes a player out of a Pocket if they are in one (a lost race, a reset). */
 	public static void leaveIfInside(ServerPlayer player) {
 		OPENING_IN.remove(player.getUUID());
+		FAR_OUT.remove(player.getUUID());
 		if (isPocket(player.level())) {
 			passOut(player);
 		}
@@ -272,8 +309,17 @@ public final class Pocket {
 
 	/** Back to where the player came from, or the nearest safe spot above or below it, or the world spawn. */
 	static void sendHome(ServerPlayer player) {
+		sendHome(player, false);
+	}
+
+	/** {@code far}: by the second door (Two Doors), to where the owner came in from the time before. */
+	static void sendHome(ServerPlayer player, boolean far) {
 		MinecraftServer server = player.server;
 		CompoundTag tag = player.getData(RaceState.POCKET_RETURN);
+		boolean host = tag.hasUUID("owner") && tag.getUUID("owner").equals(player.getUUID());
+		if (far && tag.contains("far")) {
+			tag = tag.getCompound("far");
+		}
 		ServerLevel level = null;
 		Vec3 at = null;
 		float yaw = player.getYRot();
@@ -294,7 +340,6 @@ public final class Pocket {
 			int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, spawn.getX(), spawn.getZ());
 			safe = new Vec3(spawn.getX() + 0.5, y, spawn.getZ() + 0.5);
 		}
-		boolean host = tag.hasUUID("owner") && tag.getUUID("owner").equals(player.getUUID());
 		player.removeData(RaceState.POCKET_RETURN);
 		player.teleportTo(level, safe.x, safe.y, safe.z, yaw, pitch);
 		player.fallDistance = 0;
@@ -305,6 +350,10 @@ public final class Pocket {
 				e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 1, false, true), player);
 			}
 			Fx.ring(level, safe, 0.3f, 4.2f, 12);
+		}
+		// The Way Home: back in the world, the Void Step is ready at once
+		if (host && Talents.has(player, Talent.STEP_HOMEWARD)) {
+			Voidborn.state(player).cooldown[euf.mageslegacy.race.Ability.VOID_STEP.slot] = 0;
 		}
 		Fx.rift(level, safe.add(0, 1.3, 0), 2.8f, 1.7f, 14);
 		Fx.sparkle(level, safe.add(0, 1.3, 0), 0, 0);
@@ -396,6 +445,9 @@ public final class Pocket {
 				if (owner.equals(player.getUUID())) {
 					// Time at home counts towards the Rift of Space's trial
 					Talents.addProgress(player, Talents.POCKET_TICKS, 40);
+					if (Talents.has(player, Talent.POCKET_GARDEN)) {
+						tendGarden(pocket, player);
+					}
 					continue;
 				}
 				// Hospitality: guests rest well while their host is home
@@ -446,7 +498,25 @@ public final class Pocket {
 		}
 	}
 
+	/** Garden in the Void: what grows around the Voidborn at home grows about twice as fast (8 extra growth ticks every 2 s). */
+	private static void tendGarden(ServerLevel pocket, ServerPlayer owner) {
+		var random = owner.getRandom();
+		for (int i = 0; i < 8; i++) {
+			BlockPos pos = owner.blockPosition().offset(random.nextInt(9) - 4, random.nextInt(5) - 2, random.nextInt(9) - 4);
+			var block = pocket.getBlockState(pos);
+			if (block.getBlock() instanceof net.minecraft.world.level.block.BonemealableBlock && block.isRandomlyTicking()) {
+				block.randomTick(pocket, pos, random);
+			}
+		}
+	}
+
 	private static void onPlayerTick(PlayerTickEvent.Post event) {
+		// Hearth: at home in their own Pocket a Voidborn doesn't hunger
+		if (event.getEntity() instanceof ServerPlayer player && isPocket(player.level()) && player.tickCount % 10 == 0
+				&& player.getUUID().equals(PocketRooms.get(player.server).ownerOf(roomAt(player.getX())))
+				&& Talents.has(player, Talent.POCKET_HEARTH)) {
+			player.getFoodData().setExhaustion(0);
+		}
 		if (event.getEntity() instanceof ServerPlayer player && isPocket(player.level()) && player.getY() < FLOOR - BELOW) {
 			// Nobody falls out of a Pocket: the void hands them back to the platform
 			BlockPos c = centre(roomAt(player.getX()));

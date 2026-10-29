@@ -22,6 +22,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.OwnableEntity;
@@ -127,14 +128,15 @@ public final class Passage {
 			}
 			ServerPlayer owner = server.getPlayerList().getPlayer(gate.owner());
 			boolean caravan = owner != null && Talents.has(owner, Talent.WORLDS_TRAIN);
-			through(level, gate.a(), gate.bOut(), caravan);
-			through(level, gate.b(), gate.aOut(), caravan);
+			boolean cleanse = owner != null && Talents.has(owner, Talent.WORLDS_CLEANSE);
+			through(level, gate.a(), gate.bOut(), caravan, cleanse);
+			through(level, gate.b(), gate.aOut(), caravan, cleanse);
 		}
 		long now = server.overworld().getGameTime();
 		RESTING.values().removeIf(t -> t < now);
 	}
 
-	private static void through(ServerLevel level, Vec3 rift, Vec3 out, boolean caravan) {
+	private static void through(ServerLevel level, Vec3 rift, Vec3 out, boolean caravan, boolean cleanse) {
 		long now = level.getServer().overworld().getGameTime();
 		for (Entity e : level.getEntities((Entity) null, new AABB(rift, rift).inflate(0.8, 2, 0.8), e -> e.isAlive() && !e.isPassenger())) {
 			if (RESTING.containsKey(e.getUUID()) || !mayPass(e, caravan)) {
@@ -154,6 +156,14 @@ public final class Passage {
 			}
 			if (e instanceof ServerPlayer player) {
 				Fx.voidScreen(player, 10);
+			}
+			// Clean Crossing: the void keeps fire and poisons on the far side
+			if (cleanse && e instanceof LivingEntity living) {
+				living.clearFire();
+				for (var bad : List.of(MobEffects.POISON, MobEffects.WITHER, MobEffects.MOVEMENT_SLOWDOWN, MobEffects.WEAKNESS, MobEffects.HUNGER,
+						MobEffects.BLINDNESS, MobEffects.DARKNESS)) {
+					living.removeEffect(bad);
+				}
 			}
 			Fx.burst(level, out.add(0, 1, 0), 1f, 6, false);
 			level.playSound(null, out.x, out.y, out.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.6f, 0.8f);

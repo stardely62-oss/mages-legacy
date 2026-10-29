@@ -3,6 +3,7 @@ package euf.mageslegacy.voidborn;
 import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.race.Abilities;
+import euf.mageslegacy.race.RaceState;
 import euf.mageslegacy.race.Talent;
 import euf.mageslegacy.race.Talents;
 import java.util.HashMap;
@@ -150,10 +151,12 @@ public final class BlackHole {
 	private static void collapse(ServerPlayer player, ServerLevel level, Hole hole) {
 		float damage = Talents.has(player, Talent.HOLE_DEEP) ? 16 : 12;
 		DamageSource source = new DamageSource(level.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(COLLAPSE), player, player);
+		int crushed = 0;
 		for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(CRUSH),
 				e -> e != player && e.isAlive() && Voidborn.isEnemy(player, e) && e.position().distanceTo(hole.at) <= CRUSH)) {
 			e.invulnerableTime = 0;
 			e.hurt(source, damage);
+			crushed++;
 			Vec3 out = e.position().subtract(hole.at).multiply(1, 0, 1);
 			if (out.lengthSqr() > 1.0E-4) {
 				e.setDeltaMovement(out.normalize().scale(0.6).add(0, 0.35, 0));
@@ -161,7 +164,12 @@ public final class BlackHole {
 			}
 		}
 		// The recoil: 4 to the Voidborn, never below 1 health (outside blows still can kill)
-		float self = Math.min(4, player.getHealth() - 1);
+		// A Sated Abyss: fed by three or more, the collapse spares its heart and gives back some Void
+		boolean sated = crushed >= 3 && Talents.has(player, Talent.HOLE_SATED);
+		if (sated) {
+			RaceState.setResource(player, RaceState.resource(player) + 15);
+		}
+		float self = sated ? 0 : Math.min(4, player.getHealth() - 1);
 		if (self > 0) {
 			player.invulnerableTime = 0;
 			DamageSource recoil = new DamageSource(level.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(COLLAPSE));

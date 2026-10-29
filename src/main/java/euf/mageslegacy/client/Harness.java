@@ -119,6 +119,28 @@ final class Harness {
 		run(() -> {
 		}, 15);
 
+		// A glance at the ground a few blocks ahead leads onto that ground, not into "nowhere to come out"
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			player.connection.teleport(player.getX(), player.getY(), player.getZ(), 90, 35);
+		}), 5);
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			net.minecraft.world.phys.Vec3 to = euf.mageslegacy.voidborn.Voidborn.stepTarget(player.serverLevel(), player);
+			check("step at the ground nearby comes out on its surface (" + to + ")",
+					to != null && Math.abs(to.y - player.getY()) < 0.01 && to.distanceTo(player.position()) >= 1.5);
+		}), 5);
+		run(() -> {
+			int missing = 0;
+			for (euf.mageslegacy.race.Talent t : euf.mageslegacy.race.Talent.of(Race.VOIDBORN)) {
+				if (!net.minecraft.client.resources.language.I18n.exists(t.key() + ".name") || !net.minecraft.client.resources.language.I18n.exists(t.key() + ".desc")) {
+					missing++;
+					MagesLegacy.LOGGER.error("Talent without text: {}", t.id());
+				}
+			}
+			check("the tree has ~60 nodes, each with a name and a description", euf.mageslegacy.race.Talent.of(Race.VOIDBORN).size() >= 55 && missing == 0);
+		}, 0);
+
 		// Heavier Gravity on a husk (a zombie would burn in the sun and spoil the count)
 		run(() -> server().execute(() -> {
 			ServerPlayer player = player();
