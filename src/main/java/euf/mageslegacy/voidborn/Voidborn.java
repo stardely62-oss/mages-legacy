@@ -448,7 +448,8 @@ public final class Voidborn {
 			return;
 		}
 		Vec3 at = step.to;
-		player.connection.teleport(at.x, at.y, at.z, 0, 0, Set.of(RelativeMovement.X_ROT, RelativeMovement.Y_ROT));
+		// The rotation is passed as it is: vanilla sets the server's to what is given and sends the difference, even when relative
+		player.connection.teleport(at.x, at.y, at.z, player.getYRot(), player.getXRot(), Set.of(RelativeMovement.X_ROT, RelativeMovement.Y_ROT));
 		// Rupture: whatever stood along the way is torn a little
 		if (!step.companion && Talents.has(player, Talent.STEP_RUPTURE)) {
 			rupture(player, step);

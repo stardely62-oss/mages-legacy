@@ -114,7 +114,8 @@ public final class BlackHole {
 		hole.age++;
 		// The heart of a singularity doesn't move
 		if (player.position().distanceToSqr(hole.at) > 0.0025) {
-			player.connection.teleport(hole.at.x, hole.at.y, hole.at.z, 0, 0, Set.of(RelativeMovement.X_ROT, RelativeMovement.Y_ROT));
+			// The rotation is passed as it is: vanilla sets the server's to what is given and sends the difference, even when relative
+			player.connection.teleport(hole.at.x, hole.at.y, hole.at.z, player.getYRot(), player.getXRot(), Set.of(RelativeMovement.X_ROT, RelativeMovement.Y_ROT));
 		}
 		player.setDeltaMovement(Vec3.ZERO);
 		ServerLevel level = player.serverLevel();

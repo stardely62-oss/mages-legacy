@@ -55,6 +55,7 @@ final class Harness {
 	private static int idle;
 	private static boolean finished;
 	/** Things the scenario remembers between steps. */
+	private static float yawBefore;
 	private static Husk husk;
 	private static Vec3 beforePocket;
 	private static float healthBeforeWater;
@@ -114,10 +115,13 @@ final class Harness {
 			player.connection.teleport(player.getX(), player.getY(), player.getZ(), 180, 0);
 		}), 10);
 		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 5);
-		run(() -> MagesLegacyClient.useAbility(0), 1);
-		film("step", 18, 2);
 		run(() -> {
-		}, 5);
+			yawBefore = mc.player.getYRot();
+			MagesLegacyClient.useAbility(0);
+		}, 1);
+		film("step", 18, 2);
+		run(() -> check("the step leaves the look alone (" + yawBefore + " -> " + mc.player.getYRot() + ")",
+				Math.abs(mc.player.getYRot() - yawBefore) < 1), 5);
 
 		// A glance at the ground a few blocks ahead leads onto that ground, not into "nowhere to come out"
 		run(() -> server().execute(() -> {
@@ -231,10 +235,15 @@ final class Harness {
 		}), 10);
 		run(() -> check("black hole learnt", euf.mageslegacy.race.Talents.has(player(), euf.mageslegacy.race.Talent.AWAKENING_HOLE)), 0);
 		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 3);
-		run(() -> MagesLegacyClient.useAbility(2), 1);
+		run(() -> {
+			yawBefore = mc.player.getYRot();
+			MagesLegacyClient.useAbility(2);
+		}, 1);
 		film("black_hole", 10, 9);
 		run(() -> {
 			ServerPlayer player = player();
+			check("the black hole leaves the look alone (" + yawBefore + " -> " + mc.player.getYRot() + ")",
+					Math.abs(mc.player.getYRot() - yawBefore) < 1 && Math.abs(player.getYRot() - yawBefore) < 1);
 			check("black hole pulled and crushed the husk (" + husk.getHealth() + ", d=" + String.format("%.1f", husk.distanceTo(player)) + ")",
 					!husk.isAlive() || husk.getHealth() < husk.getMaxHealth() - 8);
 			check("collapse left the Voidborn alive (" + player.getHealth() + ")", player.getHealth() >= 1 && player.isAlive());
