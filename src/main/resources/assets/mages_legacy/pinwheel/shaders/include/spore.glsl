@@ -30,12 +30,15 @@ vec4 cloud(vec2 uv, bool glow) {
     float haze = vFbm(uv * 3.0 + vec2(t * 0.2, -t * 0.15) + params.g * 20.0);
     float edge = exp(-abs(r - 0.95) * 25.0) * (0.6 + 0.4 * sin(atan(uv.y, uv.x) * 9.0 + t * 2.0));
     float motes = specks(uv * 14.0 + params.g * 7.0, t, 0.35) * inside;
-    float body = inside * (0.25 + 0.55 * haze);
+    float body = inside * (0.35 + 0.65 * haze);
+    // Wisps of spore drifting through the haze, brighter than it
+    float wisps = smoothstep(0.55, 0.8, vFbm(uv * 5.0 - vec2(t * 0.35, t * 0.25) + params.g * 3.0)) * inside;
     if (glow) {
-        return vec4((M_TEAL * motes * 1.6 + M_MOSS * edge * 0.6) * params.a, clamp(motes + edge * 0.4, 0.0, 1.0) * params.a);
+        return vec4((M_TEAL * motes * 1.6 + M_MOSS * (edge * 0.7 + wisps * 0.35)) * params.a,
+                clamp(motes + edge * 0.4 + wisps * 0.25, 0.0, 1.0) * params.a);
     }
-    vec3 col = mix(M_DEEP, M_MOSS, haze) * 0.8 + M_TEAL * motes;
-    return vec4(col, clamp(body * 0.55 + edge * 0.35 + motes, 0.0, 1.0) * params.a);
+    vec3 col = mix(M_MOSS * 0.6, M_TEAL, haze * 0.6 + wisps * 0.4) + M_TEAL * motes;
+    return vec4(col, clamp(body * 0.6 + wisps * 0.35 + edge * 0.5 + motes, 0.0, 1.0) * params.a);
 }
 
 // A ring of spores running outwards
@@ -90,7 +93,7 @@ vec4 spiral(vec2 uv, bool glow) {
         return vec4((M_TEAL * arms * 0.6 * inside + M_GOLD * motes * 1.5) * params.a, clamp(arms * inside * 0.5 + motes, 0.0, 1.0) * params.a);
     }
     vec3 col = mix(M_MOSS, M_TEAL, arms) * (0.6 + 0.4 * haze) + M_GOLD * motes;
-    return vec4(col, clamp(v * 0.75 + motes, 0.0, 1.0) * params.a);
+    return vec4(col, clamp(v * 0.6 + motes, 0.0, 1.0) * params.a);
 }
 
 // The storm's wall: a curtain of turning spore-haze round its edge, thinning towards the top. uv.x goes round
