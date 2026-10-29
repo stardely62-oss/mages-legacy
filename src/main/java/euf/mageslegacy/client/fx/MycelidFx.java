@@ -159,7 +159,7 @@ final class MycelidFx {
 		@Override
 		boolean tick() {
 			Vec3 c = heart.position();
-			for (int i = 0; i < 3; i++) {
+			for (int i = 0; i < 5; i++) {
 				double a = VoidRender.rand(0, Math.PI * 2);
 				double r = radius * Math.sqrt(VoidRender.rand(0.05, 1));
 				Vec3 around = new Vec3(-Math.sin(a), 0, Math.cos(a)).scale(VoidRender.rand(0.2, 0.4));
@@ -177,10 +177,11 @@ final class MycelidFx {
 			float life = life(partial);
 			float a = fade(life, ticks, 10, 15);
 			Vec3 c = heart.getPosition(partial);
-			decal(draw, FxDraw.SPIRAL, c.add(0, 0.07, 0), radius, -life * 0.06, a * 0.55f, 0.08f);
-			decal(draw, FxDraw.SPIRAL, c.add(0, 1.6, 0), radius * 0.7f, -life * 0.09 + 1.0, a * 0.3f, 0.05f);
-			decal(draw, FxDraw.SPIRAL, c.add(0, 3.4, 0), radius * 0.45f, -life * 0.13 + 2.0, a * 0.2f, 0.04f);
-			decal(draw, FxDraw.CLOUD, c.add(0, 0.09, 0), radius * 0.55f, life * 0.03, a * 0.3f, 0.03f);
+			// Two vortices on the ground turning at different speeds (the height of the storm is its motes: a flat layer
+			// in the air would cut through the eyes)
+			decal(draw, FxDraw.SPIRAL, c.add(0, 0.07, 0), radius, -life * 0.06, a * 0.6f, 0.08f);
+			decal(draw, FxDraw.SPIRAL, c.add(0, 0.09, 0), radius * 0.6f, -life * 0.11 + 1.0, a * 0.45f, 0.06f);
+			decal(draw, FxDraw.CLOUD, c.add(0, 0.11, 0), radius * 0.35f, life * 0.03, a * 0.4f, 0.03f);
 		}
 	}
 
