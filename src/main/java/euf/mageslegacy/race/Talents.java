@@ -147,6 +147,32 @@ public final class Talents {
 		}
 	}
 
+	/**
+	 * For testing: race level 50, a full resource and every talent of the race, whatever their tiers, trials and
+	 * points. All three Awakenings are learnt; {@code z} and {@code alt} (rift, worlds, hole) say which two sit on
+	 * Z and Alt.
+	 */
+	public static void learnAll(ServerPlayer player, String z, String alt) {
+		Race race = RaceState.get(player).orElse(null);
+		if (race == null) {
+			return;
+		}
+		Progression.setLevel(player, Progression.MAX_LEVEL);
+		RaceState.setResource(player, RaceState.MAX_RESOURCE);
+		List<String> list = new ArrayList<>();
+		for (String pick : new String[] {z, alt, "rift", "worlds", "hole"}) {
+			Talent.byId("awakening_" + pick).filter(t -> t.race == race && !list.contains(t.id())).ifPresent(t -> list.add(t.id()));
+		}
+		for (Talent t : Talent.of(race)) {
+			if (!t.automatic() && !list.contains(t.id())) {
+				list.add(t.id());
+			}
+		}
+		player.setData(RaceState.TALENTS, list);
+		Pocket.refresh(player);
+		RaceState.sync(player);
+	}
+
 	/** Takes back every talent, refunding its points (admin command). */
 	public static void reset(ServerPlayer player) {
 		// The Awakenings stay once woken: forgetting them would undo their trials

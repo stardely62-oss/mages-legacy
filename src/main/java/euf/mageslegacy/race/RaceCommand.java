@@ -19,7 +19,8 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 /**
  * For testing and admins: {@code /mages_legacy race <players> <race|none>}, {@code level <players> <1-50>},
- * {@code resource <players> <amount>} and {@code cooldowns <players>} (clears them).
+ * {@code resource <players> <amount>}, {@code cooldowns <players>} (clears them), {@code talents <players> reset|learn <id>}
+ * and {@code talents <players> all [z alt]} (for testing: level 50 and every talent, conditions ignored).
  */
 public final class RaceCommand {
 	private RaceCommand() {
@@ -48,6 +49,15 @@ public final class RaceCommand {
 						}))))
 				.then(Commands.literal("talents").then(Commands.argument("targets", EntityArgument.players())
 						.then(Commands.literal("reset").executes(ctx -> each(ctx, Talents::reset)))
+						// For testing: the whole tree at once, nothing asked; optionally which Awakenings sit on Z and Alt
+						.then(Commands.literal("all").executes(ctx -> each(ctx, player -> Talents.learnAll(player, "rift", "hole")))
+								.then(Commands.argument("z", StringArgumentType.word()).suggests(RaceCommand::awakenings)
+										.then(Commands.argument("alt", StringArgumentType.word()).suggests(RaceCommand::awakenings)
+												.executes(ctx -> {
+													String z = StringArgumentType.getString(ctx, "z");
+													String alt = StringArgumentType.getString(ctx, "alt");
+													return each(ctx, player -> Talents.learnAll(player, z, alt));
+												}))))
 						.then(Commands.literal("learn").then(Commands.argument("talent", StringArgumentType.word())
 								.suggests((ctx, builder) -> SharedSuggestionProvider.suggest(Arrays.stream(Talent.values()).map(Talent::id), builder))
 								.executes(ctx -> {
@@ -72,6 +82,11 @@ public final class RaceCommand {
 					var state = euf.mageslegacy.voidborn.Voidborn.state(player);
 					Arrays.fill(state.cooldown, 0);
 				})))));
+	}
+
+	private static java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> awakenings(CommandContext<CommandSourceStack> ctx,
+			com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+		return SharedSuggestionProvider.suggest(java.util.List.of("rift", "worlds", "hole"), builder);
 	}
 
 	private static int race(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
