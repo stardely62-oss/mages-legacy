@@ -134,6 +134,26 @@ final class Harness {
 			check("step at the ground nearby comes out on its surface (" + to + ")",
 					to != null && Math.abs(to.y - player.getY()) < 0.01 && to.distanceTo(player.position()) >= 1.5);
 		}), 5);
+		// Into the wall with the look a little down: still through it, standing on the ground behind
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			int y = (int) Math.floor(player.getY());
+			player.connection.teleport(0.5, y, 0.5, 0, 15);
+		}), 5);
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			net.minecraft.world.phys.Vec3 to = euf.mageslegacy.voidborn.Voidborn.stepTarget(player.serverLevel(), player);
+			check("step looking a little down still goes through the wall (" + to + ")",
+					to != null && to.z > 5 && Math.abs(to.y - player.getY()) < 0.01);
+		}), 5);
+		// Through Worlds alone on the server: nobody to open it to, and nothing spent
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			float before = RaceState.resource(player);
+			var why = euf.mageslegacy.voidborn.Passage.choose(player);
+			check("a passage with nobody else online is refused (" + (why == null ? "null" : why.key()) + ")",
+					why != null && RaceState.resource(player) == before);
+		}), 2);
 		run(() -> {
 			int missing = 0;
 			for (euf.mageslegacy.race.Talent t : euf.mageslegacy.race.Talent.of(Race.VOIDBORN)) {

@@ -89,6 +89,13 @@ public final class RaceHud {
 			graphics.drawString(font, secs, x + (SLOT - font.width(secs)) / 2, y + 7, 0xFFFFFFFF);
 		}
 		LegacyUi.keyCap(graphics, Ability.KEY_NAMES[key], x + SLOT + 1, y + SLOT + 2, cooldown > 0 ? LegacyUi.MUTED : LegacyUi.GOLD);
+		// Through Worlds' charges: a small gem for each, lit while ready
+		if (ability == Ability.PASSAGE && state.chargesMax() > 1) {
+			for (int i = 0; i < state.chargesMax(); i++) {
+				int gx = x + 3 + i * 5;
+				LegacyUi.diamond(graphics, gx, y + SLOT - 3, 2, i < state.charges() ? 0xFFE8DEFF : 0xFF3A2E48);
+			}
+		}
 		if (ability.awakening()) {
 			// An Awakening's slot wears the crown's gems
 			LegacyUi.diamond(graphics, x + SLOT / 2, y - 1, 2, color);

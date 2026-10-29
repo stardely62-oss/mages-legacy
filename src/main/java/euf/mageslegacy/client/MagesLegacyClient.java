@@ -76,6 +76,11 @@ public class MagesLegacyClient {
 		choicePending = true;
 	}
 
+	/** Through Worlds may be opened: whom to? */
+	public static void openPassage() {
+		Minecraft.getInstance().setScreen(new euf.mageslegacy.client.screen.PassageScreen());
+	}
+
 	public static void onSync(SyncPayload payload) {
 		ClientRace.update(payload);
 	}

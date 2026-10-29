@@ -50,7 +50,8 @@ public enum Talent {
 	STEP_STONE(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 3.8f, 178, 3, 0, "step_far", "step_echo", "step_quick"),
 	AWAKENING_WORLDS(Race.VOIDBORN, Kind.AWAKENING, Branch.WORLDS, 4.2f, 150, 5, 0, "abyss_gaze", "step_far_2", "step_stone"),
 	WORLDS_LONG(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 5.3f, 134, 2, 0, "excise_long", "awakening_worlds"),
-	WORLDS_FAR(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 5.3f, 150, 2, 0, "step_cut", "awakening_worlds"),
+	WORLDS_CHARGE_2(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 5.3f, 150, 2, 0, "step_cut", "awakening_worlds"),
+	WORLDS_CHARGE_3(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 6.2f, 150, 3, 0, "step_cut", "worlds_charge_2"),
 	WORLDS_TRAIN(Race.VOIDBORN, Kind.TRANSFORM, Branch.WORLDS, 5.3f, 166, 2, 0, "excise_drop", "awakening_worlds"),
 	WORLDS_CLEANSE(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 5.3f, 118, 2, 0, "step_mend", "awakening_worlds"),
 
@@ -159,7 +160,7 @@ public enum Talent {
 		if (automatic()) {
 			return 1;
 		}
-		if (kind == Kind.AWAKENING || awakening() != null) {
+		if (kind == Kind.AWAKENING || awakening() != null || this == WORLDS_CHARGE_3) {
 			return 4;
 		}
 		return switch (this) {

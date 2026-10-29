@@ -99,6 +99,8 @@ public final class Voidborn {
 	public static final class State {
 		public final int[] cooldown = new int[Ability.SLOTS];
 		public final int[] cooldownTotal = new int[Ability.SLOTS];
+		/** Through Worlds: the game time each of its charges is ready again. */
+		public final long[] passageReady = new long[Passage.MAX_CHARGES];
 		public Step step;
 		public int gravity;
 		public int lastHurt = -10_000;
@@ -221,6 +223,7 @@ public final class Voidborn {
 		// Testing mode (/mages_legacy nocooldown): everything ready, the resource full
 		if (Talents.noCooldown(player)) {
 			java.util.Arrays.fill(state.cooldown, 0);
+			java.util.Arrays.fill(state.passageReady, 0);
 			state.shelterReady = 0;
 			RaceState.setResource(player, RaceState.MAX_RESOURCE);
 		}
@@ -346,6 +349,22 @@ public final class Voidborn {
 		BlockHitResult hit = level.clip(new ClipContext(eye, eye.add(dir.scale(reach)), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
 		boolean blocked = hit.getType() == HitResult.Type.BLOCK;
 		double wall = blocked ? hit.getLocation().distanceTo(eye) : reach;
+		// Into the side of a wall: through it, at the walker's own height (a glance a little down or up must not
+		// bury the way behind the wall), settling onto the ground there
+		if (blocked && hit.getDirection().getAxis().isHorizontal()) {
+			Vec3 flat = new Vec3(dir.x, 0, dir.z);
+			if (flat.lengthSqr() > 1.0E-4) {
+				flat = flat.normalize();
+				double flatWall = hit.getLocation().subtract(eye).multiply(1, 0, 1).length();
+				double flatReach = reach * Math.max(0.6, Math.sqrt(1 - dir.y * dir.y));
+				for (double d = flatReach; d > flatWall + 0.4; d -= 0.5) {
+					Vec3 behind = settle(level, player, from.add(flat.scale(d)));
+					if (behind != null) {
+						return behind;
+					}
+				}
+			}
+		}
 		if (blocked && hit.getDirection() != Direction.UP) {
 			for (double d = reach; d > wall + 0.4; d -= 0.5) {
 				Vec3 candidate = eye.add(dir.scale(d)).subtract(feet);
@@ -364,6 +383,17 @@ public final class Voidborn {
 			Vec3 candidate = eye.add(dir.scale(d)).subtract(feet);
 			if (fits(level, player, candidate) && candidate.distanceTo(from) >= 1.5) {
 				return candidate;
+			}
+		}
+		return null;
+	}
+
+	/** A place to stand near this point: up or down to 3 blocks, on solid ground; null if the body fits nowhere there. */
+	private static Vec3 settle(ServerLevel level, ServerPlayer player, Vec3 at) {
+		for (int dy : new int[] {0, 1, -1, 2, -2, 3, -3}) {
+			Vec3 c = new Vec3(at.x, Math.floor(at.y) + dy, at.z);
+			if (fits(level, player, c) && onGround(level, c)) {
+				return c;
 			}
 		}
 		return null;

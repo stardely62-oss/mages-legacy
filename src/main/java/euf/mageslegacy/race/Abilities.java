@@ -61,9 +61,12 @@ public final class Abilities {
 			refuse(player, Component.translatable("mages_legacy.refuse.cooldown", String.format("%.1f", state.cooldown[slot] / 20f)));
 			return;
 		}
-		// The place for Through Worlds is remembered with a sneak, free and without waiting
-		if (ability == Ability.PASSAGE && Passage.tryRemember(player)) {
-			RaceState.sync(player);
+		// Through Worlds keeps its own charges: the key shows whom it can be opened to, the choice spends a charge
+		if (ability == Ability.PASSAGE) {
+			Refusal why = Passage.choose(player);
+			if (why != null) {
+				refuse(player, Component.translatable(why.key()));
+			}
 			return;
 		}
 		if (!free && RaceState.resource(player) < cost) {
@@ -75,7 +78,7 @@ public final class Abilities {
 			case GRAVITY -> Voidborn.gravity(player);
 			case POCKET -> free ? Pocket.leave(player) : Pocket.enter(player);
 			case RIFT_ARENA -> Arena.use(player);
-			case PASSAGE -> Passage.open(player);
+			case PASSAGE -> null;
 			case BLACK_HOLE -> BlackHole.use(player);
 		};
 		if (refusal != null) {
