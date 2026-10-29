@@ -84,8 +84,8 @@ final class MycelidFx {
 			float a = fade(life, ticks, 6, 12);
 			Vec3 c = (follow != null ? follow.getPosition(partial) : at).add(0, 0.06, 0);
 			float breathe = 1 + 0.04f * (float) Math.sin(life * 0.15);
-			decal(draw, FxDraw.CLOUD, c, radius * breathe, spin + life * 0.012, a * 0.85f, 0.35f);
-			decal(draw, FxDraw.CLOUD, c.add(0, 0.02, 0), radius * 0.75f / breathe, spin * 2 - life * 0.02, a * 0.6f, 0.25f);
+			decal(draw, FxDraw.CLOUD, c, radius * breathe, spin + life * 0.012, a * 0.5f, 0.06f);
+			decal(draw, FxDraw.CLOUD, c.add(0, 0.02, 0), radius * 0.75f / breathe, spin * 2 - life * 0.02, a * 0.35f, 0.04f);
 		}
 	}
 
@@ -106,7 +106,7 @@ final class MycelidFx {
 		void draw(FxDraw draw, float partial) {
 			float t = progress(partial);
 			float r = from + (to - from) * VoidRender.easeOut(t);
-			decal(draw, FxDraw.FIELD, at, r, 0, (float) Math.pow(1 - t, 1.3), 0.9f);
+			decal(draw, FxDraw.FIELD, at, r, 0, (float) Math.pow(1 - t, 1.3) * 0.8f, 0.35f);
 		}
 	}
 
@@ -133,11 +133,11 @@ final class MycelidFx {
 			float life = life(partial);
 			float a = fade(life, ticks, 5, 10);
 			Vec3 to = ally.getPosition(partial);
-			decal(draw, FxDraw.AURA, to.add(0, 0.05, 0), Math.max(0.8f, ally.getBbWidth() * 1.3f), life * 0.05, a, 0.8f);
+			decal(draw, FxDraw.AURA, to.add(0, 0.05, 0), Math.max(0.8f, ally.getBbWidth() * 1.3f), life * 0.05, a * 0.85f, 0.3f);
 			if (caster != null && caster != ally && !caster.isRemoved()) {
 				Vec3 from = caster.getPosition(partial).add(0, caster.getBbHeight() * 0.6, 0);
 				float pulse = 0.75f + 0.25f * (float) Math.sin(life * 0.4);
-				band(draw, FxDraw.THREAD, from, to.add(0, ally.getBbHeight() * 0.6, 0), 0.35f, a * pulse, 0.9f);
+				band(draw, FxDraw.THREAD, from, to.add(0, ally.getBbHeight() * 0.6, 0), 0.35f, a * pulse, 0.4f);
 			}
 		}
 	}
@@ -177,10 +177,10 @@ final class MycelidFx {
 			float life = life(partial);
 			float a = fade(life, ticks, 10, 15);
 			Vec3 c = heart.getPosition(partial);
-			decal(draw, FxDraw.SPIRAL, c.add(0, 0.07, 0), radius, -life * 0.06, a * 0.9f, 0.45f);
-			decal(draw, FxDraw.SPIRAL, c.add(0, 1.6, 0), radius * 0.7f, -life * 0.09 + 1.0, a * 0.45f, 0.3f);
-			decal(draw, FxDraw.SPIRAL, c.add(0, 3.4, 0), radius * 0.45f, -life * 0.13 + 2.0, a * 0.3f, 0.25f);
-			decal(draw, FxDraw.CLOUD, c.add(0, 0.09, 0), radius * 0.55f, life * 0.03, a * 0.5f, 0.2f);
+			decal(draw, FxDraw.SPIRAL, c.add(0, 0.07, 0), radius, -life * 0.06, a * 0.55f, 0.08f);
+			decal(draw, FxDraw.SPIRAL, c.add(0, 1.6, 0), radius * 0.7f, -life * 0.09 + 1.0, a * 0.3f, 0.05f);
+			decal(draw, FxDraw.SPIRAL, c.add(0, 3.4, 0), radius * 0.45f, -life * 0.13 + 2.0, a * 0.2f, 0.04f);
+			decal(draw, FxDraw.CLOUD, c.add(0, 0.09, 0), radius * 0.55f, life * 0.03, a * 0.3f, 0.03f);
 		}
 	}
 
@@ -256,8 +256,8 @@ final class MycelidFx {
 			float s = size(partial);
 			float life = life(partial);
 			float fieldA = Math.min(1, life / 20f) * (withering < 0 ? 1 : s);
-			decal(draw, FxDraw.FIELD, base.add(0, 0.05, 0), field, life * 0.004, fieldA * 0.8f, 0.6f);
-			decal(draw, FxDraw.CLOUD, base.add(0, 0.06, 0), 4.5f * s, -life * 0.01, fieldA * 0.5f, 0.3f);
+			decal(draw, FxDraw.FIELD, base.add(0, 0.05, 0), field, life * 0.004, fieldA * 0.7f, 0.25f);
+			decal(draw, FxDraw.CLOUD, base.add(0, 0.06, 0), 4.5f * s, -life * 0.01, fieldA * 0.3f, 0.04f);
 			float time = life / 20f;
 			Vec3 sway = new Vec3(Math.sin(time * 1.3) * 0.1, 0, Math.cos(time * 1.1) * 0.1);
 			// The spots breathe: the glow of the cap rises and falls
@@ -344,7 +344,7 @@ final class MycelidFx {
 		for (int k = 0; k < 8; k++) {
 			Vec3 top = cap[rings][(k * around / 8 + 1) % around];
 			float len = (0.9f + 0.6f * ((k * 37) % 5) / 5f) * s;
-			band(draw, FxDraw.THREAD, top.add(0, 0.1, 0), top.add(0, -len, 0), 0.25f * s, alpha * 0.9f, 0.9f);
+			band(draw, FxDraw.THREAD, top.add(0, 0.1, 0), top.add(0, -len, 0), 0.25f * s, alpha * 0.9f, 0.4f);
 		}
 	}
 
