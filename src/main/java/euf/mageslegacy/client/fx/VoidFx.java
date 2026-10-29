@@ -1,6 +1,7 @@
 package euf.mageslegacy.client.fx;
 
 import euf.mageslegacy.MagesLegacy;
+import euf.mageslegacy.client.ScreenFx;
 import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.net.FxPayload;
 import java.util.ArrayList;
