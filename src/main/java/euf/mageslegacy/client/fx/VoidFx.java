@@ -313,7 +313,7 @@ public final class VoidFx {
 		@Override
 		boolean tick() {
 			Vec3 c = caster.position();
-			for (int i = 0; i < Math.round(reach * 1.5f); i++) {
+			for (int i = 0; i < Math.min(14, Math.round(reach * 1.5f)); i++) {
 				double a = VoidRender.rand(0, Math.PI * 2);
 				double r = reach * Math.sqrt(VoidRender.rand(0.1, 1));
 				VoidRender.Particle streak = new VoidRender.Particle(c.add(Math.cos(a) * r, VoidRender.rand(2.6, 3.6), Math.sin(a) * r),
@@ -391,7 +391,7 @@ public final class VoidFx {
 			this.gather = gather;
 			this.seed = VoidRender.RANDOM.nextFloat();
 			// A ring of space drawn in to the point where it will be born
-			VoidRender.add(new Ring(heart.position().add(0, 1.14, 0), 7f, 0.2f, gather));
+			VoidRender.add(new Ring(heart.position().add(0, 1.14, 0), 14f, 0.4f, gather));
 		}
 
 		/** The core: a pinpoint at first, swelling through the birth, with a little overshoot as it settles. */
@@ -416,16 +416,16 @@ public final class VoidFx {
 			if (age < gather) {
 				for (int i = 0; i < 6; i++) {
 					Vec3 dir = VoidRender.randomDir();
-					VoidRender.Particle in = new VoidRender.Particle(c.add(dir.scale(VoidRender.rand(6, 10))), Vec3.ZERO, 26, 0.09f, STAR_TINT, true,
+					VoidRender.Particle in = new VoidRender.Particle(c.add(dir.scale(VoidRender.rand(12, 20))), Vec3.ZERO, 30, 0.12f, STAR_TINT, true,
 							0.9f, 1.2f);
 					in.attract = c;
-					in.pull = 0.12f;
+					in.pull = 0.24f;
 					VoidRender.add(in);
 				}
 			}
 			for (int i = 0; i < 5; i++) {
 				Vec3 dir = VoidRender.randomDir();
-				VoidRender.Particle mote = new VoidRender.Particle(c.add(dir.scale(VoidRender.rand(5, 9))), dir.cross(new Vec3(0, 1, 0)).scale(0.1), 30,
+				VoidRender.Particle mote = new VoidRender.Particle(c.add(dir.scale(VoidRender.rand(10, 18))), dir.cross(new Vec3(0, 1, 0)).scale(0.2), 34,
 						0.16f, MOTE_TINT, false, 0.93f, 0.8f);
 				mote.attract = c;
 				mote.pull = 0.06f;
@@ -447,12 +447,12 @@ public final class VoidFx {
 			Vec3 normal = new Vec3(0.3, 1, 0.15).normalize();
 			Vec3 e1 = normal.cross(new Vec3(0, 0, 1)).normalize();
 			Vec3 e2 = normal.cross(e1).normalize();
-			float disk = 4.2f * disk(life(partial));
+			float disk = 8.4f * disk(life(partial));
 			if (disk > 0.02f) {
 				draw.quad(FxDraw.GROUND, c, e1.scale(disk), e2.scale(disk), 1, seed, FxDraw.DISK, 1);
 			}
 			Billboard b = Billboard.facing(draw.cam, c);
-			float core = 2.1f * size;
+			float core = 4.2f * size;
 			draw.quad(FxDraw.ORB, c, b.right.scale(core), b.up.scale(core), 1, seed, FxDraw.HOLE, 1);
 		}
 	}

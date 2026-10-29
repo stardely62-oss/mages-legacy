@@ -39,8 +39,9 @@ public final class BlackHole {
 	private static final int GATHER = 30;
 	private static final int GATHER_QUICK = 20;
 	private static final int PULL = 60;
-	private static final double RADIUS = 10;
-	private static final double RADIUS_WIDE = 12.5;
+	private static final double RADIUS = 20;
+	/** Event Horizon: the pull reaches a quarter farther. */
+	private static final double WIDE_FACTOR = 1.25;
 	/** The collapse strikes enemies this close to the heart. */
 	private static final double CRUSH = 6;
 
@@ -96,7 +97,7 @@ public final class BlackHole {
 	}
 
 	public static double radius(ServerPlayer player) {
-		return Talents.has(player, Talent.HOLE_WIDE) ? RADIUS_WIDE : RADIUS;
+		return Talents.has(player, Talent.HOLE_WIDE) ? RADIUS * WIDE_FACTOR : RADIUS;
 	}
 
 	private static void onTick(PlayerTickEvent.Post event) {

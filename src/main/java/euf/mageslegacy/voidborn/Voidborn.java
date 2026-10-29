@@ -83,6 +83,7 @@ public final class Voidborn {
 	/** A second and a quarter in the void between worlds, then out at the far end. */
 	private static final int STEP_TICKS = 25;
 	private static final int GRAVITY_TICKS = 4 * 20;
+	private static final double GRAVITY_REACH = 7;
 	/** An open door (Open Door talent) lets allies follow for 3 seconds after the walk. */
 	private static final int DOOR_TICKS = 3 * 20;
 	/** How high the walk may climb to come out on top of what the player looks at. */
@@ -786,8 +787,8 @@ public final class Voidborn {
 	}
 
 	public static double gravityReach(ServerPlayer player) {
-		// A small field, as designed: radius 2 (4×4 across), 3 (6×6) with Wide Weight
-		return Talents.has(player, Talent.GRAV_WIDE) ? 3 : 2;
+		// Radius 7; Wide Weight half as much again
+		return Talents.has(player, Talent.GRAV_WIDE) ? GRAVITY_REACH * 1.5 : GRAVITY_REACH;
 	}
 
 	private static AABB gravityArea(ServerPlayer player) {
