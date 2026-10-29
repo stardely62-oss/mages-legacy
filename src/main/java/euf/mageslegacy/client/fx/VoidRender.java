@@ -225,8 +225,8 @@ public final class VoidRender {
 		float y = (clip.y / clip.w) * 0.5f + 0.5f;
 		var window = Minecraft.getInstance().getWindow();
 		float aspect = window.getWidth() / (float) Math.max(1, window.getHeight());
-		// Two blocks of radius around the heart, as seen from here
-		float radius = (float) (2.6 * event.getProjectionMatrix().m11() / Math.max(0.5, clip.w)) * 0.5f;
+		// About four blocks of radius around the heart, as seen from here
+		float radius = (float) (4.2 * event.getProjectionMatrix().m11() / Math.max(0.5, clip.w)) * 0.5f;
 		pipeline.getUniformSafe("LensCenter").setVector(x, y);
 		pipeline.getUniformSafe("LensRadius").setFloat(Math.min(0.6f, radius));
 		pipeline.getUniformSafe("LensStrength").setFloat(lensStrength * 0.25f);

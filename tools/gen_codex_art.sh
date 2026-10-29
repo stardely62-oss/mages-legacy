@@ -26,7 +26,6 @@ declare -A P=(
   [talent_step_quick]="$ICON $VOID Subject: a short violet lightning-fast arrow between two rifts, with three speed lines."
   [talent_step_trace]="$ICON $VOID Subject: a dark hooded silhouette fading into violet mist, a red monster eye crossed out above it."
   [talent_step_ally]="$ICON $VOID Subject: two blocky figures walking side by side through a glowing violet rift."
-  [talent_step_mark]="$ICON $VOID Subject: a glowing violet pin mark planted in starry space with a small rift around it."
   [talent_awakening_worlds]="$ICON $VOID Subject: two glowing violet rifts facing each other, joined by a bright arc of stars."
   [talent_worlds_long]="$ICON $VOID Subject: a stable glowing violet portal ring held open by four small stone pillars."
   [talent_worlds_far]="$ICON $VOID Subject: a violet portal with a distant tiny second portal far behind it on a long starry path."

@@ -39,10 +39,10 @@ public final class BlackHole {
 	private static final int GATHER = 30;
 	private static final int GATHER_QUICK = 20;
 	private static final int PULL = 60;
-	private static final double RADIUS = 10;
-	private static final double RADIUS_WIDE = 14;
+	private static final double RADIUS = 14;
+	private static final double RADIUS_WIDE = 18;
 	/** The collapse strikes enemies this close to the heart. */
-	private static final double CRUSH = 5;
+	private static final double CRUSH = 6;
 
 	private static final class Hole {
 		final Vec3 at;
@@ -87,7 +87,6 @@ public final class BlackHole {
 		Fx.hide(level, player, gather + PULL);
 		player.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.INVISIBILITY, gather + PULL, 0, true,
 				false, false));
-		Fx.cracks(level, player.position(), null, 4f, gather + PULL + 10);
 		Fx.muffle(level, player.position(), radius + 6, gather + PULL + 6);
 		Fx.shake(player, 0.6f, gather);
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 1f, 0.5f);

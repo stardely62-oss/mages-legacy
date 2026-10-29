@@ -82,9 +82,6 @@ public final class Voidborn {
 	/** A second and a quarter in the void between worlds, then out at the far end. */
 	private static final int STEP_TICKS = 25;
 	private static final int GRAVITY_TICKS = 4 * 20;
-	/** A mark in space lasts 5 minutes and can be walked to from 32 blocks. */
-	private static final int MARK_TICKS = 5 * 60 * 20;
-	private static final double MARK_REACH = 32;
 	/** An open door (Open Door talent) lets allies follow for 3 seconds after the walk. */
 	private static final int DOOR_TICKS = 3 * 20;
 	/** How high the walk may climb to come out on top of what the player looks at. */
@@ -105,10 +102,6 @@ public final class Voidborn {
 		public Step step;
 		public int gravity;
 		public int lastHurt = -10_000;
-		/** A mark in space (Space Mark talent): where, in which world, until when (game time). */
-		Vec3 mark;
-		ResourceKey<Level> markLevel;
-		long markUntil;
 		/** Echo of the Step: where the last walk began, until when it can be walked back to. */
 		Vec3 echo;
 		ResourceKey<Level> echoLevel;
@@ -252,13 +245,6 @@ public final class Voidborn {
 		if (state.gravity > 0) {
 			tickGravity(player, state);
 		}
-		if (state.mark != null && player.tickCount % 40 == 0) {
-			if (level.getGameTime() > state.markUntil) {
-				state.mark = null;
-			} else if (level.dimension() == state.markLevel) {
-				Fx.rift(level, state.mark.add(0, 1.2, 0), 1.2f, 0.6f, 44);
-			}
-		}
 		if (state.linger != null) {
 			tickLinger(player, state);
 		}
@@ -292,27 +278,7 @@ public final class Voidborn {
 		return STEP_TICKS;
 	}
 
-	/**
-	 * Sneaking with the Space Mark talent leaves a mark in space instead of walking (free, no cooldown); returns
-	 * whether it did.
-	 */
-	public static boolean tryMark(ServerPlayer player) {
-		if (!player.isShiftKeyDown() || !Talents.has(player, Talent.STEP_MARK)) {
-			return false;
-		}
-		State state = state(player);
-		state.mark = player.position();
-		state.markLevel = player.level().dimension();
-		state.markUntil = player.level().getGameTime() + MARK_TICKS;
-		Fx.rift(player.serverLevel(), state.mark.add(0, 1.2, 0), 1.6f, 0.8f, 30);
-		Fx.burst(player.serverLevel(), state.mark.add(0, 1, 0), 0.8f, 6, false);
-		player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 1f,
-				0.6f);
-		player.displayClientMessage(Component.translatable("mages_legacy.message.mark_set").withStyle(ChatFormatting.LIGHT_PURPLE), true);
-		return true;
-	}
-
-	/** Opens a rift and starts the walk towards where the player looks (or to their mark), to a point the body fits in. */
+	/** Starts the walk through the void towards where the player looks, to a point the body fits in. */
 	public static Abilities.Refusal step(ServerPlayer player) {
 		State state = state(player);
 		if (state.step != null) {
@@ -320,16 +286,7 @@ public final class Voidborn {
 		}
 		ServerLevel level = player.serverLevel();
 		Vec3 from = player.position();
-		Vec3 to = null;
-		// A mark in reach pulls the walk to itself
-		if (state.mark != null && state.markLevel == level.dimension() && level.getGameTime() <= state.markUntil
-				&& state.mark.distanceTo(from) <= MARK_REACH && fits(level, player, state.mark)) {
-			to = state.mark;
-			state.mark = null;
-		}
-		if (to == null) {
-			to = stepTarget(level, player);
-		}
+		Vec3 to = stepTarget(level, player);
 		if (to == null) {
 			return new Abilities.Refusal("mages_legacy.refuse.no_exit");
 		}
@@ -473,9 +430,6 @@ public final class Voidborn {
 	private static void sinkFx(ServerLevel level, Vec3 at) {
 		Fx.burst(level, at.add(0, 1, 0), 1.1f, 7, true);
 		Fx.sparkle(level, at.add(0, 1, 0), 24, 0.05f);
-		if (onGround(level, at)) {
-			Fx.cracks(level, at, null, 1.1f, 30);
-		}
 	}
 
 	/** Whether something solid lies right under these feet (marks on the ground only go where there is ground). */
@@ -505,12 +459,11 @@ public final class Voidborn {
 		player.removeEffect(MobEffects.INVISIBILITY);
 		player.hurtMarked = true;
 		ServerLevel level = player.serverLevel();
-		// Coming out: a flash of the void, motes and stars thrown out, and on solid ground a wave and cracks
+		// Coming out: a flash of the void, motes and stars thrown out, and on solid ground a wave
 		Fx.burst(level, at.add(0, 1, 0), 1.5f, 7, false);
 		Fx.sparkle(level, at.add(0, 1, 0), 30, 0.1f);
 		if (onGround(level, at)) {
 			Fx.ring(level, at, 0.3f, 2.6f, 10);
-			Fx.cracks(level, at, null, 1.5f, 40);
 		}
 		level.playSound(null, at.x, at.y, at.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0f, 1.2f);
 		if (step.companion) {
@@ -559,7 +512,6 @@ public final class Voidborn {
 				e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 0, false, true), player);
 			}
 			Fx.ring(level, at, 0.3f, 2.4f, 10);
-			Fx.cracks(level, at, null, 1.3f, 30);
 		}
 		RaceState.sync(player);
 	}
@@ -692,7 +644,6 @@ public final class Voidborn {
 				state.lingerUntil = player.level().getGameTime() + LINGER_TICKS;
 				state.lingerReach = gravityReach(player);
 				Fx.ring(player.serverLevel(), state.linger, 0.3f, (float) state.lingerReach + 0.5f, 14);
-				Fx.cracks(player.serverLevel(), state.linger, null, (float) state.lingerReach, LINGER_TICKS);
 			}
 		}
 	}

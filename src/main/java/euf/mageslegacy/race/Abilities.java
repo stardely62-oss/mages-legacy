@@ -61,11 +61,6 @@ public final class Abilities {
 			refuse(player, Component.translatable("mages_legacy.refuse.cooldown", String.format("%.1f", state.cooldown[slot] / 20f)));
 			return;
 		}
-		// A mark in space (Space Mark talent) is left with a sneak, free and without waiting
-		if (ability == Ability.VOID_STEP && RaceState.level(player) >= ability.level && Voidborn.tryMark(player)) {
-			RaceState.sync(player);
-			return;
-		}
 		// The place for Through Worlds is remembered with a sneak, free and without waiting
 		if (ability == Ability.PASSAGE && Passage.tryRemember(player)) {
 			RaceState.sync(player);

@@ -43,13 +43,12 @@ public enum Talent {
 	STEP_QUICK(Race.VOIDBORN, Kind.TRANSFORM, Branch.WORLDS, 2, 170, 2, 0, "step_quick", "void_step"),
 	STEP_TRACE(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 2, 130, 1, 0, "step_veil", "void_step"),
 	STEP_ALLY(Race.VOIDBORN, Kind.TRANSFORM, Branch.WORLDS, 3, 133, 2, 0, "step_ally", "step_far", "step_trace"),
-	STEP_MARK(Race.VOIDBORN, Kind.TRANSFORM, Branch.WORLDS, 3, 167, 2, 0, "step_rift", "step_quick"),
 	STEP_SOFT(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 2, 110, 1, 0, "step_veil", "void_step"),
 	STEP_SENSE(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 2, 190, 1, 0, "step_sever", "void_step"),
 	STEP_ECHO(Race.VOIDBORN, Kind.TRANSFORM, Branch.WORLDS, 3, 187, 2, 0, "step_rift", "step_sense"),
 	STEP_AMBUSH(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 3, 113, 2, 0, "step_cut", "step_soft"),
-	STEP_STONE(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 3.8f, 178, 3, 0, "step_far", "step_echo", "step_mark"),
-	AWAKENING_WORLDS(Race.VOIDBORN, Kind.AWAKENING, Branch.WORLDS, 4.2f, 150, 5, 0, "abyss_gaze", "step_far_2", "step_mark"),
+	STEP_STONE(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 3.8f, 178, 3, 0, "step_far", "step_echo", "step_quick"),
+	AWAKENING_WORLDS(Race.VOIDBORN, Kind.AWAKENING, Branch.WORLDS, 4.2f, 150, 5, 0, "abyss_gaze", "step_far_2", "step_stone"),
 	WORLDS_LONG(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 5.3f, 134, 2, 0, "excise_long", "awakening_worlds"),
 	WORLDS_FAR(Race.VOIDBORN, Kind.PASSIVE, Branch.WORLDS, 5.3f, 150, 2, 0, "step_cut", "awakening_worlds"),
 	WORLDS_TRAIN(Race.VOIDBORN, Kind.TRANSFORM, Branch.WORLDS, 5.3f, 166, 2, 0, "excise_drop", "awakening_worlds"),
@@ -164,7 +163,7 @@ public enum Talent {
 			return 4;
 		}
 		return switch (this) {
-			case POCKET_WIDE_3, POCKET_VAULT, STEP_FAR_2, STEP_MARK, GRAV_PULL, GRAV_ARROWS, POCKET_TWO_DOORS, POCKET_SHELTER, STEP_STONE,
+			case POCKET_WIDE_3, POCKET_VAULT, STEP_FAR_2, GRAV_PULL, GRAV_ARROWS, POCKET_TWO_DOORS, POCKET_SHELTER, STEP_STONE,
 					GRAV_LINGER, GRAV_FEAST, STEP_HOMEWARD, STEP_RUPTURE, POCKET_HOLD -> 3;
 			case POCKET_CRADLE, STEP_ALLY, GRAV_FLIERS, STEP_DOOR, STEP_HEAVY, DOOR_RECOIL, POCKET_GARDEN, VOID_EYES, STEP_ECHO, STEP_AMBUSH,
 					GRAV_FUSE, GRAV_CHAIN -> 2;

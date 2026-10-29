@@ -400,7 +400,7 @@ public final class VoidFx {
 			Vec3 c = heart.position().add(0, 1.2, 0);
 			for (int i = 0; i < 5; i++) {
 				Vec3 dir = VoidRender.randomDir();
-				VoidRender.Particle mote = new VoidRender.Particle(c.add(dir.scale(VoidRender.rand(3, 5))), dir.cross(new Vec3(0, 1, 0)).scale(0.08), 26,
+				VoidRender.Particle mote = new VoidRender.Particle(c.add(dir.scale(VoidRender.rand(5, 9))), dir.cross(new Vec3(0, 1, 0)).scale(0.1), 30,
 						0.16f, MOTE_TINT, false, 0.93f, 0.8f);
 				mote.attract = c;
 				mote.pull = 0.06f;
@@ -422,10 +422,10 @@ public final class VoidFx {
 			Vec3 normal = new Vec3(0.3, 1, 0.15).normalize();
 			Vec3 e1 = normal.cross(new Vec3(0, 0, 1)).normalize();
 			Vec3 e2 = normal.cross(e1).normalize();
-			float disk = 2.6f * size;
+			float disk = 4.2f * size;
 			draw.quad(FxDraw.GROUND, c, e1.scale(disk), e2.scale(disk), 1, seed, FxDraw.DISK, 1);
 			Billboard b = Billboard.facing(draw.cam, c);
-			float core = 1.3f * size;
+			float core = 2.1f * size;
 			draw.quad(FxDraw.ORB, c, b.right.scale(core), b.up.scale(core), 1, seed, FxDraw.HOLE, 1);
 		}
 	}

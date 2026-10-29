@@ -159,7 +159,6 @@ public final class Arena {
 		ServerLevel level = owner.serverLevel();
 		// A huge rift tears open above the battlefield, the ground cracks, the view sinks
 		Fx.rift(level, owner.position().add(0, 4, 0), 7f, 3.2f, OPENING + 14);
-		Fx.cracks(level, owner.position(), null, 6f, OPENING + 20);
 		Fx.ring(level, owner.position(), 0.5f, (float) REACH, OPENING);
 		Fx.shake(owner, 1.6f, OPENING);
 		level.playSound(null, owner.getX(), owner.getY(), owner.getZ(), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 0.8f, 0.7f);
