@@ -23,6 +23,9 @@ public final class ScreenFx {
 	private static final List<float[]> VOIDS = new ArrayList<>();
 	private static final List<float[]> SHAKES = new ArrayList<>();
 	private static final List<float[]> FOVS = new ArrayList<>();
+	/** Ticks left of a view from behind (the Black Hole), and the view to return to. */
+	private static int outside;
+	private static net.minecraft.client.CameraType before;
 	/** Ticks left of muffled hearing (the in-between, a singularity nearby). */
 	private static int muffled;
 	private static float gain = -1;
@@ -36,6 +39,14 @@ public final class ScreenFx {
 			case Fx.VOID_SCREEN -> VOIDS.add(new float[] {payload.ticks(), 0, 1});
 			case Fx.SHAKE -> SHAKES.add(new float[] {payload.ticks(), 0, payload.a()});
 			case Fx.FOV -> FOVS.add(new float[] {payload.ticks(), 0, payload.a()});
+			case Fx.THIRD_PERSON -> {
+				var options = Minecraft.getInstance().options;
+				if (outside <= 0) {
+					before = options.getCameraType();
+				}
+				outside = Math.max(outside, payload.ticks());
+				options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+			}
 			case Fx.MUFFLE -> {
 				var player = Minecraft.getInstance().player;
 				if (player != null && (payload.entity() == player.getId() || player.position().distanceTo(payload.from()) <= payload.a())) {
@@ -49,6 +60,14 @@ public final class ScreenFx {
 
 	static void tick() {
 		clientTicks++;
+		// The view comes back to the eyes it left (unless the player has changed it themselves meanwhile)
+		if (outside > 0 && --outside == 0 && before != null) {
+			var options = Minecraft.getInstance().options;
+			if (options.getCameraType() == net.minecraft.client.CameraType.THIRD_PERSON_BACK) {
+				options.setCameraType(before);
+			}
+			before = null;
+		}
 		hearing();
 		for (List<float[]> list : List.of(VOIDS, SHAKES, FOVS)) {
 			list.removeIf(f -> ++f[1] >= f[0]);

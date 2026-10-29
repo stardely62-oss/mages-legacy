@@ -76,10 +76,17 @@ public final class VoidSky {
 			RenderSystem.disableDepthTest();
 		}
 		RenderSystem.disableCull();
-		dome(alpha);
-		stars(alpha, time);
-		if (dir != null) {
-			passing(alpha, dir, travel, speed);
+		try {
+			dome(alpha);
+			stars(alpha, time);
+			if (dir != null) {
+				passing(alpha, dir, travel, speed);
+			}
+		} catch (RuntimeException e) {
+			// The sky is only a picture: it must never take the game down
+			euf.mageslegacy.MagesLegacy.LOGGER.error("The void's sky failed to draw", e);
+		} finally {
+			RenderSystem.defaultBlendFunc();
 		}
 		RenderSystem.enableCull();
 		RenderSystem.enableDepthTest();
@@ -115,7 +122,7 @@ public final class VoidSky {
 			bb.addVertex(face, 100, -100, 100).setUv(16, 16).setColor(r, g, b, alpha);
 			bb.addVertex(face, 100, -100, -100).setUv(16, 0).setColor(r, g, b, alpha);
 		}
-		BufferUploader.drawWithShader(bb.buildOrThrow());
+		upload(bb);
 	}
 
 	/** The near stars of a flight: each moved back along the way by what has been flown, wrapped round the box. */
@@ -140,7 +147,11 @@ public final class VoidSky {
 				continue;
 			}
 			tail.set(dir).mul(length).add(p);
-			across.set(dir).cross(p).normalize().mul(s[3] * (1 + d * 0.03f));
+			across.set(dir).cross(p);
+			if (across.lengthSquared() < 1.0E-4f) {
+				continue;
+			}
+			across.normalize().mul(s[3] * (1 + d * 0.03f));
 			float r = s[4] > 0 ? 0.8f : 1f;
 			float g = s[4] > 0 ? 0.7f : 1f;
 			bb.addVertex(p.x - across.x, p.y - across.y, p.z - across.z).setColor(r, g, 1f, a);
@@ -148,8 +159,16 @@ public final class VoidSky {
 			bb.addVertex(tail.x + across.x, tail.y + across.y, tail.z + across.z).setColor(r, g, 1f, 0);
 			bb.addVertex(tail.x - across.x, tail.y - across.y, tail.z - across.z).setColor(r, g, 1f, 0);
 		}
-		BufferUploader.drawWithShader(bb.buildOrThrow());
+		upload(bb);
 		RenderSystem.defaultBlendFunc();
+	}
+
+	/** Draws what was written; a frame where every star was too faint to write is simply nothing to draw. */
+	private static void upload(BufferBuilder bb) {
+		com.mojang.blaze3d.vertex.MeshData mesh = bb.build();
+		if (mesh != null) {
+			BufferUploader.drawWithShader(mesh);
+		}
 	}
 
 	private static float wrap(float v) {
@@ -179,7 +198,7 @@ public final class VoidSky {
 			bb.addVertex(centre.x + side.x + up.x, centre.y + side.y + up.y, centre.z + side.z + up.z).setColor(r, g, 1f, a);
 			bb.addVertex(centre.x - side.x + up.x, centre.y - side.y + up.y, centre.z - side.z + up.z).setColor(r, g, 1f, a);
 		}
-		BufferUploader.drawWithShader(bb.buildOrThrow());
+		upload(bb);
 		RenderSystem.defaultBlendFunc();
 	}
 }

@@ -48,6 +48,8 @@ public final class Fx {
 	public static final int PRESS = 14;
 	/** A body gone from sight for a while, armour and all (in the void, or the heart of a singularity). */
 	public static final int HIDE = 15;
+	/** The player's own view steps back behind them for a while (third person), then returns. */
+	public static final int THIRD_PERSON = 16;
 
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
@@ -86,7 +88,16 @@ public final class Fx {
 	}
 
 	public static void vortex(ServerLevel level, Entity around, float radius, int ticks) {
-		send(level, around.position(), new FxPayload(VORTEX, around.getId(), around.position(), around.position(), ticks, radius, 0));
+		vortex(level, around, radius, ticks, 8);
+	}
+
+	/** {@code gather}: how many of its ticks the singularity spends being born before it pulls. */
+	public static void vortex(ServerLevel level, Entity around, float radius, int ticks, int gather) {
+		send(level, around.position(), new FxPayload(VORTEX, around.getId(), around.position(), around.position(), ticks, radius, gather));
+	}
+
+	public static void thirdPerson(ServerPlayer player, int ticks) {
+		PacketDistributor.sendToPlayer(player, new FxPayload(THIRD_PERSON, player.getId(), player.position(), player.position(), ticks, 0, 0));
 	}
 
 	public static void muffle(ServerLevel level, Vec3 at, float radius, int ticks) {

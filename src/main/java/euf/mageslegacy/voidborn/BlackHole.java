@@ -82,7 +82,9 @@ public final class BlackHole {
 		HOLES.put(player.getUUID(), hole);
 		ServerLevel level = player.serverLevel();
 		float radius = (float) radius(player);
-		Fx.vortex(level, player, radius, gather + PULL);
+		Fx.vortex(level, player, radius, gather + PULL, gather);
+		// The caster sees their singularity from outside, and comes back to their own eyes when it collapses
+		Fx.thirdPerson(player, gather + PULL + 12);
 		// The Voidborn is gone into their own singularity until it collapses
 		Fx.hide(level, player, gather + PULL);
 		player.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.INVISIBILITY, gather + PULL, 0, true,

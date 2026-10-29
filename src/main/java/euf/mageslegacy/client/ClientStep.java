@@ -26,6 +26,9 @@ public final class ClientStep {
 	private static org.joml.Vector3f heading = new org.joml.Vector3f(0, 0, 1);
 	/** How far the flight carries the near stars past the eye, whatever the walk's real length. */
 	private static final float FLIGHT = 70;
+	/** The look the step was cast with: held for the whole walk, so the view never turns on its own. */
+	private static float yaw;
+	private static float pitch;
 
 	private ClientStep() {
 	}
@@ -33,12 +36,18 @@ public final class ClientStep {
 	static void register() {
 		NeoForge.EVENT_BUS.addListener(ClientStep::onInput);
 		NeoForge.EVENT_BUS.addListener(ClientStep::onRender);
+		NeoForge.EVENT_BUS.addListener(ClientStep::onAngles);
 	}
 
 	static void start(StepPayload payload) {
 		step = payload;
 		tick = 0;
 		after = -1;
+		LocalPlayer player = Minecraft.getInstance().player;
+		if (player != null) {
+			yaw = player.getYRot();
+			pitch = player.getXRot();
+		}
 		Vec3 d = payload.to().subtract(payload.from());
 		heading = d.lengthSqr() < 1.0E-4 ? new org.joml.Vector3f(0, 0, 1) : new org.joml.Vector3f((float) d.x, (float) d.y, (float) d.z).normalize();
 	}
@@ -61,10 +70,40 @@ public final class ClientStep {
 		}
 		player.setDeltaMovement(Vec3.ZERO);
 		player.fallDistance = 0;
+		hold(player);
 		// The server sets the body down at the end; the void lets go a moment later
 		if (++tick >= step.ticks() + 1 || player.position().distanceTo(step.from()) > 1.5) {
 			step = null;
 			after = 0;
+		}
+	}
+
+	private static boolean holding() {
+		return step != null || after >= 0;
+	}
+
+	/** Puts the body's look back to the one the step was cast with (the mouse turns nothing in the void). */
+	private static void hold(LocalPlayer player) {
+		player.setYRot(yaw);
+		player.setXRot(pitch);
+		player.yRotO = yaw;
+		player.xRotO = pitch;
+		player.setYHeadRot(yaw);
+		player.yHeadRotO = yaw;
+		player.yBodyRot = yaw;
+		player.yBodyRotO = yaw;
+	}
+
+	/** Every frame, before the camera is placed: the held look, whatever the mouse did since the last tick. */
+	private static void onAngles(net.neoforged.neoforge.client.event.ViewportEvent.ComputeCameraAngles event) {
+		LocalPlayer player = Minecraft.getInstance().player;
+		if (!holding() || player == null) {
+			return;
+		}
+		hold(player);
+		if (Minecraft.getInstance().options.getCameraType().isFirstPerson()) {
+			event.setYaw(yaw);
+			event.setPitch(pitch);
 		}
 	}
 

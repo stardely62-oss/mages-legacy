@@ -59,11 +59,11 @@ public final class VoidFx {
 				}
 				case Fx.VORTEX -> {
 					if (follow != null) {
-						VoidRender.add(new Vortex(follow, payload.ticks()));
+						VoidRender.add(new Vortex(follow, payload.ticks(), Math.max(8, (int) payload.b())));
 					}
 				}
 				case Fx.HIDE -> VoidRender.hide(payload.entity(), payload.ticks());
-				case Fx.VOID_SCREEN, Fx.SHAKE, Fx.FOV, Fx.MUFFLE -> ScreenFx.play(payload);
+				case Fx.VOID_SCREEN, Fx.SHAKE, Fx.FOV, Fx.MUFFLE, Fx.THIRD_PERSON -> ScreenFx.play(payload);
 				default -> {
 				}
 			}
@@ -382,22 +382,47 @@ public final class VoidFx {
 	static final class Vortex extends VoidRender.Effect {
 		final Entity heart;
 		final float seed;
+		/** The birth: for this many ticks the singularity gathers itself out of the space around it. */
+		final int gather;
 
-		Vortex(Entity heart, int ticks) {
+		Vortex(Entity heart, int ticks, int gather) {
 			super(ticks);
 			this.heart = heart;
+			this.gather = gather;
 			this.seed = VoidRender.RANDOM.nextFloat();
+			// A ring of space drawn in to the point where it will be born
+			VoidRender.add(new Ring(heart.position().add(0, 1.14, 0), 7f, 0.2f, gather));
 		}
 
+		/** The core: a pinpoint at first, swelling through the birth, with a little overshoot as it settles. */
 		private float size(float life) {
-			float grow = VoidRender.easeOutBack(Math.min(1, life / 8f));
+			float t = Math.min(1, life / gather);
+			float grow = t < 0.15f ? t / 0.15f * 0.08f : 0.08f + 0.92f * VoidRender.easeOutBack((t - 0.15f) / 0.85f);
 			float shrink = Math.max(0, Math.min(1, (ticks - life) / 6f));
 			return Math.max(0, grow * shrink);
+		}
+
+		/** The disk spins up only once the core has some weight, from the middle of the birth on. */
+		private float disk(float life) {
+			float t = Math.max(0, Math.min(1, (life / gather - 0.4f) / 0.6f));
+			float shrink = Math.max(0, Math.min(1, (ticks - life) / 6f));
+			return t * t * (3 - 2 * t) * shrink;
 		}
 
 		@Override
 		boolean tick() {
 			Vec3 c = heart.position().add(0, 1.2, 0);
+			// While it is being born, space streams into the point from far around
+			if (age < gather) {
+				for (int i = 0; i < 6; i++) {
+					Vec3 dir = VoidRender.randomDir();
+					VoidRender.Particle in = new VoidRender.Particle(c.add(dir.scale(VoidRender.rand(6, 10))), Vec3.ZERO, 26, 0.09f, STAR_TINT, true,
+							0.9f, 1.2f);
+					in.attract = c;
+					in.pull = 0.12f;
+					VoidRender.add(in);
+				}
+			}
 			for (int i = 0; i < 5; i++) {
 				Vec3 dir = VoidRender.randomDir();
 				VoidRender.Particle mote = new VoidRender.Particle(c.add(dir.scale(VoidRender.rand(5, 9))), dir.cross(new Vec3(0, 1, 0)).scale(0.1), 30,
@@ -422,8 +447,10 @@ public final class VoidFx {
 			Vec3 normal = new Vec3(0.3, 1, 0.15).normalize();
 			Vec3 e1 = normal.cross(new Vec3(0, 0, 1)).normalize();
 			Vec3 e2 = normal.cross(e1).normalize();
-			float disk = 4.2f * size;
-			draw.quad(FxDraw.GROUND, c, e1.scale(disk), e2.scale(disk), 1, seed, FxDraw.DISK, 1);
+			float disk = 4.2f * disk(life(partial));
+			if (disk > 0.02f) {
+				draw.quad(FxDraw.GROUND, c, e1.scale(disk), e2.scale(disk), 1, seed, FxDraw.DISK, 1);
+			}
 			Billboard b = Billboard.facing(draw.cam, c);
 			float core = 2.1f * size;
 			draw.quad(FxDraw.ORB, c, b.right.scale(core), b.up.scale(core), 1, seed, FxDraw.HOLE, 1);
