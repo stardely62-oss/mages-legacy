@@ -22,8 +22,8 @@ function Say($text, $color = 'Gray') { Write-Host $text -ForegroundColor $color 
 
 # Версия NeoForge из json версии TLauncher, или $null, если это не NeoForge 1.21.1
 function NeoForgeOf($dir) {
-    foreach ($json in Get-ChildItem $dir -Filter '*.json' -ErrorAction SilentlyContinue) {
-        $text = Get-Content $json.FullName -Raw
+    foreach ($json in Get-ChildItem -LiteralPath $dir -Filter '*.json' -ErrorAction SilentlyContinue) {
+        $text = Get-Content -LiteralPath $json.FullName -Raw
         foreach ($pattern in @('net\.neoforged:neoforge:(21\.1\.[0-9]+)', 'fml\.neoForgeVersion"\s*,\s*"(21\.1\.[0-9]+)', 'neoforge-(21\.1\.[0-9]+)')) {
             $m = [regex]::Match($text, $pattern)
             if ($m.Success) { return [version]$m.Groups[1].Value }
@@ -40,14 +40,15 @@ function InstallFromModrinth($project, $title, $prefix) {
     $v = $versions[0]
     $file = $v.files | Where-Object { $_.primary } | Select-Object -First 1
     if (-not $file) { $file = $v.files[0] }
-    if (Test-Path (Join-Path $mods $file.filename)) {
+    if (Test-Path -LiteralPath (Join-Path $mods $file.filename)) {
         Say "$title уже последней версии."
         return
     }
     $tmp = Join-Path $env:TEMP $file.filename
     Invoke-WebRequest $file.url -OutFile $tmp -Headers $Headers -UseBasicParsing
-    Get-ChildItem $mods -Filter "$prefix*.jar" | Remove-Item -Force
-    Move-Item $tmp (Join-Path $mods $file.filename) -Force
+    Get-ChildItem -LiteralPath $mods -Filter "$prefix*.jar" | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
+    [IO.File]::Copy($tmp, (Join-Path $mods $file.filename), $true)
+        Remove-Item -LiteralPath $tmp -Force
     Say "$title установлен: $($file.filename)" Green
 }
 
@@ -58,13 +59,13 @@ try {
     $versionsDir = Join-Path $GameDir 'versions'
     if ($VersionName) {
         $versionDir = Join-Path $versionsDir $VersionName
-        if (-not (Test-Path $versionDir)) {
+        if (-not (Test-Path -LiteralPath $versionDir)) {
             throw "Не нашёл версию '$VersionName' в $versionsDir. Установи её в TLauncher и запусти один раз."
         }
         $neo = NeoForgeOf $versionDir
         if (-not $neo) { throw "Версия '$VersionName' не похожа на NeoForge 1.21.1." }
     } else {
-        $found = @(Get-ChildItem $versionsDir -Directory -ErrorAction SilentlyContinue |
+        $found = @(Get-ChildItem -LiteralPath $versionsDir -Directory -ErrorAction SilentlyContinue |
             ForEach-Object { $n = NeoForgeOf $_.FullName; if ($n) { [pscustomobject]@{ Dir = $_; Neo = $n } } } |
             Sort-Object Neo -Descending)
         if ($found.Count -eq 0) {
@@ -81,8 +82,8 @@ try {
 
     # 2. Папка mods: отдельная у версии, если TLauncher так настроен, иначе общая
     $mods = Join-Path $versionDir 'mods'
-    if (-not (Test-Path $mods)) { $mods = Join-Path $GameDir 'mods' }
-    New-Item -ItemType Directory -Force -Path $mods | Out-Null
+    if (-not (Test-Path -LiteralPath $mods)) { $mods = Join-Path $GameDir 'mods' }
+    [IO.Directory]::CreateDirectory($mods) | Out-Null
     Say "Папка модов: $mods"
 
     if (Get-Process -Name javaw, java -ErrorAction SilentlyContinue) {
@@ -100,18 +101,20 @@ try {
     $asset = $release.assets | Where-Object { $_.name -like 'mages-legacy-*.jar' -and $_.name -notlike '*-sources*' } | Select-Object -First 1
     if (-not $asset) { throw "В релизе '$($release.name)' нет jar-файла мода." }
 
-    if (Test-Path (Join-Path $mods $asset.name)) {
+    if (Test-Path -LiteralPath (Join-Path $mods $asset.name)) {
         Say "Мод уже последней версии: $($asset.name)" Green
     } else {
         $tmp = Join-Path $env:TEMP $asset.name
         Invoke-WebRequest $asset.browser_download_url -OutFile $tmp -Headers $Headers -UseBasicParsing
-        Get-ChildItem $mods -Filter 'mages-legacy-*.jar' | Remove-Item -Force
-        Move-Item $tmp (Join-Path $mods $asset.name) -Force
+        Get-ChildItem -LiteralPath $mods -Filter 'mages-legacy-*.jar' | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
+        [IO.File]::Copy($tmp, (Join-Path $mods $asset.name), $true)
+        Remove-Item -LiteralPath $tmp -Force
         Say "Установлен $($asset.name) ($($release.name))" Green
     }
 
-    # Ender Obelisks больше не входит в сборку
-    Get-ChildItem $mods -Filter 'ender-obelisks-*.jar' | Remove-Item -Force
+    # Ender Obelisks и JourneyMap больше не входят в сборку
+    Get-ChildItem -LiteralPath $mods -Filter 'journeymap-*.jar' | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
+    Get-ChildItem -LiteralPath $mods -Filter 'ender-obelisks-*.jar' | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 
     Say ""
     Say "Готово! Запускай в TLauncher версию '$VersionName'." Cyan
