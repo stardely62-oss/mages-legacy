@@ -217,14 +217,16 @@ public class TalentScreen extends Screen {
 
 	/** A node's size on screen: nodes shrink with the web, so neighbours never touch however small the window. */
 	private int nodeSize(Talent t) {
-		return Math.max(14, Math.round(size(t) * Math.min(1.2f, scaleY() * 1.65f)));
+		return Math.max(t.kind == Talent.Kind.PASSIVE ? 11 : 13, Math.round(size(t) * Math.min(1.25f, scaleY() * 1.7f)));
 	}
 
 	private static int size(Talent t) {
+		// Size tells weight: small passives, a little more for what changes an ability, the roots and Awakenings large
 		return switch (t.kind) {
-			case CORE -> 30;
-			case BASIC, AWAKENING -> 26;
-			default -> 20;
+			case CORE -> 28;
+			case BASIC, AWAKENING -> 24;
+			case TRANSFORM, CROSS -> 18;
+			default -> 15;
 		};
 	}
 
@@ -251,8 +253,12 @@ public class TalentScreen extends Screen {
 			for (Talent near : t.requires()) {
 				boolean lit = owned(t) && owned(near);
 				boolean open = owned(near);
-				int c = lit ? color : open ? LegacyUi.alpha(LegacyUi.GOLD, 0.55f) : 0x803A2E22;
-				line(graphics, nodeX(near), nodeY(near), nodeX(t), nodeY(t), lit ? 2 : 1, c);
+				// Hair-thin threads, as in the big passive trees: lit ones with a faint halo, the rest barely there
+				if (lit) {
+					line(graphics, nodeX(near), nodeY(near), nodeX(t), nodeY(t), 3, LegacyUi.alpha(color, 0.18f));
+				}
+				int c = lit ? LegacyUi.alpha(color, 0.95f) : open ? LegacyUi.alpha(LegacyUi.GOLD, 0.45f) : 0x55705A48;
+				line(graphics, nodeX(near), nodeY(near), nodeX(t), nodeY(t), 1, c);
 			}
 		}
 		// Two Awakenings joined by an arc of light across the core: the mark of a superlate Voidborn
@@ -605,6 +611,15 @@ public class TalentScreen extends Screen {
 		graphics.pose().popPose();
 	}
 
+	/** A node's slim frame: a one-pixel rim with clipped corners round a dark body, no stone slab. */
+	private static void frame(GuiGraphics graphics, int x, int y, int s, int rim) {
+		graphics.fill(x + 1, y + 1, x + s - 1, y + s - 1, 0xE0120E16);
+		graphics.fill(x + 1, y, x + s - 1, y + 1, rim);
+		graphics.fill(x + 1, y + s - 1, x + s - 1, y + s, rim);
+		graphics.fill(x, y + 1, x + 1, y + s - 1, rim);
+		graphics.fill(x + s - 1, y + 1, x + s, y + s - 1, rim);
+	}
+
 	/** Draws a node; returns whether the mouse is over it. */
 	private boolean drawNode(GuiGraphics graphics, Talent t, int mouseX, int mouseY, int color) {
 		int s = nodeSize(t);
@@ -618,24 +633,21 @@ public class TalentScreen extends Screen {
 			case LOCKED -> LegacyUi.RIM_DARK;
 		};
 		if (state == State.OWNED) {
-			LegacyUi.glow(graphics, x + s / 2, y + s / 2, s, color, t.kind == Talent.Kind.AWAKENING || t.kind == Talent.Kind.CORE ? 0.9f : 0.5f);
+			LegacyUi.glow(graphics, x + s / 2, y + s / 2, s, color, t.kind == Talent.Kind.AWAKENING || t.kind == Talent.Kind.CORE ? 0.6f : 0.3f);
 		}
-		LegacyUi.panel(graphics, x, y, x + s, y + s, hot ? LegacyUi.GOLD : rim);
+		frame(graphics, x, y, s, hot ? LegacyUi.GOLD : rim);
 		if (t.kind == Talent.Kind.AWAKENING) {
-			// An Awakening wears a crown of four gems
-			for (int[] c : new int[][] {{x + s / 2, y - 3}, {x + s / 2, y + s + 2}, {x - 3, y + s / 2}, {x + s + 2, y + s / 2}}) {
-				LegacyUi.diamond(graphics, c[0], c[1], 3, LegacyUi.BLACK);
-				LegacyUi.diamond(graphics, c[0], c[1], 2, state == State.OWNED ? color : LegacyUi.RIM);
+			// An Awakening wears four small gems
+			for (int[] c : new int[][] {{x + s / 2, y - 2}, {x + s / 2, y + s + 1}, {x - 2, y + s / 2}, {x + s + 1, y + s / 2}}) {
+				LegacyUi.diamond(graphics, c[0], c[1], 1, state == State.OWNED ? color : LegacyUi.RIM);
 			}
 		} else if (t.kind == Talent.Kind.CROSS) {
-			LegacyUi.diamond(graphics, x + s - 2, y + 2, 2, LegacyUi.alpha(color, 0.9f));
-		} else if (t.kind == Talent.Kind.TRANSFORM) {
-			LegacyUi.outline(graphics, x + 2, y + 2, x + s - 2, y + s - 2, LegacyUi.alpha(rim, 0.6f));
+			LegacyUi.diamond(graphics, x + s - 1, y, 1, LegacyUi.alpha(color, 0.9f));
 		}
 		ResourceLocation icon = icon(t);
-		int inner = s - 6;
+		int inner = s - 4;
 		if (icon != null) {
-			LegacyUi.icon(graphics, icon, x + 3, y + 3, inner, state != State.LOCKED);
+			LegacyUi.icon(graphics, icon, x + 2, y + 2, inner, state != State.LOCKED);
 		}
 		if (state == State.LOCKED && !t.automatic()) {
 			graphics.fill(x + 1, y + 1, x + s - 1, y + s - 1, 0x66000000);
