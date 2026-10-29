@@ -125,16 +125,31 @@ public final class VoidFx {
 		},
 				new PhotonFx.Emitter(life).points(fill, null).burst(fill.size()).life(life, life).speed(0, 0).size(0.32f, 0.4f)
 						.colors(INK, INK).ink(),
-				new PhotonFx.Emitter(life).points(lips, null).burst(lips.size()).life(life, life).speed(0, 0).size(0.55f, 0.6f)
-						.colors(alpha(VOID, 0.16f), alpha(VOID, 0.16f)).glow(),
+				new PhotonFx.Emitter(life).points(lips, null).burst(lips.size()).life(life, life).speed(0, 0).size(0.6f, 0.7f)
+						.colors(alpha(VOID, 0.22f), alpha(VOID, 0.22f)).bloom(VOID, 1.5f),
 				new PhotonFx.Emitter(life).points(lips, null).burst(lips.size()).life(life, life).speed(0, 0).size(0.16f, 0.18f)
-						.colors(alpha(VOID, 0.9f), alpha(VOID, 0.9f)).glow(),
+						.colors(alpha(VOID, 0.9f), alpha(VOID, 0.9f)).bloom(VOID, 3.5f),
 				new PhotonFx.Emitter(life).points(lips, null).burst(lips.size()).life(life, life).speed(0, 0).size(0.05f, 0.06f)
-						.colors(0xB3FFFFFF, 0xB3FFFFFF).glow(),
+						.colors(0xB3FFFFFF, 0xB3FFFFFF).bloom(0xFFFFFF, 3f),
 				new PhotonFx.Emitter(life).points(seam, null).burst(seam.size()).life(life, life).speed(0, 0).size(0.12f, 0.13f)
-						.colors(stops(20, seamFrom, 0x00FFFFFF, 0xE6FFFFFF)).glow(),
+						.colors(stops(20, seamFrom, 0x00FFFFFF, 0xE6FFFFFF)).bloom(0xFFFFFF, 5f),
 				new PhotonFx.Emitter(life).points(stars, null).burst(stars.size()).life(life, life).speed(0, 0).size(0.07f, 0.13f)
-						.colors(0x00FFFFFF, 0xFFFFFFFF, 0x66FFFFFF, 0xFFFFFFFF, 0x55FFFFFF, 0xEEFFFFFF, 0x00FFFFFF).texture(STAR).glow());
+						.colors(0x00FFFFFF, 0xFFFFFFFF, 0x66FFFFFF, 0xFFFFFFFF, 0x55FFFFFF, 0xEEFFFFFF, 0x00FFFFFF).texture(STAR).bloom(0xFFFFFF, 2.5f),
+				// Sparks peeling off the lips and drifting away
+				new PhotonFx.Emitter(life).points(lips, sparks(lips, seed)).flow(4).life(8, 14).speed(0, 0).size(0.04f, 0.06f)
+						.colors(0xFFFFFFFF, alpha(VOID, 0.9f), alpha(VOID, 0)).stretch(0.6f, 1.2f).bloom(VOID, 3f));
+	}
+
+	/** Small outward drifts for sparks leaving a lens's lips: away from its middle, a little up. */
+	private static List<Vector3f> sparks(List<Vector3f> lips, long seed) {
+		List<Vector3f> velocities = new ArrayList<>();
+		for (int i = 0; i < lips.size(); i++) {
+			Vector3f p = lips.get(i);
+			float side = p.x < 0 ? -1 : 1;
+			velocities.add(new Vector3f(side * (0.02f + 0.03f * hash(seed, i + 900)), 0.01f + 0.02f * hash(seed, i + 950),
+					(hash(seed, i + 990) - 0.5f) * 0.03f));
+		}
+		return velocities;
 	}
 
 	/** Turns a flat effect laid out on X/Y to face the camera, standing upright. */
@@ -170,10 +185,21 @@ public final class VoidFx {
 			int life = Math.max(3, Math.round(ticks * (float) Math.sqrt(place)));
 			int color = lerpColor(DEEP, VOID, place);
 			emitters.add(new PhotonFx.Emitter(life).points(points, null).burst(points.size()).life(life, life).speed(0, 0)
-					.size(height * 0.5f, height * 0.6f).sizeCurve(1f, 1f, 0.6f).colors(alpha(color, 0.5f), alpha(color, 0.35f), alpha(color, 0f)).glow());
+					.size(height * 0.5f, height * 0.6f).sizeCurve(1f, 1f, 0.6f).colors(alpha(color, 0.5f), alpha(color, 0.35f), alpha(color, 0f))
+					.bloom(color, 2f));
 			emitters.add(new PhotonFx.Emitter(life).points(points, null).burst(points.size()).life(life, life).speed(0, 0)
 					.size(height * 0.3f, height * 0.36f).colors(alpha(DEEP, 0.45f), alpha(DEEP, 0.3f), alpha(DEEP, 0f)).ink());
 		}
+		// Motes of light shaken loose along the way, drifting off and fading
+		List<Vector3f> along = new ArrayList<>();
+		List<Vector3f> drift = new ArrayList<>();
+		for (int i = 0; i < count; i += 2) {
+			Vec3 p = a.lerp(b, i / (double) (count - 1)).subtract(a);
+			along.add(new Vector3f((float) p.x, (float) p.y, (float) p.z));
+			drift.add(new Vector3f((hash(count, i) - 0.5f) * 0.05f, (hash(count, i + 300) - 0.3f) * 0.04f, (hash(count, i + 600) - 0.5f) * 0.05f));
+		}
+		emitters.add(new PhotonFx.Emitter(ticks).points(along, drift).burst(along.size()).life(12, ticks + 8).speed(0, 0).size(0.04f, 0.07f)
+				.colors(0xFFFFFFFF, alpha(VOID, 0.9f), alpha(VOID, 0)).trail(0.4f).bloom(0xFFFFFF, 3f));
 		PhotonFx.play(level, a, null, 0, emitters.toArray(PhotonFx.Emitter[]::new));
 	}
 
@@ -184,7 +210,7 @@ public final class VoidFx {
 		float push = radius / life * 100;
 		List<PhotonFx.Emitter> emitters = new ArrayList<>();
 		emitters.add(new PhotonFx.Emitter(life).sphere(0.05f, 0).burst(90).life(life, life).speed(0, 0).size(0.3f, 0.4f)
-				.colors(alpha(VOID, 0.75f), alpha(VOID, 0.35f), alpha(VOID, 0.08f), alpha(VOID, 0)).swirl(push, 0).glow());
+				.colors(alpha(VOID, 0.75f), alpha(VOID, 0.35f), alpha(VOID, 0.08f), alpha(VOID, 0)).swirl(push, 0).bloom(VOID, 2.2f));
 		if (ink) {
 			emitters.add(new PhotonFx.Emitter(life).sphere(0.05f, 0).burst(60).life(life, life).speed(0, 0).size(0.35f, 0.45f)
 					.colors(alpha(DEEP, 0.3f), alpha(DEEP, 0.15f), alpha(DEEP, 0)).swirl(push, 0).ink());
@@ -198,9 +224,9 @@ public final class VoidFx {
 		float push = (to - from) / life * 100;
 		PhotonFx.play(level, at.add(0, 0.06, 0), null, 0,
 				new PhotonFx.Emitter(life).ring(Math.max(0.05f, from), 0).burst(64).life(life, life).speed(0, 0).size(0.5f, 0.55f)
-						.colors(alpha(VOID, 0.9f), alpha(VOID, 0.45f), alpha(VOID, 0.12f), alpha(VOID, 0)).swirl(push, 0).flat().glow(),
+						.colors(alpha(VOID, 0.9f), alpha(VOID, 0.45f), alpha(VOID, 0.12f), alpha(VOID, 0)).swirl(push, 0).flat().bloom(VOID, 2.2f),
 				new PhotonFx.Emitter(life).ring(Math.max(0.05f, from), 0).offset(0, 0.3f, 0).burst(48).life(life, life).speed(0, 0).size(0.3f, 0.35f)
-						.colors(alpha(VOID, 0.7f), alpha(VOID, 0.3f), alpha(VOID, 0)).swirl(push, 0).glow(),
+						.colors(alpha(VOID, 0.7f), alpha(VOID, 0.3f), alpha(VOID, 0)).swirl(push, 0).bloom(VOID, 2f),
 				new PhotonFx.Emitter(life).ring(Math.max(0.05f, from), 0).burst(40).life(life, life).speed(0, 0).size(0.4f, 0.45f)
 						.colors(alpha(DEEP, 0.6f), alpha(DEEP, 0.25f), alpha(DEEP, 0)).swirl(push, 0).flat().ink());
 	}
@@ -243,12 +269,12 @@ public final class VoidFx {
 			emitters.add(new PhotonFx.Emitter(life).points(points, null).delay(s).burst(points.size()).life(life, life).speed(0, 0)
 					.size(width * 1.3f, width * 1.4f).colors(hold(CRACK, 1f, life)).flat().ink());
 			emitters.add(new PhotonFx.Emitter(life).points(points, null).delay(s).burst(points.size()).life(life, life).speed(0, 0)
-					.size(width * 2.4f, width * 2.6f).colors(hold(VOID, 0.14f, life)).flat().glow());
+					.size(width * 2.4f, width * 2.6f).colors(hold(VOID, 0.22f, life)).flat().bloom(VOID, 1.8f));
 			emitters.add(new PhotonFx.Emitter(life).points(points, null).delay(s).burst(points.size()).life(life, life).speed(0, 0)
-					.size(width * 0.35f, width * 0.4f).colors(hold(STARLIGHT, 0.22f, life)).flat().glow());
+					.size(width * 0.35f, width * 0.4f).colors(hold(STARLIGHT, 0.35f, life)).flat().bloom(STARLIGHT, 3f));
 		}
 		emitters.add(new PhotonFx.Emitter(ticks).points(stars, null).delay(2).burst(stars.size()).life(ticks, ticks).speed(0, 0).size(0.08f, 0.1f)
-				.colors(0x00FFFFFF, 0xFFFFFFFF, 0x50FFFFFF, 0xFFFFFFFF, 0x50FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).texture(STAR).flat().glow());
+				.colors(0x00FFFFFF, 0xFFFFFFFF, 0x50FFFFFF, 0xFFFFFFFF, 0x50FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).texture(STAR).flat().bloom(0xFFFFFF, 3f));
 		PhotonFx.play(level, at, follow, 0, emitters.toArray(PhotonFx.Emitter[]::new));
 	}
 
@@ -256,9 +282,13 @@ public final class VoidFx {
 	private static void motes(Level level, Entity around, float radius, int ticks) {
 		PhotonFx.play(level, null, around, 0,
 				new PhotonFx.Emitter(ticks).sphere(radius, 0.35f).offset(0, 1, 0).flow(5).life(10, 14).speed(0, 0).size(0.12f, 0.2f)
-						.colors(0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(-22, 6).texture(MOTE).world().glow(),
+						.colors(0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(-22, 6).texture(MOTE).world().trail(0.5f).bloom(VOID, 2f),
 				new PhotonFx.Emitter(ticks).ring(radius * 1.2f, 0).offset(0, 0.1f, 0).flow(0.5f).life(16, 24).speed(0, 0).size(0.1f, 0.14f)
-						.colors(0x00FFFFFF, 0xFFFFFFFF, 0x40FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).texture(STAR).world().glow());
+						.colors(0x00FFFFFF, 0xFFFFFFFF, 0x40FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).texture(STAR).world().bloom(0xFFFFFF, 2.5f),
+				// The weight itself: streaks of light driven down onto the cracks
+				new PhotonFx.Emitter(ticks).ring(radius, 0.6f).offset(0, 3.2f, 0).flow(4).life(7, 10).speed(0, 0).size(0.04f, 0.06f)
+						.colors(0x00FFFFFF, 0xFFFFFFFF, alpha(VOID, 0.8f), alpha(VOID, 0)).force(0, -0.08f, 0).world().stretch(1.2f, 1.5f)
+						.bloom(STARLIGHT, 2.5f));
 	}
 
 	// ---- The black hole ---------------------------------------------------------------------------------------
@@ -297,20 +327,20 @@ public final class VoidFx {
 				new PhotonFx.Emitter(life).sphere(core * 1.9f, 0.45f).offset(0, 1.2f, 0).burst(80).life(life, life).speed(0, 0).size(0.5f, 0.7f)
 						.colors(alpha(0xFF0A0418, 0.55f), alpha(0xFF0A0418, 0.55f)).ink(),
 				new PhotonFx.Emitter(life).points(rim, null).offset(0, 1.2f, 0).burst(rim.size()).life(life, life).speed(0, 0).size(0.12f, 0.14f)
-						.colors(0xF2F4EEFF, 0xF2F4EEFF).glow(),
+						.colors(0xF2F4EEFF, 0xF2F4EEFF).bloom(0xFFFFFF, 6f),
 				new PhotonFx.Emitter(life).points(rim, null).offset(0, 1.2f, 0).burst(rim.size()).life(life, life).speed(0, 0).size(0.35f, 0.4f)
-						.colors(alpha(VOID, 0.45f), alpha(VOID, 0.45f)).glow());
+						.colors(alpha(VOID, 0.45f), alpha(VOID, 0.45f)).bloom(VOID, 2.5f));
 		// The disk: violet fire spiralling in on a tilted plane, white-hot by the core; stars on its rim
 		Quaternionf tilt = new Quaternionf().rotateX(0.3f).rotateZ(0.15f);
 		PhotonFx.Emitter disk = new PhotonFx.Emitter(life).ring(radius, 0.35f).offset(0, 1.2f, 0).flow(14).life(14, 20).speed(0, 0).size(0.18f, 0.3f)
-				.colors(alpha(0xFF3A1C70, 0), alpha(VOID, 0.9f), 0xE6FFF0FF, 0x00FFF0FF).swirl(-12, 14).glow();
+				.colors(alpha(0xFF3A1C70, 0), alpha(VOID, 0.9f), 0xE6FFF0FF, 0x00FFF0FF).swirl(-12, 14).trail(0.35f).bloom(VOID, 3f);
 		disk.emitter.updateRotation(tilt);
 		PhotonFx.Emitter stars = new PhotonFx.Emitter(life).ring(radius * 1.4f, 0.05f).offset(0, 1.2f, 0).flow(0.6f).life(16, 24).speed(0, 0)
-				.size(0.09f, 0.13f).colors(0x00FFFFFF, 0xFFFFFFFF, 0x50FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(0, 4).texture(STAR).glow();
+				.size(0.09f, 0.13f).colors(0x00FFFFFF, 0xFFFFFFFF, 0x50FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(0, 4).texture(STAR).bloom(0xFFFFFF, 3f);
 		stars.emitter.updateRotation(tilt);
 		PhotonFx.play(level, null, heart, 0, swell, disk, stars,
 				new PhotonFx.Emitter(life).sphere(radius * 2.4f, 0.3f).offset(0, 1.2f, 0).flow(6).life(10, 14).speed(0, 0).size(0.12f, 0.2f)
-						.colors(0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(-40, 8).texture(MOTE).glow());
+						.colors(0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(-40, 8).texture(MOTE).trail(0.5f).bloom(VOID, 2.5f));
 	}
 
 	// ---- Helpers ----------------------------------------------------------------------------------------------

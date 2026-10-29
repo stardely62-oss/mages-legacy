@@ -1,6 +1,7 @@
 package euf.mageslegacy.client.fx;
 
 import com.lowdragmc.lowdraglib2.math.GradientColor;
+import com.lowdragmc.lowdraglib2.math.HDRColor;
 import com.lowdragmc.photon.client.fx.FXData;
 import com.lowdragmc.photon.client.fx.FXRuntime;
 import com.lowdragmc.photon.client.fx.IEffectExecutor;
@@ -181,6 +182,43 @@ final class PhotonFx {
 		/** Particles stay where they were born instead of moving with the emitter. */
 		Emitter world() {
 			config.setSimulationSpace(ParticleConfig.Space.World);
+			return this;
+		}
+
+		/**
+		 * Light brighter than white: Photon draws particles into an HDR buffer and blooms whatever goes past 1, so
+		 * an emitter with emission gets the soft halo the first version's glow had. Each emitter gets its own
+		 * material (the default one is shared), keeping its texture.
+		 */
+		Emitter bloom(int rgb, float intensity) {
+			ResourceLocation texture = null;
+			for (MaterialSetting material : config.renderer.getMaterials()) {
+				if (material.getMaterial() instanceof TextureMaterial tm) {
+					texture = tm.getTexture();
+				}
+			}
+			TextureMaterial material = texture == null ? new TextureMaterial() : new TextureMaterial(texture);
+			material.setHdr(new HDRColor(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f, 1, intensity));
+			MaterialSetting setting = new MaterialSetting(material);
+			setting.setRenderStateSource(MaterialSetting.RenderStateSource.CUSTOM);
+			setting.setBlend(BlendMode.Preset.ADDITIVE.create());
+			config.renderer.getMaterials().clear();
+			config.renderer.getMaterials().add(setting);
+			return this;
+		}
+
+		/** Particles stretched along their motion: streaks rather than dots. */
+		Emitter stretch(float velocityScale, float lengthScale) {
+			config.renderer.setRenderMode(ParticleRendererSetting.Mode.StretchedBillboard);
+			config.renderer.setVelocityScale(velocityScale);
+			config.renderer.setLengthScale(lengthScale);
+			return this;
+		}
+
+		/** Each particle leaves a ribbon of light behind it, this share of its life long. */
+		Emitter trail(float lifetime) {
+			config.trails.setEnable(true);
+			config.trails.setLifetime(NumberFunction.constant(lifetime));
 			return this;
 		}
 

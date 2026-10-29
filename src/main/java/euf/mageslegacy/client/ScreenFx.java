@@ -66,7 +66,10 @@ public final class ScreenFx {
 		if (muffled > 0) {
 			muffled--;
 		}
-		if (Math.abs(target - gain) < 0.001f) {
+		if (broken || gain < 0 && muffled == 0 || Math.abs(target - gain) < 0.001f) {
+			if (gain < 0) {
+				gain = master;
+			}
 			return;
 		}
 		// Ease towards it, so the world fades away and back rather than switching
@@ -83,12 +86,15 @@ public final class ScreenFx {
 			}
 			Object engine = engineField.get(mc.getSoundManager());
 			((Listener) listenerField.get(engine)).setGain(gain);
-		} catch (ReflectiveOperationException | RuntimeException e) {
+		} catch (Throwable e) {
+			// No sound device, or a different engine: hearing simply stays as it is
+			broken = true;
 			muffled = 0;
 			gain = master;
 		}
 	}
 
+	private static boolean broken;
 	private static java.lang.reflect.Field engineField;
 	private static java.lang.reflect.Field listenerField;
 
