@@ -459,6 +459,17 @@ final class Harness {
 					+ ")", player.isAlive() && Math.abs(player.getX() - 40.5) < 3 && Math.abs(player.getZ() - 40.5) < 3);
 			server().execute(() -> euf.mageslegacy.race.Talents.setNoCooldown(player, false));
 		}, 5);
+		// The Trial of the Colony: the Heart grows on the arena
+		run(() -> server().execute(() -> euf.mageslegacy.voidborn.Arena.startTrial(player())), 60);
+		run(() -> {
+			ServerPlayer player = player();
+			boolean heart = euf.mageslegacy.voidborn.Arena.isArena(player.level()) && player.level().getBlockState(
+					net.minecraft.core.BlockPos.containing(player.position()).north(8)).is(euf.mageslegacy.mycelid.MyceliumNodeBlock.NODE.get());
+			check("the Trial of the Colony grows its Heart", heart);
+			player.connection.teleport(player.getX(), player.getY(), player.getZ(), 180, 25);
+		}, 30);
+		shot("colony_trial");
+		run(() -> server().execute(() -> player().kill()), 20);
 	}
 
 	private static MinecraftServer server() {

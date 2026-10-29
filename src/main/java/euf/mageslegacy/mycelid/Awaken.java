@@ -213,6 +213,7 @@ public final class Awaken {
 		int ticks = Talents.has(player, Talent.STORM_LONG) ? STORM_LONG : STORM_TICKS;
 		double radius = Talents.has(player, Talent.STORM_WIDE) ? STORM_WIDE : STORM_RADIUS;
 		STORMS.put(player.getUUID(), new Storm(level.getGameTime() + ticks, radius));
+		Fx.storm(level, player, (float) radius, ticks);
 		// Every stored spore goes (a Spore Reserve keeps a quarter)
 		RaceState.setResource(player, Talents.has(player, Talent.STORM_KEEP) ? spores / 4 : 0);
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ELYTRA_FLYING, SoundSource.PLAYERS, 1.5f, 0.6f);
@@ -236,18 +237,10 @@ public final class Awaken {
 		}
 		double r = storm.radius();
 		Vec3 c = player.position();
-		// A whirl of spores: arms spiralling round the Mycelid, a dense haze, glowing motes
-		if (player.tickCount % 2 == 0) {
-			double turn = now * 0.18;
-			for (int arm = 0; arm < 5; arm++) {
-				for (int k = 1; k <= 8; k++) {
-					double d = r * k / 8.0;
-					double a = turn + arm * Math.PI * 2 / 5 + d * 0.25;
-					level.sendParticles(STORM_DUST, c.x + Math.cos(a) * d, c.y + 0.5 + k * 0.35, c.z + Math.sin(a) * d, 1, 0.2, 0.2, 0.2, 0);
-				}
-			}
-			level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 2, c.z, 30, r * 0.5, 2, r * 0.5, 0.03);
-			level.sendParticles(ParticleTypes.WARPED_SPORE, c.x, c.y + 1, c.z, 20, r * 0.5, 1.5, r * 0.5, 0.02);
+		// The glowing whirl itself is drawn by the clients (Fx.storm); here a haze of drifting spores for everyone
+		if (player.tickCount % 4 == 0) {
+			level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 2, c.z, 18, r * 0.5, 2, r * 0.5, 0.03);
+			level.sendParticles(STORM_DUST, c.x, c.y + 1, c.z, 10, r * 0.5, 1.2, r * 0.5, 0);
 		}
 		if (player.tickCount % 10 != 0) {
 			return;

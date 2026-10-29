@@ -64,6 +64,11 @@ public final class VoidFx {
 				}
 				case Fx.HIDE -> VoidRender.hide(payload.entity(), payload.ticks());
 				case Fx.BLOOM -> GreatBloom.play(follow, payload.entity(), payload.ticks());
+				case Fx.STORM -> {
+					if (follow != null) {
+						VoidRender.add(new SporeFx.Storm(follow, payload.a(), payload.ticks()));
+					}
+				}
 				case Fx.VOID_SCREEN, Fx.SHAKE, Fx.FOV, Fx.MUFFLE, Fx.THIRD_PERSON -> ScreenFx.play(payload);
 				default -> {
 				}

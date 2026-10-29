@@ -224,9 +224,9 @@
   "mages_legacy.trial.echo": "Echo of the Mage",
   "mages_legacy.talent.state.trial": "Pass this Awakening's trial first",
   "mages_legacy.talent.state.superlate_level": "The second Awakening opens from race level %s",
-  "mages_legacy.talent.state.superlate_trial": "Click to take the Void's Trial: it opens the second Awakening",
+  "mages_legacy.talent.state.superlate_trial": "Click to take the race's trial: it opens the second Awakening",
   "mages_legacy.talent.state.third_closed": "The third Awakening stays closed: two of three can be opened",
-  "mages_legacy.talent.two_of_three": "The first Awakening sits on Z, the second (superlate, through the Void's Trial) on left Alt. Each has its own cost and cooldown.",
+  "mages_legacy.talent.two_of_three": "The first Awakening sits on Z, the second (superlate, through the race's trial) on left Alt. Each has its own cost and cooldown.",
   "death.attack.mages_legacy.void_collapse": "%1$s was lost in a collapsing void",
   "death.attack.mages_legacy.void_collapse.player": "%1$s was lost in %2$s's black hole",
   "mages_legacy.traits.title": "Traits",
@@ -547,5 +547,9 @@
   "mages_legacy.refuse.body_node": "Come close to one of your nodes",
   "mages_legacy.network.body_growing": "Reserve body: \"%s\", %s s",
   "mages_legacy.network.body_ready": "Reserve body: \"%s\", ready",
-  "mages_legacy.race.mycelid.weak.3": "After an Awakening, exhaustion: Spores gather slower"
+  "mages_legacy.race.mycelid.weak.3": "After an Awakening, exhaustion: Spores gather slower",
+  "mages_legacy.message.colony_trial_start": "The Trial of the Colony: a Heart of the colony has grown in the middle of the arena. Five waves of rot will go for it; keep it alive for four minutes. If the Heart rots, the trial fails.",
+  "mages_legacy.message.colony_heart": "Heart of the colony: %s/100 · wave %s",
+  "mages_legacy.message.colony_heart_lost": "The Heart of the colony has rotted. The trial failed; it can be tried again.",
+  "mages_legacy.trial.rot": "The Devouring Rot"
 }

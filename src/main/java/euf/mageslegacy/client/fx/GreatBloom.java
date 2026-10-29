@@ -66,6 +66,9 @@ final class GreatBloom implements GeoAnimatable {
 		for (Iterator<GreatBloom> it = ACTIVE.iterator(); it.hasNext(); ) {
 			GreatBloom bloom = it.next();
 			bloom.age++;
+			if (bloom.withering < 0 && bloom.age > 20) {
+				SporeFx.breathe(bloom.body.position(), 1.3f);
+			}
 			if (bloom.withering < 0 && (bloom.age >= bloom.ticks || bloom.body.isRemoved())) {
 				bloom.withering = 0;
 			}
@@ -102,6 +105,25 @@ final class GreatBloom implements GeoAnimatable {
 			poses.popPose();
 		}
 		buffers.endBatch();
+	}
+
+	/**
+	 * The view from outside while the player is the mushroom: drawn back far enough to see the whole of it, and
+	 * eased back in as it withers.
+	 */
+	static void onCameraDistance(net.neoforged.neoforge.client.event.CalculateDetachedCameraDistanceEvent event) {
+		var player = Minecraft.getInstance().player;
+		if (player == null) {
+			return;
+		}
+		for (GreatBloom bloom : ACTIVE) {
+			if (bloom.id == player.getId()) {
+				float grow = Math.min(1, bloom.age / 20f);
+				float wither = bloom.withering < 0 ? 1 : Math.max(0, 1 - bloom.withering / (float) WITHER);
+				float far = 11 * grow * wither;
+				event.setDistance(Math.max(event.getDistance(), event.getDistance() + (far - event.getDistance()) * Math.min(grow, wither)));
+			}
+		}
 	}
 
 	@Override

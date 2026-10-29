@@ -224,9 +224,9 @@
   "mages_legacy.trial.echo": "Эхо мага",
   "mages_legacy.talent.state.trial": "Сначала пройдите испытание этого Пробуждения",
   "mages_legacy.talent.state.superlate_level": "Второе Пробуждение — с %s уровня расы",
-  "mages_legacy.talent.state.superlate_trial": "Нажмите, чтобы пройти Испытание Пустоты: оно откроет второе Пробуждение",
+  "mages_legacy.talent.state.superlate_trial": "Нажмите, чтобы пройти испытание расы: оно откроет второе Пробуждение",
   "mages_legacy.talent.state.third_closed": "Третье Пробуждение остаётся закрытым: открыть можно два из трёх",
-  "mages_legacy.talent.two_of_three": "Первое Пробуждение встаёт на клавишу Z, второе (суперлейт, через Испытание Пустоты) — на левый Alt. У каждого своя стоимость и перезарядка.",
+  "mages_legacy.talent.two_of_three": "Первое Пробуждение встаёт на клавишу Z, второе (суперлейт, через испытание расы) — на левый Alt. У каждого своя стоимость и перезарядка.",
   "death.attack.mages_legacy.void_collapse": "%1$s сгинул в схлопнувшейся пустоте",
   "death.attack.mages_legacy.void_collapse.player": "%1$s сгинул в чёрной дыре игрока %2$s",
   "mages_legacy.traits.title": "Особенности",
@@ -547,5 +547,9 @@
   "mages_legacy.refuse.body_node": "Подойдите к своему узлу грибницы",
   "mages_legacy.network.body_growing": "Резервное тело: «%s», %s с",
   "mages_legacy.network.body_ready": "Резервное тело: «%s», готово",
-  "mages_legacy.race.mycelid.weak.3": "После Пробуждения — истощение: споры копятся медленнее"
+  "mages_legacy.race.mycelid.weak.3": "После Пробуждения — истощение: споры копятся медленнее",
+  "mages_legacy.message.colony_trial_start": "Испытание Колонии: в центре арены проросло Сердце колонии. Пять волн гнили пойдут к нему — защитите его четыре минуты. Сгниёт Сердце — испытание провалено.",
+  "mages_legacy.message.colony_heart": "Сердце колонии: %s/100 · волна %s",
+  "mages_legacy.message.colony_heart_lost": "Сердце колонии сгнило. Испытание провалено, его можно пройти снова.",
+  "mages_legacy.trial.rot": "Пожирающая гниль"
 }

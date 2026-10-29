@@ -113,6 +113,7 @@ public final class VoidRender {
 		NeoForge.EVENT_BUS.addListener(VoidRender::onTick);
 		NeoForge.EVENT_BUS.addListener(VoidRender::onRender);
 		NeoForge.EVENT_BUS.addListener(VoidRender::onRenderLiving);
+		NeoForge.EVENT_BUS.addListener(GreatBloom::onCameraDistance);
 	}
 
 	static void hide(int entity, int ticks) {

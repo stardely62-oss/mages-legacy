@@ -87,6 +87,8 @@ public final class Arena {
 		int length;
 		int wave;
 		boolean ending;
+		/** The Mycelid's Trial of the Colony: the Heart's health (it fails at 0); -1 for other trials. */
+		float heart = -1;
 
 		Session(UUID owner, int slot, boolean trial, int length) {
 			this.owner = owner;
@@ -313,6 +315,9 @@ public final class Arena {
 	/** Everyone back where they were taken from; drops and experience go with the owner; the arena is swept. */
 	private static void close(MinecraftServer server, ServerLevel arena, Session session) {
 		Vec3 c = centre(session.slot);
+		if (session.heart >= 0) {
+			arena.removeBlock(heartPos(session.slot), false);
+		}
 		Fx.rift(arena, c.add(0, 4, 0), 7f, 3.2f, 20);
 		ServerPlayer owner = server.getPlayerList().getPlayer(session.owner);
 		CompoundTag ownerBack = session.taken.get(session.owner);
@@ -527,14 +532,63 @@ public final class Arena {
 		Session session = new Session(player.getUUID(), freeSlot(), true, TRIAL_TICKS);
 		build(arena, session.slot);
 		sweep(arena, session.slot);
+		// The Mycelid's trial is the Trial of the Colony: a Heart of the colony grows in the middle, to be kept alive
+		boolean colony = euf.mageslegacy.race.RaceState.is(player, euf.mageslegacy.race.Race.MYCELID);
+		if (colony) {
+			session.heart = HEART;
+			arena.setBlockAndUpdate(heartPos(session.slot), euf.mageslegacy.mycelid.MyceliumNodeBlock.NODE.get().defaultBlockState()
+					.setValue(euf.mageslegacy.mycelid.MyceliumNodeBlock.MOTHER, true));
+		}
 		SESSIONS.put(player.getUUID(), session);
 		Fx.rift(player.serverLevel(), player.position().add(0, 2, 0), 4f, 2f, 20);
 		take(session, player, centre(session.slot).add(0, 0, 8), arena);
-		player.displayClientMessage(Component.translatable("mages_legacy.message.trial_start").withStyle(ChatFormatting.LIGHT_PURPLE), false);
+		player.displayClientMessage(Component.translatable(colony ? "mages_legacy.message.colony_trial_start" : "mages_legacy.message.trial_start")
+				.withStyle(ChatFormatting.LIGHT_PURPLE), false);
+		return true;
+	}
+
+	private static final float HEART = 100;
+
+	private static BlockPos heartPos(int slot) {
+		return BlockPos.containing(centre(slot));
+	}
+
+	/**
+	 * The Heart of the colony: every creature of the trial within 2.5 blocks gnaws at it (1 health a second each);
+	 * its health shows to the Mycelid; at 0 it rots and the trial fails.
+	 */
+	private static boolean tickHeart(ServerLevel arena, ServerPlayer player, Session session) {
+		Vec3 c = Vec3.atCenterOf(heartPos(session.slot));
+		if (session.age % 20 == 0) {
+			int gnawing = arena.getEntitiesOfClass(Mob.class, new AABB(c, c).inflate(2.5, 2, 2.5), m -> m.isAlive() && m.getTags().contains(TRIAL_TAG)).size();
+			session.heart -= gnawing;
+			if (gnawing > 0) {
+				arena.sendParticles(net.minecraft.core.particles.ParticleTypes.DAMAGE_INDICATOR, c.x, c.y + 0.6, c.z, gnawing * 2, 0.4, 0.3, 0.4, 0.1);
+			}
+			arena.sendParticles(net.minecraft.core.particles.ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 1, c.z, 6, 0.6, 0.4, 0.6, 0);
+			// The rot makes for the Heart; only a Mycelid standing in its way turns it aside
+			for (Mob mob : arena.getEntitiesOfClass(Mob.class, bounds(session.slot), m -> m.isAlive() && m.getTags().contains(TRIAL_TAG))) {
+				if (mob.distanceTo(player) > 5 && mob.distanceToSqr(c) > 4) {
+					mob.setTarget(null);
+					mob.getNavigation().moveTo(c.x, c.y, c.z, 1.0);
+				}
+			}
+			player.displayClientMessage(Component.translatable("mages_legacy.message.colony_heart", Math.max(0, Math.round(session.heart)), session.wave)
+					.withStyle(session.heart > 30 ? ChatFormatting.GREEN : ChatFormatting.RED), true);
+		}
+		if (session.heart <= 0) {
+			arena.removeBlock(heartPos(session.slot), false);
+			player.displayClientMessage(Component.translatable("mages_legacy.message.colony_heart_lost").withStyle(ChatFormatting.RED), false);
+			session.ending = true;
+			return false;
+		}
 		return true;
 	}
 
 	private static void tickTrial(ServerLevel arena, ServerPlayer player, Session session) {
+		if (session.heart >= 0 && !tickHeart(arena, player, session)) {
+			return;
+		}
 		if (session.age < 40) {
 			return;
 		}
@@ -552,8 +606,16 @@ public final class Arena {
 		}
 		session.wave++;
 		Vec3 c = centre(session.slot);
-		// Five waves of the void's creatures, the last the Echo of the Mage with its guard
-		List<EntityType<? extends Mob>> wave = switch (session.wave) {
+		// Five waves of the void's creatures, the last the Echo of the Mage with its guard; for the colony, five waves of
+		// rot that go for the Heart
+		List<EntityType<? extends Mob>> wave = session.heart >= 0 ? switch (session.wave) {
+			case 1 -> List.of(EntityType.ZOMBIE, EntityType.ZOMBIE, EntityType.ZOMBIE, EntityType.ZOMBIE, EntityType.SILVERFISH, EntityType.SILVERFISH);
+			case 2 -> List.of(EntityType.SPIDER, EntityType.SPIDER, EntityType.CAVE_SPIDER, EntityType.CAVE_SPIDER, EntityType.CAVE_SPIDER,
+					EntityType.ZOMBIE);
+			case 3 -> List.of(EntityType.HUSK, EntityType.HUSK, EntityType.HUSK, EntityType.WITCH, EntityType.WITCH);
+			case 4 -> List.of(EntityType.VINDICATOR, EntityType.VINDICATOR, EntityType.ZOMBIE, EntityType.ZOMBIE, EntityType.SPIDER, EntityType.WITCH);
+			default -> List.of(EntityType.RAVAGER, EntityType.ZOMBIE, EntityType.ZOMBIE, EntityType.HUSK, EntityType.CAVE_SPIDER, EntityType.CAVE_SPIDER);
+		} : switch (session.wave) {
 			case 1 -> List.of(EntityType.ENDERMITE, EntityType.ENDERMITE, EntityType.ENDERMITE, EntityType.ENDERMITE, EntityType.ENDERMAN,
 					EntityType.ENDERMAN);
 			case 2 -> List.of(EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.PHANTOM,
@@ -573,6 +635,15 @@ public final class Arena {
 			mob.moveTo(at.x, at.y, at.z, 0, 0);
 			mob.addTag(TRIAL_TAG);
 			mob.setPersistenceRequired();
+			// The colony's foes make for the Heart, not the Mycelid
+			if (session.heart >= 0) {
+				Vec3 heart = Vec3.atCenterOf(heartPos(session.slot));
+				mob.getNavigation().moveTo(heart.x, heart.y, heart.z, 1.0);
+			}
+			if (mob.getType() == EntityType.RAVAGER && session.heart >= 0) {
+				// The Rot that Eats: the last of the colony's trial
+				mob.setCustomName(Component.translatable("mages_legacy.trial.rot"));
+			}
 			if (mob.getType() == EntityType.WITHER_SKELETON) {
 				// The Echo of the Mage: the last of the trial
 				mob.setCustomName(Component.translatable("mages_legacy.trial.echo"));
@@ -587,7 +658,9 @@ public final class Arena {
 				}
 			}
 			arena.addFreshEntity(mob);
-			mob.setTarget(player);
+			if (session.heart < 0) {
+				mob.setTarget(player);
+			}
 			Fx.rift(arena, at.add(0, 1.3, 0), 2.4f, 1.3f, 16);
 		}
 		player.displayClientMessage(Component.translatable("mages_legacy.message.trial_wave", session.wave).withStyle(ChatFormatting.LIGHT_PURPLE),

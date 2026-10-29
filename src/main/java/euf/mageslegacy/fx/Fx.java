@@ -52,6 +52,8 @@ public final class Fx {
 	public static final int THIRD_PERSON = 16;
 	/** The Great Bloom: the giant mushroom grown where a Mycelid stands (follows them); 0 ticks withers it now. */
 	public static final int BLOOM = 17;
+	/** The Spore Storm's whirl round a Mycelid (follows them): a: radius. */
+	public static final int STORM = 18;
 
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
@@ -100,6 +102,10 @@ public final class Fx {
 
 	public static void bloom(ServerLevel level, Entity body, int ticks) {
 		send(level, body.position(), new FxPayload(BLOOM, body.getId(), body.position(), body.position(), ticks, 0, 0));
+	}
+
+	public static void storm(ServerLevel level, Entity heart, float radius, int ticks) {
+		send(level, heart.position(), new FxPayload(STORM, heart.getId(), heart.position(), heart.position(), ticks, radius, 0));
 	}
 
 	public static void thirdPerson(ServerPlayer player, int ticks) {
