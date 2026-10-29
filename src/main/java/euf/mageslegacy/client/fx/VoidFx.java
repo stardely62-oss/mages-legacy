@@ -226,10 +226,10 @@ public final class VoidFx {
 		// Radial speed is in hundredths of a block a tick: reach the radius as the shell fades
 		float push = radius / life * 100;
 		List<PhotonFx.Emitter> emitters = new ArrayList<>();
-		emitters.add(new PhotonFx.Emitter(life).sphere(0.05f, 0).burst(90).life(life, life).speed(0, 0).size(0.3f, 0.4f)
-				.colors(alpha(VOID, 0.75f), alpha(VOID, 0.35f), alpha(VOID, 0.08f), alpha(VOID, 0)).swirl(push, 0).bloom(VOID, 2.2f));
+		emitters.add(new PhotonFx.Emitter(life).sphere(0.05f, 0).burst(70).life(life, life).speed(0, 0).size(0.1f, 0.14f)
+				.colors(alpha(VOID, 0.7f), alpha(VOID, 0.35f), alpha(VOID, 0.08f), alpha(VOID, 0)).swirl(push, 0).stretch(0.6f, 1.2f).bloom(VOID, 1.1f));
 		if (ink) {
-			emitters.add(new PhotonFx.Emitter(life).sphere(0.05f, 0).burst(60).life(life, life).speed(0, 0).size(0.35f, 0.45f)
+			emitters.add(new PhotonFx.Emitter(life).sphere(0.05f, 0).burst(40).life(life, life).speed(0, 0).size(0.2f, 0.28f)
 					.colors(alpha(DEEP, 0.3f), alpha(DEEP, 0.15f), alpha(DEEP, 0)).swirl(push, 0).ink());
 		}
 		PhotonFx.play(level, at, null, 0, emitters.toArray(PhotonFx.Emitter[]::new));
@@ -350,10 +350,10 @@ public final class VoidFx {
 		float shell = reach + 1.4f;
 		PhotonFx.play(level, null, caster, 0,
 				// The fold: a shell of dark and violet collapsing onto the caster
-				new PhotonFx.Emitter(8).sphere(shell, 0).offset(0, 1, 0).burst(150).life(8, 8).speed(0, 0).size(0.3f, 0.4f)
-						.colors(alpha(DEEP, 0), alpha(DEEP, 0.6f), alpha(DEEP, 0)).swirl(-shell / 8 * 100, 0).ink(),
-				new PhotonFx.Emitter(8).sphere(shell, 0).offset(0, 1, 0).burst(110).life(8, 8).speed(0, 0).size(0.08f, 0.12f)
-						.colors(alpha(VOID, 0), alpha(VOID, 0.9f), 0xE0FFFFFF).swirl(-shell / 8 * 100, 0).stretch(0.8f, 1.4f).bloom(VOID, 2.2f),
+				new PhotonFx.Emitter(8).sphere(shell, 0).scale(1, 0.55f, 1).offset(0, 1, 0).burst(90).life(8, 8).speed(0, 0).size(0.12f, 0.16f)
+						.colors(alpha(DEEP, 0), alpha(DEEP, 0.5f), alpha(DEEP, 0)).swirl(-shell / 8 * 100, 0).ink(),
+				new PhotonFx.Emitter(8).sphere(shell, 0).scale(1, 0.55f, 1).offset(0, 1, 0).burst(110).life(8, 8).speed(0, 0).size(0.05f, 0.07f)
+						.colors(alpha(VOID, 0), alpha(VOID, 0.9f), 0xC0FFFFFF).swirl(-shell / 8 * 100, 0).stretch(0.8f, 1.4f).bloom(VOID, 1.4f),
 				// The lens of darkness on the ground
 				new PhotonFx.Emitter(life).ring(reach, 1).offset(0, 0.05f, 0).burst(150).life(life, life).speed(0, 0).size(0.55f, 0.7f)
 						.colors(hold(DEEP, 0.55f, life)).flat().ink(),
@@ -361,8 +361,8 @@ public final class VoidFx {
 				new PhotonFx.Emitter(life).ring(reach, 0).offset(0, 0.08f, 0).burst(80).life(life, life).speed(0, 0).size(0.22f, 0.28f)
 						.colors(hold(VOID, 0.8f, life)).swirl(0, 2).flat().bloom(VOID, 2f),
 				// Rings tightening across it, one every half second
-				new PhotonFx.Emitter(life).ring(reach, 0).offset(0, 0.1f, 0).pulses(56, life / 10, 10).life(10, 10).speed(0, 0).size(0.18f, 0.22f)
-						.colors(alpha(VOID, 0), alpha(VOID, 0.9f), 0xE6FFFFFF, 0x00FFFFFF).swirl(-reach / 10 * 100, 0).flat().bloom(VOID, 2.2f),
+				new PhotonFx.Emitter(life).ring(reach, 0).offset(0, 0.1f, 0).pulses(56, life / 10, 10).life(10, 10).speed(0, 0).size(0.12f, 0.15f)
+						.colors(alpha(VOID, 0), alpha(VOID, 0.8f), 0xA0FFFFFF, 0x00FFFFFF).swirl(-reach / 10 * 100, 0).flat().bloom(VOID, 1.4f),
 				// Streaks of weight driven down from above
 				new PhotonFx.Emitter(life).ring(reach * 0.85f, 0.8f).offset(0, 3.4f, 0).flow(4).life(7, 10).speed(0, 0).size(0.05f, 0.07f)
 						.colors(0x00FFFFFF, 0xFFFFFFFF, alpha(VOID, 0.8f), alpha(VOID, 0)).force(0, -0.08f, 0).world().stretch(1.2f, 1.6f)
