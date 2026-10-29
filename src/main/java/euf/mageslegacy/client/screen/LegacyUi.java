@@ -25,6 +25,8 @@ public final class LegacyUi {
 	public static final int TEXT = 0xFFEDE6DA;
 	public static final int MUTED = 0xFF9A9088;
 	public static final int BLACK = 0xFF050406;
+	public static final int GREEN = 0xFF9CE08A;
+	public static final int RED = 0xFFE07A7A;
 
 	private static final Map<ResourceLocation, Boolean> PRESENT = new HashMap<>();
 
@@ -186,6 +188,28 @@ public final class LegacyUi {
 	/** An emblem at full colour, or dimmed for a race the player can't take. */
 	public static void emblem(GuiGraphics graphics, Race race, int x, int y, int size, boolean bright) {
 		emblem(graphics, race, x, y, size, bright ? 1f : 0.42f, 1f);
+	}
+
+	/** An icon (a 32 px Codex texture) drawn at the given size, dimmed when not available. */
+	public static void icon(GuiGraphics graphics, ResourceLocation icon, int x, int y, int size, boolean bright) {
+		RenderSystem.enableBlend();
+		if (!bright) {
+			RenderSystem.setShaderColor(0.42f, 0.4f, 0.44f, 1f);
+		}
+		graphics.blit(icon, x, y, size, size, 0, 0, 32, 32, 32, 32);
+		RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+	}
+
+	/** A key cap: a small dark box with the key's name, as on a keyboard, its bottom right corner at the point given. */
+	public static void keyCap(GuiGraphics graphics, String key, int rightX, int bottomY, int color) {
+		Font font = Minecraft.getInstance().font;
+		int w = Math.max(9, font.width(key) + 4);
+		int x0 = rightX - w;
+		int y0 = bottomY - 10;
+		graphics.fill(x0, y0, rightX, bottomY, BLACK);
+		graphics.fill(x0 + 1, y0 + 1, rightX - 1, bottomY - 1, 0xFF2A2328);
+		graphics.fill(x0 + 1, bottomY - 2, rightX - 1, bottomY - 1, 0xFF181418);
+		graphics.drawString(font, key, x0 + (w - font.width(key)) / 2 + 1, y0 + 1, color, false);
 	}
 
 	/** A soft glow behind something round: rings of fading colour. */

@@ -1,8 +1,11 @@
 package euf.mageslegacy.client.screen;
 
 import euf.mageslegacy.client.MagesLegacyClient;
+import euf.mageslegacy.race.Ability;
 import euf.mageslegacy.race.Race;
+import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.client.resources.language.I18n;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -11,7 +14,8 @@ import net.minecraft.util.FormattedCharSequence;
 
 /**
  * A card for every race with its emblem on top; below, the chosen race: emblem, name and legend on the left, what the
- * mage gave it and its sealed legacy on the right. The legend scrolls with the wheel when a large GUI scale leaves it
+ * mage gave it and, for an awakened race, its strengths, weaknesses and abilities (what each does is in its tooltip),
+ * for a sleeping one its sealed legacy, on the right. The legend scrolls with the wheel when a large GUI scale leaves it
  * too little room.
  */
 public class RaceSelectScreen extends Screen {
@@ -23,6 +27,8 @@ public class RaceSelectScreen extends Screen {
 	/** Scroll offset of the legend, and how far it can go (set while drawing). */
 	private int legendScroll;
 	private int legendMax;
+	private int traitsScroll;
+	private int traitsMax;
 
 	public RaceSelectScreen() {
 		super(Component.translatable("mages_legacy.screen.choose_title"));
@@ -47,6 +53,7 @@ public class RaceSelectScreen extends Screen {
 	public void select(Race race) {
 		selected = race;
 		legendScroll = 0;
+		traitsScroll = 0;
 		updateButton();
 	}
 
@@ -68,8 +75,12 @@ public class RaceSelectScreen extends Screen {
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-		if (mouseY >= detailTop() && mouseY < detailBottom() && mouseX < width / 2.0) {
-			legendScroll = Math.max(0, Math.min(legendMax, legendScroll - (int) (scrollY * 12)));
+		if (mouseY >= detailTop() && mouseY < detailBottom()) {
+			if (mouseX < width / 2.0) {
+				legendScroll = Math.max(0, Math.min(legendMax, legendScroll - (int) (scrollY * 12)));
+			} else {
+				traitsScroll = Math.max(0, Math.min(traitsMax, traitsScroll - (int) (scrollY * 12)));
+			}
 			return true;
 		}
 		return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -137,7 +148,10 @@ public class RaceSelectScreen extends Screen {
 			drawCard(graphics, race, mouseX, mouseY);
 		}
 		drawLegend(graphics, width / 2 - colWidth() - 8);
-		drawLegacy(graphics, width / 2 + 8);
+		Ability hovered = drawLegacy(graphics, width / 2 + 8, mouseX, mouseY);
+		if (hovered != null) {
+			graphics.renderComponentTooltip(font, abilityTooltip(hovered), mouseX, mouseY);
+		}
 	}
 
 	private void drawCard(GuiGraphics graphics, Race race, int mouseX, int mouseY) {
@@ -213,7 +227,7 @@ public class RaceSelectScreen extends Screen {
 	 * Right column: what the mage gave this people, then its legacy. While the race sleeps, the legacy is a sealed
 	 * emblem breathing in the dark behind a lock.
 	 */
-	private void drawLegacy(GuiGraphics graphics, int x) {
+	private Ability drawLegacy(GuiGraphics graphics, int x, int mouseX, int mouseY) {
 		int w = colWidth();
 		int top = detailTop();
 		int bottom = detailBottom();
@@ -229,7 +243,7 @@ public class RaceSelectScreen extends Screen {
 		y += 4;
 		LegacyUi.divider(graphics, x, x + w, y, color);
 		if (selected.playable) {
-			return;
+			return drawTraits(graphics, x, y + 8, mouseX, mouseY);
 		}
 
 		// The sealed legacy, centred in the rest of the column
@@ -252,12 +266,107 @@ public class RaceSelectScreen extends Screen {
 			graphics.drawCenteredString(font, row, cx, ty, LegacyUi.MUTED);
 			ty += 10;
 		}
+		return null;
 	}
 
-	/** While every race still sleeps the choice can be put off; once one wakes, it has to be made. */
+	private static final int TILE_H = 38;
+	private static final int TILES_PER_ROW = 3;
+
+	/** Strengths and weaknesses as gem lists (scrolling), the ability tiles below them. Returns the hovered ability. */
+	private Ability drawTraits(GuiGraphics graphics, int x, int top, int mouseX, int mouseY) {
+		int w = colWidth();
+		int bottom = detailBottom();
+		int color = LegacyUi.argb(selected.color);
+		List<Ability> abilities = Ability.of(selected);
+		int rows = (abilities.size() + TILES_PER_ROW - 1) / TILES_PER_ROW;
+		int tilesH = rows * TILE_H + Math.max(0, rows - 1) * 4;
+		int listBottom = bottom - (abilities.isEmpty() ? 6 : tilesH + 18);
+
+		graphics.enableScissor(x - 2, top, x + w + 2, listBottom);
+		int y = top - traitsScroll;
+		y = section(graphics, Component.translatable("mages_legacy.screen.strengths"), x, y, LegacyUi.GREEN);
+		y = gems(graphics, Lines.of(selected.key() + ".perk"), x, y, w - 4, LegacyUi.GREEN, 0xFFD6EBD0);
+		y += 4;
+		y = section(graphics, Component.translatable("mages_legacy.screen.weaknesses"), x, y, LegacyUi.RED);
+		y = gems(graphics, Lines.of(selected.key() + ".weak"), x, y, w - 4, LegacyUi.RED, 0xFFEBD0D0);
+		graphics.disableScissor();
+		traitsMax = Math.max(0, y + traitsScroll - listBottom);
+		traitsScroll = Math.min(traitsScroll, traitsMax);
+		scrollbar(graphics, x + w + 2, top, listBottom, traitsScroll, traitsMax, color);
+		if (abilities.isEmpty()) {
+			return null;
+		}
+
+		int tilesTop = bottom - tilesH - 6;
+		LegacyUi.divider(graphics, x, x + w, tilesTop - 8, color);
+		int tileW = (w - 4 * (TILES_PER_ROW - 1)) / TILES_PER_ROW;
+		Ability hovered = null;
+		for (int i = 0; i < abilities.size(); i++) {
+			Ability ability = abilities.get(i);
+			int row = i / TILES_PER_ROW;
+			int col = i % TILES_PER_ROW;
+			// A shorter last row sits in the middle
+			int inRow = Math.min(TILES_PER_ROW, abilities.size() - row * TILES_PER_ROW);
+			int tx = x + (w - inRow * tileW - (inRow - 1) * 4) / 2 + col * (tileW + 4);
+			int ty = tilesTop + row * (TILE_H + 4);
+			boolean hot = mouseX >= tx && mouseX < tx + tileW && mouseY >= ty && mouseY < ty + TILE_H;
+			if (hot) {
+				hovered = ability;
+			}
+			LegacyUi.panel(graphics, tx, ty, tx + tileW, ty + TILE_H, hot ? color : LegacyUi.RIM_DARK);
+			int cx = tx + tileW / 2;
+			var icon = LegacyUi.gui("icon/ability_" + ability.id());
+			if (LegacyUi.exists(icon)) {
+				LegacyUi.icon(graphics, icon, cx - 8, ty + 4, 16, true);
+			}
+			LegacyUi.keyCap(graphics, Ability.KEY_NAMES[ability.slot], tx + tileW - 2, ty + 13, LegacyUi.GOLD);
+			String name = Component.translatable(ability.key() + ".name").getString();
+			graphics.drawCenteredString(font, font.plainSubstrByWidth(name, tileW - 4), cx, ty + 23, LegacyUi.GOLD);
+		}
+		return hovered;
+	}
+
+	private int section(GuiGraphics graphics, Component title, int x, int y, int color) {
+		graphics.drawString(font, title.copy().withStyle(ChatFormatting.BOLD), x, y, color);
+		return y + 12;
+	}
+
+	private int gems(GuiGraphics graphics, List<Component> lines, int x, int y, int w, int gem, int color) {
+		for (Component line : lines) {
+			LegacyUi.diamond(graphics, x + 3, y + 3, 2, gem);
+			for (FormattedCharSequence row : font.split(line, w - 10)) {
+				graphics.drawString(font, row, x + 10, y, color, true);
+				y += 10;
+			}
+			y += 1;
+		}
+		return y;
+	}
+
+	/** Name, the level it opens at and its key, the legend line, then what it does. */
+	private List<Component> abilityTooltip(Ability ability) {
+		List<Component> lines = new ArrayList<>();
+		lines.add(Component.translatable(ability.key() + ".name").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+		lines.add(Component.translatable("mages_legacy.screen.ability_meta", ability.level, Ability.KEY_NAMES[ability.slot], ability.cost,
+				ability.cooldown / 20).withStyle(ChatFormatting.DARK_PURPLE));
+		if (I18n.exists(ability.key() + ".lore")) {
+			wrapInto(lines, Component.translatable(ability.key() + ".lore").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
+		}
+		wrapInto(lines, Component.translatable(ability.key() + ".desc").withStyle(ChatFormatting.WHITE));
+		return lines;
+	}
+
+	/** Tooltips don't wrap by themselves: long lines are cut to a readable width, keeping their style. */
+	private void wrapInto(List<Component> lines, Component text) {
+		for (var part : font.getSplitter().splitLines(text, 220, text.getStyle())) {
+			lines.add(Component.literal(part.getString()).withStyle(text.getStyle()));
+		}
+	}
+
+	/** The choice can be put off: the legend comes back on the next join, or with the legacy key. */
 	@Override
 	public boolean shouldCloseOnEsc() {
-		return !Race.anyPlayable();
+		return true;
 	}
 
 	@Override

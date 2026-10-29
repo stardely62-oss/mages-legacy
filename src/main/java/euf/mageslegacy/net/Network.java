@@ -1,6 +1,7 @@
 package euf.mageslegacy.net;
 
 import euf.mageslegacy.client.MagesLegacyClient;
+import euf.mageslegacy.race.Abilities;
 import euf.mageslegacy.race.RaceState;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -11,12 +12,19 @@ public final class Network {
 	}
 
 	public static void register(RegisterPayloadHandlersEvent event) {
-		PayloadRegistrar registrar = event.registrar("1");
-		// The lambda's body only runs on a client, so a dedicated server never loads the client class
+		PayloadRegistrar registrar = event.registrar("2");
+		// The lambdas' bodies only run on a client, so a dedicated server never loads the client class
 		registrar.playToClient(OpenChoicePayload.TYPE, OpenChoicePayload.STREAM_CODEC, (payload, context) -> MagesLegacyClient.openChoice());
+		registrar.playToClient(SyncPayload.TYPE, SyncPayload.STREAM_CODEC, (payload, context) -> MagesLegacyClient.onSync(payload));
+		registrar.playToClient(FxPayload.TYPE, FxPayload.STREAM_CODEC, (payload, context) -> MagesLegacyClient.onFx(payload));
 		registrar.playToServer(ChooseRacePayload.TYPE, ChooseRacePayload.STREAM_CODEC, (payload, context) -> {
 			if (context.player() instanceof ServerPlayer player) {
 				RaceState.choose(player, payload.race());
+			}
+		});
+		registrar.playToServer(AbilityPayload.TYPE, AbilityPayload.STREAM_CODEC, (payload, context) -> {
+			if (context.player() instanceof ServerPlayer player) {
+				Abilities.use(player, payload.slot());
 			}
 		});
 	}

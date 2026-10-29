@@ -233,10 +233,10 @@ public class LoreScreen extends Screen {
 		return t * t * (3 - 2 * t);
 	}
 
-	/** While every race still sleeps the choice can be put off; once one wakes, it has to be made. */
+	/** The choice can be put off: the legend comes back on the next join, or with the legacy key. */
 	@Override
 	public boolean shouldCloseOnEsc() {
-		return !Race.anyPlayable();
+		return true;
 	}
 
 	@Override

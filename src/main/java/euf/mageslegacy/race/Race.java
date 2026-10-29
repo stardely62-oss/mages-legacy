@@ -9,7 +9,7 @@ public enum Race {
 	SHEPHERD(0xD9B26F, false),
 	FROZEN(0x8FB8DE, false),
 	BLOODKIN(0xB23A48, false),
-	VOIDBORN(0x9B7FD4, false),
+	VOIDBORN(0x9B7FD4, true),
 	MERCENARY(0xC8823C, false),
 	TEMPTER(0xD46A8E, false),
 	MASKED(0xBFB6A3, false);

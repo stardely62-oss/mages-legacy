@@ -1,0 +1,63 @@
+package euf.mageslegacy.race;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * A race's active ability: which key it sits on, the race level it opens at (for free), what it costs and how long it
+ * recovers. Keys: 0 R, 1 V, 2 Z, 3 H, 4 left Alt; Z and Alt are kept for the Awakenings.
+ */
+public enum Ability {
+	VOID_STEP(Race.VOIDBORN, 0, 3, 20, 6 * 20),
+	GRAVITY(Race.VOIDBORN, 1, 5, 25, 18 * 20),
+	POCKET(Race.VOIDBORN, 3, 1, 20, 10 * 20);
+
+	public static final int SLOTS = 5;
+	/** Key names as they stand by default, for the HUD and the choice screen. */
+	public static final String[] KEY_NAMES = {"R", "V", "Z", "H", "Alt"};
+
+	public final Race race;
+	public final int slot;
+	public final int level;
+	public final int cost;
+	public final int cooldown;
+
+	Ability(Race race, int slot, int level, int cost, int cooldown) {
+		this.race = race;
+		this.slot = slot;
+		this.level = level;
+		this.cost = cost;
+		this.cooldown = cooldown;
+	}
+
+	public String id() {
+		return name().toLowerCase(java.util.Locale.ROOT);
+	}
+
+	/** Translation key prefix: mages_legacy.ability.<id>. */
+	public String key() {
+		return "mages_legacy.ability." + id();
+	}
+
+	public static Optional<Ability> of(Race race, int slot) {
+		for (Ability ability : values()) {
+			if (ability.race == race && ability.slot == slot) {
+				return Optional.of(ability);
+			}
+		}
+		return Optional.empty();
+	}
+
+	/** A race's abilities in the order they open. */
+	public static List<Ability> of(Race race) {
+		List<Ability> list = new ArrayList<>();
+		for (Ability ability : values()) {
+			if (ability.race == race) {
+				list.add(ability);
+			}
+		}
+		list.sort(java.util.Comparator.comparingInt(a -> a.level));
+		return list;
+	}
+}

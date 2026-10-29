@@ -1,6 +1,6 @@
 # Mage's Legacy
 
-![Выбор расы](https://github.com/stardely62-oss/mages-legacy/releases/download/neo-dev/choose_mycelid.png)
+![Выбор расы](https://github.com/stardely62-oss/mages-legacy/releases/download/neo-dev/choose_voidborn.png)
 
 Мод для **NeoForge 1.21.1** от euf. Эффекты и анимации строятся на [Photon 2](https://modrinth.com/mod/photon-editor) (2.2.9+, вместе с LDLib2).
 

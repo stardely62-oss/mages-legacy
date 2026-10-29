@@ -1,7 +1,11 @@
 package euf.mageslegacy;
 
 import euf.mageslegacy.net.Network;
+import euf.mageslegacy.race.Progression;
+import euf.mageslegacy.race.RaceCommand;
 import euf.mageslegacy.race.RaceState;
+import euf.mageslegacy.voidborn.Pocket;
+import euf.mageslegacy.voidborn.Voidborn;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -9,8 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Mage's Legacy: the nameless mage split people into races. For now only the legend and the choice of race exist;
- * every race still sleeps.
+ * Mage's Legacy: the nameless mage split people into races. The legend, the choice of race and the first awakened
+ * race, the Voidborn; the others still sleep.
  */
 @Mod(MagesLegacy.MOD_ID)
 public class MagesLegacy {
@@ -20,6 +24,10 @@ public class MagesLegacy {
 	public MagesLegacy(IEventBus modBus) {
 		RaceState.register(modBus);
 		modBus.addListener(Network::register);
+		Progression.register();
+		Voidborn.register();
+		Pocket.register();
+		RaceCommand.register();
 	}
 
 	public static ResourceLocation id(String path) {

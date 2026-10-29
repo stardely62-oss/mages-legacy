@@ -3,7 +3,10 @@ package euf.mageslegacy.client;
 import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.client.screen.LoreScreen;
 import euf.mageslegacy.client.screen.RaceSelectScreen;
+import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
+import euf.mageslegacy.race.RaceState;
+import euf.mageslegacy.voidborn.Pocket;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayDeque;
@@ -14,21 +17,31 @@ import java.util.function.BooleanSupplier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Difficulty;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.monster.Husk;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
 /**
  * The CI scenario (run with -Dmages_legacy.harness=true): photographs every page of the legend and every race on the
- * choice screen, checks that all of them still sleep, then creates a flat world and checks that joining it without a
- * race opens the legend. Writes harness-result.txt into the game directory and quits.
+ * choice screen, creates a flat world and checks that joining it without a race opens the legend, then becomes a
+ * Voidborn and tries the race for real: the Void Step through a wall, Heavier Gravity on a husk, the Pocket there and
+ * back, water burning. Writes harness-result.txt into the game directory and quits.
  */
 final class Harness {
 	/** One step: waits until it may run, runs, then lets this many ticks pass before the next one. */
@@ -41,6 +54,10 @@ final class Harness {
 	private static int waiting;
 	private static int idle;
 	private static boolean finished;
+	/** Things the scenario remembers between steps. */
+	private static Husk husk;
+	private static Vec3 beforePocket;
+	private static float healthBeforeWater;
 
 	private Harness() {
 	}
@@ -58,15 +75,113 @@ final class Harness {
 			run(() -> {
 				RaceSelectScreen screen = (RaceSelectScreen) mc.screen;
 				screen.select(race);
-				check(race.id() + " sleeps", !screen.canChoose());
+				check(race.id() + (race.playable ? " can be chosen" : " sleeps"), screen.canChoose() == race.playable);
 			}, 10);
 			shot("choose_" + race.id());
 		}
 		run(Harness::createWorld, 0);
 		then("join opens the legend", () -> mc.player != null && mc.screen instanceof LoreScreen, () -> check("join opens the legend", true), 60);
 		shot("join_legend");
-		run(() -> finish(), 0);
+
+		// Becoming a Voidborn through the screens, as a player would
+		run(() -> ((LoreScreen) mc.screen).next(), 10);
+		run(() -> {
+			RaceSelectScreen screen = (RaceSelectScreen) mc.screen;
+			screen.select(Race.VOIDBORN);
+			screen.choose();
+		}, 30);
+		run(() -> check("chose the Voidborn", RaceState.is(player(), Race.VOIDBORN) && mc.screen == null), 0);
+		run(() -> server().execute(Harness::setUp), 40);
+		shot("hud");
+
+		// The Void Step through a wall
+		run(() -> MagesLegacyClient.useAbility(0), 12);
+		shot("step_mid");
+		run(() -> {
+		}, 25);
+		run(() -> {
+			ServerPlayer player = player();
+			check("void step went through the wall (z=" + String.format("%.1f", player.getZ()) + ")",
+					player.getZ() > 6 && player.level().noCollision(player));
+		}, 5);
+		shot("step_end");
+
+		// Heavier Gravity on a husk (a zombie would burn in the sun and spoil the count)
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			husk = EntityType.HUSK.create(player.serverLevel());
+			husk.moveTo(player.getX() + 1.2, player.getY(), player.getZ() + 1.2, 0, 0);
+			husk.setNoAi(true);
+			husk.setPersistenceRequired();
+			player.serverLevel().addFreshEntity(husk);
+		}), 10);
+		run(() -> MagesLegacyClient.useAbility(1), 10);
+		shot("gravity");
+		run(() -> {
+		}, 45);
+		run(() -> check("gravity hurt and slowed the husk (" + husk.getHealth() + "/" + husk.getMaxHealth() + ")",
+				husk.getHealth() <= husk.getMaxHealth() - 2 && husk.hasEffect(MobEffects.MOVEMENT_SLOWDOWN)), 5);
+
+		// The Pocket and back
+		run(() -> beforePocket = player().position(), 0);
+		run(() -> MagesLegacyClient.useAbility(3), 50);
+		run(() -> {
+			ServerPlayer player = player();
+			MinecraftServer server = server();
+			BlockPos heart = Pocket.platformCentre(server, player.getUUID());
+			check("pocket entered with its platform", Pocket.isPocket(player.level())
+					&& player.serverLevel().getBlockState(heart).is(Blocks.CRYING_OBSIDIAN));
+			check("pocket keeps its edge", Pocket.canBuild(server, heart.offset(1, 1, 1)) && !Pocket.canBuild(server, heart.offset(4, 1, 0)));
+			mc.player.setXRot(35);
+		}, 20);
+		shot("pocket");
+		run(() -> MagesLegacyClient.useAbility(3), 50);
+		run(() -> {
+			ServerPlayer player = player();
+			check("pocket returned to where it was opened", !Pocket.isPocket(player.level()) && player.position().distanceTo(beforePocket) < 2);
+		}, 5);
+		shot("pocket_back");
+
+		// Water burns
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			healthBeforeWater = player.getHealth();
+			player.serverLevel().setBlockAndUpdate(player.blockPosition(), Blocks.WATER.defaultBlockState());
+		}), 50);
+		run(() -> {
+			ServerPlayer player = player();
+			check("water burns the Voidborn (" + healthBeforeWater + " -> " + player.getHealth() + ")", player.getHealth() < healthBeforeWater);
+			server().execute(() -> {
+				player.serverLevel().setBlockAndUpdate(player.blockPosition(), Blocks.AIR.defaultBlockState());
+				player.setHealth(player.getMaxHealth());
+			});
+		}, 5);
+		run(Harness::finish, 0);
 		NeoForge.EVENT_BUS.addListener(Harness::tick);
+	}
+
+	private static MinecraftServer server() {
+		return Minecraft.getInstance().getSingleplayerServer();
+	}
+
+	private static ServerPlayer player() {
+		return server().getPlayerList().getPlayer(Minecraft.getInstance().player.getUUID());
+	}
+
+	/** Level 5 for every ability, full Void, noon, and a stone wall 4 blocks south of the player, who faces it. */
+	private static void setUp() {
+		ServerPlayer player = player();
+		ServerLevel level = player.serverLevel();
+		Progression.setLevel(player, 5);
+		RaceState.setResource(player, RaceState.MAX_RESOURCE);
+		level.setDayTime(6000);
+		int y = player.getBlockY();
+		player.teleportTo(level, 0.5, y, 0.5, 0, 0);
+		for (int x = -2; x <= 2; x++) {
+			for (int dy = 0; dy < 3; dy++) {
+				level.setBlockAndUpdate(new BlockPos(x, y + dy, 4), Blocks.STONE.defaultBlockState());
+			}
+		}
 	}
 
 	private static void then(String name, BooleanSupplier ready, Runnable action, int after) {
@@ -91,8 +206,11 @@ final class Harness {
 
 	private static void createWorld() {
 		Minecraft mc = Minecraft.getInstance();
-		LevelSettings settings = new LevelSettings("harness", GameType.CREATIVE, false, Difficulty.PEACEFUL, true, new GameRules(),
-				WorldDataConfiguration.DEFAULT);
+		GameRules rules = new GameRules();
+		rules.getRule(GameRules.RULE_DAYLIGHT).set(false, null);
+		rules.getRule(GameRules.RULE_WEATHER_CYCLE).set(false, null);
+		rules.getRule(GameRules.RULE_DOMOBSPAWNING).set(false, null);
+		LevelSettings settings = new LevelSettings("harness", GameType.SURVIVAL, false, Difficulty.NORMAL, true, rules, WorldDataConfiguration.DEFAULT);
 		mc.createWorldOpenFlows().createFreshLevel("harness", settings, new WorldOptions(1L, false, false),
 				registries -> registries.registryOrThrow(Registries.WORLD_PRESET).getHolderOrThrow(WorldPresets.FLAT).value().createWorldDimensions(),
 				new TitleScreen());
@@ -131,6 +249,9 @@ final class Harness {
 	}
 
 	private static void finish() {
+		if (finished) {
+			return;
+		}
 		finished = true;
 		Minecraft mc = Minecraft.getInstance();
 		RESULTS.add("DONE");
