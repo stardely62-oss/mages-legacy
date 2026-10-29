@@ -147,7 +147,8 @@ public final class VoidRender {
 		float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
 		try {
 			VoidShards.render(event.getPoseStack(), camera, partial);
-			if (!EFFECTS.isEmpty() || !PARTICLES.isEmpty()) {
+			// In the void (a Void Step) the world's effects stay behind with the world, glow and all
+			if ((!EFFECTS.isEmpty() || !PARTICLES.isEmpty()) && !euf.mageslegacy.client.ClientStep.active()) {
 				FxDraw draw = new FxDraw(mc.renderBuffers().bufferSource(), camera.getPosition());
 				for (Effect e : EFFECTS) {
 					e.draw(draw, partial);

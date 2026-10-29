@@ -14,7 +14,7 @@ import net.neoforged.neoforge.common.NeoForge;
  * the far end the void fades away onto the new place. The camera never moves or shakes on its own; only the
  * player's own look turns it.
  */
-final class ClientStep {
+public final class ClientStep {
 	/** Ticks to fade into the void and back out of it. */
 	private static final float FADE_IN = 4;
 	private static final float FADE_OUT = 6;
@@ -37,7 +37,7 @@ final class ClientStep {
 		after = -1;
 	}
 
-	static boolean active() {
+	public static boolean active() {
 		return step != null;
 	}
 
