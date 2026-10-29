@@ -218,7 +218,12 @@ public class TalentScreen extends Screen {
 		return hot;
 	}
 
+	/** The node's own Codex icon (textures/gui/talent/<id>), else the shared one its definition names. */
 	private static ResourceLocation icon(Talent t) {
+		ResourceLocation own = LegacyUi.gui("talent/" + t.id());
+		if (LegacyUi.exists(own)) {
+			return own;
+		}
 		ResourceLocation talent = LegacyUi.gui("talent/" + t.icon);
 		if (LegacyUi.exists(talent)) {
 			return talent;
