@@ -48,7 +48,7 @@ public final class Talents {
 	public static int spent(List<String> owned) {
 		int sum = 0;
 		for (String id : owned) {
-			sum += Talent.byId(id).map(t -> t.cost).orElse(0);
+			sum += Talent.byId(id).map(t -> t.cost()).orElse(0);
 		}
 		return sum;
 	}
@@ -65,8 +65,8 @@ public final class Talents {
 		if (owned(player).contains(talent.id())) {
 			return "mages_legacy.talent.state.owned";
 		}
-		if (RaceState.level(player) < talent.levelNeeded()) {
-			return "mages_legacy.talent.state.level";
+		if (talent.tier() > Progression.openTiers(player)) {
+			return "mages_legacy.talent.state.tier_" + talent.tier();
 		}
 		boolean linked = talent.requires().isEmpty();
 		for (Talent near : talent.requires()) {
@@ -81,7 +81,7 @@ public final class Talents {
 				return why;
 			}
 		}
-		if (freePoints(player) < talent.cost) {
+		if (freePoints(player) < talent.cost()) {
 			return "mages_legacy.talent.state.no_points";
 		}
 		return null;
@@ -149,7 +149,12 @@ public final class Talents {
 
 	/** Takes back every talent, refunding its points (admin command). */
 	public static void reset(ServerPlayer player) {
-		player.setData(RaceState.TALENTS, List.of());
+		// The Awakenings stay once woken: forgetting them would undo their trials
+		List<String> kept = new ArrayList<>();
+		for (Talent awakened : Awakenings.owned(owned(player))) {
+			kept.add(awakened.id());
+		}
+		player.setData(RaceState.TALENTS, kept);
 		Pocket.refresh(player);
 		RaceState.sync(player);
 	}

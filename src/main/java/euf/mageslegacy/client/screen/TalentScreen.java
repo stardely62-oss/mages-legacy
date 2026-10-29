@@ -17,18 +17,27 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.FormattedCharSequence;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * The race's talent tree as one radial web around its core: links glow where the path is learnt, learnable nodes
- * breathe in gold, the three directions are named at their ends and the Awakenings sit on the outer edge. Drag to
- * move, scroll to zoom, click a breathing node to learn it; everything a node does is in its tooltip.
+ * The race's talent tree, working as in the first version (tiers opened by milestones, a header with the emblem,
+ * level, experience bar and free points, the "?" guide to experience, points and tiers, the traits book, the ability
+ * bar along the bottom) but laid out as one radial web around the core instead of three columns: drag to move,
+ * scroll to zoom. Links glow where the path is learnt, learnable nodes breathe in gold; a node's tooltip tells all.
  */
 public class TalentScreen extends Screen {
 	private static final int RING = 46;
+	private static final String[] ROMAN = {"I", "II", "III", "IV"};
+	/** Whether the guide was opened this session; until then its button glows. */
+	private static boolean guideSeen;
 	private float zoom = 1;
 	private double panX;
 	private double panY;
+	private boolean showGuide;
+	private boolean showTraits;
+	private int pageScroll;
+	private int pageMax;
 
 	public TalentScreen() {
 		super(Component.translatable("mages_legacy.screen.talents"));
@@ -52,6 +61,15 @@ public class TalentScreen extends Screen {
 		return t.automatic() ? level() >= t.autoLevel : learnt().contains(t.id());
 	}
 
+	private static int[] progress() {
+		SyncPayload state = ClientRace.state();
+		return state == null || state.progress().length < 8 ? new int[8] : state.progress();
+	}
+
+	private static int openTiers() {
+		return Math.max(1, progress()[4]);
+	}
+
 	private static int freePoints() {
 		return Talent.pointsAt(level()) - Talents.spent(learnt());
 	}
@@ -67,7 +85,7 @@ public class TalentScreen extends Screen {
 
 	private static net.minecraft.nbt.CompoundTag progressTag() {
 		SyncPayload state = ClientRace.state();
-		int[] p = state == null || state.progress().length < 4 ? new int[4] : state.progress();
+		int[] p = progress();
 		net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
 		tag.putInt(Talents.POCKET_TICKS, p[0]);
 		tag.putInt(Talents.STEP_BLOCKS, p[1]);
@@ -81,8 +99,8 @@ public class TalentScreen extends Screen {
 		if (t.automatic()) {
 			return "mages_legacy.talent.state.automatic";
 		}
-		if (level() < t.levelNeeded()) {
-			return "mages_legacy.talent.state.level";
+		if (t.tier() > openTiers()) {
+			return "mages_legacy.talent.state.tier_" + t.tier();
 		}
 		boolean linked = t.requires().isEmpty();
 		for (Talent near : t.requires()) {
@@ -97,7 +115,7 @@ public class TalentScreen extends Screen {
 				return why;
 			}
 		}
-		return freePoints() < t.cost ? "mages_legacy.talent.state.no_points" : null;
+		return freePoints() < t.cost() ? "mages_legacy.talent.state.no_points" : null;
 	}
 
 	private int cx() {
@@ -105,12 +123,12 @@ public class TalentScreen extends Screen {
 	}
 
 	private int cy() {
-		return (int) (height / 2 + 12 + panY);
+		return (int) (36 + (height - 36 - 34) / 2 + panY);
 	}
 
 	private float scale() {
-		// The whole web (out to the Awakenings' own talents) fits the screen at zoom 1
-		float fit = Math.min(width, height - 50) / (2 * 5.9f * RING);
+		// The whole web (out to the Awakenings' own talents) fits between the header and the ability bar at zoom 1
+		float fit = Math.min(width, height - 70) / (2 * 6.4f * RING);
 		return Math.max(0.5f, Math.min(1.3f, fit)) * zoom;
 	}
 
@@ -182,14 +200,298 @@ public class TalentScreen extends Screen {
 				hovered = t;
 			}
 		}
-		// The header: race, level, free points
-		Component head = Component.translatable("mages_legacy.screen.tree_header", Component.translatable(race.key()), level(), freePoints());
-		LegacyUi.heading(graphics, head, width / 2, 8, LegacyUi.GOLD);
-		graphics.drawCenteredString(font, Component.translatable("mages_legacy.screen.tree_hint").withStyle(ChatFormatting.ITALIC), width / 2,
-				height - 12, LegacyUi.MUTED);
+		List<Component> headTip = drawHeader(graphics, race, color, mouseX, mouseY);
+		drawRoundButton(graphics, guideX(), "?", !guideSeen, color, mouseX, mouseY);
+		drawRoundButton(graphics, traitsX(), "\u2261", false, color, mouseX, mouseY);
+		euf.mageslegacy.race.Ability ability = drawAbilities(graphics, race, color, mouseX, mouseY);
+		if (showGuide || showTraits) {
+			drawPage(graphics, race, color);
+			return;
+		}
 		if (hovered != null) {
 			graphics.renderComponentTooltip(font, tooltip(hovered), mouseX, mouseY);
+		} else if (headTip != null) {
+			graphics.renderComponentTooltip(font, headTip, mouseX, mouseY);
+		} else if (ability != null) {
+			graphics.renderComponentTooltip(font, abilityTooltip(ability), mouseX, mouseY);
 		}
+	}
+
+	// ---- The header ----------------------------------------------------------------------------------------------
+
+	private int headerX0() {
+		return (width - 260) / 2;
+	}
+
+	private int guideX() {
+		return headerX0() + 260 + 6;
+	}
+
+	private int traitsX() {
+		return headerX0() - 26;
+	}
+
+	/** Emblem, race name and level, the experience bar and the free points gem. Returns a tooltip if hovered. */
+	private List<Component> drawHeader(GuiGraphics graphics, Race race, int color, int mouseX, int mouseY) {
+		SyncPayload state = ClientRace.state();
+		int x0 = headerX0();
+		int x1 = x0 + 260;
+		LegacyUi.panel(graphics, x0, 4, x1, 32);
+		LegacyUi.glow(graphics, x0 + 16, 18, 16, color, 0.7f);
+		if (LegacyUi.exists(LegacyUi.emblem(race))) {
+			LegacyUi.emblem(graphics, race, x0 + 4, 6, 24, true);
+		}
+		Component name = Component.translatable(race.key()).withStyle(ChatFormatting.BOLD);
+		graphics.drawString(font, name, x0 + 32, 8, color);
+		graphics.drawString(font, Component.translatable("mages_legacy.screen.level", level()), x0 + 32 + font.width(name) + 6, 8, LegacyUi.TEXT);
+		// Experience bar with a light running along it
+		int bx0 = x0 + 32;
+		int bx1 = x1 - 40;
+		int by = 21;
+		int xp = state == null ? 0 : state.xp();
+		int next = state == null ? 1 : Math.max(1, state.xpNext());
+		graphics.fill(bx0 - 1, by - 1, bx1 + 1, by + 5, LegacyUi.BLACK);
+		graphics.fill(bx0, by, bx1, by + 4, 0xFF221C24);
+		int fill = (bx1 - bx0) * Math.min(xp, next) / next;
+		if (fill > 0) {
+			graphics.fillGradient(bx0, by, bx0 + fill, by + 4, LegacyUi.mix(color, 0xFFFFFFFF, 0.3f), LegacyUi.mix(color, 0xFF000000, 0.3f));
+			int shine = bx0 + (int) ((LegacyUi.time() * 40) % Math.max(1, fill + 20)) - 10;
+			graphics.enableScissor(bx0, by, bx0 + fill, by + 4);
+			graphics.fillGradient(shine, by, shine + 8, by + 4, 0x70FFFFFF, 0x20FFFFFF);
+			graphics.disableScissor();
+		}
+		// Free points: a gem with the number, glowing when something can be learnt
+		int gx = x1 - 22;
+		int gy = 18;
+		int points = freePoints();
+		boolean any = points > 0;
+		if (any) {
+			LegacyUi.glow(graphics, gx, gy, 12, LegacyUi.GREEN, 0.6f + 0.4f * (float) Math.sin(LegacyUi.time() * 3));
+		}
+		LegacyUi.diamond(graphics, gx, gy, 9, LegacyUi.BLACK);
+		LegacyUi.diamond(graphics, gx, gy, 8, any ? 0xFF3C6A34 : 0xFF2A2328);
+		LegacyUi.diamond(graphics, gx, gy, 6, any ? 0xFF243E20 : 0xFF181418);
+		String text = String.valueOf(points);
+		graphics.drawString(font, text, gx - font.width(text) / 2 + 1, gy - 3, any ? LegacyUi.GREEN : LegacyUi.MUTED, true);
+		if (mouseY >= 4 && mouseY < 32 && mouseX >= x0 && mouseX < x1) {
+			return List.of(Component.translatable("mages_legacy.screen.tree_header", Component.translatable(race.key()), level(), xp, next),
+					Component.translatable("mages_legacy.screen.points", points).withStyle(any ? ChatFormatting.GREEN : ChatFormatting.GRAY));
+		}
+		return null;
+	}
+
+	/** A round stone button beside the header: the guide's "?" (glowing until first opened) or the traits book. */
+	private void drawRoundButton(GuiGraphics graphics, int x, String label, boolean beckon, int color, int mouseX, int mouseY) {
+		boolean hot = mouseX >= x && mouseX < x + 20 && mouseY >= 8 && mouseY < 28;
+		if (beckon) {
+			LegacyUi.glow(graphics, x + 10, 18, 16, LegacyUi.GOLD, 0.5f + 0.5f * (float) Math.sin(LegacyUi.time() * 3));
+		}
+		LegacyUi.panel(graphics, x, 8, x + 20, 28, hot ? color : LegacyUi.RIM);
+		graphics.drawCenteredString(font, label, x + 10, 14, hot ? 0xFFFFFFFF : LegacyUi.GOLD);
+	}
+
+	// ---- The ability bar -----------------------------------------------------------------------------------------
+
+	/** The abilities along the bottom: icon, name, cost and key; Awakenings on their keys. Returns the hovered one. */
+	private euf.mageslegacy.race.Ability drawAbilities(GuiGraphics graphics, Race race, int color, int mouseX, int mouseY) {
+		List<euf.mageslegacy.race.Ability> list = new ArrayList<>(euf.mageslegacy.race.Ability.bySlot(race));
+		List<Integer> keys = new ArrayList<>();
+		for (var a : list) {
+			keys.add(a.slot);
+		}
+		for (int key : new int[] {euf.mageslegacy.race.Awakenings.FIRST_SLOT, euf.mageslegacy.race.Awakenings.SECOND_SLOT}) {
+			euf.mageslegacy.race.Awakenings.at(learnt(), key).ifPresent(a -> {
+				list.add(a);
+				keys.add(key);
+			});
+		}
+		if (list.isEmpty()) {
+			return null;
+		}
+		int count = list.size();
+		int tileW = Math.min(130, (width - 40 - (count - 1) * 6) / count);
+		int total = count * tileW + (count - 1) * 6;
+		int y = height - 28;
+		euf.mageslegacy.race.Ability hovered = null;
+		for (int i = 0; i < count; i++) {
+			var a = list.get(i);
+			int x = (width - total) / 2 + i * (tileW + 6);
+			boolean hot = mouseX >= x && mouseX < x + tileW && mouseY >= y && mouseY < y + 24;
+			if (hot) {
+				hovered = a;
+			}
+			boolean locked = !a.awakening() && level() < a.level;
+			LegacyUi.panel(graphics, x, y, x + tileW, y + 24, hot ? color : LegacyUi.RIM_DARK);
+			ResourceLocation icon = a.awakening() ? icon(euf.mageslegacy.race.Awakenings.talentOf(a)) : LegacyUi.gui("icon/ability_" + a.id());
+			if (icon != null && LegacyUi.exists(icon)) {
+				LegacyUi.icon(graphics, icon, x + 4, y + 4, 16, !locked);
+			}
+			String name = Component.translatable(a.awakening() ? euf.mageslegacy.race.Awakenings.talentOf(a).key() + ".name" : a.key() + ".name").getString();
+			int room = tileW - 40;
+			float scaleText = Math.max(0.7f, Math.min(1, room / (float) Math.max(1, font.width(name))));
+			graphics.pose().pushPose();
+			graphics.pose().translate(x + 24, y + 3 + (1 - scaleText) * 4, 0);
+			graphics.pose().scale(scaleText, scaleText, 1);
+			graphics.drawString(font, font.plainSubstrByWidth(name, (int) (room / scaleText)), 0, 0, LegacyUi.GOLD);
+			graphics.pose().popPose();
+			if (locked) {
+				graphics.drawString(font, Component.translatable("mages_legacy.screen.opens_at", a.level), x + 24, y + 13, LegacyUi.RED);
+			} else {
+				ResourceLocation res = LegacyUi.gui("icon/res_" + race.id());
+				int cx = x + 24;
+				if (LegacyUi.exists(res)) {
+					LegacyUi.icon(graphics, res, cx - 1, y + 13, 9, true);
+					cx += 10;
+				}
+				graphics.drawString(font, String.valueOf(a.cost), cx, y + 13, LegacyUi.mix(color, 0xFFFFFFFF, 0.3f));
+			}
+			LegacyUi.keyCap(graphics, euf.mageslegacy.race.Ability.KEY_NAMES[keys.get(i)], x + tileW - 4, y + 20, 0xFFFFFFFF);
+		}
+		return hovered;
+	}
+
+	private List<Component> abilityTooltip(euf.mageslegacy.race.Ability a) {
+		List<Component> lines = new ArrayList<>();
+		String key = a.awakening() ? euf.mageslegacy.race.Awakenings.talentOf(a).key() : a.key();
+		lines.add(Component.translatable(key + ".name").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+		if (I18n.exists(key + ".lore")) {
+			wrapInto(lines, Component.translatable(key + ".lore").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
+		}
+		wrapInto(lines, Component.translatable(key + ".desc").withStyle(ChatFormatting.WHITE));
+		return lines;
+	}
+
+	// ---- The guide and the traits book --------------------------------------------------------------------------
+
+	/** One of the two pages over the tree, scrolling inside its panel when taller than the screen. */
+	private void drawPage(GuiGraphics graphics, Race race, int color) {
+		graphics.pose().pushPose();
+		graphics.pose().translate(0, 0, 300);
+		graphics.fill(0, 0, width, height, 0xA0000000);
+		int w = Math.min(340, width - 30);
+		int x0 = (width - w) / 2;
+		int h = showGuide ? guide(graphics, race, color, x0, 0, w, true) : traits(graphics, race, color, x0, 0, w, true);
+		int shown = Math.min(h, height - 8);
+		pageMax = h - shown;
+		pageScroll = Math.max(0, Math.min(pageMax, pageScroll));
+		int y0 = (height - shown) / 2;
+		LegacyUi.panel(graphics, x0, y0, x0 + w, y0 + shown);
+		graphics.enableScissor(x0 + 1, y0 + 2, x0 + w - 1, y0 + shown - 2);
+		if (showGuide) {
+			guide(graphics, race, color, x0, y0 - pageScroll, w, false);
+		} else {
+			traits(graphics, race, color, x0, y0 - pageScroll, w, false);
+		}
+		graphics.disableScissor();
+		graphics.pose().popPose();
+	}
+
+	/**
+	 * The guide: what gives race experience (and how much), how points come with levels, which milestone opens each
+	 * tier, and the two Awakenings. Lays out (and unless {@code measure}, draws); returns its height.
+	 */
+	private int guide(GuiGraphics graphics, Race race, int color, int x0, int y0, int w, boolean measure) {
+		int x = x0 + 12;
+		int right = x0 + w - 12;
+		int y = y0 + 8;
+		if (!measure) {
+			LegacyUi.heading(graphics, Component.translatable("mages_legacy.guide.title").withStyle(ChatFormatting.BOLD), x0 + w / 2, y, LegacyUi.GOLD);
+		}
+		y += 20;
+		y = title(graphics, Component.translatable("mages_legacy.guide.xp"), x, y, color, measure);
+		List<Component> xp = Lines.of("mages_legacy.xp." + race.id());
+		for (int i = 0; i < xp.size(); i++) {
+			if (!measure) {
+				LegacyUi.diamond(graphics, x + 3, y + 3, 2, color);
+				String amount = Component.translatable("mages_legacy.xp." + race.id() + "." + (i + 1) + ".amount").getString();
+				int aw = font.width(amount);
+				graphics.drawString(font, font.plainSubstrByWidth(xp.get(i).getString(), right - x - 16 - aw), x + 10, y, LegacyUi.TEXT);
+				graphics.drawString(font, amount, right - aw, y, LegacyUi.GREEN);
+			}
+			y += 11;
+		}
+		y = divider(graphics, x, right, y, color, measure);
+		y = title(graphics, Component.translatable("mages_legacy.guide.points_title"), x, y, LegacyUi.GREEN, measure);
+		y = gems(graphics, Lines.of("mages_legacy.guide.points"), x, right, y, LegacyUi.GREEN, LegacyUi.PARCHMENT, measure);
+		y = divider(graphics, x, right, y, color, measure);
+		y = title(graphics, Component.translatable("mages_legacy.guide.tiers"), x, y, LegacyUi.GOLD, measure);
+		int open = openTiers();
+		for (int tier = 1; tier <= Talent.MAX_TIER; tier++) {
+			boolean isOpen = tier <= open;
+			if (!measure) {
+				graphics.drawString(font, ROMAN[tier - 1], x + 2, y, isOpen ? LegacyUi.GOLD : 0xFF9A4040);
+				graphics.drawString(font, Component.translatable("mages_legacy.guide.tier." + tier), x + 24, y, isOpen ? LegacyUi.TEXT : LegacyUi.MUTED);
+				if (isOpen) {
+					String done = "\u2714";
+					graphics.drawString(font, done, right - font.width(done), y, LegacyUi.GREEN);
+				}
+			}
+			y += 12;
+		}
+		y = divider(graphics, x, right, y, color, measure);
+		y = title(graphics, Component.translatable("mages_legacy.guide.awakenings"), x, y, color, measure);
+		y = gems(graphics, Lines.of("mages_legacy.guide.awakening"), x, right, y, color, LegacyUi.PARCHMENT, measure);
+		return y - y0 + 6;
+	}
+
+	/** The traits book: the race's strengths and weaknesses, then what every learnt talent gives. Returns its height. */
+	private int traits(GuiGraphics graphics, Race race, int color, int x0, int y0, int w, boolean measure) {
+		int x = x0 + 12;
+		int right = x0 + w - 12;
+		int y = y0 + 8;
+		if (!measure) {
+			LegacyUi.heading(graphics, Component.translatable("mages_legacy.traits.title").withStyle(ChatFormatting.BOLD), x0 + w / 2, y, LegacyUi.GOLD);
+		}
+		y += 20;
+		y = title(graphics, Component.translatable("mages_legacy.screen.strengths"), x, y, LegacyUi.GREEN, measure);
+		y = gems(graphics, Lines.of(race.key() + ".perk"), x, right, y, LegacyUi.GREEN, 0xFFD6EBD0, measure);
+		y = divider(graphics, x, right, y, color, measure);
+		y = title(graphics, Component.translatable("mages_legacy.screen.weaknesses"), x, y, LegacyUi.RED, measure);
+		y = gems(graphics, Lines.of(race.key() + ".weak"), x, right, y, LegacyUi.RED, 0xFFEBD0D0, measure);
+		y = divider(graphics, x, right, y, color, measure);
+		y = title(graphics, Component.translatable("mages_legacy.traits.talents"), x, y, color, measure);
+		List<Component> owned = new ArrayList<>();
+		for (Talent t : Talent.of(race)) {
+			if (!t.automatic() && owned(t)) {
+				owned.add(Component.translatable(t.key() + ".name").withStyle(ChatFormatting.GOLD).append(Component.literal(" — ").withStyle(ChatFormatting.GRAY))
+						.append(Component.translatable(t.key() + ".desc").withStyle(ChatFormatting.WHITE)));
+			}
+		}
+		if (owned.isEmpty()) {
+			owned.add(Component.translatable("mages_legacy.traits.none").withStyle(ChatFormatting.ITALIC));
+		}
+		y = gems(graphics, owned, x, right, y, color, LegacyUi.PARCHMENT, measure);
+		return y - y0 + 6;
+	}
+
+	private int title(GuiGraphics graphics, Component text, int x, int y, int color, boolean measure) {
+		if (!measure) {
+			graphics.drawString(font, text.copy().withStyle(ChatFormatting.BOLD), x, y, color);
+		}
+		return y + 14;
+	}
+
+	private int divider(GuiGraphics graphics, int x, int right, int y, int color, boolean measure) {
+		if (!measure) {
+			LegacyUi.divider(graphics, x, right, y + 4, color);
+		}
+		return y + 12;
+	}
+
+	private int gems(GuiGraphics graphics, List<Component> lines, int x, int right, int y, int gem, int textColor, boolean measure) {
+		for (Component line : lines) {
+			if (!measure) {
+				LegacyUi.diamond(graphics, x + 3, y + 3, 2, gem);
+			}
+			for (FormattedCharSequence row : font.split(line, right - x - 10)) {
+				if (!measure) {
+					graphics.drawString(font, row, x + 10, y, textColor, true);
+				}
+				y += 10;
+			}
+			y += 2;
+		}
+		return y;
 	}
 
 	private void branchName(GuiGraphics graphics, String branch, float angle, int color) {
@@ -277,7 +579,7 @@ public class TalentScreen extends Screen {
 		Component kind = Component.translatable(t.kind.key());
 		lines.add(t.automatic()
 				? Component.translatable("mages_legacy.talent.meta_free", kind, t.autoLevel).withStyle(ChatFormatting.DARK_PURPLE)
-				: Component.translatable("mages_legacy.talent.meta", kind, t.cost).withStyle(ChatFormatting.DARK_PURPLE));
+				: Component.translatable("mages_legacy.talent.meta", kind, ROMAN[t.tier() - 1], t.cost()).withStyle(ChatFormatting.DARK_PURPLE));
 		if (I18n.exists(t.key() + ".lore")) {
 			wrapInto(lines, Component.translatable(t.key() + ".lore").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
 		}
@@ -334,6 +636,24 @@ public class TalentScreen extends Screen {
 
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+		if (mouseY >= 8 && mouseY < 28 && mouseX >= guideX() && mouseX < guideX() + 20) {
+			showTraits = false;
+			showGuide = !showGuide;
+			guideSeen = true;
+			pageScroll = 0;
+			return true;
+		}
+		if (mouseY >= 8 && mouseY < 28 && mouseX >= traitsX() && mouseX < traitsX() + 20) {
+			showGuide = false;
+			showTraits = !showTraits;
+			pageScroll = 0;
+			return true;
+		}
+		if (showGuide || showTraits) {
+			showGuide = false;
+			showTraits = false;
+			return true;
+		}
 		Race race = ClientRace.race();
 		if (race != null && button == 0) {
 			for (Talent t : Talent.of(race)) {
@@ -361,6 +681,9 @@ public class TalentScreen extends Screen {
 
 	@Override
 	public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+		if (showGuide || showTraits) {
+			return true;
+		}
 		panX += dragX;
 		panY += dragY;
 		return true;
@@ -368,6 +691,10 @@ public class TalentScreen extends Screen {
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+		if (showGuide || showTraits) {
+			pageScroll = Math.max(0, Math.min(pageMax, pageScroll - (int) (scrollY * 12)));
+			return true;
+		}
 		zoom = Math.max(0.6f, Math.min(2f, zoom + (float) scrollY * 0.1f));
 		return true;
 	}

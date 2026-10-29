@@ -6,6 +6,7 @@ import euf.mageslegacy.race.Abilities;
 import euf.mageslegacy.race.Ability;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceState;
+import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Talent;
 import euf.mageslegacy.race.Talents;
 import java.util.ArrayList;
@@ -344,6 +345,10 @@ public final class Voidborn {
 		}
 		state.startCooldown(Ability.VOID_STEP.slot, Ability.VOID_STEP.cooldown);
 		Talents.addProgress(player, Talents.STEP_BLOCKS, (int) Math.round(step.from.distanceTo(step.to)));
+		// Walking through something, not just across open air, teaches the race
+		if (!level.noCollision(player, player.getBoundingBox().move(step.from.subtract(at)).expandTowards(step.to.subtract(step.from)).deflate(0.2))) {
+			Progression.addXp(player, Progression.STEP, 1, 20);
+		}
 		// Without a Trace: whatever hunted the walker loses them
 		if (Talents.has(player, Talent.STEP_TRACE)) {
 			for (Mob mob : level.getEntitiesOfClass(Mob.class, player.getBoundingBox().inflate(16), m -> m.getTarget() == player)) {
@@ -471,6 +476,7 @@ public final class Voidborn {
 			PRESSED_BY.put(target.getUUID(), player.getUUID());
 			PRESSED_UNTIL.put(target.getUUID(), until);
 			target.hurt(player.damageSources().indirectMagic(player, player), 1);
+			Progression.addXp(player, Progression.GRAVITY, 1, 30);
 			if (pull && !target.getType().is(Tags.EntityTypes.BOSSES)) {
 				Vec3 in = player.position().subtract(target.position()).multiply(1, 0, 1);
 				if (in.lengthSqr() > 0.5) {

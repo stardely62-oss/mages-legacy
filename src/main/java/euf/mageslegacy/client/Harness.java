@@ -170,7 +170,14 @@ final class Harness {
 		shot("pocket_back");
 
 		// The talent tree: open it, learn three talents, see the Pocket grow
-		run(() -> server().execute(() -> Progression.setLevel(player(), 20)), 10);
+		run(() -> server().execute(() -> {
+			Progression.setLevel(player(), 20);
+			// The milestones of tiers II-IV, as a long game would bring them
+			for (String advancement : Progression.MILESTONES) {
+				server().getCommands().performPrefixedCommand(server().createCommandSourceStack().withSuppressedOutput(),
+						"advancement grant @a only minecraft:" + advancement);
+			}
+		}), 10);
 		run(() -> mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen()), 20);
 		shot("talents");
 		run(() -> {
@@ -189,6 +196,13 @@ final class Harness {
 			check("an awakening can't be learnt yet", euf.mageslegacy.race.Talents.refusal(player, euf.mageslegacy.race.Talent.AWAKENING_HOLE) != null);
 		}, 5);
 		shot("talents_learnt");
+		run(() -> mc.setScreen(null), 5);
+		run(() -> {
+			var screen = new euf.mageslegacy.client.screen.TalentScreen();
+			mc.setScreen(screen);
+		}, 10);
+		run(() -> mc.screen.mouseClicked(mc.screen.width / 2 + 136, 18, 0), 10);
+		shot("talents_guide");
 		run(() -> mc.setScreen(null), 5);
 
 		// The Black Hole: trial counted, the path learnt, a husk 7 blocks off pulled in and crushed

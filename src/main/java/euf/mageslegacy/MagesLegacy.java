@@ -26,6 +26,7 @@ public class MagesLegacy {
 
 	public MagesLegacy(IEventBus modBus) {
 		RaceState.register(modBus);
+		euf.mageslegacy.item.OblivionScrollItem.register(modBus);
 		modBus.addListener(Network::register);
 		Progression.register();
 		Voidborn.register();

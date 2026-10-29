@@ -71,9 +71,9 @@ public enum Talent {
 		CORE, RIFT, WORLDS, GRAVITY, CROSS
 	}
 
-	/** Nodes this far out or farther need race level 10. */
-	public static final float OUTER_RING = 3;
-	public static final int OUTER_LEVEL = 10;
+	public static final int MAX_TIER = 4;
+	/** Race level each tier needs, besides its milestone. */
+	public static final int[] TIER_LEVELS = {1, 10, 20, 30};
 	/** The first Awakening opens from this race level on. */
 	public static final int AWAKENING_LEVEL = 30;
 
@@ -82,7 +82,8 @@ public enum Talent {
 	public final Branch branch;
 	public final float ring;
 	public final float angle;
-	public final int cost;
+	/** The cost written in the table; the real one comes from the tier, see {@link #cost()}. */
+	private final int baseCost;
 	/** For the core and basic abilities: the race level they open at by themselves. */
 	public final int autoLevel;
 	public final String icon;
@@ -94,7 +95,7 @@ public enum Talent {
 		this.branch = branch;
 		this.ring = ring;
 		this.angle = angle;
-		this.cost = cost;
+		this.baseCost = cost;
 		this.autoLevel = autoLevel;
 		this.icon = icon;
 		this.requires = requires;
@@ -130,14 +131,40 @@ public enum Talent {
 		return null;
 	}
 
+	/**
+	 * The tier, as in the first version: I open at once, II after the Nether and level 10, III after a summoned
+	 * Wither and level 20, IV (the Awakenings and their talents) after the dragon and level 30.
+	 */
+	public int tier() {
+		if (automatic()) {
+			return 1;
+		}
+		if (kind == Kind.AWAKENING || awakening() != null) {
+			return 4;
+		}
+		return switch (this) {
+			case POCKET_WIDE_3, POCKET_VAULT, STEP_FAR_2, STEP_MARK, GRAV_PULL, GRAV_ARROWS -> 3;
+			case POCKET_CRADLE, STEP_ALLY, GRAV_FLIERS, STEP_DOOR, STEP_HEAVY, DOOR_RECOIL -> 2;
+			default -> 1;
+		};
+	}
+
+	/** Points: 1, 2, 3 by tier; an Awakening 5, an Awakening's own talents 3. */
+	public int cost() {
+		if (automatic()) {
+			return 0;
+		}
+		if (kind == Kind.AWAKENING) {
+			return 5;
+		}
+		return Math.min(3, tier());
+	}
+
 	public int levelNeeded() {
 		if (automatic()) {
 			return autoLevel;
 		}
-		if (kind == Kind.AWAKENING) {
-			return AWAKENING_LEVEL;
-		}
-		return ring >= OUTER_RING ? OUTER_LEVEL : 1;
+		return TIER_LEVELS[tier() - 1];
 	}
 
 	public static Optional<Talent> byId(String id) {
@@ -159,8 +186,8 @@ public enum Talent {
 		return list;
 	}
 
-	/** Talent points a race level gives: one per level after the first. */
+	/** Talent points a race level gives, as in the first version: 1 a level, 2 more every tenth (60 by level 50). */
 	public static int pointsAt(int level) {
-		return Math.max(0, level - 1);
+		return level + 2 * (level / 10);
 	}
 }
