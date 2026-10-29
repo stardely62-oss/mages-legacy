@@ -12,7 +12,7 @@
     },
     {
       "type": "minecraft:texture",
-      "texture": "mages_legacy:textures/fx/mote.png"
+      "texture": "mages_legacy:textures/fx/void_mote.png"
     },
     {
       "type": "minecraft:transparency",
