@@ -1,0 +1,26 @@
+{
+  "format": "POSITION_TEX_COLOR",
+  "mode": "QUADS",
+  "bufferSize": "TRANSIENT",
+  "sort": false,
+  "affectsCrumbling": false,
+  "outline": false,
+  "layers": [
+    {
+      "type": "veil:shader",
+      "name": "mages_legacy:fx/ribbon"
+    },
+    {
+      "type": "minecraft:transparency",
+      "mode": "translucent"
+    },
+    {
+      "type": "minecraft:write_mask",
+      "depth": false
+    },
+    {
+      "type": "minecraft:cull",
+      "face": "none"
+    }
+  ]
+}

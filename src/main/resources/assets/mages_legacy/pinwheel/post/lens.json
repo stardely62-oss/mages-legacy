@@ -1,0 +1,23 @@
+{
+  "stages": [
+    {
+      "type": "veil:blit",
+      "shader": "mages_legacy:post/lens",
+      "in": "minecraft:main",
+      "out": "lensed",
+      "clear": false
+    },
+    {
+      "type": "veil:blit",
+      "shader": "mages_legacy:post/copy",
+      "in": "lensed",
+      "out": "minecraft:main",
+      "clear": false
+    }
+  ],
+  "framebuffers": {
+    "lensed": {
+      "depth": false
+    }
+  }
+}

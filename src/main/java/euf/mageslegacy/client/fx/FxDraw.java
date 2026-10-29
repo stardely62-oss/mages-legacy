@@ -1,0 +1,130 @@
+package euf.mageslegacy.client.fx;
+
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import euf.mageslegacy.MagesLegacy;
+import foundry.veil.api.client.render.rendertype.VeilRenderType;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.world.phys.Vec3;
+
+/**
+ * Writes the effects' quads into Veil render types (see assets/mages_legacy/pinwheel): every quad carries its own
+ * numbers in the vertex colour for its shader to read, so one draw call holds all the effects of a kind. Positions
+ * are relative to the camera. A "glow" render type writes into Veil's bloom buffer.
+ */
+final class FxDraw {
+	static final String RIFT = "fx/rift";
+	static final String RIBBON = "fx/ribbon";
+	static final String GROUND = "fx/ground";
+	static final String ORB = "fx/orb";
+	static final String STAR = "fx/sprite_star";
+	static final String MOTE = "fx/sprite_mote";
+
+	/** The ground shader's modes, in its blue channel. */
+	static final float CRACKS = 0.1f;
+	static final float RING = 0.3f;
+	static final float LENS = 0.55f;
+	static final float DISK = 0.85f;
+	/** The orb shader's modes. */
+	static final float SHELL = 0.1f;
+	static final float HOLE = 0.45f;
+	static final float FOLD = 0.8f;
+
+	private final MultiBufferSource.BufferSource buffers;
+	final Vec3 cam;
+	private final Set<RenderType> used = new LinkedHashSet<>();
+
+	FxDraw(MultiBufferSource.BufferSource buffers, Vec3 cam) {
+		this.buffers = buffers;
+		this.cam = cam;
+	}
+
+	/** The render type of this name, or its bloom twin; null if Veil hasn't loaded it (the effect is then skipped). */
+	private RenderType type(String name, boolean glow) {
+		RenderType type = VeilRenderType.get(MagesLegacy.id(glow ? name + "_glow" : name));
+		if (type != null) {
+			used.add(type);
+		}
+		return type;
+	}
+
+	/**
+	 * A quad from a centre and two half-axes (world units), drawn in the plain type and in its glow twin.
+	 * uv runs 0..1 over the quad.
+	 */
+	void quad(String name, Vec3 centre, Vec3 halfU, Vec3 halfV, float r, float g, float b, float a) {
+		for (boolean glow : new boolean[] {false, true}) {
+			RenderType type = type(name, glow);
+			if (type == null) {
+				continue;
+			}
+			VertexConsumer vc = buffers.getBuffer(type);
+			Vec3 c = centre.subtract(cam);
+			vertex(vc, c.subtract(halfU).subtract(halfV), 0, 0, r, g, b, a);
+			vertex(vc, c.add(halfU).subtract(halfV), 1, 0, r, g, b, a);
+			vertex(vc, c.add(halfU).add(halfV), 1, 1, r, g, b, a);
+			vertex(vc, c.subtract(halfU).add(halfV), 0, 1, r, g, b, a);
+		}
+	}
+
+	/** A quad with its own four corners and texture coordinates (a strip segment), plain and glow. */
+	void strip(String name, Vec3[] corners, float[] us, float[] vs, float r, float g, float b, float a) {
+		for (boolean glow : new boolean[] {false, true}) {
+			RenderType type = type(name, glow);
+			if (type == null) {
+				continue;
+			}
+			VertexConsumer vc = buffers.getBuffer(type);
+			for (int i = 0; i < 4; i++) {
+				vertex(vc, corners[i].subtract(cam), us[i], vs[i], r, g, b, a);
+			}
+		}
+	}
+
+	/** A sprite facing the camera, coloured; drawn as glow too when {@code glow} is above 0 (its colour scaled by it). */
+	void sprite(String name, Vec3 at, Vec3 left, Vec3 up, float size, int argb, float glow) {
+		float a = ((argb >>> 24) & 0xFF) / 255f;
+		float r = ((argb >> 16) & 0xFF) / 255f;
+		float g = ((argb >> 8) & 0xFF) / 255f;
+		float b = (argb & 0xFF) / 255f;
+		Vec3 c = at.subtract(cam);
+		Vec3 l = left.scale(size);
+		Vec3 u = up.scale(size);
+		RenderType plain = type(name, false);
+		if (plain != null) {
+			VertexConsumer vc = buffers.getBuffer(plain);
+			spriteQuad(vc, c, l, u, r, g, b, a);
+		}
+		if (glow > 0) {
+			RenderType bloom = type(name, true);
+			if (bloom != null) {
+				VertexConsumer vc = buffers.getBuffer(bloom);
+				spriteQuad(vc, c, l, u, Math.min(1, r * glow), Math.min(1, g * glow), Math.min(1, b * glow), a);
+			}
+		}
+	}
+
+	private static void spriteQuad(VertexConsumer vc, Vec3 c, Vec3 l, Vec3 u, float r, float g, float b, float a) {
+		vertex(vc, c.add(l).subtract(u), 0, 1, r, g, b, a);
+		vertex(vc, c.subtract(l).subtract(u), 1, 1, r, g, b, a);
+		vertex(vc, c.subtract(l).add(u), 1, 0, r, g, b, a);
+		vertex(vc, c.add(l).add(u), 0, 0, r, g, b, a);
+	}
+
+	private static void vertex(VertexConsumer vc, Vec3 p, float u, float v, float r, float g, float b, float a) {
+		vc.addVertex((float) p.x, (float) p.y, (float) p.z).setUv(u, v).setColor(clamp(r), clamp(g), clamp(b), clamp(a));
+	}
+
+	private static float clamp(float v) {
+		return Math.max(0, Math.min(1, v));
+	}
+
+	/** Draws everything written this frame. */
+	void finish() {
+		for (RenderType type : used) {
+			buffers.endBatch(type);
+		}
+	}
+}

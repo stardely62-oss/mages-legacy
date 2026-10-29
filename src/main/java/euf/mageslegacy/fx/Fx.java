@@ -8,9 +8,10 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * Visual effects the server asks clients to play. The world shapes are drawn with Photon on every client nearby;
+ * Visual effects the server asks clients to play. The world shapes are drawn with Veil shaders and GeckoLib models on
+ * every client nearby;
  * the screen and camera ones (the void's dark, shakes, rushes of the field of view) only for the player they're for.
- * The shapes are the ones the Voidborn had in the first version of the mod, rebuilt on Photon.
+ * The shapes follow the ones the Voidborn had in the first version of the mod.
  */
 public final class Fx {
 	/** A tear in space facing the viewer: a: height, b: width. */

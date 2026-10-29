@@ -53,9 +53,9 @@ neoForge {
 }
 
 dependencies {
-	// Photon's API for the effects; the jars themselves go into run/mods (scripts/fetch-runtime-mods.sh)
-	compileOnly "maven.modrinth:photon-editor:${photon_version}"
-	compileOnly "maven.modrinth:ldlib:${ldlib2_version}"
+	// The effects engine; the jars themselves go into run/mods (scripts/fetch-runtime-mods.sh)
+	compileOnly "maven.modrinth:veil:${veil_version}"
+	compileOnly "maven.modrinth:geckolib:${geckolib_version}"
 }
 
 tasks.withType(ProcessResources).configureEach {

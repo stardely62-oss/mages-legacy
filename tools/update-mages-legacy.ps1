@@ -1,4 +1,4 @@
-﻿# Ставит/обновляет мод Mage's Legacy (NeoForge 1.21.1) и Photon с его библиотеками в папку mods TLauncher.
+﻿# Ставит/обновляет мод Mage's Legacy (NeoForge 1.21.1) и движок эффектов (Veil, GeckoLib) в папку mods TLauncher.
 # Запуск: двойной клик по update-mages-legacy.bat (лежит рядом).
 #   -Stable           взять последний стабильный релиз (v*), а не свежую dev-сборку
 #   -VersionName "…"  имя версии NeoForge в TLauncher (по умолчанию ищется сама)
@@ -90,10 +90,12 @@ try {
         Say "Похоже, Minecraft запущен. Закрой игру, иначе старые файлы не удалятся." Yellow
     }
 
-    # 3. Photon и его библиотеки с Modrinth
-    InstallFromModrinth 'ldlib' 'LDLib2' 'ldlib2-neoforge-'
-    InstallFromModrinth 'kilagraph' 'KilaGraph' 'kilagraph-neoforge-'
-    InstallFromModrinth 'photon-editor' 'Photon' 'photon-neoforge-'
+    # 3. Движок эффектов с Modrinth: Veil и GeckoLib (Photon и его библиотеки больше не нужны)
+    InstallFromModrinth 'veil' 'Veil' 'veil-neoforge-'
+    InstallFromModrinth 'geckolib' 'GeckoLib' 'geckolib-neoforge-'
+    foreach ($old in @('photon-neoforge-*.jar', 'ldlib2-neoforge-*.jar', 'kilagraph-neoforge-*.jar')) {
+        Get-ChildItem -LiteralPath $mods -Filter $old | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
+    }
 
     # 4. Сам мод из GitHub Releases
     $api = if ($Stable) { "https://api.github.com/repos/$Repo/releases/latest" } else { "https://api.github.com/repos/$Repo/releases/tags/neo-dev" }

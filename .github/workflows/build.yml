@@ -42,6 +42,12 @@ jobs:
       - name: Client scenario and screenshots
         run: bash scripts/ci-harness.sh
 
+      - name: Contact sheets of the films
+        if: always()
+        run: |
+          pip install --quiet pillow
+          python3 scripts/contact-sheets.py run/screenshots || true
+
       - name: Upload jar, logs and screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -64,10 +70,10 @@ jobs:
           JAR=$(ls build/libs/mages-legacy-*.jar | grep -v -- '-sources' | head -1)
           zip -j mages-legacy-updater.zip tools/update-mages-legacy.bat tools/update-mages-legacy.ps1
           gh release delete neo-dev --yes --cleanup-tag || true
-          gh release create neo-dev "$JAR" run/screenshots/*.png mages-legacy-updater.zip \
+          gh release create neo-dev "$JAR" $(ls run/screenshots/*.png | grep -v '/film_') mages-legacy-updater.zip \
             --prerelease --target "$GITHUB_SHA" \
             --title "NeoForge 1.21.1 dev build ${{ github.run_number }}" \
-            --notes "Сборка для NeoForge 1.21.1 из main (коммит ${GITHUB_SHA::7}). Поставить: скачай mages-legacy-updater.zip, распакуй и запусти update-mages-legacy.bat (сам найдёт NeoForge 1.21.1 в TLauncher и поставит Photon, LDLib2 и KilaGraph). Играбельны Пустотники (Карман, Пустотный шаг, Повышенная гравитация); остальные расы спят."
+            --notes "Сборка для NeoForge 1.21.1 из main (коммит ${GITHUB_SHA::7}). Поставить: скачай mages-legacy-updater.zip, распакуй и запусти update-mages-legacy.bat (сам найдёт NeoForge 1.21.1 в TLauncher и поставит Veil и GeckoLib). Играбельны Пустотники (Карман, Пустотный шаг, Повышенная гравитация); остальные расы спят."
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')

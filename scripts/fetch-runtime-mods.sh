@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Puts Photon 2 and its libraries (the Modrinth primary jars, with their nested jars) into run/mods for runClient.
+# Puts the effects engine (Veil, GeckoLib) into run/mods for runClient.
 set -euo pipefail
 mkdir -p run/mods
+rm -f run/mods/*.jar
 fetch() { # project version-id file
 	curl -fsSL -o "run/mods/$3" "https://cdn.modrinth.com/data/$1/versions/$2/$3"
 }
-fetch gzevkJbM XQsukdXk photon-neoforge-1.21.1-2.2.9-all.jar
-fetch B1CBVXHX s7Uru4V0 ldlib2-neoforge-1.21.1-2.2.44-all.jar
-fetch zZO0N3W6 KwiKbOzM kilagraph-neoforge-1.21.1-21.1.0.16.jar
+fetch 3KUWeVhG IpGnlNgK veil-neoforge-1.21.1-4.5.2.jar
+fetch 8BmcQJ2H Grwn5rUB geckolib-neoforge-1.21.1-4.9.3.jar
 ls -la run/mods

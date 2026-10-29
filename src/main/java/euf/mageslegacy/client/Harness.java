@@ -114,14 +114,8 @@ final class Harness {
 			player.connection.teleport(player.getX(), player.getY(), player.getZ(), 180, 0);
 		}), 10);
 		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 5);
-		run(() -> MagesLegacyClient.useAbility(0), 2);
-		shot("step_side_start");
-		run(() -> {
-		}, 3);
-		shot("step_side_mid");
-		run(() -> {
-		}, 6);
-		shot("step_side_end");
+		run(() -> MagesLegacyClient.useAbility(0), 1);
+		film("step", 10, 2);
 		run(() -> {
 		}, 15);
 
@@ -135,10 +129,8 @@ final class Harness {
 			player.serverLevel().addFreshEntity(husk);
 		}), 10);
 		run(() -> server().execute(() -> RaceState.setResource(player(), RaceState.MAX_RESOURCE)), 2);
-		run(() -> MagesLegacyClient.useAbility(1), 4);
-		shot("gravity_fold");
-		run(() -> {
-		}, 18);
+		run(() -> MagesLegacyClient.useAbility(1), 1);
+		film("gravity", 10, 3);
 		shot("gravity_side");
 		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON), 3);
 		shot("gravity");
@@ -150,8 +142,8 @@ final class Harness {
 		// The Pocket and back
 		run(() -> beforePocket = player().position(), 0);
 		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 3);
-		run(() -> MagesLegacyClient.useAbility(3), 4);
-		shot("pocket_rift");
+		run(() -> MagesLegacyClient.useAbility(3), 1);
+		film("pocket", 6, 2);
 		run(() -> {
 		}, 40);
 		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON), 2);
@@ -217,13 +209,8 @@ final class Harness {
 		}), 10);
 		run(() -> check("black hole learnt", euf.mageslegacy.race.Talents.has(player(), euf.mageslegacy.race.Talent.AWAKENING_HOLE)), 0);
 		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 3);
-		run(() -> MagesLegacyClient.useAbility(2), 40);
-		shot("black_hole");
-		run(() -> {
-		}, 30);
-		shot("black_hole_pull");
-		run(() -> {
-		}, 30);
+		run(() -> MagesLegacyClient.useAbility(2), 1);
+		film("black_hole", 10, 9);
 		run(() -> {
 			ServerPlayer player = player();
 			check("black hole pulled and crushed the husk (" + husk.getHealth() + ", d=" + String.format("%.1f", husk.distanceTo(player)) + ")",
@@ -325,6 +312,18 @@ final class Harness {
 			Screenshot.grab(mc.gameDirectory, name + ".png", mc.getMainRenderTarget(), message -> {
 			});
 		}, 2);
+	}
+
+	/** A run of screenshots, every few ticks: the CI lays them out in a sheet, so the animation itself can be judged. */
+	private static void film(String name, int frames, int every) {
+		for (int i = 0; i < frames; i++) {
+			int frame = i;
+			run(() -> {
+				Minecraft mc = Minecraft.getInstance();
+				Screenshot.grab(mc.gameDirectory, String.format("film_%s_%02d.png", name, frame), mc.getMainRenderTarget(), message -> {
+				});
+			}, every);
+		}
 	}
 
 	private static void check(String name, boolean ok) {

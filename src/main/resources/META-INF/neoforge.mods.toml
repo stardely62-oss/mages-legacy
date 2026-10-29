@@ -27,8 +27,15 @@ ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.mages_legacy]]
-modId = "photon"
+modId = "veil"
 type = "required"
-versionRange = "[2.2.9,)"
+versionRange = "[4.5.2,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.mages_legacy]]
+modId = "geckolib"
+type = "required"
+versionRange = "[4.9.3,)"
 ordering = "AFTER"
 side = "BOTH"
