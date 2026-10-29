@@ -17,6 +17,8 @@
 
 Нужны NeoForge 21.1.217+ для Minecraft 1.21.1, [Photon](https://modrinth.com/mod/photon-editor) 2.2.9+ и [LDLib2](https://modrinth.com/mod/ldlib) 2.2.43+. Свежая сборка: релиз [`neo-dev`](https://github.com/stardely62-oss/mages-legacy/releases/tag/neo-dev).
 
+Проще всего через TLauncher: установи версию NeoForge 1.21.1 и запусти её один раз, затем скачай из релиза `mages-legacy-updater.zip`, распакуй и запусти `update-mages-legacy.bat`. Скрипт сам найдёт версию NeoForge, поставит или обновит Photon, LDLib2, KilaGraph и мод. Запускай его перед каждым тестом, он берёт свежую dev-сборку (`-Stable` — последний стабильный релиз, `-VersionName "…"` — конкретная версия TLauncher).
+
 ## Сборка
 
 Сборка и проверки идут только в GitHub Actions: `./gradlew build`, затем клиент под Xvfb с `-Pharness=true` проходит легенду и экран выбора, создаёт плоский мир и проверяет, что легенда открывается при входе. Скриншоты прикладываются к релизу `neo-dev`.

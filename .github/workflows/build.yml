@@ -62,11 +62,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           JAR=$(ls build/libs/mages-legacy-*.jar | grep -v -- '-sources' | head -1)
+          zip -j mages-legacy-updater.zip tools/update-mages-legacy.bat tools/update-mages-legacy.ps1
           gh release delete neo-dev --yes --cleanup-tag || true
-          gh release create neo-dev "$JAR" run/screenshots/*.png \
+          gh release create neo-dev "$JAR" run/screenshots/*.png mages-legacy-updater.zip \
             --prerelease --target "$GITHUB_SHA" \
             --title "NeoForge 1.21.1 dev build ${{ github.run_number }}" \
-            --notes "Сборка для NeoForge 1.21.1 из main (коммит ${GITHUB_SHA::7}). Нужны Photon 2.2.9+ и LDLib2. Пока только легенда и экран выбора расы; все расы спят."
+            --notes "Сборка для NeoForge 1.21.1 из main (коммит ${GITHUB_SHA::7}). Поставить: скачай mages-legacy-updater.zip, распакуй и запусти update-mages-legacy.bat (сам найдёт NeoForge 1.21.1 в TLauncher и поставит Photon, LDLib2 и KilaGraph). Пока только легенда и экран выбора расы; все расы спят."
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -74,4 +75,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           JAR=$(ls build/libs/mages-legacy-*.jar | grep -v -- '-sources' | head -1)
-          gh release create "$GITHUB_REF_NAME" "$JAR" --title "Mage's Legacy $GITHUB_REF_NAME" --generate-notes
+          zip -j mages-legacy-updater.zip tools/update-mages-legacy.bat tools/update-mages-legacy.ps1
+          gh release create "$GITHUB_REF_NAME" "$JAR" mages-legacy-updater.zip --title "Mage's Legacy $GITHUB_REF_NAME" --generate-notes
