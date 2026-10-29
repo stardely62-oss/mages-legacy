@@ -146,6 +146,17 @@ final class Harness {
 			check("step looking a little down still goes through the wall (" + to + ")",
 					to != null && to.z > 5 && Math.abs(to.y - player.getY()) < 0.01);
 		}), 5);
+		// A look a little down over open ground (the ground farther than the step reaches): out on the ground ahead
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			player.connection.teleport(0.5, Math.floor(player.getY()), 0.5, 90, 5);
+		}), 5);
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			net.minecraft.world.phys.Vec3 to = euf.mageslegacy.voidborn.Voidborn.stepTarget(player.serverLevel(), player);
+			check("step a little down over open ground lands on it (" + to + ")",
+					to != null && to.x < -6 && Math.abs(to.y - player.getY()) < 0.01);
+		}), 5);
 		// Through Worlds alone on the server: nobody to open it to, and nothing spent
 		run(() -> server().execute(() -> {
 			ServerPlayer player = player();

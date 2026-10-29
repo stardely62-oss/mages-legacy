@@ -28,6 +28,9 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Talent list is up to date
+        run: python3 tools/talents_doc.py && git diff --exit-code docs/TALENTS.md
+
       - name: Build
         run: |
           chmod +x gradlew

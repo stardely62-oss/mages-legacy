@@ -379,10 +379,16 @@ public final class Voidborn {
 				return top;
 			}
 		}
+		// As far along the look as the body goes: where it fits as it is, or set onto the ground nearby (a look a
+		// little down over open ground puts the feet of the line under the ground the whole way)
 		for (double d = wall - 0.3; d >= 1.5; d -= 0.5) {
 			Vec3 candidate = eye.add(dir.scale(d)).subtract(feet);
 			if (fits(level, player, candidate) && candidate.distanceTo(from) >= 1.5) {
 				return candidate;
+			}
+			Vec3 settled = settle(level, player, candidate);
+			if (settled != null && settled.distanceTo(from) >= 1.5) {
+				return settled;
 			}
 		}
 		return null;
