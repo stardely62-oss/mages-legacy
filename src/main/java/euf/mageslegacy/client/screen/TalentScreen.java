@@ -118,26 +118,106 @@ public class TalentScreen extends Screen {
 		return freePoints() < t.cost() ? "mages_legacy.talent.state.no_points" : null;
 	}
 
+	/** Room for the web: below the header, above the ability bar. */
+	private static final int TOP = 40;
+	private static final int BOTTOM = 40;
+
+	private static double rx(Talent t) {
+		return Math.cos(Math.toRadians(t.angle)) * t.ring;
+	}
+
+	private static double ry(Talent t) {
+		return Math.sin(Math.toRadians(t.angle)) * t.ring;
+	}
+
+	/**
+	 * Where a direction's name stands, in rings from the core: under (or, for the top one, over) the outermost nodes
+	 * of its direction, so it never lies on a node.
+	 */
+	private static double[] labelAt(Race race, Talent.Branch branch) {
+		double minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+		for (Talent t : Talent.of(race)) {
+			if (t.branch == branch) {
+				minX = Math.min(minX, rx(t));
+				maxX = Math.max(maxX, rx(t));
+				minY = Math.min(minY, ry(t));
+				maxY = Math.max(maxY, ry(t));
+			}
+		}
+		if (minX > maxX) {
+			return null;
+		}
+		double x = (minX + maxX) / 2;
+		boolean up = (minY + maxY) / 2 < 0;
+		return new double[] {x, up ? minY - 0.8 : maxY + 0.8};
+	}
+
+	/** The web's extent in rings (nodes and the directions' names): min x, max x, min y, max y. */
+	private static double[] bounds(Race race) {
+		double[] b = {1e9, -1e9, 1e9, -1e9};
+		for (Talent t : Talent.of(race)) {
+			grow(b, rx(t), ry(t));
+		}
+		for (Talent.Branch branch : new Talent.Branch[] {Talent.Branch.RIFT, Talent.Branch.WORLDS, Talent.Branch.GRAVITY}) {
+			double[] at = labelAt(race, branch);
+			if (at != null) {
+				grow(b, at[0] - 1.2, at[1]);
+				grow(b, at[0] + 1.2, at[1]);
+			}
+		}
+		return b;
+	}
+
+	private static void grow(double[] b, double x, double y) {
+		b[0] = Math.min(b[0], x);
+		b[1] = Math.max(b[1], x);
+		b[2] = Math.min(b[2], y);
+		b[3] = Math.max(b[3], y);
+	}
+
+	private double[] bounds() {
+		Race race = ClientRace.race();
+		return race == null ? new double[] {-6, 6, -6, 6} : bounds(race);
+	}
+
 	private int cx() {
-		return (int) (width / 2 + panX);
+		double[] b = bounds();
+		return (int) (width / 2 - (b[0] + b[1]) / 2 * RING * scaleX() + panX);
 	}
 
 	private int cy() {
-		return (int) (36 + (height - 36 - 34) / 2 + panY);
+		double[] b = bounds();
+		return (int) (TOP + (height - TOP - BOTTOM) / 2 - (b[2] + b[3]) / 2 * RING * scaleY() + panY);
 	}
 
-	private float scale() {
-		// The whole web (out to the Awakenings' own talents) fits between the header and the ability bar at zoom 1
-		float fit = Math.min(width, height - 70) / (2 * 6.4f * RING);
-		return Math.max(0.5f, Math.min(1.3f, fit)) * zoom;
+	/**
+	 * The web is taller than wide while screens are wider than tall: it fits the height between the header and the
+	 * ability bar, and stretches sideways into the free width (up to 1.7 times), so neighbours stand apart.
+	 */
+	private float scaleY() {
+		double[] b = bounds();
+		float fit = (float) ((height - TOP - BOTTOM) / ((b[3] - b[2] + 1) * RING));
+		return Math.max(0.45f, Math.min(1.3f, fit)) * zoom;
+	}
+
+	private float scaleX() {
+		double[] b = bounds();
+		float fit = (float) ((width - 20) / ((b[1] - b[0] + 1) * RING));
+		float y = Math.max(0.45f, Math.min(1.3f, (float) ((height - TOP - BOTTOM) / ((b[3] - b[2] + 1) * RING))));
+		return Math.max(y, Math.min(fit, y * 1.7f)) * zoom;
 	}
 
 	private int nodeX(Talent t) {
-		return cx() + (int) Math.round(Math.cos(Math.toRadians(t.angle)) * t.ring * RING * scale());
+		return cx() + (int) Math.round(Math.cos(Math.toRadians(t.angle)) * t.ring * RING * scaleX());
 	}
 
 	private int nodeY(Talent t) {
-		return cy() + (int) Math.round(Math.sin(Math.toRadians(t.angle)) * t.ring * RING * scale());
+		return cy() + (int) Math.round(Math.sin(Math.toRadians(t.angle)) * t.ring * RING * scaleY());
+	}
+
+	/** A node's size on screen: nodes shrink with the web, so neighbours never touch however small the window. */
+	private int nodeSize(Talent t) {
+		return Math.max(14, Math.round(size(t) * Math.min(1.2f, scaleY() * 1.65f)));
 	}
 
 	private static int size(Talent t) {
@@ -162,10 +242,10 @@ public class TalentScreen extends Screen {
 		}
 		int color = LegacyUi.argb(race.color);
 		List<Talent> tree = Talent.of(race);
-		// The directions' names, out past their Awakenings
-		branchName(graphics, "rift", -90, color);
-		branchName(graphics, "worlds", 150, color);
-		branchName(graphics, "gravity", 30, color);
+		// The directions' names, out past their outermost nodes
+		branchName(graphics, race, Talent.Branch.RIFT, color);
+		branchName(graphics, race, Talent.Branch.WORLDS, color);
+		branchName(graphics, race, Talent.Branch.GRAVITY, color);
 		// Links first, under the nodes
 		for (Talent t : tree) {
 			for (Talent near : t.requires()) {
@@ -494,11 +574,15 @@ public class TalentScreen extends Screen {
 		return y;
 	}
 
-	private void branchName(GuiGraphics graphics, String branch, float angle, int color) {
-		double r = 6.3 * RING * scale();
-		int x = cx() + (int) (Math.cos(Math.toRadians(angle)) * r);
-		int y = cy() + (int) (Math.sin(Math.toRadians(angle)) * r) - 4;
-		Component name = Component.translatable("mages_legacy.talent.branch." + branch).withStyle(ChatFormatting.BOLD);
+	private void branchName(GuiGraphics graphics, Race race, Talent.Branch branch, int color) {
+		double[] at = labelAt(race, branch);
+		if (at == null) {
+			return;
+		}
+		int x = cx() + (int) Math.round(at[0] * RING * scaleX());
+		int y = cy() + (int) Math.round(at[1] * RING * scaleY()) - 4;
+		Component name = Component.translatable("mages_legacy.talent.branch." + branch.name().toLowerCase(java.util.Locale.ROOT))
+				.withStyle(ChatFormatting.BOLD);
 		graphics.drawCenteredString(font, name, x, y, LegacyUi.alpha(color, 0.9f));
 	}
 
@@ -523,7 +607,7 @@ public class TalentScreen extends Screen {
 
 	/** Draws a node; returns whether the mouse is over it. */
 	private boolean drawNode(GuiGraphics graphics, Talent t, int mouseX, int mouseY, int color) {
-		int s = Math.max(12, Math.round(size(t) * Math.min(1.2f, scale())));
+		int s = nodeSize(t);
 		int x = nodeX(t) - s / 2;
 		int y = nodeY(t) - s / 2;
 		boolean hot = mouseX >= x && mouseX < x + s && mouseY >= y && mouseY < y + s;
@@ -657,7 +741,7 @@ public class TalentScreen extends Screen {
 		Race race = ClientRace.race();
 		if (race != null && button == 0) {
 			for (Talent t : Talent.of(race)) {
-				int s = Math.max(12, Math.round(size(t) * Math.min(1.2f, scale())));
+				int s = nodeSize(t);
 				int x = nodeX(t) - s / 2;
 				int y = nodeY(t) - s / 2;
 				if (mouseX >= x && mouseX < x + s && mouseY >= y && mouseY < y + s) {

@@ -53,6 +53,13 @@ public class MagesLegacyClient {
 		NeoForge.EVENT_BUS.addListener(MagesLegacyClient::onInteract);
 		NeoForge.EVENT_BUS.addListener(MagesLegacyClient::onBlockOverlay);
 		NeoForge.EVENT_BUS.addListener(ScreenFx::onAngles);
+		// Under the tree and the choice of passage the HUD isn't drawn: its messages would show through onto the nodes
+		NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RenderGuiLayerEvent.Pre event) -> {
+			var screen = Minecraft.getInstance().screen;
+			if (screen instanceof TalentScreen || screen instanceof euf.mageslegacy.client.screen.PassageScreen) {
+				event.setCanceled(true);
+			}
+		});
 		NeoForge.EVENT_BUS.addListener(ScreenFx::onFov);
 		modBus.addListener(MagesLegacyClient::onDimensionEffects);
 		if (Boolean.getBoolean("mages_legacy.harness")) {
