@@ -83,6 +83,10 @@ public final class BlackHole {
 		ServerLevel level = player.serverLevel();
 		float radius = (float) radius(player);
 		Fx.vortex(level, player, radius, gather + PULL);
+		// The Voidborn is gone into their own singularity until it collapses
+		Fx.hide(level, player, gather + PULL);
+		player.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.INVISIBILITY, gather + PULL, 0, true,
+				false, false));
 		Fx.cracks(level, player.position(), null, 4f, gather + PULL + 10);
 		Fx.muffle(level, player.position(), radius + 6, gather + PULL + 6);
 		Fx.shake(player, 0.6f, gather);
@@ -122,6 +126,7 @@ public final class BlackHole {
 		if (hole.age >= hole.gather + PULL) {
 			collapse(player, level, hole);
 			HOLES.remove(player.getUUID());
+			player.removeEffect(net.minecraft.world.effect.MobEffects.INVISIBILITY);
 		}
 	}
 

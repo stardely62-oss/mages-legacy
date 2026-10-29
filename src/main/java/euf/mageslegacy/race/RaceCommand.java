@@ -20,7 +20,8 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 /**
  * For testing and admins: {@code /mages_legacy race <players> <race|none>}, {@code level <players> <1-50>},
  * {@code resource <players> <amount>}, {@code cooldowns <players>} (clears them), {@code talents <players> reset|learn <id>}
- * and {@code talents <players> all [z alt]} (for testing: level 50 and every talent, conditions ignored).
+ * and {@code talents <players> all [z alt]} (for testing: level 50 and every talent, conditions ignored),
+ * {@code nocooldown <players> on|off} (for testing: abilities always ready, the resource always full).
  */
 public final class RaceCommand {
 	private RaceCommand() {
@@ -78,6 +79,10 @@ public final class RaceCommand {
 										}
 									});
 								}))))
+				// For testing: every ability always ready and free, until turned off
+				.then(Commands.literal("nocooldown").then(Commands.argument("targets", EntityArgument.players())
+						.then(Commands.literal("on").executes(ctx -> each(ctx, player -> Talents.setNoCooldown(player, true))))
+						.then(Commands.literal("off").executes(ctx -> each(ctx, player -> Talents.setNoCooldown(player, false))))))
 				.then(Commands.literal("cooldowns").then(Commands.argument("targets", EntityArgument.players()).executes(ctx -> each(ctx, player -> {
 					var state = euf.mageslegacy.voidborn.Voidborn.state(player);
 					Arrays.fill(state.cooldown, 0);

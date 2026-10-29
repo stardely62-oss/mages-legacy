@@ -46,6 +46,8 @@ public final class Fx {
 	public static final int GRAVITY_FIELD = 13;
 	/** The weight landing on one creature held by the field (follows it). */
 	public static final int PRESS = 14;
+	/** A body gone from sight for a while, armour and all (in the void, or the heart of a singularity). */
+	public static final int HIDE = 15;
 
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
@@ -110,6 +112,10 @@ public final class Fx {
 	public static void press(ServerLevel level, Entity target) {
 		send(level, target.position(), new FxPayload(PRESS, target.getId(), target.position(), target.position(), 12, target.getBbWidth(),
 				target.getBbHeight()));
+	}
+
+	public static void hide(ServerLevel level, Entity body, int ticks) {
+		send(level, body.position(), new FxPayload(HIDE, body.getId(), body.position(), body.position(), ticks, 0, 0));
 	}
 
 	public static void voidScreen(ServerPlayer player, int ticks) {

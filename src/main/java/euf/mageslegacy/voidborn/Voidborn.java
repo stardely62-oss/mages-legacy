@@ -225,6 +225,12 @@ public final class Voidborn {
 				state.cooldown[i]--;
 			}
 		}
+		// Testing mode (/mages_legacy nocooldown): everything ready, the resource full
+		if (Talents.noCooldown(player)) {
+			java.util.Arrays.fill(state.cooldown, 0);
+			state.shelterReady = 0;
+			RaceState.setResource(player, RaceState.MAX_RESOURCE);
+		}
 		// Companions of a walk (Fellow Traveller) walk too, whatever their race
 		if (state.step != null) {
 			tickStep(player, state);
@@ -458,6 +464,7 @@ public final class Voidborn {
 		player.setDeltaMovement(Vec3.ZERO);
 		// The body is gone into the void: only the cloud it leaves along the way is seen
 		player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, ticks + 4, 0, true, false, false));
+		Fx.hide(player.serverLevel(), player, ticks);
 		// The walker's own view goes into the void (ClientStep); the world's sounds come from far away
 		PacketDistributor.sendToPlayer(player, new StepPayload(from, to, ticks));
 		Fx.muffle(player, ticks + 4);

@@ -22,6 +22,10 @@ public final class ClientStep {
 	private static int tick;
 	/** Ticks since the walk ended (the fade back into the world), or -1. */
 	private static int after = -1;
+	/** Which way the flight goes (the walk's own direction), kept for the fade out. */
+	private static org.joml.Vector3f heading = new org.joml.Vector3f(0, 0, 1);
+	/** How far the flight carries the near stars past the eye, whatever the walk's real length. */
+	private static final float FLIGHT = 70;
 
 	private ClientStep() {
 	}
@@ -35,6 +39,8 @@ public final class ClientStep {
 		step = payload;
 		tick = 0;
 		after = -1;
+		Vec3 d = payload.to().subtract(payload.from());
+		heading = d.lengthSqr() < 1.0E-4 ? new org.joml.Vector3f(0, 0, 1) : new org.joml.Vector3f((float) d.x, (float) d.y, (float) d.z).normalize();
 	}
 
 	public static boolean active() {
@@ -94,7 +100,11 @@ public final class ClientStep {
 		if (a > 0) {
 			var level = Minecraft.getInstance().level;
 			float time = level == null ? 0 : level.getGameTime() + partial;
-			VoidSky.draw(event.getModelViewMatrix(), a, time, true);
+			// Speeding up out of the start, flying hard through the middle, slowing towards the exit
+			float t = step != null ? Math.min(1, (tick + partial) / step.ticks()) : 1;
+			float travel = FLIGHT * (1 - (float) Math.cos(Math.PI * t)) / 2;
+			float speed = step == null ? 0.05f : FLIGHT * (float) Math.PI / 2 * (float) Math.sin(Math.PI * t) / Math.max(1, step.ticks());
+			VoidSky.draw(event.getModelViewMatrix(), a, time, true, heading, travel, speed);
 		}
 	}
 }

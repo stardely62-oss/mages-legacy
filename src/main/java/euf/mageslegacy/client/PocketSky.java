@@ -17,7 +17,7 @@ final class PocketSky extends DimensionSpecialEffects {
 
 	@Override
 	public Vec3 getBrightnessDependentFogColor(Vec3 color, float brightness) {
-		return new Vec3(0.06, 0.04, 0.09);
+		return new Vec3(0.02, 0.015, 0.035);
 	}
 
 	@Override

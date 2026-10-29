@@ -62,6 +62,7 @@ public final class VoidFx {
 						VoidRender.add(new Vortex(follow, payload.ticks()));
 					}
 				}
+				case Fx.HIDE -> VoidRender.hide(payload.entity(), payload.ticks());
 				case Fx.VOID_SCREEN, Fx.SHAKE, Fx.FOV, Fx.MUFFLE -> ScreenFx.play(payload);
 				default -> {
 				}

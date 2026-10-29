@@ -21,6 +21,10 @@ public final class VoidSky {
 	private static final ResourceLocation END_SKY = ResourceLocation.withDefaultNamespace("textures/environment/end_sky.png");
 	private static final int STARS = 1400;
 	private static final float[][] STAR = new float[STARS][];
+	/** Stars near enough to fly past during a step, in a box of {@link #BOX} blocks around the eye. */
+	private static final int NEAR = 320;
+	private static final float BOX = 64;
+	private static final float[][] PASSING = new float[NEAR][];
 
 	static {
 		Random random = new Random(0x5EEDL);
@@ -35,6 +39,10 @@ public final class VoidSky {
 			boolean lavender = random.nextInt(6) == 0;
 			STAR[i] = new float[] {dir.x, dir.y, dir.z, size, random.nextFloat() * 6.28f, lavender ? 1 : 0, 0.6f + random.nextFloat() * 0.4f};
 		}
+		for (int i = 0; i < NEAR; i++) {
+			PASSING[i] = new float[] {(random.nextFloat() - 0.5f) * BOX, (random.nextFloat() - 0.5f) * BOX, (random.nextFloat() - 0.5f) * BOX,
+					0.03f + random.nextFloat() * 0.05f, random.nextInt(4) == 0 ? 1 : 0};
+		}
 	}
 
 	private VoidSky() {
@@ -45,6 +53,14 @@ public final class VoidSky {
 	 * (fading in and out of a step). With {@code over} it is drawn over everything already on the screen.
 	 */
 	public static void draw(Matrix4f viewRotation, float alpha, float time, boolean over) {
+		draw(viewRotation, alpha, time, over, null, 0, 0);
+	}
+
+	/**
+	 * With a flight: stars close by stream past the eye along {@code dir} (a unit vector in the world), {@code travel}
+	 * blocks flown so far at {@code speed} blocks a tick now, drawn as streaks as long as the speed.
+	 */
+	public static void draw(Matrix4f viewRotation, float alpha, float time, boolean over, Vector3f dir, float travel, float speed) {
 		if (alpha <= 0.002f) {
 			return;
 		}
@@ -62,6 +78,9 @@ public final class VoidSky {
 		RenderSystem.disableCull();
 		dome(alpha);
 		stars(alpha, time);
+		if (dir != null) {
+			passing(alpha, dir, travel, speed);
+		}
 		RenderSystem.enableCull();
 		RenderSystem.enableDepthTest();
 		RenderSystem.depthMask(true);
@@ -75,9 +94,10 @@ public final class VoidSky {
 		RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
 		RenderSystem.setShaderTexture(0, END_SKY);
 		BufferBuilder bb = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-		float r = 0.30f;
-		float g = 0.21f;
-		float b = 0.42f;
+		// Nearly black, with only a breath of violet
+		float r = 0.085f;
+		float g = 0.06f;
+		float b = 0.13f;
 		Matrix4f face = new Matrix4f();
 		for (int i = 0; i < 6; i++) {
 			face.identity();
@@ -96,6 +116,45 @@ public final class VoidSky {
 			bb.addVertex(face, 100, -100, -100).setUv(16, 0).setColor(r, g, b, alpha);
 		}
 		BufferUploader.drawWithShader(bb.buildOrThrow());
+	}
+
+	/** The near stars of a flight: each moved back along the way by what has been flown, wrapped round the box. */
+	private static void passing(float alpha, Vector3f dir, float travel, float speed) {
+		RenderSystem.setShader(GameRenderer::getPositionColorShader);
+		RenderSystem.blendFunc(com.mojang.blaze3d.platform.GlStateManager.SourceFactor.SRC_ALPHA, com.mojang.blaze3d.platform.GlStateManager.DestFactor.ONE);
+		BufferBuilder bb = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+		float length = 0.3f + speed * 4f;
+		Vector3f p = new Vector3f();
+		Vector3f tail = new Vector3f();
+		Vector3f across = new Vector3f();
+		for (float[] s : PASSING) {
+			p.set(wrap(s[0] - dir.x * travel), wrap(s[1] - dir.y * travel), wrap(s[2] - dir.z * travel));
+			float d = p.length();
+			if (d < 1.5f) {
+				continue;
+			}
+			// The streak trails back the way the star came from (ahead of the flier)
+			// Brightest close by, gone towards the box's edge so nothing pops in or out
+			float a = alpha * Math.min(1, (BOX * 0.5f - d) / 10f) * Math.min(1, d / 4f);
+			if (a <= 0.01f) {
+				continue;
+			}
+			tail.set(dir).mul(length).add(p);
+			across.set(dir).cross(p).normalize().mul(s[3] * (1 + d * 0.03f));
+			float r = s[4] > 0 ? 0.8f : 1f;
+			float g = s[4] > 0 ? 0.7f : 1f;
+			bb.addVertex(p.x - across.x, p.y - across.y, p.z - across.z).setColor(r, g, 1f, a);
+			bb.addVertex(p.x + across.x, p.y + across.y, p.z + across.z).setColor(r, g, 1f, a);
+			bb.addVertex(tail.x + across.x, tail.y + across.y, tail.z + across.z).setColor(r, g, 1f, 0);
+			bb.addVertex(tail.x - across.x, tail.y - across.y, tail.z - across.z).setColor(r, g, 1f, 0);
+		}
+		BufferUploader.drawWithShader(bb.buildOrThrow());
+		RenderSystem.defaultBlendFunc();
+	}
+
+	private static float wrap(float v) {
+		float half = BOX / 2;
+		return ((v + half) % BOX + BOX) % BOX - half;
 	}
 
 	/** Stars as small squares facing the middle, each twinkling at its own pace. */

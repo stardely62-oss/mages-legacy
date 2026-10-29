@@ -173,6 +173,19 @@ public final class Talents {
 		RaceState.sync(player);
 	}
 
+	/** Testing mode: no cooldowns and a resource that never runs out (kept in the progress tag). */
+	public static final String NO_COOLDOWN = "test_no_cooldown";
+
+	public static void setNoCooldown(ServerPlayer player, boolean on) {
+		CompoundTag tag = player.getData(RaceState.PROGRESS).copy();
+		tag.putBoolean(NO_COOLDOWN, on);
+		player.setData(RaceState.PROGRESS, tag);
+	}
+
+	public static boolean noCooldown(ServerPlayer player) {
+		return player.getData(RaceState.PROGRESS).getBoolean(NO_COOLDOWN);
+	}
+
 	/** Takes back every talent, refunding its points (admin command). */
 	public static void reset(ServerPlayer player) {
 		// The Awakenings stay once woken: forgetting them would undo their trials

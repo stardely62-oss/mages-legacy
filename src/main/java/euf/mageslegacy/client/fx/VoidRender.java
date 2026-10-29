@@ -106,9 +106,26 @@ public final class VoidRender {
 	private VoidRender() {
 	}
 
+	/** Bodies not drawn now (entity id → ticks left). */
+	private static final java.util.Map<Integer, Integer> HIDDEN = new java.util.HashMap<>();
+
 	public static void register() {
 		NeoForge.EVENT_BUS.addListener(VoidRender::onTick);
 		NeoForge.EVENT_BUS.addListener(VoidRender::onRender);
+		NeoForge.EVENT_BUS.addListener(VoidRender::onRenderLiving);
+	}
+
+	static void hide(int entity, int ticks) {
+		if (entity >= 0) {
+			HIDDEN.merge(entity, ticks, Math::max);
+		}
+	}
+
+	/** A hidden body is not drawn at all: no skin, no armour, nothing in its hands. */
+	private static void onRenderLiving(net.neoforged.neoforge.client.event.RenderLivingEvent.Pre<?, ?> event) {
+		if (!HIDDEN.isEmpty() && HIDDEN.containsKey(event.getEntity().getId())) {
+			event.setCanceled(true);
+		}
 	}
 
 	static void add(Effect effect) {
@@ -123,12 +140,15 @@ public final class VoidRender {
 
 	private static void onTick(ClientTickEvent.Post event) {
 		if (Minecraft.getInstance().level == null) {
+			HIDDEN.clear();
 			EFFECTS.clear();
 			PARTICLES.clear();
 			lensHeart = null;
 			return;
 		}
 		lensHeart = null;
+		HIDDEN.replaceAll((id, left) -> left - 1);
+		HIDDEN.values().removeIf(left -> left <= 0);
 		EFFECTS.removeIf(e -> !e.tick());
 		for (Iterator<Particle> it = PARTICLES.iterator(); it.hasNext(); ) {
 			if (!it.next().tick()) {
