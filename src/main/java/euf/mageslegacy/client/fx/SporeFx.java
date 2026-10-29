@@ -32,7 +32,7 @@ final class SporeFx {
 		boolean tick() {
 			Vec3 c = heart.position();
 			float fade = Math.min(1, age / 10f) * Math.min(1, (ticks - age) / 15f);
-			int count = (int) (34 * fade);
+			int count = (int) (55 * fade);
 			for (int i = 0; i < count; i++) {
 				double a = VoidRender.rand(0, Math.PI * 2);
 				double r = radius * Math.sqrt(VoidRender.rand(0.02, 1));
@@ -41,7 +41,7 @@ final class SporeFx {
 				// Round the heart (anticlockwise), a little up, falling in as it goes
 				Vec3 around = new Vec3(-Math.sin(a), 0, Math.cos(a)).scale(VoidRender.rand(0.25, 0.5));
 				VoidRender.Particle p = new VoidRender.Particle(at, around.add(0, VoidRender.rand(0.01, 0.05), 0), 34,
-						(float) VoidRender.rand(0.07, 0.2), colour(), VoidRender.RANDOM.nextInt(4) == 0, 0.97f, 0.9f);
+						(float) VoidRender.rand(0.06, 0.16), colour(), true, 0.97f, 1.1f);
 				p.attract = c.add(0, y, 0);
 				p.pull = 0.025f;
 				VoidRender.add(p);
@@ -61,7 +61,7 @@ final class SporeFx {
 			double r = VoidRender.rand(0.5, 3.0) * scale;
 			Vec3 at = base.add(Math.cos(a) * r, VoidRender.rand(2.6, 4.2) * scale, Math.sin(a) * r);
 			Vec3 vel = new Vec3(Math.cos(a) * 0.03, VoidRender.rand(0.02, 0.06), Math.sin(a) * 0.03);
-			VoidRender.add(new VoidRender.Particle(at, vel, 60, (float) VoidRender.rand(0.06, 0.14), colour(), VoidRender.RANDOM.nextInt(3) == 0, 0.99f, 1f));
+			VoidRender.add(new VoidRender.Particle(at, vel, 60, (float) VoidRender.rand(0.05, 0.12), colour(), true, 0.99f, 1.1f));
 		}
 	}
 }
