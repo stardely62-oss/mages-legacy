@@ -21,6 +21,9 @@ final class FxDraw {
 	static final String ORB = "fx/orb";
 	static final String STAR = "fx/sprite_star";
 	static final String MOTE = "fx/sprite_mote";
+	/** The Mycelid's effects and the Great Bloom's mushroom. */
+	static final String SPORE = "fx/spore";
+	static final String MUSHROOM = "fx/mushroom";
 
 	/** The ground shader's modes, in its blue channel. */
 	static final float CRACKS = 0.1f;

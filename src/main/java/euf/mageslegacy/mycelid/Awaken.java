@@ -66,10 +66,6 @@ public final class Awaken {
 	private static final int CLOSE_TOGETHER = 60 * 20;
 	public static final int REBIRTH_COOLDOWN = 20 * 60 * 20;
 	private static final DustParticleOptions HEAL_DUST = new DustParticleOptions(new Vector3f(0.55f, 1f, 0.75f), 1.3f);
-	private static final DustParticleOptions STORM_DUST = new DustParticleOptions(new Vector3f(0.6f, 0.95f, 0.35f), 1.8f);
-	/** The storm's arms: big spores of moss and teal, plainly seen even in daylight. */
-	private static final DustParticleOptions ARM_MOSS = new DustParticleOptions(new Vector3f(0.35f, 0.75f, 0.25f), 3f);
-	private static final DustParticleOptions ARM_TEAL = new DustParticleOptions(new Vector3f(0.35f, 0.9f, 0.7f), 2.5f);
 
 	private record Bloom(Vec3 at, long until) {
 	}
@@ -130,7 +126,7 @@ public final class Awaken {
 		ServerLevel level = player.serverLevel();
 		int ticks = Talents.has(player, Talent.BLOOM_LONG) ? BLOOM_LONG : BLOOM_TICKS;
 		BLOOMS.put(player.getUUID(), new Bloom(player.position(), level.getGameTime() + ticks));
-		Fx.bloom(level, player, ticks);
+		Fx.bloom(level, player, ticks, (float) bloomRadius(player, player.position()));
 		Fx.hide(level, player, ticks);
 		Fx.thirdPerson(player, ticks + 10);
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ROOTED_DIRT_PLACE, SoundSource.PLAYERS, 1.5f, 0.5f);
@@ -149,7 +145,7 @@ public final class Awaken {
 			return;
 		}
 		ServerLevel level = player.serverLevel();
-		Fx.bloom(level, player, 0);
+		Fx.bloom(level, player, 0, 0);
 		Fx.hide(level, player, 0);
 		Fx.thirdPerson(player, 0);
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.FUNGUS_BREAK, SoundSource.PLAYERS, 1.2f, 0.6f);
@@ -198,11 +194,6 @@ public final class Awaken {
 			ally.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 50, strength, true, true));
 			level.sendParticles(HEAL_DUST, ally.getX(), ally.getY() + ally.getBbHeight() + 0.3, ally.getZ(), 4, 0.3, 0.2, 0.3, 0);
 		}
-		// The cap breathes out glowing spores
-		Vec3 c = bloom.at().add(0, 4.5, 0);
-		level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y, c.z, 40, 2.5, 0.6, 2.5, 0.02);
-		level.sendParticles(HEAL_DUST, c.x, c.y - 0.5, c.z, 20, 2.2, 0.4, 2.2, 0);
-		level.sendParticles(ParticleTypes.GLOW, c.x, c.y, c.z, 8, 2, 0.5, 2, 0.01);
 	}
 
 	// ---- Spore Storm ------------------------------------------------------------------------------------------
@@ -221,7 +212,6 @@ public final class Awaken {
 		RaceState.setResource(player, Talents.has(player, Talent.STORM_KEEP) ? spores / 4 : 0);
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ELYTRA_FLYING, SoundSource.PLAYERS, 1.5f, 0.6f);
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PUFFER_FISH_BLOW_UP, SoundSource.PLAYERS, 1.5f, 0.4f);
-		level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, player.getX(), player.getY() + 1.5, player.getZ(), 300, radius * 0.5, 2, radius * 0.5, 0.05);
 		Fx.shake(player, 0.8f, 12);
 		return null;
 	}
@@ -239,23 +229,7 @@ public final class Awaken {
 			return;
 		}
 		double r = storm.radius();
-		Vec3 c = player.position();
-		// Six arms of spores turning round the Mycelid (the glowing whirl is drawn by the clients, Fx.storm), and a haze
-		if (player.tickCount % 2 == 0) {
-			double turn = now * 0.15;
-			for (int arm = 0; arm < 6; arm++) {
-				for (int k = 1; k <= 10; k++) {
-					double d = r * k / 10.0;
-					double a = turn + arm * Math.PI / 3 + d * 0.22;
-					level.sendParticles(arm % 2 == 0 ? ARM_MOSS : ARM_TEAL, c.x + Math.cos(a) * d, c.y + 0.4 + k * 0.3, c.z + Math.sin(a) * d, 1,
-							0.15, 0.15, 0.15, 0);
-				}
-			}
-		}
-		if (player.tickCount % 4 == 0) {
-			level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 2, c.z, 18, r * 0.5, 2, r * 0.5, 0.03);
-			level.sendParticles(STORM_DUST, c.x, c.y + 1, c.z, 10, r * 0.5, 1.2, r * 0.5, 0);
-		}
+		// The whirl itself is drawn by the clients (Fx.storm)
 		if (player.tickCount % 10 != 0) {
 			return;
 		}
@@ -317,7 +291,7 @@ public final class Awaken {
 		MyceliumNetwork.dissolve(from, player.position());
 		BLOOMS.remove(player.getUUID());
 		STORMS.remove(player.getUUID());
-		Fx.bloom(from, player, 0);
+		Fx.bloom(from, player, 0, 0);
 		Fx.hide(from, player, 0);
 		Fx.thirdPerson(player, 0);
 		ServerLevel to = waking.level();

@@ -63,10 +63,17 @@ public final class VoidFx {
 					}
 				}
 				case Fx.HIDE -> VoidRender.hide(payload.entity(), payload.ticks());
-				case Fx.BLOOM -> GreatBloom.play(follow, payload.entity(), payload.ticks());
+				case Fx.BLOOM -> MycelidFx.bloom(follow, payload.entity(), payload.ticks(), payload.a());
 				case Fx.STORM -> {
 					if (follow != null) {
-						VoidRender.add(new SporeFx.Storm(follow, payload.a(), payload.ticks()));
+						VoidRender.add(new MycelidFx.Storm(follow, payload.a(), payload.ticks()));
+					}
+				}
+				case Fx.SPORE_CLOUD -> VoidRender.add(new MycelidFx.Cloud(payload.from(), follow, payload.a(), payload.ticks()));
+				case Fx.BOND -> {
+					Entity caster = level.getEntity((int) payload.b());
+					if (follow != null) {
+						VoidRender.add(new MycelidFx.Bond(caster, follow, payload.ticks()));
 					}
 				}
 				case Fx.VOID_SCREEN, Fx.SHAKE, Fx.FOV, Fx.MUFFLE, Fx.THIRD_PERSON -> ScreenFx.play(payload);

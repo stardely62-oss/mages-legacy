@@ -565,7 +565,7 @@ public final class Arena {
 			if (gnawing > 0) {
 				arena.sendParticles(net.minecraft.core.particles.ParticleTypes.DAMAGE_INDICATOR, c.x, c.y + 0.6, c.z, gnawing * 2, 0.4, 0.3, 0.4, 0.1);
 			}
-			arena.sendParticles(net.minecraft.core.particles.ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 1, c.z, 6, 0.6, 0.4, 0.6, 0);
+			arena.sendParticles(net.minecraft.core.particles.ParticleTypes.GLOW, c.x, c.y + 1, c.z, 6, 0.6, 0.4, 0.6, 0);
 			// The rot makes for the Heart; only a Mycelid standing in its way turns it aside
 			for (Mob mob : arena.getEntitiesOfClass(Mob.class, bounds(session.slot), m -> m.isAlive() && m.getTags().contains(TRIAL_TAG))) {
 				if (mob.distanceTo(player) > 5 && mob.distanceToSqr(c) > 4) {

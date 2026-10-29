@@ -1,0 +1,30 @@
+{
+  "format": "POSITION_TEX_COLOR",
+  "mode": "QUADS",
+  "bufferSize": "TRANSIENT",
+  "sort": false,
+  "affectsCrumbling": false,
+  "outline": false,
+  "layers": [
+    {
+      "type": "veil:shader",
+      "name": "mages_legacy:fx/spore_glow"
+    },
+    {
+      "type": "minecraft:transparency",
+      "mode": "additive"
+    },
+    {
+      "type": "minecraft:write_mask",
+      "depth": false
+    },
+    {
+      "type": "minecraft:cull",
+      "face": "none"
+    },
+    {
+      "type": "minecraft:output",
+      "framebuffer": "veil:bloom"
+    }
+  ]
+}

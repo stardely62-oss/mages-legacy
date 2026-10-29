@@ -113,7 +113,7 @@ public final class VoidRender {
 		NeoForge.EVENT_BUS.addListener(VoidRender::onTick);
 		NeoForge.EVENT_BUS.addListener(VoidRender::onRender);
 		NeoForge.EVENT_BUS.addListener(VoidRender::onRenderLiving);
-		NeoForge.EVENT_BUS.addListener(GreatBloom::onCameraDistance);
+		NeoForge.EVENT_BUS.addListener(MycelidFx::onCameraDistance);
 	}
 
 	static void hide(int entity, int ticks) {
@@ -159,7 +159,6 @@ public final class VoidRender {
 			}
 		}
 		VoidShards.tick();
-		GreatBloom.tick();
 	}
 
 	private static void onRender(RenderLevelStageEvent event) {
@@ -171,7 +170,6 @@ public final class VoidRender {
 		float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
 		try {
 			VoidShards.render(event.getPoseStack(), camera, partial);
-			GreatBloom.render(event.getPoseStack(), camera, partial);
 			// In the void (a Void Step) the world's effects stay behind with the world, glow and all
 			if ((!EFFECTS.isEmpty() || !PARTICLES.isEmpty()) && !euf.mageslegacy.client.ClientStep.active()) {
 				FxDraw draw = new FxDraw(mc.renderBuffers().bufferSource(), camera.getPosition());

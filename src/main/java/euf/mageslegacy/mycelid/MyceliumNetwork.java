@@ -289,7 +289,6 @@ public final class MyceliumNetwork extends SavedData {
 		if (count > Talents.progress(player, Mycelid.NODES)) {
 			Talents.addProgress(player, Mycelid.NODES, count - Talents.progress(player, Mycelid.NODES));
 		}
-		level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, pos.getX() + 0.5, pos.getY() + 0.8, pos.getZ() + 0.5, 40, 1.2, 0.6, 1.2, 0.02);
 		level.sendParticles(ParticleTypes.HAPPY_VILLAGER, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 12, 0.6, 0.4, 0.6, 0);
 		level.playSound(null, pos, SoundEvents.FUNGUS_PLACE, SoundSource.BLOCKS, 1f, 0.7f);
 		level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 0.6f, 0.6f);
@@ -410,7 +409,7 @@ public final class MyceliumNetwork extends SavedData {
 		net.bodyReady.put(player.getUUID(), now + ticks);
 		net.setDirty();
 		ServerLevel level = player.serverLevel();
-		level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, at.pos.getX() + 0.5, at.pos.getY() + 1, at.pos.getZ() + 0.5, 40, 0.6, 0.8, 0.6, 0.02);
+		level.sendParticles(ParticleTypes.GLOW, at.pos.getX() + 0.5, at.pos.getY() + 1, at.pos.getZ() + 0.5, 12, 0.6, 0.8, 0.6, 0.02);
 		level.playSound(null, at.pos, SoundEvents.ROOTED_DIRT_PLACE, SoundSource.BLOCKS, 1f, 0.6f);
 		player.displayClientMessage(Component.translatable("mages_legacy.message.body_started", at.name, ticks / 20).withStyle(ChatFormatting.GREEN), true);
 		return null;
@@ -715,12 +714,14 @@ public final class MyceliumNetwork extends SavedData {
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SCULK_BLOCK_SPREAD, SoundSource.PLAYERS, 1f, 0.8f);
 	}
 
+	private static final net.minecraft.core.particles.DustParticleOptions DISSOLVE = new net.minecraft.core.particles.DustParticleOptions(
+			new org.joml.Vector3f(0.55f, 0.95f, 0.65f), 1.1f);
+
 	/** A body coming apart into spores and threads (or gathered from them). */
 	static void dissolve(ServerLevel level, Vec3 at) {
-		level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, at.x, at.y + 1, at.z, 50, 0.4, 0.9, 0.4, 0.04);
-		level.sendParticles(ParticleTypes.WARPED_SPORE, at.x, at.y + 1, at.z, 40, 0.5, 0.9, 0.5, 0.05);
-		level.sendParticles(ParticleTypes.MYCELIUM, at.x, at.y + 0.2, at.z, 40, 0.8, 0.1, 0.8, 0.02);
-		level.sendParticles(ParticleTypes.GLOW, at.x, at.y + 1, at.z, 14, 0.4, 0.8, 0.4, 0.02);
+		level.sendParticles(DISSOLVE, at.x, at.y + 1, at.z, 30, 0.35, 0.8, 0.35, 0);
+		level.sendParticles(ParticleTypes.MYCELIUM, at.x, at.y + 0.2, at.z, 16, 0.6, 0.1, 0.6, 0.02);
+		level.sendParticles(ParticleTypes.GLOW, at.x, at.y + 1, at.z, 8, 0.4, 0.8, 0.4, 0.02);
 	}
 
 	private static void onServerTick(ServerTickEvent.Post event) {
@@ -820,7 +821,7 @@ public final class MyceliumNetwork extends SavedData {
 					}
 					if (spores && mob.distanceToSqr(c) <= 36 && !mob.getType().is(Tags.EntityTypes.BOSSES)) {
 						mob.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 60, 0, false, true));
-						level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, mob.getX(), mob.getY() + 1, mob.getZ(), 4, 0.3, 0.4, 0.3, 0);
+						level.sendParticles(ParticleTypes.HAPPY_VILLAGER, mob.getX(), mob.getY() + 1, mob.getZ(), 4, 0.3, 0.4, 0.3, 0);
 					}
 				}
 			}
@@ -840,7 +841,7 @@ public final class MyceliumNetwork extends SavedData {
 				level.sendParticles(ParticleTypes.GLOW, c.x, c.y + 0.9, c.z, 4, 0.3, 0.5, 0.3, 0.01);
 			}
 			if (server.getTickCount() % 200 == 0) {
-				level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 0.6, c.z, 3, 0.4, 0.3, 0.4, 0);
+				level.sendParticles(ParticleTypes.GLOW, c.x, c.y + 0.6, c.z, 3, 0.4, 0.3, 0.4, 0);
 			}
 		}
 	}

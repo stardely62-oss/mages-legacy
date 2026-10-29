@@ -54,6 +54,10 @@ public final class Fx {
 	public static final int BLOOM = 17;
 	/** The Spore Storm's whirl round a Mycelid (follows them): a: radius. */
 	public static final int STORM = 18;
+	/** A cloud of neurospores on the ground (following its Mycelid if entity is one): a: radius. */
+	public static final int SPORE_CLOUD = 19;
+	/** A thread of the symbiosis to one sharing it (entity), from the caster (b: the caster's id). */
+	public static final int BOND = 20;
 
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
@@ -100,8 +104,16 @@ public final class Fx {
 		send(level, around.position(), new FxPayload(VORTEX, around.getId(), around.position(), around.position(), ticks, radius, gather));
 	}
 
-	public static void bloom(ServerLevel level, Entity body, int ticks) {
-		send(level, body.position(), new FxPayload(BLOOM, body.getId(), body.position(), body.position(), ticks, 0, 0));
+	public static void bloom(ServerLevel level, Entity body, int ticks, float field) {
+		send(level, body.position(), new FxPayload(BLOOM, body.getId(), body.position(), body.position(), ticks, field, 0));
+	}
+
+	public static void sporeCloud(ServerLevel level, Vec3 at, Entity follow, float radius, int ticks) {
+		send(level, at, new FxPayload(SPORE_CLOUD, follow == null ? -1 : follow.getId(), at, at, ticks, radius, 0));
+	}
+
+	public static void bond(ServerLevel level, Entity caster, Entity ally, int ticks) {
+		send(level, ally.position(), new FxPayload(BOND, ally.getId(), ally.position(), ally.position(), ticks, 0, caster.getId()));
 	}
 
 	public static void storm(ServerLevel level, Entity heart, float radius, int ticks) {

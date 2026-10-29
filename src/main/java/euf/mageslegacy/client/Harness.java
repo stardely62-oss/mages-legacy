@@ -362,10 +362,21 @@ final class Harness {
 			player.serverLevel().addFreshEntity(husk);
 		}), 10);
 		run(() -> check("became a Mycelid", RaceState.is(player(), Race.MYCELID)), 0);
-		run(() -> MagesLegacyClient.useAbility(0), 25);
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 3);
+		run(() -> MagesLegacyClient.useAbility(0), 1);
+		film("spores", 8, 3);
 		run(() -> check("neurospores weaken the husk", husk.hasEffect(net.minecraft.world.effect.MobEffects.WEAKNESS)), 0);
-		shot("mycelid_spores");
-		run(() -> MagesLegacyClient.useAbility(1), 10);
+		// A tamed wolf beside the Mycelid, to share the symbiosis with
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			var wolf = EntityType.WOLF.create(player.serverLevel());
+			wolf.moveTo(player.getX() - 3, player.getY(), player.getZ() + 1, 0, 0);
+			wolf.tame(player);
+			wolf.setOrderedToSit(true);
+			player.serverLevel().addFreshEntity(wolf);
+		}), 5);
+		run(() -> MagesLegacyClient.useAbility(1), 1);
+		film("symbiosis", 6, 4);
 		run(() -> {
 			var speed = player().getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
 			check("neurosymbiosis quickens the Mycelid", speed != null && speed.getModifier(MagesLegacy.id("symbiosis_speed")) != null);

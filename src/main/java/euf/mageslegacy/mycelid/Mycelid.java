@@ -1,6 +1,7 @@
 package euf.mageslegacy.mycelid;
 
 import euf.mageslegacy.MagesLegacy;
+import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.race.Abilities;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
@@ -196,7 +197,7 @@ public final class Mycelid {
 		if (Talents.has(player, Talent.DIET_3)) {
 			MyceliumNetwork.get(player.server).addNutrients(player.getUUID(), 8);
 		}
-		player.serverLevel().sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, player.getX(), player.getY() + 1.2, player.getZ(), 8, 0.3, 0.3, 0.3, 0);
+		player.serverLevel().sendParticles(ParticleTypes.HAPPY_VILLAGER, player.getX(), player.getY() + 1.2, player.getZ(), 8, 0.3, 0.3, 0.3, 0);
 		RaceState.sync(player);
 	}
 
@@ -214,8 +215,10 @@ public final class Mycelid {
 	public static Abilities.Refusal neurospores(ServerPlayer player) {
 		ServerLevel level = player.serverLevel();
 		int linger = Talents.has(player, Talent.SPORE_LINGER) ? 8 * 20 : 3 * 20;
+		boolean trail = Talents.has(player, Talent.SPORE_TRAIL);
 		CLOUDS.add(new Cloud(player.getUUID(), level.dimension(), player.position(), sporeRadius(player), level.getGameTime() + sporeTicks(player),
-				Talents.has(player, Talent.SPORE_TRAIL), linger));
+				trail, linger));
+		Fx.sporeCloud(level, player.position(), trail ? player : null, (float) sporeRadius(player), sporeTicks(player));
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SPORE_BLOSSOM_PLACE, SoundSource.PLAYERS, 1.2f, 0.6f);
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PUFFER_FISH_BLOW_UP, SoundSource.PLAYERS, 0.8f, 0.5f);
 		burst(level, player.position(), sporeRadius(player));
@@ -225,12 +228,11 @@ public final class Mycelid {
 	/** A weak cloud of a Mycelid's spores somewhere (Spore Trail, Spore Nodes). */
 	static void cloudAt(ServerPlayer owner, ServerLevel level, Vec3 at, double radius, int ticks) {
 		CLOUDS.add(new Cloud(owner.getUUID(), level.dimension(), at, radius, level.getGameTime() + ticks, false, 3 * 20));
-		burst(level, at, radius);
+		Fx.sporeCloud(level, at, null, (float) radius, ticks);
 	}
 
 	private static void burst(ServerLevel level, Vec3 at, double radius) {
-		level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, at.x, at.y + 1, at.z, (int) (radius * 20), radius * 0.6, 0.8, radius * 0.6, 0.03);
-		level.sendParticles(SPORE_DUST, at.x, at.y + 0.8, at.z, (int) (radius * 14), radius * 0.6, 0.5, radius * 0.6, 0);
+		level.sendParticles(SPORE_DUST, at.x, at.y + 0.8, at.z, (int) (radius * 3), radius * 0.6, 0.5, radius * 0.6, 0);
 	}
 
 	/** Infects a creature with a Mycelid's spores for this long (or longer if it already is). */
@@ -262,9 +264,9 @@ public final class Mycelid {
 		for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(bondRadius(player)), e -> e.isAlive()
 				&& (e == player || e instanceof Player p && !p.isSpectator() || e instanceof OwnableEntity o && player.getUUID().equals(o.getOwnerUUID())))) {
 			bond(player, e, until);
+			Fx.bond(level, player, e, bondTicks(player));
 			if (e != player) {
 				others++;
-				thread(level, player.position().add(0, 1, 0), e.position().add(0, e.getBbHeight() / 2, 0));
 			}
 		}
 		if (Talents.has(player, Talent.SYM_AURA)) {
@@ -289,7 +291,7 @@ public final class Mycelid {
 		if (Talents.has(caster, Talent.SYM_PULSE)) {
 			e.addEffect(new MobEffectInstance(MobEffects.JUMP, (int) (until - e.level().getGameTime()), 0, true, true));
 		}
-		((ServerLevel) e.level()).sendParticles(ParticleTypes.HAPPY_VILLAGER, e.getX(), e.getY() + e.getBbHeight() * 0.7, e.getZ(), 6, 0.3, 0.4, 0.3, 0);
+		((ServerLevel) e.level()).sendParticles(ParticleTypes.HAPPY_VILLAGER, e.getX(), e.getY() + e.getBbHeight() * 0.7, e.getZ(), 3, 0.3, 0.4, 0.3, 0);
 	}
 
 	private static void modify(AttributeInstance attribute, ResourceLocation id, double amount) {
@@ -307,15 +309,6 @@ public final class Mycelid {
 		AttributeInstance attack = e.getAttribute(Attributes.ATTACK_SPEED);
 		if (attack != null) {
 			attack.removeModifier(ATTACK);
-		}
-	}
-
-	/** A visible thread of spores between two points. */
-	private static void thread(ServerLevel level, Vec3 a, Vec3 b) {
-		int steps = (int) Math.max(4, a.distanceTo(b) * 3);
-		for (int i = 0; i <= steps; i++) {
-			Vec3 p = a.lerp(b, i / (double) steps);
-			level.sendParticles(SPORE_DUST, p.x, p.y, p.z, 1, 0.02, 0.02, 0.02, 0);
 		}
 	}
 
@@ -362,8 +355,6 @@ public final class Mycelid {
 				cloud.at = owner.position();
 			}
 			double r = cloud.radius;
-			level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, cloud.at.x, cloud.at.y + 1, cloud.at.z, (int) (r * 5), r * 0.55, 0.7, r * 0.55, 0.01);
-			level.sendParticles(SPORE_DUST, cloud.at.x, cloud.at.y + 0.6, cloud.at.z, (int) (r * 3), r * 0.55, 0.4, r * 0.55, 0);
 			for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(cloud.at, cloud.at).inflate(r, 3, r),
 					e -> e.isAlive() && Voidborn.isEnemy(owner, e) && e.position().distanceTo(cloud.at) <= r + 0.5)) {
 				boolean fresh = !INFECTED.containsKey(e.getUUID());
@@ -464,7 +455,7 @@ public final class Mycelid {
 					&& !BONDS.containsKey(e.getUUID()) && (e instanceof Player p && !p.isSpectator()
 					|| e instanceof OwnableEntity o && caster.getUUID().equals(o.getOwnerUUID())))) {
 				bond(caster, e, entry.getValue());
-				thread(level, caster.position().add(0, 1, 0), e.position().add(0, e.getBbHeight() / 2, 0));
+				Fx.bond(level, caster, e, (int) (entry.getValue() - now));
 			}
 		}
 	}
