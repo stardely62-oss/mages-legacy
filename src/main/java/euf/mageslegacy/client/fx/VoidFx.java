@@ -143,13 +143,13 @@ public final class VoidFx {
 				new PhotonFx.Emitter(life).points(fill, null).burst(fill.size()).life(life, life).speed(0, 0).size(0.32f, 0.4f)
 						.colors(INK, INK).ink(),
 				new PhotonFx.Emitter(life).points(lips, null).burst(lips.size()).life(life, life).speed(0, 0).size(0.6f, 0.7f)
-						.colors(alpha(VOID, 0.22f), alpha(VOID, 0.22f)).bloom(VOID, 1.5f),
+						.colors(alpha(VOID, 0.2f), alpha(VOID, 0.2f)).bloom(VOID, 0.8f),
 				new PhotonFx.Emitter(life).points(lips, null).burst(lips.size()).life(life, life).speed(0, 0).size(0.16f, 0.18f)
-						.colors(alpha(VOID, 0.9f), alpha(VOID, 0.9f)).bloom(VOID, 3.5f),
+						.colors(alpha(VOID, 0.9f), alpha(VOID, 0.9f)).bloom(VOID, 1.8f),
 				new PhotonFx.Emitter(life).points(lips, null).burst(lips.size()).life(life, life).speed(0, 0).size(0.05f, 0.06f)
-						.colors(0xB3FFFFFF, 0xB3FFFFFF).bloom(0xFFFFFF, 3f),
+						.colors(0xB3FFFFFF, 0xB3FFFFFF).bloom(0xFFFFFF, 1.4f),
 				new PhotonFx.Emitter(life).points(seam, null).burst(seam.size()).life(life, life).speed(0, 0).size(0.12f, 0.13f)
-						.colors(stops(20, seamFrom, 0x00FFFFFF, 0xE6FFFFFF)).bloom(0xFFFFFF, 5f),
+						.colors(stops(20, seamFrom, 0x00FFFFFF, 0xE6FFFFFF)).bloom(0xFFFFFF, 2.5f),
 				new PhotonFx.Emitter(life).points(stars, null).burst(stars.size()).life(life, life).speed(0, 0).size(0.07f, 0.13f)
 						.colors(0x00FFFFFF, 0xFFFFFFFF, 0x66FFFFFF, 0xFFFFFFFF, 0x55FFFFFF, 0xEEFFFFFF, 0x00FFFFFF).texture(STAR).bloom(0xFFFFFF, 2.5f),
 				// Sparks peeling off the lips and drifting away
@@ -358,8 +358,8 @@ public final class VoidFx {
 				new PhotonFx.Emitter(life).ring(reach, 1).offset(0, 0.05f, 0).burst(150).life(life, life).speed(0, 0).size(0.55f, 0.7f)
 						.colors(hold(DEEP, 0.55f, life)).flat().ink(),
 				// Its rim, turning slowly
-				new PhotonFx.Emitter(life).ring(reach, 0).offset(0, 0.08f, 0).burst(80).life(life, life).speed(0, 0).size(0.22f, 0.28f)
-						.colors(hold(VOID, 0.8f, life)).swirl(0, 2).flat().bloom(VOID, 2f),
+				new PhotonFx.Emitter(life).ring(reach, 0).offset(0, 0.08f, 0).burst(80).life(life, life).speed(0, 0).size(0.16f, 0.2f)
+						.colors(hold(VOID, 0.7f, life)).swirl(0, 2).flat().bloom(VOID, 1f),
 				// Rings tightening across it, one every half second
 				new PhotonFx.Emitter(life).ring(reach, 0).offset(0, 0.1f, 0).pulses(56, life / 10, 10).life(10, 10).speed(0, 0).size(0.12f, 0.15f)
 						.colors(alpha(VOID, 0), alpha(VOID, 0.8f), 0xA0FFFFFF, 0x00FFFFFF).swirl(-reach / 10 * 100, 0).flat().bloom(VOID, 1.4f),
