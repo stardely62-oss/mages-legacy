@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.UUID;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
@@ -259,7 +260,7 @@ public final class MyceliumNetwork extends SavedData {
 			why = "mages_legacy.refuse.node_limit";
 		} else if (net.nutrients(player.getUUID()) < cost) {
 			why = "mages_legacy.refuse.nutrients";
-		} else if (!level.getBlockState(pos).canBeReplaced() || !level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), net.minecraft.core.Direction.UP)) {
+		} else if (!level.getBlockState(pos).canBeReplaced() || !level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), Direction.UP)) {
 			why = "mages_legacy.refuse.node_ground";
 		} else if (!level.mayInteract(player, pos)) {
 			why = "mages_legacy.refuse.protected";
@@ -626,7 +627,7 @@ public final class MyceliumNetwork extends SavedData {
 				ticks, true));
 		dissolve(level, player.position());
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.FUNGUS_BREAK, SoundSource.PLAYERS, 1f, 0.6f);
-		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SCULK_SPREAD, SoundSource.PLAYERS, 1f, 0.8f);
+		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SCULK_BLOCK_SPREAD, SoundSource.PLAYERS, 1f, 0.8f);
 	}
 
 	/** A body coming apart into spores and threads (or gathered from them). */
