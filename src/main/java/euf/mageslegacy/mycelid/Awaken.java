@@ -67,6 +67,9 @@ public final class Awaken {
 	public static final int REBIRTH_COOLDOWN = 20 * 60 * 20;
 	private static final DustParticleOptions HEAL_DUST = new DustParticleOptions(new Vector3f(0.55f, 1f, 0.75f), 1.3f);
 	private static final DustParticleOptions STORM_DUST = new DustParticleOptions(new Vector3f(0.6f, 0.95f, 0.35f), 1.8f);
+	/** The storm's arms: big spores of moss and teal, plainly seen even in daylight. */
+	private static final DustParticleOptions ARM_MOSS = new DustParticleOptions(new Vector3f(0.35f, 0.75f, 0.25f), 3f);
+	private static final DustParticleOptions ARM_TEAL = new DustParticleOptions(new Vector3f(0.35f, 0.9f, 0.7f), 2.5f);
 
 	private record Bloom(Vec3 at, long until) {
 	}
@@ -237,7 +240,18 @@ public final class Awaken {
 		}
 		double r = storm.radius();
 		Vec3 c = player.position();
-		// The glowing whirl itself is drawn by the clients (Fx.storm); here a haze of drifting spores for everyone
+		// Six arms of spores turning round the Mycelid (the glowing whirl is drawn by the clients, Fx.storm), and a haze
+		if (player.tickCount % 2 == 0) {
+			double turn = now * 0.15;
+			for (int arm = 0; arm < 6; arm++) {
+				for (int k = 1; k <= 10; k++) {
+					double d = r * k / 10.0;
+					double a = turn + arm * Math.PI / 3 + d * 0.22;
+					level.sendParticles(arm % 2 == 0 ? ARM_MOSS : ARM_TEAL, c.x + Math.cos(a) * d, c.y + 0.4 + k * 0.3, c.z + Math.sin(a) * d, 1,
+							0.15, 0.15, 0.15, 0);
+				}
+			}
+		}
 		if (player.tickCount % 4 == 0) {
 			level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, c.x, c.y + 2, c.z, 18, r * 0.5, 2, r * 0.5, 0.03);
 			level.sendParticles(STORM_DUST, c.x, c.y + 1, c.z, 10, r * 0.5, 1.2, r * 0.5, 0);

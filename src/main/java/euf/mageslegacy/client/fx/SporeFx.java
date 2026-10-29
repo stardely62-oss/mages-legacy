@@ -41,7 +41,7 @@ final class SporeFx {
 				// Round the heart (anticlockwise), a little up, falling in as it goes
 				Vec3 around = new Vec3(-Math.sin(a), 0, Math.cos(a)).scale(VoidRender.rand(0.25, 0.5));
 				VoidRender.Particle p = new VoidRender.Particle(at, around.add(0, VoidRender.rand(0.01, 0.05), 0), 34,
-						(float) VoidRender.rand(0.06, 0.16), colour(), true, 0.97f, 1.1f);
+						(float) VoidRender.rand(0.14, 0.32), colour(), true, 0.97f, 1.1f);
 				p.attract = c.add(0, y, 0);
 				p.pull = 0.025f;
 				VoidRender.add(p);
