@@ -28,8 +28,8 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Talent list is up to date
-        run: python3 tools/talents_doc.py && git diff --exit-code docs/TALENTS.md
+      - name: Talent and ability lists are up to date
+        run: python3 tools/talents_doc.py && python3 tools/abilities_doc.py && git diff --exit-code docs/
 
       - name: Build
         run: |
