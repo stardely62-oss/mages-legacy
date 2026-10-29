@@ -72,7 +72,7 @@ public enum Talent {
 	}
 
 	public static final int MAX_TIER = 4;
-	/** Race level each tier needs, besides its milestone. */
+	/** Race level each tier opens at. */
 	public static final int[] TIER_LEVELS = {1, 10, 20, 30};
 	/** The first Awakening opens from this race level on. */
 	public static final int AWAKENING_LEVEL = 30;
@@ -132,8 +132,7 @@ public enum Talent {
 	}
 
 	/**
-	 * The tier, as in the first version: I open at once, II after the Nether and level 10, III after a summoned
-	 * Wither and level 20, IV (the Awakenings and their talents) after the dragon and level 30.
+	 * The tier: I open at once, II from race level 10, III from 20, IV (the Awakenings and their talents) from 30.
 	 */
 	public int tier() {
 		if (automatic()) {

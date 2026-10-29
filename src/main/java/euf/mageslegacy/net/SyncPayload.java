@@ -34,8 +34,7 @@ public record SyncPayload(String race, int level, int xp, int xpNext, float reso
 		return new SyncPayload(player.getData(RaceState.RACE), level, player.getData(RaceState.XP), Progression.xpForNext(level), RaceState.resource(player),
 				cooldowns, totals, state.step == null ? 0 : state.step.left(), state.gravity, Pocket.isPocket(player.level()), Talents.owned(player),
 				new int[] {Talents.progress(player, Talents.POCKET_TICKS), Talents.progress(player, Talents.STEP_BLOCKS),
-						Talents.progress(player, Talents.GRAVITY_KILLS), Talents.progress(player, Talents.SUPERLATE), Progression.openTiers(player),
-						Progression.milestone(player, 2) ? 1 : 0, Progression.milestone(player, 3) ? 1 : 0, Progression.milestone(player, 4) ? 1 : 0});
+						Talents.progress(player, Talents.GRAVITY_KILLS), Talents.progress(player, Talents.SUPERLATE), Progression.openTiers(player)});
 	}
 
 	private void write(FriendlyByteBuf buf) {

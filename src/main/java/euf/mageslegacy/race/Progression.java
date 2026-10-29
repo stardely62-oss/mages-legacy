@@ -2,10 +2,8 @@ package euf.mageslegacy.race;
 
 import euf.mageslegacy.voidborn.Voidborn;
 import net.minecraft.ChatFormatting;
-import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -16,13 +14,11 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 
 /**
  * Race levels and the tree's tiers, as in the first version: experience comes from the race's own deeds and from
- * monsters, every source capped per 10 minutes of world time (a race grows by playing, not by farming); a tier opens
- * with its milestone (the Nether, a summoned Wither, the dead dragon) and a race level.
+ * monsters, every source capped per 10 minutes of world time (a race grows by playing, not by farming); the tree's
+ * tiers open with race levels alone.
  */
 public final class Progression {
 	public static final int MAX_LEVEL = 50;
-	/** The milestones for tiers II, III and IV. */
-	public static final String[] MILESTONES = {"story/enter_the_nether", "nether/summon_wither", "end/kill_dragon"};
 	/** Experience sources and how much each may give per {@link #WINDOW} ticks. */
 	public static final String KILLS = "kills";
 	public static final String STEP = "step";
@@ -89,19 +85,10 @@ public final class Progression {
 		RaceState.sync(player);
 	}
 
-	/** Whether the milestone of this tier (2..4) is reached; tier 1 has none. */
-	public static boolean milestone(ServerPlayer player, int tier) {
-		if (tier <= 1) {
-			return true;
-		}
-		AdvancementHolder advancement = player.server.getAdvancements().get(ResourceLocation.withDefaultNamespace(MILESTONES[tier - 2]));
-		return advancement != null && player.getAdvancements().getOrStartProgress(advancement).isDone();
-	}
-
-	/** How many tiers are open: each needs the one before, its milestone and its race level. */
+	/** How many tiers of the tree are open: each opens with its race level (1, 10, 20, 30). */
 	public static int openTiers(ServerPlayer player) {
 		int tier = 1;
-		while (tier < Talent.MAX_TIER && milestone(player, tier + 1) && RaceState.level(player) >= Talent.TIER_LEVELS[tier]) {
+		while (tier < Talent.MAX_TIER && RaceState.level(player) >= Talent.TIER_LEVELS[tier]) {
 			tier++;
 		}
 		return tier;

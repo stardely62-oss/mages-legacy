@@ -170,14 +170,7 @@ final class Harness {
 		shot("pocket_back");
 
 		// The talent tree: open it, learn three talents, see the Pocket grow
-		run(() -> server().execute(() -> {
-			Progression.setLevel(player(), 20);
-			// The milestones of tiers II-IV, as a long game would bring them
-			for (String advancement : Progression.MILESTONES) {
-				server().getCommands().performPrefixedCommand(server().createCommandSourceStack().withSuppressedOutput(),
-						"advancement grant @a only minecraft:" + advancement);
-			}
-		}), 10);
+		run(() -> server().execute(() -> Progression.setLevel(player(), 20)), 10);
 		run(() -> mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen()), 20);
 		shot("talents");
 		run(() -> {

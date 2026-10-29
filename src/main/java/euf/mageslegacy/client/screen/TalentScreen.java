@@ -21,7 +21,7 @@ import net.minecraft.util.FormattedCharSequence;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * The race's talent tree, working as in the first version (tiers opened by milestones, a header with the emblem,
+ * The race's talent tree, working as in the first version (tiers opened by race level, a header with the emblem,
  * level, experience bar and free points, the "?" guide to experience, points and tiers, the traits book, the ability
  * bar along the bottom) but laid out as one radial web around the core instead of three columns: drag to move,
  * scroll to zoom. Links glow where the path is learnt, learnable nodes breathe in gold; a node's tooltip tells all.
@@ -63,7 +63,7 @@ public class TalentScreen extends Screen {
 
 	private static int[] progress() {
 		SyncPayload state = ClientRace.state();
-		return state == null || state.progress().length < 8 ? new int[8] : state.progress();
+		return state == null || state.progress().length < 5 ? new int[5] : state.progress();
 	}
 
 	private static int openTiers() {
@@ -387,7 +387,7 @@ public class TalentScreen extends Screen {
 	}
 
 	/**
-	 * The guide: what gives race experience (and how much), how points come with levels, which milestone opens each
+	 * The guide: what gives race experience (and how much), how points come with levels, which race level opens each
 	 * tier, and the two Awakenings. Lays out (and unless {@code measure}, draws); returns its height.
 	 */
 	private int guide(GuiGraphics graphics, Race race, int color, int x0, int y0, int w, boolean measure) {
