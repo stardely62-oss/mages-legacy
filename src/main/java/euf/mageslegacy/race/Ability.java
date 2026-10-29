@@ -49,6 +49,13 @@ public enum Ability {
 		return Optional.empty();
 	}
 
+	/** A race's abilities in key order (R, V, Z, H, Alt), as the HUD shows them. */
+	public static List<Ability> bySlot(Race race) {
+		List<Ability> list = of(race);
+		list.sort(java.util.Comparator.comparingInt(a -> a.slot));
+		return list;
+	}
+
 	/** A race's abilities in the order they open. */
 	public static List<Ability> of(Race race) {
 		List<Ability> list = new ArrayList<>();

@@ -18,7 +18,9 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.RegisterDimensionSpecialEffectsEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.client.event.RenderBlockScreenEffectEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -45,6 +47,8 @@ public class MagesLegacyClient {
 		modBus.addListener(MagesLegacyClient::onRegisterLayers);
 		NeoForge.EVENT_BUS.addListener(MagesLegacyClient::onTick);
 		NeoForge.EVENT_BUS.addListener(MagesLegacyClient::onInteract);
+		NeoForge.EVENT_BUS.addListener(MagesLegacyClient::onBlockOverlay);
+		modBus.addListener(MagesLegacyClient::onDimensionEffects);
 		if (Boolean.getBoolean("mages_legacy.harness")) {
 			Harness.start();
 		}
@@ -83,6 +87,7 @@ public class MagesLegacyClient {
 
 	private static void onTick(ClientTickEvent.Post event) {
 		Minecraft client = Minecraft.getInstance();
+		ClientRace.tick();
 		// The loading screen closes itself when the terrain arrives, so the legend waits for it instead of being closed with it
 		if (choicePending && client.player != null && !(client.screen instanceof ReceivingLevelScreen) && client.getOverlay() == null) {
 			choicePending = false;
@@ -105,6 +110,17 @@ public class MagesLegacyClient {
 				client.player.displayClientMessage(Component.translatable("mages_legacy.message.tree_soon"), true);
 			}
 		}
+	}
+
+	/** Walking through a wall shows the void, not the wall's texture pressed against the eyes. */
+	private static void onBlockOverlay(RenderBlockScreenEffectEvent event) {
+		if (ClientRace.stepping()) {
+			event.setCanceled(true);
+		}
+	}
+
+	private static void onDimensionEffects(RegisterDimensionSpecialEffectsEvent event) {
+		event.register(MagesLegacy.id("pocket"), new PocketSky());
 	}
 
 	/** In the in-between the hands can't reach anything. */

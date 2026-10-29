@@ -13,7 +13,7 @@
 	"logical_height": 256,
 	"min_y": 0,
 	"height": 256,
-	"effects": "minecraft:the_end",
+	"effects": "mages_legacy:pocket",
 	"infiniburn": "#minecraft:infiniburn_end",
 	"monster_spawn_light_level": 0,
 	"monster_spawn_block_light_limit": 0

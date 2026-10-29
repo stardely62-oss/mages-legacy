@@ -106,6 +106,25 @@ final class Harness {
 		}, 5);
 		shot("step_end");
 
+		// The same walk seen from behind: the rifts and the path
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player).cooldown, 0);
+			RaceState.setResource(player, RaceState.MAX_RESOURCE);
+			player.connection.teleport(player.getX(), player.getY(), player.getZ(), 180, 0);
+		}), 10);
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 5);
+		run(() -> MagesLegacyClient.useAbility(0), 5);
+		shot("step_side_start");
+		run(() -> {
+		}, 8);
+		shot("step_side_mid");
+		run(() -> {
+		}, 10);
+		shot("step_side_end");
+		run(() -> {
+		}, 15);
+
 		// Heavier Gravity on a husk (a zombie would burn in the sun and spoil the count)
 		run(() -> server().execute(() -> {
 			ServerPlayer player = player();
@@ -115,16 +134,24 @@ final class Harness {
 			husk.setPersistenceRequired();
 			player.serverLevel().addFreshEntity(husk);
 		}), 10);
+		run(() -> server().execute(() -> RaceState.setResource(player(), RaceState.MAX_RESOURCE)), 2);
 		run(() -> MagesLegacyClient.useAbility(1), 10);
+		shot("gravity_side");
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON), 3);
 		shot("gravity");
 		run(() -> {
-		}, 45);
+		}, 40);
 		run(() -> check("gravity hurt and slowed the husk (" + husk.getHealth() + "/" + husk.getMaxHealth() + ")",
 				husk.getHealth() <= husk.getMaxHealth() - 2 && husk.hasEffect(MobEffects.MOVEMENT_SLOWDOWN)), 5);
 
 		// The Pocket and back
 		run(() -> beforePocket = player().position(), 0);
-		run(() -> MagesLegacyClient.useAbility(3), 50);
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 3);
+		run(() -> MagesLegacyClient.useAbility(3), 8);
+		shot("pocket_rift");
+		run(() -> {
+		}, 40);
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON), 2);
 		run(() -> {
 			ServerPlayer player = player();
 			MinecraftServer server = server();
@@ -132,7 +159,7 @@ final class Harness {
 			check("pocket entered with its platform", Pocket.isPocket(player.level())
 					&& player.serverLevel().getBlockState(heart).is(Blocks.CRYING_OBSIDIAN));
 			check("pocket keeps its edge", Pocket.canBuild(server, heart.offset(1, 1, 1)) && !Pocket.canBuild(server, heart.offset(4, 1, 0)));
-			mc.player.setXRot(35);
+			mc.player.setXRot(-10);
 		}, 20);
 		shot("pocket");
 		run(() -> MagesLegacyClient.useAbility(3), 50);

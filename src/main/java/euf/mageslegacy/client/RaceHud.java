@@ -32,10 +32,10 @@ public final class RaceHud {
 		}
 		int width = graphics.guiWidth();
 		int height = graphics.guiHeight();
-		if (state.stepping() > 0) {
-			veil(graphics, width, height, state.stepping());
+		if (ClientRace.stepping()) {
+			veil(graphics, width, height, ClientRace.stepLeft() - delta.getGameTimeDeltaPartialTick(false));
 		}
-		List<Ability> abilities = Ability.of(race);
+		List<Ability> abilities = Ability.bySlot(race);
 		if (abilities.isEmpty()) {
 			return;
 		}
@@ -83,10 +83,11 @@ public final class RaceHud {
 	}
 
 	/** The in-between: violet dark closing in at the start, deepest in the middle of the walk, opening at the end. */
-	private static void veil(GuiGraphics graphics, int width, int height, int left) {
+	private static void veil(GuiGraphics graphics, int width, int height, float left) {
 		float t = 1 - left / 25f;
-		float depth = (float) Math.sin(Math.PI * Math.min(1, Math.max(0, t)));
-		int core = LegacyUi.alpha(0xFF0A0418, 0.55f + 0.4f * depth);
+		// Dark at once on entering, nearly black in the middle (the inside of walls is never seen), lifting at the end
+		float depth = (float) Math.min(1, Math.sin(Math.PI * Math.min(1, Math.max(0, t))) * 1.6);
+		int core = LegacyUi.alpha(0xFF0A0418, 0.7f + 0.28f * depth);
 		graphics.fill(0, 0, width, height, core);
 		int edge = LegacyUi.alpha(0xFF6A3AB0, 0.35f * depth);
 		int band = Math.max(8, height / 6);

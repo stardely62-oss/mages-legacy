@@ -109,10 +109,10 @@ public final class VoidFx {
 	private static void gravity(Level level, Entity follow, int ticks) {
 		PhotonFx.play(level, null, follow, 0,
 				// Falling from above, fast
-				new PhotonFx.Emitter(ticks).ring(2f, 1f).offset(0, 3.2f, 0).flow(6).life(8, 12).speed(0, 0).size(0.04f, 0.07f)
+				new PhotonFx.Emitter(ticks).ring(2f, 0.15f).offset(0, 3.2f, 0).flow(6).life(8, 12).speed(0, 0).size(0.04f, 0.07f)
 						.sizeCurve(1f, 1f, 0.3f).colors(0x00F2E8FF, STAR, VIOLET, 0x006A3AC8).force(0, -0.06f, 0).world().glow(),
 				// The pressed ground: dark ink lying flat
-				new PhotonFx.Emitter(ticks).ring(2f, 1f).offset(0, 0.08f, 0).flow(10).life(10, 16).speed(0, 0).size(0.3f, 0.5f)
+				new PhotonFx.Emitter(ticks).ring(2f, 0.35f).offset(0, 0.08f, 0).flow(10).life(10, 16).speed(0, 0).size(0.25f, 0.4f)
 						.sizeCurve(0.2f, 1f, 0.6f).colors(INK_FADE, 0xC0080412, INK_FADE).swirl(-2, 4).ink(),
 				// Violet dust sucked inward along the ground
 				new PhotonFx.Emitter(ticks).ring(2.2f, 0.2f).offset(0, 0.15f, 0).flow(5).life(14, 20).speed(0, 0).size(0.05f, 0.09f)
