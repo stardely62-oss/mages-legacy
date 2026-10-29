@@ -43,9 +43,23 @@ public record SyncPayload(String race, int level, int xp, int xpNext, float reso
 		}
 		return new SyncPayload(player.getData(RaceState.RACE), level, player.getData(RaceState.XP), Progression.xpForNext(level), RaceState.resource(player),
 				cooldowns, totals, state.step == null ? 0 : state.step.left(), state.gravity, Pocket.isPocket(player.level()), Talents.owned(player),
-				new int[] {Talents.progress(player, Talents.POCKET_TICKS), Talents.progress(player, Talents.STEP_BLOCKS),
-						Talents.progress(player, Talents.GRAVITY_KILLS), Talents.progress(player, Talents.SUPERLATE), Progression.openTiers(player)},
+				trialProgress(player),
 				charges, chargesMax);
+	}
+
+	/**
+	 * What the screen shows of the trials: 0 nights in the Pocket, 1 steps through matter, 2 kills under the weight,
+	 * 3 superlate passed, 4 open tiers, 5 of the steps in the Nether, 6 fliers killed, 7..9 whether each first trial is
+	 * met (Rift of Space, Through Worlds, Black Hole), counting the old trials too.
+	 */
+	private static int[] trialProgress(ServerPlayer player) {
+		var tag = player.getData(euf.mageslegacy.race.RaceState.PROGRESS);
+		var owned = Talents.owned(player);
+		return new int[] {tag.getInt(Talents.POCKET_NIGHTS), tag.getInt(Talents.STEP_THROUGH), tag.getInt(Talents.GRAVITY_KILLS),
+				tag.getInt(Talents.SUPERLATE), Progression.openTiers(player), tag.getInt(Talents.STEP_THROUGH_NETHER), tag.getInt(Talents.GRAVITY_FLIERS),
+				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_RIFT, owned, tag) ? 1 : 0,
+				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_WORLDS, owned, tag) ? 1 : 0,
+				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_HOLE, owned, tag) ? 1 : 0};
 	}
 
 	private void write(FriendlyByteBuf buf) {

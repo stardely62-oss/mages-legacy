@@ -80,6 +80,7 @@ public final class Pocket {
 
 	public static void register() {
 		NeoForge.EVENT_BUS.addListener(Pocket::onPlace);
+		NeoForge.EVENT_BUS.addListener(Pocket::onPiston);
 		NeoForge.EVENT_BUS.addListener(Pocket::onPlayerTick);
 		NeoForge.EVENT_BUS.addListener(Pocket::onServerTick);
 		NeoForge.EVENT_BUS.addListener(Pocket::onSleep);
@@ -407,6 +408,30 @@ public final class Pocket {
 
 	// ---- Keeping the edge ------------------------------------------------------------------------------------
 
+	/**
+	 * A piston in a Pocket may not push or pull anything past the platform's edge (a slime machine would otherwise
+	 * carry blocks off between the edge sweeps).
+	 */
+	private static void onPiston(net.neoforged.neoforge.event.level.PistonEvent.Pre event) {
+		if (!(event.getLevel() instanceof ServerLevel level) || !isPocket(level)) {
+			return;
+		}
+		var resolver = event.getStructureHelper();
+		if (resolver == null || !resolver.resolve()) {
+			return;
+		}
+		net.minecraft.core.Direction dir = resolver.getPushDirection();
+		for (BlockPos pos : resolver.getToPush()) {
+			if (!canBuild(level.getServer(), pos.relative(dir))) {
+				event.setCanceled(true);
+				return;
+			}
+		}
+		if (!canBuild(level.getServer(), event.getFaceOffsetPos())) {
+			event.setCanceled(true);
+		}
+	}
+
 	private static void onPlace(BlockEvent.EntityPlaceEvent event) {
 		if (event.getLevel() instanceof ServerLevel level && isPocket(level) && !canBuild(level.getServer(), event.getPos())) {
 			event.setCanceled(true);
@@ -442,18 +467,8 @@ public final class Pocket {
 				if (owner == null) {
 					continue;
 				}
-				if (owner.equals(player.getUUID())) {
-					// Time at home counts towards the Rift of Space's trial
-					Talents.addProgress(player, Talents.POCKET_TICKS, 40);
-					if (Talents.has(player, Talent.POCKET_GARDEN)) {
-						tendGarden(pocket, player);
-					}
-					continue;
-				}
-				// Hospitality: guests rest well while their host is home
-				ServerPlayer host = server.getPlayerList().getPlayer(owner);
-				if (host != null && isPocket(host.level()) && Talents.has(host, Talent.POCKET_GUESTS)) {
-					player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 60, 0, true, true));
+				if (owner.equals(player.getUUID()) && Talents.has(player, Talent.POCKET_GARDEN)) {
+					tendGarden(pocket, player);
 				}
 			}
 		}
@@ -498,10 +513,13 @@ public final class Pocket {
 		}
 	}
 
-	/** Garden in the Void: what grows around the Voidborn at home grows about twice as fast (8 extra growth ticks every 2 s). */
+	/**
+	 * Garden in the Void: what grows around the Voidborn at home grows about twice as fast: 12 extra growth ticks every
+	 * 2 s among the 9×5×9 blocks around them, as many again as the world's own random ticks give (3 per 4096 a tick).
+	 */
 	private static void tendGarden(ServerLevel pocket, ServerPlayer owner) {
 		var random = owner.getRandom();
-		for (int i = 0; i < 8; i++) {
+		for (int i = 0; i < 12; i++) {
 			BlockPos pos = owner.blockPosition().offset(random.nextInt(9) - 4, random.nextInt(5) - 2, random.nextInt(9) - 4);
 			var block = pocket.getBlockState(pos);
 			if (block.getBlock() instanceof net.minecraft.world.level.block.BonemealableBlock && block.isRandomlyTicking()) {
@@ -585,10 +603,13 @@ public final class Pocket {
 			if (RaceState.is(player, Race.VOIDBORN)) {
 				Progression.addXp(player, 10);
 			}
-			// The Void's Cradle: a full Void and a little shield for the morning
+			// The Void's Cradle: wake with the Void full
 			if (Talents.has(player, Talent.POCKET_CRADLE)) {
 				RaceState.setResource(player, RaceState.MAX_RESOURCE);
-				player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 5 * 60 * 20, 0, true, true));
+			}
+			// A night slept in one's own Pocket counts towards the Rift of Space's trial
+			if (RaceState.is(player, Race.VOIDBORN) && player.getUUID().equals(PocketRooms.get(server).ownerOf(roomAt(player.getX())))) {
+				Talents.addProgress(player, Talents.POCKET_NIGHTS, 1);
 			}
 		}
 		for (ServerPlayer player : overworld.players()) {

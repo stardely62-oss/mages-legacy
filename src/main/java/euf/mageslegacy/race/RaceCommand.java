@@ -72,9 +72,9 @@ public final class RaceCommand {
 									String trial = StringArgumentType.getString(ctx, "trial");
 									return each(ctx, player -> {
 										switch (trial) {
-											case "rift" -> Talents.addProgress(player, Talents.POCKET_TICKS, Talents.RIFT_TRIAL);
-											case "worlds" -> Talents.addProgress(player, Talents.STEP_BLOCKS, Talents.WORLDS_TRIAL);
-											case "hole" -> Talents.addProgress(player, Talents.GRAVITY_KILLS, Talents.HOLE_TRIAL);
+											case "rift" -> Talents.passTrial(player, Talent.AWAKENING_RIFT);
+											case "worlds" -> Talents.passTrial(player, Talent.AWAKENING_WORLDS);
+											case "hole" -> Talents.passTrial(player, Talent.AWAKENING_HOLE);
 											default -> Talents.addProgress(player, Talents.SUPERLATE, 1);
 										}
 									});

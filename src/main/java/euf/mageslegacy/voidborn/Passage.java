@@ -23,6 +23,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -242,15 +243,12 @@ public final class Passage {
 			if (rider != null) {
 				rider.stopRiding();
 			}
-			// Clean Crossing: the void keeps fire and poisons on the far side
-			if (cleanse && e instanceof LivingEntity living) {
-				living.clearFire();
-				for (var bad : List.of(MobEffects.POISON, MobEffects.WITHER, MobEffects.MOVEMENT_SLOWDOWN, MobEffects.WEAKNESS, MobEffects.HUNGER,
-						MobEffects.BLINDNESS, MobEffects.DARKNESS)) {
-					living.removeEffect(bad);
-				}
-			}
 			Entity moved = carry(e, to, out);
+			// Soft Landing: whoever comes out floats down gently and stands firm for a few seconds
+			if (cleanse && moved instanceof LivingEntity living) {
+				living.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 60, 0, true, false, true));
+				Voidborn.steady(living, 60);
+			}
 			RESTING.put(e.getUUID(), now + REST);
 			if (rider != null) {
 				Entity carried = carry(rider, to, out);
@@ -289,7 +287,8 @@ public final class Passage {
 	/** Players and their pets always; with Caravan any animal or mount as well. */
 	private static boolean mayPass(Entity e, boolean caravan) {
 		if (e instanceof Player p) {
-			return !p.isSpectator();
+			// The heart of a singularity and a walker in the void stay where they are
+			return !p.isSpectator() && !(p instanceof ServerPlayer sp && (BlackHole.holding(sp) || Voidborn.stepping(sp)));
 		}
 		if (e instanceof OwnableEntity owned && owned.getOwnerUUID() != null) {
 			return true;

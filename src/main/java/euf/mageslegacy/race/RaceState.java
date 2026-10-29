@@ -43,6 +43,13 @@ public final class RaceState {
 	public static final Supplier<AttachmentType<CompoundTag>> POCKET_LAST_ENTRY = ATTACHMENTS.register("pocket_last_entry",
 			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).copyOnDeath().build());
 
+	/**
+	 * Cooldowns left when the player last left the server (key slots, Through Worlds' charges, Saving Rift), so that
+	 * leaving and coming back, or a restart, never resets them. Offline time doesn't count down.
+	 */
+	public static final Supplier<AttachmentType<CompoundTag>> COOLDOWNS = ATTACHMENTS.register("cooldowns",
+			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).copyOnDeath().build());
+
 	/** Where a player taken onto an arena came from. */
 	public static final Supplier<AttachmentType<CompoundTag>> ARENA_RETURN = ATTACHMENTS.register("arena_return",
 			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).build());

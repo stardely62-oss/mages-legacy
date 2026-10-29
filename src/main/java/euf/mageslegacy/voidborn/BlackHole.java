@@ -39,8 +39,8 @@ public final class BlackHole {
 	private static final int GATHER = 30;
 	private static final int GATHER_QUICK = 20;
 	private static final int PULL = 60;
-	private static final double RADIUS = 14;
-	private static final double RADIUS_WIDE = 18;
+	private static final double RADIUS = 10;
+	private static final double RADIUS_WIDE = 12.5;
 	/** The collapse strikes enemies this close to the heart. */
 	private static final double CRUSH = 6;
 
@@ -171,12 +171,11 @@ public final class BlackHole {
 			}
 		}
 		// The recoil: 4 to the Voidborn, never below 1 health (outside blows still can kill)
-		// A Sated Abyss: fed by three or more, the collapse spares its heart and gives back some Void
-		boolean sated = crushed >= 3 && Talents.has(player, Talent.HOLE_SATED);
-		if (sated) {
-			RaceState.setResource(player, RaceState.resource(player) + 15);
+		// A Sated Abyss: fed by three or more, the collapse gives back part of the Void it took (the recoil stays)
+		if (crushed >= 3 && Talents.has(player, Talent.HOLE_SATED)) {
+			RaceState.setResource(player, RaceState.resource(player) + 20);
 		}
-		float self = sated ? 0 : Math.min(4, player.getHealth() - 1);
+		float self = Math.min(4, player.getHealth() - 1);
 		if (self > 0) {
 			player.invulnerableTime = 0;
 			DamageSource recoil = new DamageSource(level.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(COLLAPSE));

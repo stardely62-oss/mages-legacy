@@ -23,6 +23,7 @@ import net.minecraft.world.entity.FlyingMob;
 import net.minecraft.world.entity.animal.FlyingAnimal;
 import net.minecraft.world.entity.monster.Blaze;
 import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
@@ -87,12 +88,12 @@ public final class Voidborn {
 	/** How high the walk may climb to come out on top of what the player looks at. */
 	private static final int CLIMB = 8;
 	private static final int ECHO_TICKS = 3 * 20;
-	private static final int AMBUSH_TICKS = 2 * 20;
-	private static final float AMBUSH_DAMAGE = 3;
-	private static final float RUPTURE_DAMAGE = 3;
+	private static final int AMBUSH_TICKS = 5 * 20;
 	private static final int LINGER_TICKS = 3 * 20;
 	private static final int FEAST_MAX = 3 * 20;
-	private static final int SHELTER_COOLDOWN = 10 * 60 * 20;
+	private static final int SHELTER_COOLDOWN = 15 * 60 * 20;
+	/** Saving Rift doesn't carry anyone out of a boss's reach: no boss within this many blocks. */
+	private static final double SHELTER_BOSS_REACH = 48;
 	private static final float SHELTER_HEALTH = 6;
 
 	/** A player's live state, never saved: cooldowns, a walk through the void, gravity, the last blow taken. */
@@ -108,7 +109,7 @@ public final class Voidborn {
 		Vec3 echo;
 		ResourceKey<Level> echoLevel;
 		long echoUntil;
-		/** Strike from the Void: the first blow until then is heavier. */
+		/** Shadow of the Void: until then the walker is seen only from half as far. */
 		long ambushUntil;
 		/** Without a Trace: until then nothing farther than a few blocks can set its mind on this player. */
 		long hiddenUntil;
@@ -180,7 +181,8 @@ public final class Voidborn {
 		NeoForge.EVENT_BUS.addListener(Voidborn::onLeftClickBlock);
 		NeoForge.EVENT_BUS.addListener(Voidborn::onInteractEntity);
 		NeoForge.EVENT_BUS.addListener(Voidborn::onLogout);
-		NeoForge.EVENT_BUS.addListener(Voidborn::onAmbush);
+		NeoForge.EVENT_BUS.addListener(Voidborn::onLogin);
+		NeoForge.EVENT_BUS.addListener(Voidborn::onVisibility);
 		NeoForge.EVENT_BUS.addListener(Voidborn::onTarget);
 		NeoForge.EVENT_BUS.addListener(Voidborn::onKnockBack);
 		NeoForge.EVENT_BUS.addListener(Voidborn::onEnderTeleport);
@@ -292,6 +294,9 @@ public final class Voidborn {
 		Vec3 to = stepTarget(level, player);
 		if (to == null) {
 			return new Abilities.Refusal("mages_legacy.refuse.no_exit");
+		}
+		if (forbidden(player, to)) {
+			return new Abilities.Refusal("mages_legacy.refuse.protected");
 		}
 		int ticks = stepTicks(player);
 		boolean door = Talents.has(player, Talent.STEP_DOOR);
@@ -437,7 +442,7 @@ public final class Voidborn {
 		}
 		Vec3 back = state.echo;
 		state.echo = null;
-		if (!fits(level, player, back)) {
+		if (!fits(level, player, back) || forbidden(player, back)) {
 			return false;
 		}
 		Vec3 from = player.position();
@@ -447,6 +452,14 @@ public final class Voidborn {
 		sinkFx(level, from);
 		level.playSound(null, from.x, from.y, from.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 0.8f);
 		return true;
+	}
+
+	/**
+	 * Whether a land-claim or protection mod forbids teleporting there: the step asks the way a chorus fruit asks
+	 * (EntityTeleportEvent.ChorusFruit), which such mods already guard.
+	 */
+	private static boolean forbidden(ServerPlayer player, Vec3 to) {
+		return NeoForge.EVENT_BUS.post(new EntityTeleportEvent.ChorusFruit(player, to.x, to.y, to.z)).isCanceled();
 	}
 
 	private static void begin(ServerPlayer player, Vec3 from, Vec3 to, int ticks, boolean companion) {
@@ -486,7 +499,7 @@ public final class Voidborn {
 		Vec3 at = step.to;
 		// The rotation is passed as it is: vanilla sets the server's to what is given and sends the difference, even when relative
 		player.connection.teleport(at.x, at.y, at.z, player.getYRot(), player.getXRot(), Set.of(RelativeMovement.X_ROT, RelativeMovement.Y_ROT));
-		// Rupture: whatever stood along the way is torn a little
+		// Rupture: whatever stood along the way is pushed aside
 		if (!step.companion && Talents.has(player, Talent.STEP_RUPTURE)) {
 			rupture(player, step);
 		}
@@ -509,10 +522,14 @@ public final class Voidborn {
 		long now = level.getGameTime();
 		if (!step.echo) {
 			state.startCooldown(Ability.VOID_STEP.slot, Abilities.cooldown(player, Ability.VOID_STEP));
-			Talents.addProgress(player, Talents.STEP_BLOCKS, (int) Math.round(step.from.distanceTo(step.to)));
-			// Walking through something, not just across open air, teaches the race; Stone Path gives some Void back for it
+			// Walking through something, not just across open air, teaches the race and counts towards Through Worlds'
+			// trial; Stone Path gives some Void back for it
 			if (!level.noCollision(player, player.getBoundingBox().move(step.from.subtract(at)).expandTowards(step.to.subtract(step.from)).deflate(0.2))) {
 				Progression.addXp(player, Progression.STEP, 1, 20);
+				Talents.addProgress(player, Talents.STEP_THROUGH, 1);
+				if (level.dimension() == Level.NETHER) {
+					Talents.addProgress(player, Talents.STEP_THROUGH_NETHER, 1);
+				}
 				if (Talents.has(player, Talent.STEP_STONE)) {
 					RaceState.setResource(player, RaceState.resource(player) + 8);
 				}
@@ -523,16 +540,19 @@ public final class Voidborn {
 				state.echoUntil = now + ECHO_TICKS;
 			}
 		}
-		// Without a Trace: whatever hunted the walker loses them, and for 3 seconds can't find them again from afar
+		// Without a Trace: whatever hunted the walker loses them, and for 2 seconds can't find them again from farther than
+		// 4 blocks; bosses are not fooled
 		if (Talents.has(player, Talent.STEP_TRACE)) {
-			for (Mob mob : level.getEntitiesOfClass(Mob.class, player.getBoundingBox().inflate(16), m -> m.getTarget() == player)) {
+			for (Mob mob : level.getEntitiesOfClass(Mob.class, player.getBoundingBox().inflate(16),
+					m -> m.getTarget() == player && !m.getType().is(Tags.EntityTypes.BOSSES))) {
 				mob.setTarget(null);
 			}
-			state.hiddenUntil = now + 60;
+			state.hiddenUntil = now + 40;
 		}
 		if (Talents.has(player, Talent.STEP_SOFT)) {
 			player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 60, 0, true, false, true));
 		}
+		// Shadow of the Void: for a while the walker is seen only from half as far
 		if (Talents.has(player, Talent.STEP_AMBUSH)) {
 			state.ambushUntil = now + AMBUSH_TICKS;
 		}
@@ -560,8 +580,18 @@ public final class Voidborn {
 		AABB swept = new AABB(step.from, step.to).inflate(1.2, 1.2, 1.2).expandTowards(0, 1.8, 0);
 		for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, swept, e -> e != player && e.isAlive() && isEnemy(player, e))) {
 			if (distanceToSegment(e.position().add(0, e.getBbHeight() / 2, 0), a, b) <= 1.2 && step.struck.add(e.getUUID())) {
-				e.hurt(player.damageSources().indirectMagic(player, player), RUPTURE_DAMAGE);
-				e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 0, false, true), player);
+				// Space parts along the way: no harm, only a shove aside off the walker's line and a stagger
+				Vec3 line = b.subtract(a).multiply(1, 0, 1);
+				Vec3 side = line.lengthSqr() < 1.0E-4 ? new Vec3(1, 0, 0) : new Vec3(-line.z, 0, line.x).normalize();
+				Vec3 off = e.position().subtract(a);
+				if (off.dot(side) < 0) {
+					side = side.scale(-1);
+				}
+				if (!e.getType().is(Tags.EntityTypes.BOSSES)) {
+					e.setDeltaMovement(e.getDeltaMovement().add(side.scale(0.6)).add(0, 0.2, 0));
+					e.hurtMarked = true;
+				}
+				e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 20, 0, false, true), player);
 				Fx.press(level, e);
 			}
 		}
@@ -723,7 +753,7 @@ public final class Voidborn {
 			RaceState.setResource(player, RaceState.resource(player) + Math.min(3, targets.size()));
 		}
 		for (LivingEntity target : targets) {
-			if (chain) {
+			if (chain && !target.getType().is(Tags.EntityTypes.BOSSES)) {
 				CHAINED.put(target.getUUID(), until - 10);
 			}
 			target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 30, slowness, false, true), player);
@@ -756,7 +786,8 @@ public final class Voidborn {
 	}
 
 	public static double gravityReach(ServerPlayer player) {
-		return Talents.has(player, Talent.GRAV_WIDE) ? 4.5 : 3;
+		// A small field, as designed: radius 2 (4×4 across), 3 (6×6) with Wide Weight
+		return Talents.has(player, Talent.GRAV_WIDE) ? 3 : 2;
 	}
 
 	private static AABB gravityArea(ServerPlayer player) {
@@ -793,6 +824,9 @@ public final class Voidborn {
 			ServerPlayer player = event.getEntity().level().getServer().getPlayerList().getPlayer(caster);
 			if (player != null) {
 				Talents.addProgress(player, Talents.GRAVITY_KILLS, 1);
+				if (flies(event.getEntity())) {
+					Talents.addProgress(player, Talents.GRAVITY_FLIERS, 1);
+				}
 				// Growing Weight: every enemy that dies under it holds the field a second longer, 3 at most
 				State state = state(player);
 				if (Talents.has(player, Talent.GRAV_FEAST) && state.gravity > 0 && state.feast < FEAST_MAX) {
@@ -837,6 +871,11 @@ public final class Voidborn {
 				|| RaceState.resource(player) < 20) {
 			return;
 		}
+		// A boss fight is not to be left this way
+		if (!level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(SHELTER_BOSS_REACH),
+				e -> e.isAlive() && e.getType().is(Tags.EntityTypes.BOSSES)).isEmpty()) {
+			return;
+		}
 		if (Pocket.rescue(player)) {
 			RaceState.setResource(player, RaceState.resource(player) - 20);
 			state.shelterReady = level.getGameTime() + SHELTER_COOLDOWN;
@@ -845,22 +884,19 @@ public final class Voidborn {
 		}
 	}
 
-	/** Strike from the Void: the first blow right after coming out is heavier. */
-	private static void onAmbush(LivingIncomingDamageEvent event) {
-		if (event.getSource().getEntity() instanceof ServerPlayer player && event.getSource().getDirectEntity() == player
-				&& event.getEntity() != player) {
+	/** Shadow of the Void: creatures notice the walker only from half their usual distance for a while after a step. */
+	private static void onVisibility(LivingEvent.LivingVisibilityEvent event) {
+		if (event.getEntity() instanceof ServerPlayer player) {
 			State state = STATES.get(player.getUUID());
 			if (state != null && state.ambushUntil >= player.level().getGameTime()) {
-				state.ambushUntil = 0;
-				event.setAmount(event.getAmount() + AMBUSH_DAMAGE);
-				Fx.burst(player.serverLevel(), event.getEntity().position().add(0, 1, 0), 0.8f, 6, true);
+				event.modifyVisibility(0.5);
 			}
 		}
 	}
 
 	/** Without a Trace: for a moment after the walk nothing farther than 4 blocks can set its mind on the walker. */
 	private static void onTarget(LivingChangeTargetEvent event) {
-		if (event.getNewAboutToBeSetTarget() instanceof ServerPlayer player) {
+		if (event.getNewAboutToBeSetTarget() instanceof ServerPlayer player && !event.getEntity().getType().is(Tags.EntityTypes.BOSSES)) {
 			State state = STATES.get(player.getUUID());
 			if (state != null && state.hiddenUntil >= player.level().getGameTime() && event.getEntity().distanceTo(player) > 4) {
 				event.setCanceled(true);
@@ -868,8 +904,24 @@ public final class Voidborn {
 		}
 	}
 
-	/** Footing: nothing knocks the Voidborn back while their gravity holds. */
+	/** Soft Landing (a passage's talent): who can't be knocked back, until when. */
+	private static final Map<UUID, Long> STEADY = new HashMap<>();
+
+	public static void steady(LivingEntity e, int ticks) {
+		STEADY.put(e.getUUID(), e.level().getGameTime() + ticks);
+		if (STEADY.size() > 256) {
+			long now = e.level().getGameTime();
+			STEADY.values().removeIf(t -> t < now);
+		}
+	}
+
+	/** Footing: nothing knocks the Voidborn back while their gravity holds; Soft Landing keeps travellers steady. */
 	private static void onKnockBack(LivingKnockBackEvent event) {
+		Long steady = STEADY.get(event.getEntity().getUUID());
+		if (steady != null && steady >= event.getEntity().level().getGameTime()) {
+			event.setCanceled(true);
+			return;
+		}
 		if (event.getEntity() instanceof ServerPlayer player && Talents.has(player, Talent.GRAV_ANCHOR)) {
 			State state = STATES.get(player.getUUID());
 			if (state != null && state.gravity > 0) {
@@ -890,11 +942,11 @@ public final class Voidborn {
 		}
 	}
 
-	/** ...nor jump. */
+	/** ...and jumps only half as high. */
 	private static void onJump(LivingEvent.LivingJumpEvent event) {
 		if (!event.getEntity().level().isClientSide && chained(event.getEntity())) {
 			Vec3 v = event.getEntity().getDeltaMovement();
-			event.getEntity().setDeltaMovement(v.x, Math.min(v.y, 0), v.z);
+			event.getEntity().setDeltaMovement(v.x, v.y * 0.5, v.z);
 		}
 	}
 
@@ -938,9 +990,51 @@ public final class Voidborn {
 		}
 	}
 
+	/** The cooldowns as they stand, kept on the player (see {@link RaceState#COOLDOWNS}). */
+	private static void saveCooldowns(ServerPlayer player, State state) {
+		long now = player.level().getGameTime();
+		CompoundTag tag = new CompoundTag();
+		tag.putIntArray("left", state.cooldown.clone());
+		tag.putIntArray("total", state.cooldownTotal.clone());
+		int[] charges = new int[state.passageReady.length];
+		for (int i = 0; i < charges.length; i++) {
+			charges[i] = (int) Math.max(0, state.passageReady[i] - now);
+		}
+		tag.putIntArray("passage", charges);
+		tag.putInt("shelter", (int) Math.max(0, state.shelterReady - now));
+		player.setData(RaceState.COOLDOWNS, tag);
+	}
+
+	private static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
+		if (!(event.getEntity() instanceof ServerPlayer player)) {
+			return;
+		}
+		CompoundTag tag = player.getData(RaceState.COOLDOWNS);
+		if (tag.isEmpty()) {
+			return;
+		}
+		State state = state(player);
+		long now = player.level().getGameTime();
+		int[] left = tag.getIntArray("left");
+		int[] total = tag.getIntArray("total");
+		for (int i = 0; i < Math.min(left.length, Ability.SLOTS); i++) {
+			state.cooldown[i] = left[i];
+			state.cooldownTotal[i] = i < total.length ? total[i] : left[i];
+		}
+		int[] charges = tag.getIntArray("passage");
+		for (int i = 0; i < Math.min(charges.length, state.passageReady.length); i++) {
+			state.passageReady[i] = now + charges[i];
+		}
+		state.shelterReady = now + tag.getInt("shelter");
+		player.removeData(RaceState.COOLDOWNS);
+	}
+
 	private static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player) {
 			State state = STATES.get(player.getUUID());
+			if (state != null && RaceState.get(player).isPresent()) {
+				saveCooldowns(player, state);
+			}
 			// A walk cut short by leaving ends at its exit, never inside a wall
 			if (state != null && state.step != null) {
 				player.teleportTo(state.step.to.x, state.step.to.y, state.step.to.z);

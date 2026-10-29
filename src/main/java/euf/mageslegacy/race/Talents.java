@@ -17,17 +17,29 @@ import net.minecraft.sounds.SoundSource;
  * Awakening needs the superlate trial and none of the three can be woken in this build yet.
  */
 public final class Talents {
-	/** What the Awakening trials count, in {@link RaceState#PROGRESS}. */
+	/**
+	 * What the Awakening trials count, in {@link RaceState#PROGRESS}. Each trial asks for a mastered ability, not hours:
+	 * Rift of Space: a Pocket grown to 15×15 and three nights slept in it; Through Worlds: 40 Void Steps through solid
+	 * matter, 10 of them in the Nether; Black Hole: 40 enemies killed under Heavier Gravity, 8 of them fliers.
+	 */
+	public static final String POCKET_NIGHTS = "pocket_nights";
+	public static final String STEP_THROUGH = "step_through";
+	public static final String STEP_THROUGH_NETHER = "step_through_nether";
+	public static final String GRAVITY_KILLS = "gravity_kills";
+	public static final String GRAVITY_FLIERS = "gravity_fliers";
+	public static final int RIFT_NIGHTS = 3;
+	public static final int WORLDS_THROUGH = 40;
+	public static final int WORLDS_NETHER = 10;
+	public static final int HOLE_KILLS = 40;
+	public static final int HOLE_FLIERS = 8;
+	/** The first trials as they were (an hour at home, 2000 blocks walked, 100 kills): whoever met them keeps them met. */
 	public static final String POCKET_TICKS = "pocket_ticks";
 	public static final String STEP_BLOCKS = "step_blocks";
-	public static final String GRAVITY_KILLS = "gravity_kills";
+	private static final int OLD_RIFT = 60 * 60 * 20;
+	private static final int OLD_WORLDS = 2000;
+	private static final int OLD_HOLE = 100;
 	/** Set once the superlate trial (the Void's Trial) is passed. */
 	public static final String SUPERLATE = "superlate";
-	/** The first Awakening's trials: an hour at home, 2000 blocks through the void, 100 enemies under the weight. */
-	public static final int RIFT_TRIAL = 60 * 60 * 20;
-	public static final int WORLDS_TRIAL = 2000;
-	public static final int HOLE_TRIAL = 100;
-
 	private Talents() {
 	}
 
@@ -97,18 +109,35 @@ public final class Talents {
 			return "mages_legacy.talent.state.third_closed";
 		}
 		if (awakened == 0) {
-			int done = switch (talent) {
-				case AWAKENING_RIFT -> progress.getInt(POCKET_TICKS) >= RIFT_TRIAL ? 1 : 0;
-				case AWAKENING_WORLDS -> progress.getInt(STEP_BLOCKS) >= WORLDS_TRIAL ? 1 : 0;
-				case AWAKENING_HOLE -> progress.getInt(GRAVITY_KILLS) >= HOLE_TRIAL ? 1 : 0;
-				default -> 0;
-			};
-			return done == 1 ? null : "mages_legacy.talent.state.trial";
+			return trialDone(talent, owned, progress) ? null : "mages_legacy.talent.state.trial";
 		}
 		if (level < Awakenings.SUPERLATE_LEVEL) {
 			return "mages_legacy.talent.state.superlate_level";
 		}
 		return progress.getInt(SUPERLATE) > 0 ? null : "mages_legacy.talent.state.superlate_trial";
+	}
+
+	/** Whether this Awakening's trial is met (the client passes the flag the server worked out as "done_<id>"). */
+	public static boolean trialDone(Talent talent, List<String> owned, CompoundTag p) {
+		if (p.getBoolean("done_" + talent.id())) {
+			return true;
+		}
+		return switch (talent) {
+			case AWAKENING_RIFT -> owned.contains(Talent.POCKET_WIDE_2.id()) && p.getInt(POCKET_NIGHTS) >= RIFT_NIGHTS
+					|| p.getInt(POCKET_TICKS) >= OLD_RIFT;
+			case AWAKENING_WORLDS -> p.getInt(STEP_THROUGH) >= WORLDS_THROUGH && p.getInt(STEP_THROUGH_NETHER) >= WORLDS_NETHER
+					|| p.getInt(STEP_BLOCKS) >= OLD_WORLDS;
+			case AWAKENING_HOLE -> p.getInt(GRAVITY_KILLS) >= HOLE_KILLS && p.getInt(GRAVITY_FLIERS) >= HOLE_FLIERS
+					|| p.getInt(GRAVITY_KILLS) >= OLD_HOLE;
+			default -> false;
+		};
+	}
+
+	/** Marks a trial met (admin command). */
+	public static void passTrial(ServerPlayer player, Talent talent) {
+		CompoundTag tag = player.getData(RaceState.PROGRESS).copy();
+		tag.putBoolean("done_" + talent.id(), true);
+		player.setData(RaceState.PROGRESS, tag);
 	}
 
 	public static void learn(ServerPlayer player, String id) {

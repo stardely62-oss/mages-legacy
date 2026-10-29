@@ -60,7 +60,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * arena of the void in its own dimension ({@code mages_legacy:rift}), one arena per slot, {@link #SPACING} apart.
  * Nothing on the arena can be built or broken; pressing the Awakening again, the time running out, or its owner dying
  * or leaving ends it, and everyone left goes back to a safe spot where they were taken from; what was dropped there
- * goes back with the owner. The same arenas hold the superlate trial: three waves of the void's creatures.
+ * goes back with the owner. The same arenas hold the superlate trial: five waves of the void's creatures.
  */
 public final class Arena {
 	public static final ResourceKey<Level> DIMENSION = ResourceKey.create(Registries.DIMENSION, MagesLegacy.id("rift"));
@@ -72,7 +72,10 @@ public final class Arena {
 	private static final int TICKS = 60 * 20;
 	private static final int TICKS_LONG = 90 * 20;
 	private static final int OPENING = 20;
-	private static final int TRIAL_TICKS = 3 * 60 * 20;
+	private static final int TRIAL_TICKS = 4 * 60 * 20;
+	/** Bosses that must never be moved between worlds (a datapack can add to it): multipart and dimension-bound ones. */
+	public static final net.minecraft.tags.TagKey<EntityType<?>> IMMOVABLE = net.minecraft.tags.TagKey.create(Registries.ENTITY_TYPE,
+			euf.mageslegacy.MagesLegacy.id("arena_immovable"));
 
 	/** One arena in use: whose, which slot, who was taken (with where they came from), until when. */
 	private static final class Session {
@@ -179,6 +182,7 @@ public final class Arena {
 		int length = Talents.has(owner, Talent.ARENA_LONG) ? TICKS_LONG : TICKS;
 		Session session = new Session(owner.getUUID(), freeSlot(), false, length);
 		build(arena, session.slot);
+		sweep(arena, session.slot);
 		ServerLevel from = owner.serverLevel();
 		Vec3 here = owner.position();
 		List<Entity> going = new ArrayList<>();
@@ -206,9 +210,14 @@ public final class Arena {
 		owner.displayClientMessage(Component.translatable("mages_legacy.message.arena", length / 20).withStyle(ChatFormatting.LIGHT_PURPLE), true);
 	}
 
-	/** Enemies and creatures that can travel; bosses and the immovable stay in the world. */
+	/**
+	 * Enemies and creatures that can travel. Bosses go too, unless they can't be moved safely: the ender dragon,
+	 * anything made of several parts, anything that refuses to change worlds, and whatever the
+	 * {@code mages_legacy:arena_immovable} tag names (for modded bosses that break when moved).
+	 */
 	private static boolean allowed(ServerPlayer owner, LivingEntity e) {
-		if (e.getType().is(Tags.EntityTypes.BOSSES) || !e.canChangeDimensions(e.level(), e.level())) {
+		if (e.getType().is(IMMOVABLE) || e instanceof net.minecraft.world.entity.boss.enderdragon.EnderDragon || e.isMultipartEntity()
+				|| !e.canChangeDimensions(e.level(), e.level()) || e.isPassenger()) {
 			return false;
 		}
 		return Voidborn.isEnemy(owner, e) || e instanceof Mob mob && mob.isLeashed() || e instanceof net.minecraft.world.entity.OwnableEntity owned
@@ -380,6 +389,17 @@ public final class Arena {
 		Fx.voidScreen(player, 10);
 	}
 
+	/**
+	 * Clears what an earlier arena left on this slot (a server stopped mid-fight keeps no sessions, so its creatures
+	 * and drops would still be standing there): nothing but players survives into a new fight.
+	 */
+	private static void sweep(ServerLevel arena, int slot) {
+		arena.getChunk(BlockPos.containing(centre(slot)));
+		for (Entity e : arena.getEntities((Entity) null, bounds(slot), e -> !(e instanceof Player))) {
+			e.discard();
+		}
+	}
+
 	// ---- The arena itself --------------------------------------------------------------------------------------
 
 	/**
@@ -496,8 +516,8 @@ public final class Arena {
 	static final String TRIAL_TAG = "mages_legacy_trial";
 
 	/**
-	 * The Void's Trial, for the second Awakening: alone on an arena, three waves of the void's creatures, all to be
-	 * beaten within three minutes. Falling doesn't kill, it fails the trial; it can be tried again.
+	 * The Void's Trial, for the second Awakening: alone on an arena, five waves of the void's creatures, all to be
+	 * beaten within four minutes. Falling doesn't kill, it fails the trial; it can be tried again.
 	 */
 	public static boolean startTrial(ServerPlayer player) {
 		ServerLevel arena = player.server.getLevel(DIMENSION);
@@ -506,6 +526,7 @@ public final class Arena {
 		}
 		Session session = new Session(player.getUUID(), freeSlot(), true, TRIAL_TICKS);
 		build(arena, session.slot);
+		sweep(arena, session.slot);
 		SESSIONS.put(player.getUUID(), session);
 		Fx.rift(player.serverLevel(), player.position().add(0, 2, 0), 4f, 2f, 20);
 		take(session, player, centre(session.slot).add(0, 0, 8), arena);
@@ -521,7 +542,7 @@ public final class Arena {
 		if (alive > 0) {
 			return;
 		}
-		if (session.wave >= 3) {
+		if (session.wave >= 5) {
 			Talents.addProgress(player, Talents.SUPERLATE, 1);
 			player.displayClientMessage(Component.translatable("mages_legacy.message.trial_passed").withStyle(ChatFormatting.GOLD), false);
 			arena.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1f, 1f);
@@ -531,11 +552,16 @@ public final class Arena {
 		}
 		session.wave++;
 		Vec3 c = centre(session.slot);
+		// Five waves of the void's creatures, the last the Echo of the Mage with its guard
 		List<EntityType<? extends Mob>> wave = switch (session.wave) {
-			case 1 -> List.of(EntityType.ENDERMITE, EntityType.ENDERMITE, EntityType.ENDERMITE, EntityType.ENDERMITE, EntityType.ENDERMAN);
-			case 2 -> List.of(EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.ENDERMITE, EntityType.ENDERMITE,
-					EntityType.ENDERMITE);
-			default -> List.of(EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.WITHER_SKELETON);
+			case 1 -> List.of(EntityType.ENDERMITE, EntityType.ENDERMITE, EntityType.ENDERMITE, EntityType.ENDERMITE, EntityType.ENDERMAN,
+					EntityType.ENDERMAN);
+			case 2 -> List.of(EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.PHANTOM,
+					EntityType.PHANTOM);
+			case 3 -> List.of(EntityType.SHULKER, EntityType.SHULKER, EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.ENDERMAN);
+			case 4 -> List.of(EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.VEX, EntityType.VEX, EntityType.VEX,
+					EntityType.PHANTOM, EntityType.PHANTOM);
+			default -> List.of(EntityType.WITHER_SKELETON, EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.ENDERMAN, EntityType.SHULKER);
 		};
 		for (int i = 0; i < wave.size(); i++) {
 			Mob mob = wave.get(i).create(arena);
@@ -552,9 +578,13 @@ public final class Arena {
 				mob.setCustomName(Component.translatable("mages_legacy.trial.echo"));
 				var health = mob.getAttribute(Attributes.MAX_HEALTH);
 				if (health != null) {
-					health.setBaseValue(60);
+					health.setBaseValue(120);
 				}
-				mob.setHealth(60);
+				mob.setHealth(120);
+				var attack = mob.getAttribute(Attributes.ATTACK_DAMAGE);
+				if (attack != null) {
+					attack.setBaseValue(attack.getBaseValue() + 4);
+				}
 			}
 			arena.addFreshEntity(mob);
 			mob.setTarget(player);

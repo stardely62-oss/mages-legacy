@@ -157,6 +157,13 @@ final class Harness {
 			check("step a little down over open ground lands on it (" + to + ")",
 					to != null && to.x < -6 && Math.abs(to.y - player.getY()) < 0.01);
 		}), 5);
+		// The designed sizes: a small field of weight (radius 2) and a black hole pulling from 10 blocks
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			check("gravity radius 2, black hole 10 (" + euf.mageslegacy.voidborn.Voidborn.gravityReach(player) + ", "
+					+ euf.mageslegacy.voidborn.BlackHole.radius(player) + ")", euf.mageslegacy.voidborn.Voidborn.gravityReach(player) == 2
+					&& euf.mageslegacy.voidborn.BlackHole.radius(player) == 10);
+		}), 2);
 		// Through Worlds alone on the server: nobody to open it to, and nothing spent
 		run(() -> server().execute(() -> {
 			ServerPlayer player = player();

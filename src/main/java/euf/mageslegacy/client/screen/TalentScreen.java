@@ -63,7 +63,7 @@ public class TalentScreen extends Screen {
 
 	private static int[] progress() {
 		SyncPayload state = ClientRace.state();
-		return state == null || state.progress().length < 5 ? new int[5] : state.progress();
+		return state == null || state.progress().length < 10 ? new int[10] : state.progress();
 	}
 
 	private static int openTiers() {
@@ -87,10 +87,11 @@ public class TalentScreen extends Screen {
 		SyncPayload state = ClientRace.state();
 		int[] p = progress();
 		net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
-		tag.putInt(Talents.POCKET_TICKS, p[0]);
-		tag.putInt(Talents.STEP_BLOCKS, p[1]);
-		tag.putInt(Talents.GRAVITY_KILLS, p[2]);
 		tag.putInt(Talents.SUPERLATE, p[3]);
+		// The server says which first trials are met
+		tag.putBoolean("done_" + Talent.AWAKENING_RIFT.id(), p[7] > 0);
+		tag.putBoolean("done_" + Talent.AWAKENING_WORLDS.id(), p[8] > 0);
+		tag.putBoolean("done_" + Talent.AWAKENING_HOLE.id(), p[9] > 0);
 		return tag;
 	}
 
@@ -683,6 +684,9 @@ public class TalentScreen extends Screen {
 		if (t.kind == Talent.Kind.AWAKENING) {
 			lines.add(Component.empty());
 			wrapInto(lines, Component.translatable(t.key() + ".trial", trialProgress(t)).withStyle(ChatFormatting.LIGHT_PURPLE));
+			if (progress()[t == Talent.AWAKENING_RIFT ? 7 : t == Talent.AWAKENING_WORLDS ? 8 : 9] > 0) {
+				lines.add(Component.translatable("mages_legacy.talent.trial_met").withStyle(ChatFormatting.GREEN));
+			}
 			wrapInto(lines, Component.translatable("mages_legacy.talent.two_of_three").withStyle(ChatFormatting.DARK_PURPLE));
 		}
 		lines.add(Component.empty());
@@ -705,14 +709,16 @@ public class TalentScreen extends Screen {
 	}
 
 	/** What the Awakening's trial has counted so far, in its own units. */
-	private static String trialProgress(Talent t) {
-		SyncPayload state = ClientRace.state();
-		int[] p = state == null || state.progress().length < 3 ? new int[3] : state.progress();
+	private static Object[] trialProgress(Talent t) {
+		int[] p = progress();
 		return switch (t) {
-			case AWAKENING_RIFT -> String.valueOf(p[0] / 20 / 60);
-			case AWAKENING_WORLDS -> String.valueOf(p[1]);
-			case AWAKENING_HOLE -> String.valueOf(p[2]);
-			default -> "";
+			case AWAKENING_RIFT -> new Object[] {Math.min(p[0], Talents.RIFT_NIGHTS), Talents.RIFT_NIGHTS,
+					Component.translatable(learnt().contains(Talent.POCKET_WIDE_2.id()) ? "gui.yes" : "gui.no")};
+			case AWAKENING_WORLDS -> new Object[] {Math.min(p[1], Talents.WORLDS_THROUGH), Talents.WORLDS_THROUGH, Math.min(p[5], Talents.WORLDS_NETHER),
+					Talents.WORLDS_NETHER};
+			case AWAKENING_HOLE -> new Object[] {Math.min(p[2], Talents.HOLE_KILLS), Talents.HOLE_KILLS, Math.min(p[6], Talents.HOLE_FLIERS),
+					Talents.HOLE_FLIERS};
+			default -> new Object[0];
 		};
 	}
 
