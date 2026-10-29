@@ -23,11 +23,10 @@ import net.neoforged.neoforge.network.PacketDistributor;
 /**
  * The race's talent tree, working as in the first version (tiers opened by race level, a header with the emblem,
  * level, experience bar and free points, the "?" guide to experience, points and tiers, the traits book, the ability
- * bar along the bottom) but laid out as one radial web around the core instead of three columns: drag to move,
- * scroll to zoom. Links glow where the path is learnt, learnable nodes breathe in gold; a node's tooltip tells all.
+ * bar along the bottom): three columns, the tiers as rows with their levels on the left, cross talents on the borders
+ * between columns; drag to move, scroll to zoom. Links glow where the path is learnt, learnable nodes breathe in gold; a node's tooltip tells all.
  */
 public class TalentScreen extends Screen {
-	private static final int RING = 46;
 	private static final String[] ROMAN = {"I", "II", "III", "IV"};
 	/** Whether the guide was opened this session; until then its button glows. */
 	private static boolean guideSeen;
@@ -118,115 +117,55 @@ public class TalentScreen extends Screen {
 		return freePoints() < t.cost() ? "mages_legacy.talent.state.no_points" : null;
 	}
 
-	/** Room for the web: below the header, above the ability bar. */
+	/** Room for the grid: below the header, above the ability bar; a strip on the left for the tiers' names. */
 	private static final int TOP = 40;
 	private static final int BOTTOM = 40;
+	private static final int STRIP = 34;
+	/** The grid's extent: columns 0..16 (three blocks and the two borders between them), rows 0..7 under a row of names. */
+	private static final float COLS = 17;
+	private static final float ROWS = 8.8f;
+	private static final float NAMES = 0.8f;
 
-	private static double rx(Talent t) {
-		return Math.cos(Math.toRadians(t.angle)) * t.ring;
+	private float colW() {
+		return (width - STRIP - 16) / COLS * zoom;
 	}
 
-	private static double ry(Talent t) {
-		return Math.sin(Math.toRadians(t.angle)) * t.ring;
+	private float rowH() {
+		return (height - TOP - BOTTOM) / ROWS * zoom;
 	}
 
-	/**
-	 * Where a direction's name stands, in rings from the core: under (or, for the top one, over) the outermost nodes
-	 * of its direction, so it never lies on a node.
-	 */
-	private static double[] labelAt(Race race, Talent.Branch branch) {
-		double minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
-		for (Talent t : Talent.of(race)) {
-			if (t.branch == branch) {
-				minX = Math.min(minX, rx(t));
-				maxX = Math.max(maxX, rx(t));
-				minY = Math.min(minY, ry(t));
-				maxY = Math.max(maxY, ry(t));
-			}
-		}
-		if (minX > maxX) {
-			return null;
-		}
-		double x = (minX + maxX) / 2;
-		boolean up = (minY + maxY) / 2 < 0;
-		return new double[] {x, up ? minY - 0.8 : maxY + 0.8};
+	private int gridX(float col) {
+		return (int) Math.round(STRIP + 8 + (col + 0.5f) * colW() + panX);
 	}
 
-	/** The web's extent in rings (nodes and the directions' names): min x, max x, min y, max y. */
-	private static double[] bounds(Race race) {
-		double[] b = {1e9, -1e9, 1e9, -1e9};
-		for (Talent t : Talent.of(race)) {
-			grow(b, rx(t), ry(t));
-		}
-		for (Talent.Branch branch : new Talent.Branch[] {Talent.Branch.RIFT, Talent.Branch.WORLDS, Talent.Branch.GRAVITY}) {
-			double[] at = labelAt(race, branch);
-			if (at != null) {
-				grow(b, at[0] - 1.2, at[1]);
-				grow(b, at[0] + 1.2, at[1]);
-			}
-		}
-		return b;
-	}
-
-	private static void grow(double[] b, double x, double y) {
-		b[0] = Math.min(b[0], x);
-		b[1] = Math.max(b[1], x);
-		b[2] = Math.min(b[2], y);
-		b[3] = Math.max(b[3], y);
-	}
-
-	private double[] bounds() {
-		Race race = ClientRace.race();
-		return race == null ? new double[] {-6, 6, -6, 6} : bounds(race);
-	}
-
-	private int cx() {
-		double[] b = bounds();
-		return (int) (width / 2 - (b[0] + b[1]) / 2 * RING * scaleX() + panX);
-	}
-
-	private int cy() {
-		double[] b = bounds();
-		return (int) (TOP + (height - TOP - BOTTOM) / 2 - (b[2] + b[3]) / 2 * RING * scaleY() + panY);
-	}
-
-	/**
-	 * The web is taller than wide while screens are wider than tall: it fits the height between the header and the
-	 * ability bar, and stretches sideways into the free width (up to 1.7 times), so neighbours stand apart.
-	 */
-	private float scaleY() {
-		double[] b = bounds();
-		float fit = (float) ((height - TOP - BOTTOM) / ((b[3] - b[2] + 1) * RING));
-		return Math.max(0.45f, Math.min(1.3f, fit)) * zoom;
-	}
-
-	private float scaleX() {
-		double[] b = bounds();
-		float fit = (float) ((width - 20) / ((b[1] - b[0] + 1) * RING));
-		float y = Math.max(0.45f, Math.min(1.3f, (float) ((height - TOP - BOTTOM) / ((b[3] - b[2] + 1) * RING))));
-		return Math.max(y, Math.min(fit, y * 1.7f)) * zoom;
+	private int gridY(float row) {
+		return (int) Math.round(TOP + (row + NAMES + 0.5f) * rowH() + panY);
 	}
 
 	private int nodeX(Talent t) {
-		return cx() + (int) Math.round(Math.cos(Math.toRadians(t.angle)) * t.ring * RING * scaleX());
+		return gridX(t.col);
 	}
 
 	private int nodeY(Talent t) {
-		return cy() + (int) Math.round(Math.sin(Math.toRadians(t.angle)) * t.ring * RING * scaleY());
+		return gridY(t.row);
 	}
 
-	/** A node's size on screen: nodes shrink with the web, so neighbours never touch however small the window. */
+	/** A node's size: as big as its cell allows, never touching the next one. */
 	private int nodeSize(Talent t) {
-		return Math.max(14, Math.round(size(t) * Math.min(1.2f, scaleY() * 1.65f)));
-	}
-
-	private static int size(Talent t) {
+		float cell = Math.min(colW(), rowH());
+		int base = Math.max(14, Math.min(24, Math.round(cell - 9)));
 		return switch (t.kind) {
-			case CORE -> 30;
-			case BASIC, AWAKENING -> 26;
-			default -> 20;
+			case CORE -> base + 6;
+			case BASIC, AWAKENING -> base + 3;
+			default -> base;
 		};
 	}
+
+	/** Whether a link is drawn: along a column block, never across another block (a cross talent's far side is told in its tooltip). */
+	private static boolean drawn(Talent from, Talent to) {
+		return from.row == 0 && to.row == 0 || Math.abs(from.col - to.col) <= 2.5f;
+	}
+
 
 	@Override
 	public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
@@ -242,13 +181,17 @@ public class TalentScreen extends Screen {
 		}
 		int color = LegacyUi.argb(race.color);
 		List<Talent> tree = Talent.of(race);
-		// The directions' names, out past their outermost nodes
-		branchName(graphics, race, Talent.Branch.RIFT, color);
-		branchName(graphics, race, Talent.Branch.WORLDS, color);
-		branchName(graphics, race, Talent.Branch.GRAVITY, color);
+		// The tiers down the left, the directions' names over their columns
+		drawTiers(graphics);
+		branchName(graphics, "worlds", 2.5f, color);
+		branchName(graphics, "rift", 9, color);
+		branchName(graphics, "gravity", 14.5f, color);
 		// Links first, under the nodes
 		for (Talent t : tree) {
 			for (Talent near : t.requires()) {
+				if (!drawn(near, t)) {
+					continue;
+				}
 				boolean lit = owned(t) && owned(near);
 				boolean open = owned(near);
 				int c = lit ? color : open ? LegacyUi.alpha(LegacyUi.GOLD, 0.55f) : 0x803A2E22;
@@ -266,10 +209,12 @@ public class TalentScreen extends Screen {
 				double t0 = (double) i / steps;
 				double t1 = (double) (i + 1) / steps;
 				// A curve bowing out through the core
-				int x0 = (int) bezier(nodeX(a), cx(), nodeX(b), t0);
-				int y0 = (int) bezier(nodeY(a), cy(), nodeY(b), t0);
-				int x1 = (int) bezier(nodeX(a), cx(), nodeX(b), t1);
-				int y1 = (int) bezier(nodeY(a), cy(), nodeY(b), t1);
+				int mx = (nodeX(a) + nodeX(b)) / 2;
+				int my = Math.min(nodeY(a), nodeY(b)) + Math.round(rowH() * 1.2f);
+				int x0 = (int) bezier(nodeX(a), mx, nodeX(b), t0);
+				int y0 = (int) bezier(nodeY(a), my, nodeY(b), t0);
+				int x1 = (int) bezier(nodeX(a), mx, nodeX(b), t1);
+				int y1 = (int) bezier(nodeY(a), my, nodeY(b), t1);
 				line(graphics, x0, y0, x1, y1, 4, LegacyUi.alpha(color, 0.25f * pulse));
 				line(graphics, x0, y0, x1, y1, 2, LegacyUi.alpha(0xFFF2E8FF, 0.8f * pulse));
 			}
@@ -574,15 +519,34 @@ public class TalentScreen extends Screen {
 		return y;
 	}
 
-	private void branchName(GuiGraphics graphics, Race race, Talent.Branch branch, int color) {
-		double[] at = labelAt(race, branch);
-		if (at == null) {
-			return;
+	/** The tiers as bands across the grid, named on the left with the race level they open at; a closed one is dim. */
+	private void drawTiers(GuiGraphics graphics) {
+		int[][] bands = {{1, 1, 1}, {2, 2, 2}, {3, 3, 4}, {4, 5, 7}};
+		int right = gridX(COLS - 0.5f) + 4;
+		for (int[] band : bands) {
+			int tier = band[0];
+			int y0 = Math.round(gridY(band[1]) - rowH() / 2);
+			int y1 = Math.round(gridY(band[2]) + rowH() / 2);
+			boolean open = level() >= Talent.TIER_LEVELS[tier - 1];
+			if (tier % 2 == 0) {
+				graphics.fill(STRIP + 4, y0, right, y1, 0x18FFFFFF);
+			}
+			graphics.fill(STRIP + 4, y0, right, y0 + 1, 0x30E8C060);
+			int cy = (y0 + y1) / 2;
+			graphics.drawCenteredString(font, ROMAN[tier - 1], STRIP / 2 + 2, cy - 8, open ? LegacyUi.GOLD : 0xFF9A4040);
+			Component lvl = Component.translatable("mages_legacy.screen.tier_level", Talent.TIER_LEVELS[tier - 1]);
+			graphics.pose().pushPose();
+			graphics.pose().translate(STRIP / 2f + 2, cy + 2, 0);
+			graphics.pose().scale(0.75f, 0.75f, 1);
+			graphics.drawCenteredString(font, lvl, 0, 0, open ? LegacyUi.MUTED : 0xFF6A4040);
+			graphics.pose().popPose();
 		}
-		int x = cx() + (int) Math.round(at[0] * RING * scaleX());
-		int y = cy() + (int) Math.round(at[1] * RING * scaleY()) - 4;
-		Component name = Component.translatable("mages_legacy.talent.branch." + branch.name().toLowerCase(java.util.Locale.ROOT))
-				.withStyle(ChatFormatting.BOLD);
+	}
+
+	private void branchName(GuiGraphics graphics, String branch, float col, int color) {
+		int x = gridX(col);
+		int y = Math.round(TOP + NAMES * rowH() / 2 + (float) panY) - 4;
+		Component name = Component.translatable("mages_legacy.talent.branch." + branch).withStyle(ChatFormatting.BOLD);
 		graphics.drawCenteredString(font, name, x, y, LegacyUi.alpha(color, 0.9f));
 	}
 

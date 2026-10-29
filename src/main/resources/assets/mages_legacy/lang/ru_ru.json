@@ -338,5 +338,6 @@
   "mages_legacy.refuse.no_one": "На сервере больше никого нет",
   "mages_legacy.refuse.passage_here": "Отсюда проход не открыть",
   "mages_legacy.refuse.passage_there": "Туда проход не открыть: этот игрок в закрытом мире",
-  "mages_legacy.refuse.no_awakening": "Это Пробуждение ещё не открыто"
+  "mages_legacy.refuse.no_awakening": "Это Пробуждение ещё не открыто",
+  "mages_legacy.screen.tier_level": "ур. %s"
 }

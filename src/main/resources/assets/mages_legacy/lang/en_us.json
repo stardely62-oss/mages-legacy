@@ -338,5 +338,6 @@
   "mages_legacy.refuse.no_one": "Nobody else is on the server",
   "mages_legacy.refuse.passage_here": "No passage opens from here",
   "mages_legacy.refuse.passage_there": "No passage opens there: that player is in a closed world",
-  "mages_legacy.refuse.no_awakening": "This Awakening isn't open yet"
+  "mages_legacy.refuse.no_awakening": "This Awakening isn't open yet",
+  "mages_legacy.screen.tier_level": "lv. %s"
 }
