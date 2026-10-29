@@ -191,6 +191,70 @@ final class Harness {
 		shot("talents_learnt");
 		run(() -> mc.setScreen(null), 5);
 
+		// The Black Hole: trial counted, the path learnt, a husk 7 blocks off pulled in and crushed
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			Progression.setLevel(player, 45);
+			RaceState.setResource(player, RaceState.MAX_RESOURCE);
+			euf.mageslegacy.race.Talents.addProgress(player, euf.mageslegacy.race.Talents.GRAVITY_KILLS, 100);
+			euf.mageslegacy.race.Talents.learn(player, "grav_pull");
+			euf.mageslegacy.race.Talents.learn(player, "awakening_hole");
+			husk = EntityType.HUSK.create(player.serverLevel());
+			husk.moveTo(player.getX() + 7, player.getY(), player.getZ(), 0, 0);
+			husk.setPersistenceRequired();
+			player.serverLevel().addFreshEntity(husk);
+			player.setHealth(player.getMaxHealth());
+		}), 10);
+		run(() -> check("black hole learnt", euf.mageslegacy.race.Talents.has(player(), euf.mageslegacy.race.Talent.AWAKENING_HOLE)), 0);
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 3);
+		run(() -> MagesLegacyClient.useAbility(2), 40);
+		shot("black_hole");
+		run(() -> {
+		}, 30);
+		shot("black_hole_pull");
+		run(() -> {
+		}, 30);
+		run(() -> {
+			ServerPlayer player = player();
+			check("black hole pulled and crushed the husk (" + husk.getHealth() + ", d=" + String.format("%.1f", husk.distanceTo(player)) + ")",
+					!husk.isAlive() || husk.getHealth() < husk.getMaxHealth() - 8);
+			check("collapse left the Voidborn alive (" + player.getHealth() + ")", player.getHealth() >= 1 && player.isAlive());
+		}, 5);
+
+		// The second Awakening: the superlate trial is marked passed, the arena path learnt, Alt opens the arena
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			euf.mageslegacy.race.Talents.addProgress(player, euf.mageslegacy.race.Talents.SUPERLATE, 1);
+			for (String id : new String[] {"pocket_wide_2", "pocket_wide_3", "awakening_rift"}) {
+				euf.mageslegacy.race.Talents.learn(player, id);
+			}
+			RaceState.setResource(player, RaceState.MAX_RESOURCE);
+			husk = EntityType.HUSK.create(player.serverLevel());
+			husk.moveTo(player.getX() + 3, player.getY(), player.getZ() + 3, 0, 0);
+			husk.setNoAi(true);
+			husk.setPersistenceRequired();
+			player.serverLevel().addFreshEntity(husk);
+		}), 10);
+		run(() -> {
+			ServerPlayer player = player();
+			check("two awakenings, the third closed", euf.mageslegacy.race.Talents.has(player, euf.mageslegacy.race.Talent.AWAKENING_RIFT)
+					&& euf.mageslegacy.race.Talents.refusal(player, euf.mageslegacy.race.Talent.AWAKENING_WORLDS) != null);
+		}, 0);
+		run(() -> MagesLegacyClient.useAbility(4), 10);
+		shot("arena_opening");
+		run(() -> {
+		}, 40);
+		run(() -> {
+			ServerPlayer player = player();
+			check("arena took the Voidborn and the husk", euf.mageslegacy.voidborn.Arena.isArena(player.level())
+					&& !player.serverLevel().getEntitiesOfClass(Husk.class, player.getBoundingBox().inflate(30)).isEmpty());
+		}, 5);
+		shot("arena");
+		run(() -> MagesLegacyClient.useAbility(4), 40);
+		run(() -> check("arena ended back home", !euf.mageslegacy.voidborn.Arena.isArena(player().level())), 5);
+		shot("arena_back");
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON), 3);
+
 		// Water burns
 		run(() -> server().execute(() -> {
 			ServerPlayer player = player();

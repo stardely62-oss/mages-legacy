@@ -60,16 +60,26 @@ public class TalentScreen extends Screen {
 		if (owned(t)) {
 			return State.OWNED;
 		}
-		return refusal(t) == null ? State.AVAILABLE : State.LOCKED;
+		String why = refusal(t);
+		// The second Awakening's trial is started from its node
+		return why == null || why.equals("mages_legacy.talent.state.superlate_trial") ? State.AVAILABLE : State.LOCKED;
+	}
+
+	private static net.minecraft.nbt.CompoundTag progressTag() {
+		SyncPayload state = ClientRace.state();
+		int[] p = state == null || state.progress().length < 4 ? new int[4] : state.progress();
+		net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
+		tag.putInt(Talents.POCKET_TICKS, p[0]);
+		tag.putInt(Talents.STEP_BLOCKS, p[1]);
+		tag.putInt(Talents.GRAVITY_KILLS, p[2]);
+		tag.putInt(Talents.SUPERLATE, p[3]);
+		return tag;
 	}
 
 	/** Same rules as the server's {@link Talents#refusal}, for what the screen shows. */
 	private static String refusal(Talent t) {
 		if (t.automatic()) {
 			return "mages_legacy.talent.state.automatic";
-		}
-		if (t.kind == Talent.Kind.AWAKENING || t.awakening() != null) {
-			return "mages_legacy.talent.state.awakening_later";
 		}
 		if (level() < t.levelNeeded()) {
 			return "mages_legacy.talent.state.level";
@@ -80,6 +90,12 @@ public class TalentScreen extends Screen {
 		}
 		if (!linked) {
 			return "mages_legacy.talent.state.needs";
+		}
+		if (t.kind == Talent.Kind.AWAKENING) {
+			String why = Talents.awakeningRefusal(learnt(), level(), t, progressTag());
+			if (why != null) {
+				return why;
+			}
 		}
 		return freePoints() < t.cost ? "mages_legacy.talent.state.no_points" : null;
 	}
@@ -141,6 +157,25 @@ public class TalentScreen extends Screen {
 				line(graphics, nodeX(near), nodeY(near), nodeX(t), nodeY(t), lit ? 2 : 1, c);
 			}
 		}
+		// Two Awakenings joined by an arc of light across the core: the mark of a superlate Voidborn
+		List<Talent> awakened = euf.mageslegacy.race.Awakenings.owned(learnt());
+		if (awakened.size() == 2) {
+			float pulse = 0.6f + 0.4f * (float) Math.sin(LegacyUi.time() * 2);
+			Talent a = awakened.get(0);
+			Talent b = awakened.get(1);
+			int steps = 40;
+			for (int i = 0; i < steps; i++) {
+				double t0 = (double) i / steps;
+				double t1 = (double) (i + 1) / steps;
+				// A curve bowing out through the core
+				int x0 = (int) bezier(nodeX(a), cx(), nodeX(b), t0);
+				int y0 = (int) bezier(nodeY(a), cy(), nodeY(b), t0);
+				int x1 = (int) bezier(nodeX(a), cx(), nodeX(b), t1);
+				int y1 = (int) bezier(nodeY(a), cy(), nodeY(b), t1);
+				line(graphics, x0, y0, x1, y1, 4, LegacyUi.alpha(color, 0.25f * pulse));
+				line(graphics, x0, y0, x1, y1, 2, LegacyUi.alpha(0xFFF2E8FF, 0.8f * pulse));
+			}
+		}
 		Talent hovered = null;
 		for (Talent t : tree) {
 			if (drawNode(graphics, t, mouseX, mouseY, color)) {
@@ -163,6 +198,10 @@ public class TalentScreen extends Screen {
 		int y = cy() + (int) (Math.sin(Math.toRadians(angle)) * r) - 4;
 		Component name = Component.translatable("mages_legacy.talent.branch." + branch).withStyle(ChatFormatting.BOLD);
 		graphics.drawCenteredString(font, name, x, y, LegacyUi.alpha(color, 0.9f));
+	}
+
+	private static double bezier(double a, double c, double b, double t) {
+		return (1 - t) * (1 - t) * a + 2 * (1 - t) * t * c + t * t * b;
 	}
 
 	/** A straight line of the given thickness between two points (drawn as a turned thin box). */
@@ -246,14 +285,18 @@ public class TalentScreen extends Screen {
 		if (t.kind == Talent.Kind.AWAKENING) {
 			lines.add(Component.empty());
 			wrapInto(lines, Component.translatable(t.key() + ".trial", trialProgress(t)).withStyle(ChatFormatting.LIGHT_PURPLE));
+			wrapInto(lines, Component.translatable("mages_legacy.talent.two_of_three").withStyle(ChatFormatting.DARK_PURPLE));
 		}
 		lines.add(Component.empty());
 		String why = owned(t) ? "mages_legacy.talent.state.owned" : refusal(t);
 		if (why == null) {
 			lines.add(Component.translatable("mages_legacy.talent.state.available").withStyle(ChatFormatting.GREEN));
+		} else if (why.equals("mages_legacy.talent.state.superlate_trial")) {
+			wrapInto(lines, Component.translatable(why).withStyle(ChatFormatting.GOLD));
 		} else {
 			Object arg = switch (why) {
 				case "mages_legacy.talent.state.level" -> t.levelNeeded();
+				case "mages_legacy.talent.state.superlate_level" -> euf.mageslegacy.race.Awakenings.SUPERLATE_LEVEL;
 				case "mages_legacy.talent.state.automatic" -> t.autoLevel;
 				case "mages_legacy.talent.state.needs" -> needsNames(t);
 				default -> "";

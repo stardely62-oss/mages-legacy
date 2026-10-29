@@ -32,6 +32,11 @@ public final class Fx {
 	/** The player's field of view springs out (or in, negative) and eases back: a: amount. */
 	public static final int FOV = 8;
 
+	/** A black hole around an entity: a core of dark, a white-hot ring, a disk spiralling in: a: radius of its pull. */
+	public static final int VORTEX = 9;
+	/** Sounds fall quiet and low for the players near: a: radius. */
+	public static final int MUFFLE = 10;
+
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
 
@@ -66,6 +71,18 @@ public final class Fx {
 
 	public static void motes(ServerLevel level, Entity around, float radius, int ticks) {
 		send(level, around.position(), new FxPayload(MOTES, around.getId(), around.position(), around.position(), ticks, radius, 0));
+	}
+
+	public static void vortex(ServerLevel level, Entity around, float radius, int ticks) {
+		send(level, around.position(), new FxPayload(VORTEX, around.getId(), around.position(), around.position(), ticks, radius, 0));
+	}
+
+	public static void muffle(ServerLevel level, Vec3 at, float radius, int ticks) {
+		send(level, at, new FxPayload(MUFFLE, -1, at, at, ticks, radius, 0));
+	}
+
+	public static void muffle(ServerPlayer player, int ticks) {
+		PacketDistributor.sendToPlayer(player, new FxPayload(MUFFLE, player.getId(), player.position(), player.position(), ticks, 0, 0));
 	}
 
 	public static void voidScreen(ServerPlayer player, int ticks) {

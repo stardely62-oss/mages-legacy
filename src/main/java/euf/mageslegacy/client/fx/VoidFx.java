@@ -51,7 +51,12 @@ public final class VoidFx {
 						motes(level, follow, payload.a(), payload.ticks());
 					}
 				}
-				case Fx.VOID_SCREEN, Fx.SHAKE, Fx.FOV -> ScreenFx.play(payload);
+				case Fx.VORTEX -> {
+					if (follow != null) {
+						vortex(level, follow, payload.ticks());
+					}
+				}
+				case Fx.VOID_SCREEN, Fx.SHAKE, Fx.FOV, Fx.MUFFLE -> ScreenFx.play(payload);
 				default -> {
 				}
 			}
@@ -254,6 +259,58 @@ public final class VoidFx {
 						.colors(0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(-22, 6).texture(MOTE).world().glow(),
 				new PhotonFx.Emitter(ticks).ring(radius * 1.2f, 0).offset(0, 0.1f, 0).flow(0.5f).life(16, 24).speed(0, 0).size(0.1f, 0.14f)
 						.colors(0x00FFFFFF, 0xFFFFFFFF, 0x40FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).texture(STAR).world().glow());
+	}
+
+	// ---- The black hole ---------------------------------------------------------------------------------------
+
+	/**
+	 * The first version's black hole around the Voidborn: a core of pure dark with a shadow around it, a white-hot
+	 * ring of light always turned to the viewer, a tilted disk of violet fire spiralling in and turning white near the
+	 * core, stars on its rim, and motes of the void falling in from all around. It swells in and collapses at the end.
+	 */
+	private static void vortex(Level level, Entity heart, int ticks) {
+		int life = Math.max(2, ticks);
+		float radius = 2.4f;
+		float core = radius * 0.32f;
+		PhotonFx.Animation swell = (root, age) -> {
+			float grow = easeOutBack(Math.min(1, age / 8f));
+			float shrink = Math.max(0, Math.min(1, (life - age) / 6f));
+			float size = Math.max(0.02f, grow * shrink);
+			root.updateScale(new Vector3f(size, size, size));
+		};
+		// The core and the ring, turned to face the camera
+		List<Vector3f> rim = new ArrayList<>();
+		for (int i = 0; i < 48; i++) {
+			double a = Math.PI * 2 * i / 48;
+			rim.add(new Vector3f((float) Math.cos(a) * core * 1.04f, (float) Math.sin(a) * core * 1.04f, 0));
+		}
+		PhotonFx.play(level, null, heart, 0, (root, age) -> {
+					swell.frame(root, age);
+					Vec3 at = heart.position().add(0, 1.2, 0);
+					Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+					Vec3 d = cam.subtract(at);
+					double len = Math.max(1.0E-4, d.length());
+					root.updateRotation(new Quaternionf().rotateY((float) Math.atan2(d.x, d.z)).rotateX((float) -Math.asin(d.y / len)));
+				},
+				new PhotonFx.Emitter(life).sphere(core * 0.9f, 1).offset(0, 1.2f, 0).burst(140).flow(4).life(life, life).speed(0, 0)
+						.size(0.45f, 0.6f).colors(0xFF000000, 0xFF000000).ink(),
+				new PhotonFx.Emitter(life).sphere(core * 1.9f, 0.45f).offset(0, 1.2f, 0).burst(80).life(life, life).speed(0, 0).size(0.5f, 0.7f)
+						.colors(alpha(0xFF0A0418, 0.55f), alpha(0xFF0A0418, 0.55f)).ink(),
+				new PhotonFx.Emitter(life).points(rim, null).offset(0, 1.2f, 0).burst(rim.size()).life(life, life).speed(0, 0).size(0.12f, 0.14f)
+						.colors(0xF2F4EEFF, 0xF2F4EEFF).glow(),
+				new PhotonFx.Emitter(life).points(rim, null).offset(0, 1.2f, 0).burst(rim.size()).life(life, life).speed(0, 0).size(0.35f, 0.4f)
+						.colors(alpha(VOID, 0.45f), alpha(VOID, 0.45f)).glow());
+		// The disk: violet fire spiralling in on a tilted plane, white-hot by the core; stars on its rim
+		Quaternionf tilt = new Quaternionf().rotateX(0.3f).rotateZ(0.15f);
+		PhotonFx.Emitter disk = new PhotonFx.Emitter(life).ring(radius, 0.35f).offset(0, 1.2f, 0).flow(14).life(14, 20).speed(0, 0).size(0.18f, 0.3f)
+				.colors(alpha(0xFF3A1C70, 0), alpha(VOID, 0.9f), 0xE6FFF0FF, 0x00FFF0FF).swirl(-12, 14).glow();
+		disk.emitter.updateRotation(tilt);
+		PhotonFx.Emitter stars = new PhotonFx.Emitter(life).ring(radius * 1.4f, 0.05f).offset(0, 1.2f, 0).flow(0.6f).life(16, 24).speed(0, 0)
+				.size(0.09f, 0.13f).colors(0x00FFFFFF, 0xFFFFFFFF, 0x50FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(0, 4).texture(STAR).glow();
+		stars.emitter.updateRotation(tilt);
+		PhotonFx.play(level, null, heart, 0, swell, disk, stars,
+				new PhotonFx.Emitter(life).sphere(radius * 2.4f, 0.3f).offset(0, 1.2f, 0).flow(6).life(10, 14).speed(0, 0).size(0.12f, 0.2f)
+						.colors(0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(-40, 8).texture(MOTE).glow());
 	}
 
 	// ---- Helpers ----------------------------------------------------------------------------------------------

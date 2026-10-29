@@ -4,7 +4,12 @@ import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.net.FxPayload;
 import java.util.ArrayList;
 import java.util.List;
+import com.mojang.blaze3d.audio.Listener;
 import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.sounds.SoundEngine;
+import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.Mth;
 import net.neoforged.neoforge.client.event.ViewportEvent;
@@ -18,6 +23,9 @@ public final class ScreenFx {
 	private static final List<float[]> VOIDS = new ArrayList<>();
 	private static final List<float[]> SHAKES = new ArrayList<>();
 	private static final List<float[]> FOVS = new ArrayList<>();
+	/** Ticks left of muffled hearing (the in-between, a singularity nearby). */
+	private static int muffled;
+	private static float gain = -1;
 	private static int clientTicks;
 
 	private ScreenFx() {
@@ -28,6 +36,12 @@ public final class ScreenFx {
 			case Fx.VOID_SCREEN -> VOIDS.add(new float[] {payload.ticks(), 0, 1});
 			case Fx.SHAKE -> SHAKES.add(new float[] {payload.ticks(), 0, payload.a()});
 			case Fx.FOV -> FOVS.add(new float[] {payload.ticks(), 0, payload.a()});
+			case Fx.MUFFLE -> {
+				var player = Minecraft.getInstance().player;
+				if (player != null && (payload.entity() == player.getId() || player.position().distanceTo(payload.from()) <= payload.a())) {
+					muffled = Math.max(muffled, payload.ticks());
+				}
+			}
 			default -> {
 			}
 		}
@@ -35,10 +49,48 @@ public final class ScreenFx {
 
 	static void tick() {
 		clientTicks++;
+		hearing();
 		for (List<float[]> list : List.of(VOIDS, SHAKES, FOVS)) {
 			list.removeIf(f -> ++f[1] >= f[0]);
 		}
 	}
+
+	/**
+	 * Muffled hearing: the listener's gain sinks while it lasts and comes back after. The sound engine has no hook for
+	 * this, so its listener is reached by reflection (mojmap names at runtime on NeoForge); if that fails, nothing changes.
+	 */
+	private static void hearing() {
+		Minecraft mc = Minecraft.getInstance();
+		float master = mc.options.getSoundSourceVolume(SoundSource.MASTER);
+		float target = muffled > 0 ? master * 0.3f : master;
+		if (muffled > 0) {
+			muffled--;
+		}
+		if (Math.abs(target - gain) < 0.001f) {
+			return;
+		}
+		// Ease towards it, so the world fades away and back rather than switching
+		gain = gain < 0 ? master : gain + (target - gain) * 0.35f;
+		if (Math.abs(target - gain) < 0.01f) {
+			gain = target;
+		}
+		try {
+			if (engineField == null) {
+				engineField = SoundManager.class.getDeclaredField("soundEngine");
+				engineField.setAccessible(true);
+				listenerField = SoundEngine.class.getDeclaredField("listener");
+				listenerField.setAccessible(true);
+			}
+			Object engine = engineField.get(mc.getSoundManager());
+			((Listener) listenerField.get(engine)).setGain(gain);
+		} catch (ReflectiveOperationException | RuntimeException e) {
+			muffled = 0;
+			gain = master;
+		}
+	}
+
+	private static java.lang.reflect.Field engineField;
+	private static java.lang.reflect.Field listenerField;
 
 	/** Whether the view is in the void right now (the wall overlay is then hidden too). */
 	static boolean inVoid() {

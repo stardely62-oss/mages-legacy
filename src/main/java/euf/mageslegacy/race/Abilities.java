@@ -1,5 +1,8 @@
 package euf.mageslegacy.race;
 
+import euf.mageslegacy.voidborn.Arena;
+import euf.mageslegacy.voidborn.BlackHole;
+import euf.mageslegacy.voidborn.Passage;
 import euf.mageslegacy.voidborn.Pocket;
 import euf.mageslegacy.voidborn.Voidborn;
 import java.util.Optional;
@@ -24,15 +27,27 @@ public final class Abilities {
 		if (race.isEmpty() || slot < 0 || slot >= Ability.SLOTS || player.isSpectator()) {
 			return;
 		}
-		Optional<Ability> found = Ability.of(race.get(), slot);
+		// Z and left Alt hold the Awakenings, in the order they were learnt
+		Optional<Ability> found = slot == Awakenings.FIRST_SLOT || slot == Awakenings.SECOND_SLOT
+				? Awakenings.at(Talents.owned(player), slot) : Ability.of(race.get(), slot);
 		if (found.isEmpty()) {
 			return;
 		}
 		Ability ability = found.get();
 		Voidborn.State state = Voidborn.state(player);
 		int cost = cost(player, ability);
-		// Leaving the Pocket is always free and never waits
-		boolean free = ability == Ability.POCKET && Pocket.isPocket(player.level());
+		// A singularity holds its heart in place: nothing else happens until it collapses
+		if (BlackHole.holding(player)) {
+			refuse(player, Component.translatable("mages_legacy.refuse.singularity"));
+			return;
+		}
+		// Leaving the Pocket and ending an arena are always free and never wait
+		boolean free = ability == Ability.POCKET && Pocket.isPocket(player.level()) || ability == Ability.RIFT_ARENA && Arena.endsNow(player);
+		// An arena holds whoever is on it until it ends
+		if (ability == Ability.POCKET && Arena.isArena(player.level())) {
+			refuse(player, Component.translatable("mages_legacy.refuse.arena_here"));
+			return;
+		}
 		if (RaceState.level(player) < ability.level) {
 			refuse(player, Component.translatable("mages_legacy.refuse.level", ability.level));
 			return;
@@ -46,6 +61,11 @@ public final class Abilities {
 			RaceState.sync(player);
 			return;
 		}
+		// The place for Through Worlds is remembered with a sneak, free and without waiting
+		if (ability == Ability.PASSAGE && Passage.tryRemember(player)) {
+			RaceState.sync(player);
+			return;
+		}
 		if (!free && RaceState.resource(player) < cost) {
 			refuse(player, Component.translatable("mages_legacy.refuse.resource." + race.get().id()));
 			return;
@@ -54,6 +74,9 @@ public final class Abilities {
 			case VOID_STEP -> Voidborn.step(player);
 			case GRAVITY -> Voidborn.gravity(player);
 			case POCKET -> free ? Pocket.leave(player) : Pocket.enter(player);
+			case RIFT_ARENA -> Arena.use(player);
+			case PASSAGE -> Passage.open(player);
+			case BLACK_HOLE -> BlackHole.use(player);
 		};
 		if (refusal != null) {
 			refuse(player, Component.translatable(refusal.key()));
@@ -61,8 +84,8 @@ public final class Abilities {
 		}
 		if (!free) {
 			RaceState.setResource(player, RaceState.resource(player) - cost);
-			// The Void Step's cooldown starts when the walk ends
-			if (ability != Ability.VOID_STEP) {
+			// The Void Step's cooldown starts when the walk ends, the arena's when the arena does
+			if (ability != Ability.VOID_STEP && ability != Ability.RIFT_ARENA) {
 				state.startCooldown(slot, cooldown(player, ability));
 			}
 		}

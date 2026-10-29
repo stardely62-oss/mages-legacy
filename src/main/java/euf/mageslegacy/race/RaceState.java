@@ -39,6 +39,12 @@ public final class RaceState {
 	public static final Supplier<AttachmentType<CompoundTag>> POCKET_RETURN = ATTACHMENTS.register("pocket_return",
 			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).build());
 
+	/** Where a player taken onto an arena came from. */
+	public static final Supplier<AttachmentType<CompoundTag>> ARENA_RETURN = ATTACHMENTS.register("arena_return",
+			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).build());
+	/** The point remembered for Through Worlds. */
+	public static final Supplier<AttachmentType<CompoundTag>> PASSAGE_POINT = ATTACHMENTS.register("passage_point",
+			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).copyOnDeath().build());
 	/** Learnt talent ids (the core and basic abilities aren't listed: they come with the level). */
 	public static final Supplier<AttachmentType<List<String>>> TALENTS = ATTACHMENTS.register("talents",
 			() -> AttachmentType.builder(() -> (List<String>) List.<String>of()).serialize(Codec.STRING.listOf()).copyOnDeath().build());
@@ -117,6 +123,7 @@ public final class RaceState {
 		player.setData(RESOURCE, MAX_RESOURCE);
 		player.setData(TALENTS, List.of());
 		player.setData(PROGRESS, new CompoundTag());
+		player.setData(PASSAGE_POINT, new CompoundTag());
 		Pocket.refresh(player);
 		sync(player);
 	}

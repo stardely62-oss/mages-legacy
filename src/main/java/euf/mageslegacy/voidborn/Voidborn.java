@@ -317,6 +317,8 @@ public final class Voidborn {
 		player.setDeltaMovement(Vec3.ZERO);
 		Fx.voidScreen(player, ticks + 4);
 		Fx.fov(player, 0.3f, ticks + 6);
+		// In the in-between the world's sounds come from far away
+		Fx.muffle(player, ticks + 4);
 	}
 
 	private static void tickStep(ServerPlayer player, State state) {

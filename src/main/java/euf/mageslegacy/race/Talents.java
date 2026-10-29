@@ -21,6 +21,12 @@ public final class Talents {
 	public static final String POCKET_TICKS = "pocket_ticks";
 	public static final String STEP_BLOCKS = "step_blocks";
 	public static final String GRAVITY_KILLS = "gravity_kills";
+	/** Set once the superlate trial (the Void's Trial) is passed. */
+	public static final String SUPERLATE = "superlate";
+	/** The first Awakening's trials: an hour at home, 2000 blocks through the void, 100 enemies under the weight. */
+	public static final int RIFT_TRIAL = 60 * 60 * 20;
+	public static final int WORLDS_TRIAL = 2000;
+	public static final int HOLE_TRIAL = 100;
 
 	private Talents() {
 	}
@@ -59,9 +65,6 @@ public final class Talents {
 		if (owned(player).contains(talent.id())) {
 			return "mages_legacy.talent.state.owned";
 		}
-		if (talent.kind == Talent.Kind.AWAKENING || talent.awakening() != null) {
-			return "mages_legacy.talent.state.awakening_later";
-		}
 		if (RaceState.level(player) < talent.levelNeeded()) {
 			return "mages_legacy.talent.state.level";
 		}
@@ -72,10 +75,40 @@ public final class Talents {
 		if (!linked) {
 			return "mages_legacy.talent.state.needs";
 		}
+		if (talent.kind == Talent.Kind.AWAKENING) {
+			String why = awakeningRefusal(owned(player), RaceState.level(player), talent, player.getData(RaceState.PROGRESS));
+			if (why != null) {
+				return why;
+			}
+		}
 		if (freePoints(player) < talent.cost) {
 			return "mages_legacy.talent.state.no_points";
 		}
 		return null;
+	}
+
+	/**
+	 * The two-of-three rule (shared with the client's screen): the first Awakening needs its trial, the second race
+	 * level 45 and the superlate trial, a third never opens.
+	 */
+	public static String awakeningRefusal(List<String> owned, int level, Talent talent, CompoundTag progress) {
+		int awakened = Awakenings.owned(owned).size();
+		if (awakened >= 2) {
+			return "mages_legacy.talent.state.third_closed";
+		}
+		if (awakened == 0) {
+			int done = switch (talent) {
+				case AWAKENING_RIFT -> progress.getInt(POCKET_TICKS) >= RIFT_TRIAL ? 1 : 0;
+				case AWAKENING_WORLDS -> progress.getInt(STEP_BLOCKS) >= WORLDS_TRIAL ? 1 : 0;
+				case AWAKENING_HOLE -> progress.getInt(GRAVITY_KILLS) >= HOLE_TRIAL ? 1 : 0;
+				default -> 0;
+			};
+			return done == 1 ? null : "mages_legacy.talent.state.trial";
+		}
+		if (level < Awakenings.SUPERLATE_LEVEL) {
+			return "mages_legacy.talent.state.superlate_level";
+		}
+		return progress.getInt(SUPERLATE) > 0 ? null : "mages_legacy.talent.state.superlate_trial";
 	}
 
 	public static void learn(ServerPlayer player, String id) {
@@ -84,6 +117,13 @@ public final class Talents {
 			return;
 		}
 		String why = refusal(player, talent);
+		// Clicking the second Awakening before its trial starts the trial
+		if ("mages_legacy.talent.state.superlate_trial".equals(why)) {
+			if (!euf.mageslegacy.voidborn.Arena.startTrial(player)) {
+				Abilities.refuse(player, Component.translatable("mages_legacy.refuse.arena_here"));
+			}
+			return;
+		}
 		if (why != null) {
 			Abilities.refuse(player, Component.translatable(why));
 			return;

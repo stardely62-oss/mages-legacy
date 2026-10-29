@@ -3,6 +3,8 @@ package euf.mageslegacy.client;
 import euf.mageslegacy.client.screen.LegacyUi;
 import euf.mageslegacy.net.SyncPayload;
 import euf.mageslegacy.race.Ability;
+import euf.mageslegacy.race.Awakenings;
+import euf.mageslegacy.race.Talent;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceState;
 import java.util.List;
@@ -31,7 +33,18 @@ public final class RaceHud {
 		}
 		int width = graphics.guiWidth();
 		int height = graphics.guiHeight();
-		List<Ability> abilities = Ability.bySlot(race);
+		// The fixed keys, then the Awakenings on Z and Alt in the order they were learnt
+		List<Ability> abilities = new java.util.ArrayList<>(Ability.bySlot(race));
+		List<Integer> keys = new java.util.ArrayList<>();
+		for (Ability a : abilities) {
+			keys.add(a.slot);
+		}
+		for (int key : new int[] {Awakenings.FIRST_SLOT, Awakenings.SECOND_SLOT}) {
+			Awakenings.at(state.talents(), key).ifPresent(a -> {
+				abilities.add(a);
+				keys.add(key);
+			});
+		}
 		if (abilities.isEmpty()) {
 			return;
 		}
@@ -41,7 +54,7 @@ public final class RaceHud {
 		int x0 = width / 2 + 91 + 12;
 		int y0 = height - SLOT - 9;
 		for (int i = 0; i < abilities.size(); i++) {
-			slot(graphics, font, abilities.get(i), state, x0 + i * (SLOT + 3), y0, color);
+			slot(graphics, font, abilities.get(i), keys.get(i), state, x0 + i * (SLOT + 3), y0, color);
 		}
 		// The Void beneath the slots
 		int barY = height - 6;
@@ -53,13 +66,13 @@ public final class RaceHud {
 		graphics.drawString(font, amount, x0 + total + 4, barY - 3, color);
 	}
 
-	private static void slot(GuiGraphics graphics, Font font, Ability ability, SyncPayload state, int x, int y, int color) {
-		boolean locked = state.level() < ability.level;
-		int cooldown = state.cooldowns()[ability.slot];
-		int total = Math.max(1, state.cooldownTotals()[ability.slot]);
+	private static void slot(GuiGraphics graphics, Font font, Ability ability, int key, SyncPayload state, int x, int y, int color) {
+		boolean locked = !ability.awakening() && state.level() < ability.level;
+		int cooldown = state.cooldowns()[key];
+		int total = Math.max(1, state.cooldownTotals()[key]);
 		boolean affordable = state.resource() >= ability.cost;
 		LegacyUi.panel(graphics, x, y, x + SLOT, y + SLOT, locked ? LegacyUi.RIM_DARK : cooldown > 0 ? LegacyUi.RIM : color);
-		var icon = LegacyUi.gui("icon/ability_" + ability.id());
+		var icon = ability.awakening() ? awakeningIcon(ability) : LegacyUi.gui("icon/ability_" + ability.id());
 		if (LegacyUi.exists(icon)) {
 			LegacyUi.icon(graphics, icon, x + 3, y + 3, 16, !locked && affordable);
 		}
@@ -75,7 +88,17 @@ public final class RaceHud {
 			String secs = String.valueOf((cooldown + 19) / 20);
 			graphics.drawString(font, secs, x + (SLOT - font.width(secs)) / 2, y + 7, 0xFFFFFFFF);
 		}
-		LegacyUi.keyCap(graphics, Ability.KEY_NAMES[ability.slot], x + SLOT + 1, y + SLOT + 2, cooldown > 0 ? LegacyUi.MUTED : LegacyUi.GOLD);
+		LegacyUi.keyCap(graphics, Ability.KEY_NAMES[key], x + SLOT + 1, y + SLOT + 2, cooldown > 0 ? LegacyUi.MUTED : LegacyUi.GOLD);
+		if (ability.awakening()) {
+			// An Awakening's slot wears the crown's gems
+			LegacyUi.diamond(graphics, x + SLOT / 2, y - 1, 2, color);
+		}
+	}
+
+	private static net.minecraft.resources.ResourceLocation awakeningIcon(Ability ability) {
+		Talent talent = Awakenings.talentOf(ability);
+		var own = LegacyUi.gui("talent/" + talent.id());
+		return LegacyUi.exists(own) ? own : LegacyUi.gui("talent/" + talent.icon);
 	}
 
 	static Component keyName(int slot) {

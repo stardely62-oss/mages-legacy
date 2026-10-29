@@ -54,6 +54,20 @@ public final class RaceCommand {
 									String id = StringArgumentType.getString(ctx, "talent");
 									return each(ctx, player -> Talents.learn(player, id));
 								})))))
+				.then(Commands.literal("trial").then(Commands.argument("targets", EntityArgument.players())
+						.then(Commands.argument("trial", StringArgumentType.word())
+								.suggests((ctx, builder) -> SharedSuggestionProvider.suggest(java.util.List.of("rift", "worlds", "hole", "superlate"), builder))
+								.executes(ctx -> {
+									String trial = StringArgumentType.getString(ctx, "trial");
+									return each(ctx, player -> {
+										switch (trial) {
+											case "rift" -> Talents.addProgress(player, Talents.POCKET_TICKS, Talents.RIFT_TRIAL);
+											case "worlds" -> Talents.addProgress(player, Talents.STEP_BLOCKS, Talents.WORLDS_TRIAL);
+											case "hole" -> Talents.addProgress(player, Talents.GRAVITY_KILLS, Talents.HOLE_TRIAL);
+											default -> Talents.addProgress(player, Talents.SUPERLATE, 1);
+										}
+									});
+								}))))
 				.then(Commands.literal("cooldowns").then(Commands.argument("targets", EntityArgument.players()).executes(ctx -> each(ctx, player -> {
 					var state = euf.mageslegacy.voidborn.Voidborn.state(player);
 					Arrays.fill(state.cooldown, 0);

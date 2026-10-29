@@ -4,6 +4,9 @@ import euf.mageslegacy.net.Network;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.RaceCommand;
 import euf.mageslegacy.race.RaceState;
+import euf.mageslegacy.voidborn.Arena;
+import euf.mageslegacy.voidborn.BlackHole;
+import euf.mageslegacy.voidborn.Passage;
 import euf.mageslegacy.voidborn.Pocket;
 import euf.mageslegacy.voidborn.Voidborn;
 import net.minecraft.resources.ResourceLocation;
@@ -27,6 +30,9 @@ public class MagesLegacy {
 		Progression.register();
 		Voidborn.register();
 		Pocket.register();
+		Arena.register();
+		Passage.register();
+		BlackHole.register();
 		RaceCommand.register();
 	}
 
