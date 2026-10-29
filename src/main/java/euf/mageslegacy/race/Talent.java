@@ -79,7 +79,67 @@ public enum Talent {
 	DOOR_RECOIL(Race.VOIDBORN, Kind.CROSS, Branch.CROSS, 2.6f, -30, 2, 0, "pocket_water", "grav_wide", "pocket_cheap"),
 	STEP_HOMEWARD(Race.VOIDBORN, Kind.CROSS, Branch.CROSS, 3.4f, -155, 3, 0, "step_door", "pocket_two_doors", "step_echo"),
 	STEP_RUPTURE(Race.VOIDBORN, Kind.CROSS, Branch.CROSS, 3.7f, 90, 3, 0, "step_rend", "step_ambush", "grav_chain"),
-	POCKET_HOLD(Race.VOIDBORN, Kind.CROSS, Branch.CROSS, 3.4f, -30, 3, 0, "pocket_rest", "grav_fuse", "pocket_garden");
+	POCKET_HOLD(Race.VOIDBORN, Kind.CROSS, Branch.CROSS, 3.4f, -30, 3, 0, "pocket_rest", "grav_fuse", "pocket_garden"),
+	// ---- The Mycelid: the Mycelium Network at the heart, Colony up, Neurospores down-left, Symbiosis down-right ----
+	MYCELIUM_NETWORK(Race.MYCELID, Kind.CORE, Branch.CORE, 0, 0, 0, 1, "ability_mycelium_network"),
+	NEUROSPORES(Race.MYCELID, Kind.BASIC, Branch.SPORES, 1, 150, 0, 3, "ability_neurospores", "mycelium_network"),
+	NEUROSYMBIOSIS(Race.MYCELID, Kind.BASIC, Branch.SYMBIOSIS, 1, 30, 0, 5, "ability_neurosymbiosis", "mycelium_network"),
+	NET_NODES_1(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 1, -90, 1, 0, "net_nodes", "mycelium_network"),
+	NET_NODES_2(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 2, -90, 1, 0, "net_nodes", "net_nodes_1"),
+	NET_NODES_3(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 3, -90, 3, 0, "net_roots", "net_nodes_2"),
+	NET_THRIFT(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 2, -70, 1, 0, "net_cheap", "net_nodes_1"),
+	NET_REACH(Race.MYCELID, Kind.TRANSFORM, Branch.COLONY, 2, -110, 1, 0, "net_reach", "net_nodes_1"),
+	NET_TRAIN(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 3, -110, 2, 0, "net_shared", "net_reach"),
+	NET_GROWTH(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 3, -70, 1, 0, "net_haste", "net_thrift"),
+	NET_SWIFT(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 2, -130, 1, 0, "net_light_step", "net_nodes_1"),
+	NET_TOLL(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 2, -50, 1, 0, "net_far", "net_nodes_1"),
+	NET_SENSE(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 3, -50, 2, 0, "net_mind", "net_toll"),
+	NET_RECALL(Race.MYCELID, Kind.TRANSFORM, Branch.COLONY, 3, -130, 3, 0, "net_chain", "net_swift"),
+	NET_SHARED(Race.MYCELID, Kind.TRANSFORM, Branch.COLONY, 3.8f, -122, 3, 0, "net_shared", "net_recall", "net_train"),
+	NET_GLOW(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 3.8f, -58, 2, 0, "net_cleanse", "net_sense", "net_growth"),
+	AWAKENING_BLOOM(Race.MYCELID, Kind.AWAKENING, Branch.COLONY, 4.2f, -90, 5, 0, "swarm_bloom", "net_nodes_3", "net_train"),
+	BLOOM_HEAL(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 5.3f, -114, 2, 0, "swarm_mending", "awakening_bloom"),
+	BLOOM_BARK(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 5.3f, -98, 2, 0, "flesh_cap", "awakening_bloom"),
+	BLOOM_ROOTS(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 5.3f, -82, 2, 0, "net_roots", "awakening_bloom"),
+	BLOOM_LONG(Race.MYCELID, Kind.TRANSFORM, Branch.COLONY, 5.3f, -66, 2, 0, "swarm_lingering", "awakening_bloom"),
+	SPORE_WIDE(Race.MYCELID, Kind.PASSIVE, Branch.SPORES, 2, 145, 1, 0, "swarm_wide", "neurospores"),
+	SPORE_WIDE_2(Race.MYCELID, Kind.PASSIVE, Branch.SPORES, 3, 150, 2, 0, "swarm_wide", "spore_wide"),
+	SPORE_QUICK(Race.MYCELID, Kind.TRANSFORM, Branch.SPORES, 2.5f, 168, 2, 0, "swarm_quick", "neurospores"),
+	SPORE_LONG(Race.MYCELID, Kind.PASSIVE, Branch.SPORES, 2.5f, 125, 1, 0, "swarm_lingering", "neurospores"),
+	SPORE_SPREAD(Race.MYCELID, Kind.TRANSFORM, Branch.SPORES, 3, 133, 2, 0, "swarm_infection", "spore_wide", "spore_long"),
+	SPORE_CONFUSE(Race.MYCELID, Kind.PASSIVE, Branch.SPORES, 2, 108, 1, 0, "ability_spore_cloud", "neurospores"),
+	SPORE_MARK(Race.MYCELID, Kind.PASSIVE, Branch.SPORES, 2, 198, 1, 0, "night_sense", "neurospores"),
+	SPORE_TRAIL(Race.MYCELID, Kind.TRANSFORM, Branch.SPORES, 3, 187, 2, 0, "swarm_trail", "spore_mark"),
+	SPORE_FEEBLE(Race.MYCELID, Kind.PASSIVE, Branch.SPORES, 3.2f, 108, 2, 0, "swarm_weakness", "spore_confuse"),
+	SPORE_LINGER(Race.MYCELID, Kind.PASSIVE, Branch.SPORES, 3.8f, 178, 3, 0, "swarm_potent", "spore_trail", "spore_quick"),
+	AWAKENING_STORM(Race.MYCELID, Kind.AWAKENING, Branch.SPORES, 4.2f, 150, 5, 0, "swarm_burst", "spore_wide_2", "spore_linger"),
+	STORM_LONG(Race.MYCELID, Kind.PASSIVE, Branch.SPORES, 5.3f, 134, 2, 0, "swarm_lingering", "awakening_storm"),
+	STORM_WIDE(Race.MYCELID, Kind.PASSIVE, Branch.SPORES, 5.3f, 150, 2, 0, "swarm_wide", "awakening_storm"),
+	STORM_KEEP(Race.MYCELID, Kind.PASSIVE, Branch.SPORES, 6.2f, 150, 3, 0, "swarm_potent", "storm_wide"),
+	STORM_ALLY(Race.MYCELID, Kind.TRANSFORM, Branch.SPORES, 5.3f, 166, 2, 0, "swarm_follow", "awakening_storm"),
+	STORM_BLIND(Race.MYCELID, Kind.PASSIVE, Branch.SPORES, 5.3f, 118, 2, 0, "night_shade", "awakening_storm"),
+	SYM_PULSE(Race.MYCELID, Kind.PASSIVE, Branch.SYMBIOSIS, 2, 15, 1, 0, "pack_fast", "neurosymbiosis"),
+	SYM_REFLEX(Race.MYCELID, Kind.PASSIVE, Branch.SYMBIOSIS, 2, 45, 1, 0, "pack_thick", "neurosymbiosis"),
+	SYM_UNITY(Race.MYCELID, Kind.TRANSFORM, Branch.SYMBIOSIS, 3, 15, 2, 0, "pack_alpha", "sym_pulse"),
+	SYM_ADAPT(Race.MYCELID, Kind.PASSIVE, Branch.SYMBIOSIS, 3.3f, 34, 1, 0, "flesh_sunproof", "sym_pulse", "sym_reflex"),
+	SYM_SHARE(Race.MYCELID, Kind.TRANSFORM, Branch.SYMBIOSIS, 3, 45, 2, 0, "kin_heal", "sym_reflex"),
+	DIET_1(Race.MYCELID, Kind.PASSIVE, Branch.SYMBIOSIS, 2, -15, 1, 0, "flesh_meat", "mycelium_network"),
+	SYM_ENV(Race.MYCELID, Kind.PASSIVE, Branch.SYMBIOSIS, 2, 65, 1, 0, "flesh_fireproof", "neurosymbiosis"),
+	DIET_2(Race.MYCELID, Kind.PASSIVE, Branch.SYMBIOSIS, 3, -10, 1, 0, "flesh_two_tastes", "diet_1"),
+	SYM_NIGHT(Race.MYCELID, Kind.TRANSFORM, Branch.SYMBIOSIS, 3, 62, 2, 0, "flesh_dark_regen", "sym_env"),
+	DIET_3(Race.MYCELID, Kind.TRANSFORM, Branch.SYMBIOSIS, 3.8f, 2, 2, 0, "flesh_rich", "diet_2", "sym_unity"),
+	SYM_AURA(Race.MYCELID, Kind.PASSIVE, Branch.SYMBIOSIS, 3.8f, 58, 2, 0, "kin_all", "sym_night", "sym_share"),
+	AWAKENING_REBIRTH(Race.MYCELID, Kind.AWAKENING, Branch.SYMBIOSIS, 4.2f, 30, 5, 0, "flesh_rebirth", "sym_unity", "sym_share"),
+	REBIRTH_FAST(Race.MYCELID, Kind.PASSIVE, Branch.SYMBIOSIS, 5.3f, 14, 2, 0, "loop_quick", "awakening_rebirth"),
+	REBIRTH_HEALTH(Race.MYCELID, Kind.PASSIVE, Branch.SYMBIOSIS, 5.3f, 30, 2, 0, "flesh_hearty", "awakening_rebirth"),
+	REBIRTH_CHEAP(Race.MYCELID, Kind.TRANSFORM, Branch.SYMBIOSIS, 5.3f, 46, 2, 0, "loop_cheap", "awakening_rebirth"),
+	REBIRTH_SOFT(Race.MYCELID, Kind.PASSIVE, Branch.SYMBIOSIS, 5.3f, -2, 2, 0, "sleep_dream", "awakening_rebirth"),
+	SPORE_NODES(Race.MYCELID, Kind.CROSS, Branch.CROSS, 2.6f, -150, 2, 0, "flesh_spore_blood", "net_reach", "spore_quick"),
+	SPORE_FEED(Race.MYCELID, Kind.CROSS, Branch.CROSS, 2.6f, 90, 2, 0, "thirst_drain", "spore_long", "sym_reflex"),
+	HEAL_NODES(Race.MYCELID, Kind.CROSS, Branch.CROSS, 2.6f, -30, 2, 0, "kin_heal", "sym_pulse", "net_thrift"),
+	SPORE_TRAVEL(Race.MYCELID, Kind.CROSS, Branch.CROSS, 3.4f, -155, 3, 0, "swarm_trail", "net_recall", "spore_trail"),
+	SYM_SPORES(Race.MYCELID, Kind.CROSS, Branch.CROSS, 3.7f, 90, 3, 0, "swarm_potent", "spore_feeble", "sym_night"),
+	NODE_FOOD(Race.MYCELID, Kind.CROSS, Branch.CROSS, 3.4f, -30, 3, 0, "pack_fed", "diet_2", "net_sense");
 
 	public enum Kind {
 		CORE, BASIC, PASSIVE, TRANSFORM, CROSS, AWAKENING;
@@ -90,7 +150,7 @@ public enum Talent {
 	}
 
 	public enum Branch {
-		CORE, RIFT, WORLDS, GRAVITY, CROSS
+		CORE, RIFT, WORLDS, GRAVITY, COLONY, SPORES, SYMBIOSIS, CROSS
 	}
 
 	public static final int MAX_TIER = 4;
@@ -160,14 +220,16 @@ public enum Talent {
 		if (automatic()) {
 			return 1;
 		}
-		if (kind == Kind.AWAKENING || awakening() != null || this == WORLDS_CHARGE_3) {
+		if (kind == Kind.AWAKENING || awakening() != null || this == WORLDS_CHARGE_3 || this == STORM_KEEP) {
 			return 4;
 		}
 		return switch (this) {
 			case POCKET_WIDE_3, POCKET_VAULT, STEP_FAR_2, GRAV_PULL, GRAV_ARROWS, POCKET_TWO_DOORS, POCKET_SHELTER, STEP_STONE,
-					GRAV_LINGER, GRAV_FEAST, STEP_HOMEWARD, STEP_RUPTURE, POCKET_HOLD -> 3;
+					GRAV_LINGER, GRAV_FEAST, STEP_HOMEWARD, STEP_RUPTURE, POCKET_HOLD,
+					NET_NODES_3, NET_TRAIN, SPORE_WIDE_2, SYM_UNITY, SYM_SHARE, NET_RECALL, NET_SHARED, SPORE_LINGER, DIET_3, SYM_AURA, SPORE_TRAVEL, SYM_SPORES, NODE_FOOD -> 3;
 			case POCKET_CRADLE, STEP_ALLY, GRAV_FLIERS, STEP_DOOR, STEP_HEAVY, DOOR_RECOIL, POCKET_GARDEN, VOID_EYES, STEP_ECHO, STEP_AMBUSH,
-					GRAV_FUSE, GRAV_CHAIN -> 2;
+					GRAV_FUSE, GRAV_CHAIN,
+					NET_GROWTH, SPORE_SPREAD, SYM_ADAPT, SPORE_NODES, SPORE_FEED, HEAL_NODES, NET_SENSE, NET_GLOW, SPORE_TRAIL, SPORE_FEEBLE, DIET_2, SYM_NIGHT -> 2;
 			default -> 1;
 		};
 	}

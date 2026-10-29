@@ -56,7 +56,8 @@ public class MagesLegacyClient {
 		// Under the tree and the choice of passage the HUD isn't drawn: its messages would show through onto the nodes
 		NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RenderGuiLayerEvent.Pre event) -> {
 			var screen = Minecraft.getInstance().screen;
-			if (screen instanceof TalentScreen || screen instanceof euf.mageslegacy.client.screen.PassageScreen) {
+			if (screen instanceof TalentScreen || screen instanceof euf.mageslegacy.client.screen.PassageScreen
+					|| screen instanceof euf.mageslegacy.client.screen.MyceliumScreen) {
 				event.setCanceled(true);
 			}
 		});
@@ -81,6 +82,11 @@ public class MagesLegacyClient {
 
 	public static void openChoice() {
 		choicePending = true;
+	}
+
+	/** The Mycelium Network's screen, with what the server says it shows. */
+	public static void openNetwork(net.minecraft.nbt.CompoundTag view) {
+		Minecraft.getInstance().setScreen(new euf.mageslegacy.client.screen.MyceliumScreen(view));
 	}
 
 	/** Through Worlds may be opened: whom to? */

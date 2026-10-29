@@ -122,6 +122,8 @@ public final class Voidborn {
 		int feast;
 		/** Saving Rift: when it can save again, and whether it is about to. */
 		long shelterReady;
+		/** The Mycelid's Call of the Colony: when it can call again. */
+		public long recallReady;
 		boolean shelterNow;
 
 		public void startCooldown(int slot, int ticks) {
@@ -606,7 +608,7 @@ public final class Voidborn {
 	}
 
 	/** Whether the player's standing body fits at this point: no blocks, no lava, inside the world. */
-	static boolean fits(ServerLevel level, Player player, Vec3 at) {
+	public static boolean fits(ServerLevel level, Player player, Vec3 at) {
 		AABB box = player.getDimensions(Pose.STANDING).makeBoundingBox(at);
 		if (box.minY < level.getMinBuildHeight() || box.maxY > level.getMaxBuildHeight() || !level.getWorldBorder().isWithinBounds(box)) {
 			return false;
@@ -805,7 +807,7 @@ public final class Voidborn {
 	}
 
 	/** Monsters, and anything that has set its mind on this player; never players, pets or armour stands. */
-	static boolean isEnemy(ServerPlayer player, LivingEntity entity) {
+	public static boolean isEnemy(ServerPlayer player, LivingEntity entity) {
 		if (entity instanceof Player || entity instanceof ArmorStand) {
 			return false;
 		}
@@ -1003,6 +1005,7 @@ public final class Voidborn {
 		}
 		tag.putIntArray("passage", charges);
 		tag.putInt("shelter", (int) Math.max(0, state.shelterReady - now));
+		tag.putInt("recall", (int) Math.max(0, state.recallReady - now));
 		player.setData(RaceState.COOLDOWNS, tag);
 	}
 
@@ -1027,6 +1030,7 @@ public final class Voidborn {
 			state.passageReady[i] = now + charges[i];
 		}
 		state.shelterReady = now + tag.getInt("shelter");
+		state.recallReady = now + tag.getInt("recall");
 		player.removeData(RaceState.COOLDOWNS);
 	}
 

@@ -3,9 +3,9 @@ package euf.mageslegacy.race;
 import java.util.Locale;
 import java.util.Optional;
 
-/** The peoples the nameless mage split humankind into. Only races marked playable can be picked; none is yet. */
+/** The peoples the nameless mage split humankind into. Only races marked playable can be picked. */
 public enum Race {
-	MYCELID(0x7FB069, false),
+	MYCELID(0x7FB069, true),
 	SHEPHERD(0xD9B26F, false),
 	FROZEN(0x8FB8DE, false),
 	BLOODKIN(0xB23A48, false),

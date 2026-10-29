@@ -22,6 +22,8 @@ public final class ClientStep {
 	private static int tick;
 	/** Ticks since the walk ended (the fade back into the world), or -1. */
 	private static int after = -1;
+	/** The journey is through the Mycelium Network: the threads' green glow instead of the void. */
+	private static boolean fungal;
 	/** Which way the flight goes (the walk's own direction), kept for the fade out. */
 	private static org.joml.Vector3f heading = new org.joml.Vector3f(0, 0, 1);
 	/** How far the flight carries the near stars past the eye, whatever the walk's real length. */
@@ -43,6 +45,7 @@ public final class ClientStep {
 		step = payload;
 		tick = 0;
 		after = -1;
+		fungal = payload.fungal();
 		LocalPlayer player = Minecraft.getInstance().player;
 		if (player != null) {
 			yaw = player.getYRot();
@@ -143,7 +146,9 @@ public final class ClientStep {
 			float t = step != null ? Math.min(1, (tick + partial) / step.ticks()) : 1;
 			float travel = FLIGHT * (1 - (float) Math.cos(Math.PI * t)) / 2;
 			float speed = step == null ? 0.05f : FLIGHT * (float) Math.PI / 2 * (float) Math.sin(Math.PI * t) / Math.max(1, step.ticks());
+			VoidSky.fungal = fungal;
 			VoidSky.draw(event.getModelViewMatrix(), a, time, true, heading, travel, speed);
+			VoidSky.fungal = false;
 		}
 	}
 }

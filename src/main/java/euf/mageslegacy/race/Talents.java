@@ -104,6 +104,10 @@ public final class Talents {
 	 * level 45 and the superlate trial, a third never opens.
 	 */
 	public static String awakeningRefusal(List<String> owned, int level, Talent talent, CompoundTag progress) {
+		// The Mycelid's Awakenings come in the next part of the race
+		if (talent.race == Race.MYCELID) {
+			return "mages_legacy.talent.state.awakening_later";
+		}
 		int awakened = Awakenings.owned(owned).size();
 		if (awakened >= 2) {
 			return "mages_legacy.talent.state.third_closed";

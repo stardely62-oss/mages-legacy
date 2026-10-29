@@ -45,6 +45,9 @@ public final class VoidSky {
 		}
 	}
 
+	/** Drawing the inside of the Mycelium Network instead: deep green-black, spores glowing teal and gold. */
+	static boolean fungal;
+
 	private VoidSky() {
 	}
 
@@ -102,9 +105,9 @@ public final class VoidSky {
 		RenderSystem.setShaderTexture(0, END_SKY);
 		BufferBuilder bb = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
 		// Nearly black, with only a breath of violet
-		float r = 0.085f;
-		float g = 0.06f;
-		float b = 0.13f;
+		float r = fungal ? 0.03f : 0.085f;
+		float g = fungal ? 0.09f : 0.06f;
+		float b = fungal ? 0.06f : 0.13f;
 		Matrix4f face = new Matrix4f();
 		for (int i = 0; i < 6; i++) {
 			face.identity();
@@ -152,12 +155,13 @@ public final class VoidSky {
 				continue;
 			}
 			across.normalize().mul(s[3] * (1 + d * 0.03f));
-			float r = s[4] > 0 ? 0.8f : 1f;
-			float g = s[4] > 0 ? 0.7f : 1f;
-			bb.addVertex(p.x - across.x, p.y - across.y, p.z - across.z).setColor(r, g, 1f, a);
-			bb.addVertex(p.x + across.x, p.y + across.y, p.z + across.z).setColor(r, g, 1f, a);
-			bb.addVertex(tail.x + across.x, tail.y + across.y, tail.z + across.z).setColor(r, g, 1f, 0);
-			bb.addVertex(tail.x - across.x, tail.y - across.y, tail.z - across.z).setColor(r, g, 1f, 0);
+			float r = fungal ? (s[4] > 0 ? 1f : 0.45f) : s[4] > 0 ? 0.8f : 1f;
+			float g = fungal ? (s[4] > 0 ? 0.85f : 1f) : s[4] > 0 ? 0.7f : 1f;
+			float bl = fungal ? (s[4] > 0 ? 0.4f : 0.75f) : 1f;
+			bb.addVertex(p.x - across.x, p.y - across.y, p.z - across.z).setColor(r, g, bl, a);
+			bb.addVertex(p.x + across.x, p.y + across.y, p.z + across.z).setColor(r, g, bl, a);
+			bb.addVertex(tail.x + across.x, tail.y + across.y, tail.z + across.z).setColor(r, g, bl, 0);
+			bb.addVertex(tail.x - across.x, tail.y - across.y, tail.z - across.z).setColor(r, g, bl, 0);
 		}
 		upload(bb);
 		RenderSystem.defaultBlendFunc();
@@ -191,12 +195,13 @@ public final class VoidSky {
 			up.set(dir).cross(side).normalize().mul(s[3]);
 			float twinkle = 0.65f + 0.35f * (float) Math.sin(time * 0.08f * s[6] + s[4]);
 			float a = alpha * twinkle * s[6];
-			float r = s[5] > 0 ? 0.80f : 1f;
-			float g = s[5] > 0 ? 0.70f : 1f;
-			bb.addVertex(centre.x - side.x - up.x, centre.y - side.y - up.y, centre.z - side.z - up.z).setColor(r, g, 1f, a);
-			bb.addVertex(centre.x + side.x - up.x, centre.y + side.y - up.y, centre.z + side.z - up.z).setColor(r, g, 1f, a);
-			bb.addVertex(centre.x + side.x + up.x, centre.y + side.y + up.y, centre.z + side.z + up.z).setColor(r, g, 1f, a);
-			bb.addVertex(centre.x - side.x + up.x, centre.y - side.y + up.y, centre.z - side.z + up.z).setColor(r, g, 1f, a);
+			float r = fungal ? (s[5] > 0 ? 1f : 0.55f) : s[5] > 0 ? 0.80f : 1f;
+			float g = fungal ? (s[5] > 0 ? 0.85f : 1f) : s[5] > 0 ? 0.70f : 1f;
+			float bl = fungal ? (s[5] > 0 ? 0.45f : 0.8f) : 1f;
+			bb.addVertex(centre.x - side.x - up.x, centre.y - side.y - up.y, centre.z - side.z - up.z).setColor(r, g, bl, a);
+			bb.addVertex(centre.x + side.x - up.x, centre.y + side.y - up.y, centre.z + side.z - up.z).setColor(r, g, bl, a);
+			bb.addVertex(centre.x + side.x + up.x, centre.y + side.y + up.y, centre.z + side.z + up.z).setColor(r, g, bl, a);
+			bb.addVertex(centre.x - side.x + up.x, centre.y - side.y + up.y, centre.z - side.z + up.z).setColor(r, g, bl, a);
 		}
 		upload(bb);
 		RenderSystem.defaultBlendFunc();

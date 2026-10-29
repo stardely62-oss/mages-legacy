@@ -15,7 +15,15 @@ public enum Ability {
 	// The Awakenings: no fixed key; the first one learnt sits on Z, the second on left Alt (see Awakenings)
 	RIFT_ARENA(Race.VOIDBORN, -1, Talent.AWAKENING_LEVEL, 60, 5 * 60 * 20),
 	PASSAGE(Race.VOIDBORN, -1, Talent.AWAKENING_LEVEL, 40, 2 * 60 * 20),
-	BLACK_HOLE(Race.VOIDBORN, -1, Talent.AWAKENING_LEVEL, 50, 5 * 60 * 20);
+	BLACK_HOLE(Race.VOIDBORN, -1, Talent.AWAKENING_LEVEL, 50, 5 * 60 * 20),
+
+	// The Mycelid: the network on H (growing nodes, the colony's view), Neurospores on R, Neurosymbiosis on V
+	MYCELIUM_NETWORK(Race.MYCELID, 3, 1, 0, 2 * 20),
+	NEUROSPORES(Race.MYCELID, 0, 3, 25, 20 * 20),
+	NEUROSYMBIOSIS(Race.MYCELID, 1, 5, 30, 35 * 20),
+	GREAT_BLOOM(Race.MYCELID, -1, Talent.AWAKENING_LEVEL, 60, 5 * 60 * 20),
+	SPORE_STORM(Race.MYCELID, -1, Talent.AWAKENING_LEVEL, 50, 5 * 60 * 20),
+	MYCELIAL_REBIRTH(Race.MYCELID, -1, Talent.AWAKENING_LEVEL, 0, 20 * 60 * 20);
 
 	public static final int SLOTS = 5;
 	/** Key names as they stand by default, for the HUD and the choice screen. */

@@ -339,8 +339,70 @@ final class Harness {
 				player.setHealth(player.getMaxHealth());
 			});
 		}, 5);
+		mycelid();
 		run(Harness::finish, 0);
 		NeoForge.EVENT_BUS.addListener(Harness::tick);
+	}
+
+	/** The Mycelid: neurospores on a husk, symbiosis, two nodes that join by themselves, a journey, the screens. */
+	private static void mycelid() {
+		Minecraft mc = Minecraft.getInstance();
+		int[] y = new int[1];
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			RaceState.set(player, Race.MYCELID);
+			Progression.setLevel(player, 10);
+			RaceState.setResource(player, RaceState.MAX_RESOURCE);
+			y[0] = (int) Math.floor(player.getY());
+			player.connection.teleport(40.5, y[0], 40.5, 0, 0);
+			husk = EntityType.HUSK.create(player.serverLevel());
+			husk.moveTo(42.5, y[0], 42.5, 0, 0);
+			husk.setNoAi(true);
+			husk.setPersistenceRequired();
+			player.serverLevel().addFreshEntity(husk);
+		}), 10);
+		run(() -> check("became a Mycelid", RaceState.is(player(), Race.MYCELID)), 0);
+		run(() -> MagesLegacyClient.useAbility(0), 25);
+		run(() -> check("neurospores weaken the husk", husk.hasEffect(net.minecraft.world.effect.MobEffects.WEAKNESS)), 0);
+		shot("mycelid_spores");
+		run(() -> MagesLegacyClient.useAbility(1), 10);
+		run(() -> {
+			var speed = player().getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+			check("neurosymbiosis quickens the Mycelid", speed != null && speed.getModifier(MagesLegacy.id("symbiosis_speed")) != null);
+		}, 0);
+		// Two nodes 20 blocks apart join by themselves; the journey from the second to the first
+		run(() -> server().execute(() -> {
+			husk.discard();
+			euf.mageslegacy.mycelid.MyceliumNetwork.grow(player());
+			player().connection.teleport(60.5, y[0], 40.5, 0, 0);
+		}), 5);
+		run(() -> server().execute(() -> euf.mageslegacy.mycelid.MyceliumNetwork.grow(player())), 5);
+		run(() -> {
+			ServerPlayer player = player();
+			check("two nodes grown", euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nodesOf(player.getUUID()).size() == 2);
+			server().execute(() -> player.connection.teleport(61.5, y[0], 41.5, 90, 0));
+		}, 5);
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			euf.mageslegacy.mycelid.MyceliumNetwork.openNode(player, player.serverLevel(), new net.minecraft.core.BlockPos(60, y[0], 40));
+		}), 10);
+		shot("network_node");
+		run(() -> {
+			if (mc.screen instanceof euf.mageslegacy.client.screen.MyceliumScreen screen) {
+				screen.travelFirst();
+			}
+		}, 10);
+		film("network_travel", 8, 6);
+		run(() -> {
+			ServerPlayer player = player();
+			check("travelled through the network to the first node (x=" + String.format("%.1f", player.getX()) + ")",
+					Math.abs(player.getX() - 40.5) < 3 && Math.abs(player.getZ() - 40.5) < 3);
+		}, 5);
+		run(() -> server().execute(() -> euf.mageslegacy.mycelid.MyceliumNetwork.openColony(player())), 10);
+		shot("network_colony");
+		run(() -> mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen()), 20);
+		shot("talents_mycelid");
+		run(() -> mc.setScreen(null), 5);
 	}
 
 	private static MinecraftServer server() {

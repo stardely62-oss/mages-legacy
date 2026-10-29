@@ -1,0 +1,10 @@
+{
+	"variants": {
+		"mother=false": {
+			"model": "mages_legacy:block/mycelium_node"
+		},
+		"mother=true": {
+			"model": "mages_legacy:block/mycelium_node_mother"
+		}
+	}
+}

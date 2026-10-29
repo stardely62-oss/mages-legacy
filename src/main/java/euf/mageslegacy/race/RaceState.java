@@ -128,6 +128,7 @@ public final class RaceState {
 	public static void set(ServerPlayer player, Race race) {
 		Pocket.leaveIfInside(player);
 		Voidborn.reset(player);
+		euf.mageslegacy.mycelid.Mycelid.reset(player);
 		player.setData(RACE, race == null ? "" : race.id());
 		player.setData(LEVEL, 1);
 		player.setData(XP, 0);

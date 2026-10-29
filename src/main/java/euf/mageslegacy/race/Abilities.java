@@ -37,6 +37,10 @@ public final class Abilities {
 		Voidborn.State state = Voidborn.state(player);
 		int cost = cost(player, ability);
 		// A singularity holds its heart in place: nothing else happens until it collapses
+		if (euf.mageslegacy.mycelid.MyceliumNetwork.travelling(player)) {
+			refuse(player, Component.translatable("mages_legacy.refuse.busy"));
+			return;
+		}
 		if (BlackHole.holding(player)) {
 			refuse(player, Component.translatable("mages_legacy.refuse.singularity"));
 			return;
@@ -80,6 +84,10 @@ public final class Abilities {
 			case RIFT_ARENA -> Arena.use(player);
 			case PASSAGE -> null;
 			case BLACK_HOLE -> BlackHole.use(player);
+			case MYCELIUM_NETWORK -> euf.mageslegacy.mycelid.MyceliumNetwork.openColony(player);
+			case NEUROSPORES -> euf.mageslegacy.mycelid.Mycelid.neurospores(player);
+			case NEUROSYMBIOSIS -> euf.mageslegacy.mycelid.Mycelid.symbiosis(player);
+			case GREAT_BLOOM, SPORE_STORM, MYCELIAL_REBIRTH -> new Refusal("mages_legacy.talent.state.awakening_later");
 		};
 		if (refusal != null) {
 			refuse(player, Component.translatable(refusal.key()));
@@ -104,6 +112,9 @@ public final class Abilities {
 	}
 
 	public static int cooldown(ServerPlayer player, Ability ability) {
+		if (ability == Ability.NEUROSPORES && Talents.has(player, Talent.SPORE_QUICK)) {
+			return 14 * 20;
+		}
 		if (ability == Ability.VOID_STEP && Talents.has(player, Talent.STEP_QUICK)) {
 			return 4 * 20;
 		}

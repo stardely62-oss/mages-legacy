@@ -16,7 +16,7 @@ awakening_children = {}
 def tier(name, kind, requires):
     if kind in ("CORE", "BASIC"):
         return None
-    if kind == "AWAKENING" or name == "WORLDS_CHARGE_3":
+    if kind == "AWAKENING" or name in ("WORLDS_CHARGE_3", "STORM_KEEP"):
         return 4
     for r in requires:
         if r.startswith("awakening_"):
@@ -24,16 +24,20 @@ def tier(name, kind, requires):
     return 3 if name in tier3 else 2 if name in tier2 else 1
 
 branches = {"CORE": "Ядро и базовые способности", "RIFT": "Разлом пространства", "WORLDS": "Сквозь миры", "GRAVITY": "Гравитация",
-            "CROSS": "Перекрёстные таланты"}
+            "COLONY": "Колония", "SPORES": "Нейроспоры", "SYMBIOSIS": "Симбиоз", "CROSS": "Перекрёстные таланты"}
+races = {"VOIDBORN": "Пустотники", "MYCELID": "Мицелиды"}
 kinds = {"CORE": "ядро", "BASIC": "базовая", "PASSIVE": "пассивный", "TRANSFORM": "преобразующий", "CROSS": "перекрёстный",
          "AWAKENING": "Пробуждение"}
-out = ["# Таланты Пустотников", "",
+out = ["# Таланты рас", "",
        "Сгенерировано из `race/Talent.java` и `ru_ru.json` скриптом `tools/talents_doc.py` — не править руками.", "",
        "Ярусы открываются уровнем расы: I — сразу, II — с 10, III — с 20, IV (Пробуждения и их таланты) — с 30. "
        "Цена: ярус I — 1 очко, II — 2, III и IV — 3, Пробуждение — 5. Очков к 50 уровню — 60, всё дерево взять нельзя.", ""]
 count = 0
-for branch, title in branches.items():
-    items = [r for r in rows if r[3] == branch]
+for race_id, race_title in races.items():
+  race_rows = [r for r in rows if r[1] == race_id]
+  out += [f"# {race_title} — {len(race_rows)} узлов", ""]
+  for branch, title in branches.items():
+    items = [r for r in race_rows if r[3] == branch]
     if not items:
         continue
     out += [f"## {title}", "", "| Талант | Тип | Ярус | Цена | Нужен один из | Что делает |", "|---|---|---|---|---|---|"]

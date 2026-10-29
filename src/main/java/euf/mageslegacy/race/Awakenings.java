@@ -22,6 +22,9 @@ public final class Awakenings {
 			case AWAKENING_RIFT -> Ability.RIFT_ARENA;
 			case AWAKENING_WORLDS -> Ability.PASSAGE;
 			case AWAKENING_HOLE -> Ability.BLACK_HOLE;
+			case AWAKENING_BLOOM -> Ability.GREAT_BLOOM;
+			case AWAKENING_STORM -> Ability.SPORE_STORM;
+			case AWAKENING_REBIRTH -> Ability.MYCELIAL_REBIRTH;
 			default -> null;
 		};
 	}
@@ -31,6 +34,9 @@ public final class Awakenings {
 			case RIFT_ARENA -> Talent.AWAKENING_RIFT;
 			case PASSAGE -> Talent.AWAKENING_WORLDS;
 			case BLACK_HOLE -> Talent.AWAKENING_HOLE;
+			case GREAT_BLOOM -> Talent.AWAKENING_BLOOM;
+			case SPORE_STORM -> Talent.AWAKENING_STORM;
+			case MYCELIAL_REBIRTH -> Talent.AWAKENING_REBIRTH;
 			default -> null;
 		};
 	}

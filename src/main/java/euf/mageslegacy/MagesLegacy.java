@@ -16,8 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Mage's Legacy: the nameless mage split people into races. The legend, the choice of race and the first awakened
- * race, the Voidborn; the others still sleep.
+ * Mage's Legacy: the nameless mage split people into races. The legend, the choice of race and the awakened races,
+ * the Voidborn and the Mycelids; the others still sleep.
  */
 @Mod(MagesLegacy.MOD_ID)
 public class MagesLegacy {
@@ -27,6 +27,7 @@ public class MagesLegacy {
 	public MagesLegacy(IEventBus modBus) {
 		RaceState.register(modBus);
 		euf.mageslegacy.item.OblivionScrollItem.register(modBus);
+		euf.mageslegacy.mycelid.MyceliumNodeBlock.register(modBus);
 		modBus.addListener(Network::register);
 		Progression.register();
 		Voidborn.register();
@@ -35,6 +36,8 @@ public class MagesLegacy {
 		Passage.register();
 		BlackHole.register();
 		RaceCommand.register();
+		euf.mageslegacy.mycelid.MyceliumNetwork.register();
+		euf.mageslegacy.mycelid.Mycelid.register();
 	}
 
 	public static ResourceLocation id(String path) {

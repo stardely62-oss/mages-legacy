@@ -10,7 +10,11 @@ import net.minecraft.world.phys.Vec3;
  * Server to client: the player starts a walk through the void along this line, over these ticks. The server carries
  * the body tick by tick; the client lays the same eased line under its camera, so the walk is smooth to the eye.
  */
-public record StepPayload(Vec3 from, Vec3 to, int ticks) implements CustomPacketPayload {
+public record StepPayload(Vec3 from, Vec3 to, int ticks, boolean fungal) implements CustomPacketPayload {
+	public StepPayload(Vec3 from, Vec3 to, int ticks) {
+		this(from, to, ticks, false);
+	}
+
 	public static final Type<StepPayload> TYPE = new Type<>(MagesLegacy.id("step"));
 	public static final StreamCodec<FriendlyByteBuf, StepPayload> STREAM_CODEC = CustomPacketPayload.codec(StepPayload::write, StepPayload::read);
 
@@ -18,10 +22,11 @@ public record StepPayload(Vec3 from, Vec3 to, int ticks) implements CustomPacket
 		buf.writeVec3(from);
 		buf.writeVec3(to);
 		buf.writeVarInt(ticks);
+		buf.writeBoolean(fungal);
 	}
 
 	private static StepPayload read(FriendlyByteBuf buf) {
-		return new StepPayload(buf.readVec3(), buf.readVec3(), buf.readVarInt());
+		return new StepPayload(buf.readVec3(), buf.readVec3(), buf.readVarInt(), buf.readBoolean());
 	}
 
 	@Override

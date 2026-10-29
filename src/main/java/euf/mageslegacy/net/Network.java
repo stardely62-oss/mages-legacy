@@ -13,12 +13,18 @@ public final class Network {
 	}
 
 	public static void register(RegisterPayloadHandlersEvent event) {
-		PayloadRegistrar registrar = event.registrar("5");
+		PayloadRegistrar registrar = event.registrar("6");
 		// The lambdas' bodies only run on a client, so a dedicated server never loads the client class
 		registrar.playToClient(OpenChoicePayload.TYPE, OpenChoicePayload.STREAM_CODEC, (payload, context) -> MagesLegacyClient.openChoice());
 		registrar.playToClient(SyncPayload.TYPE, SyncPayload.STREAM_CODEC, (payload, context) -> MagesLegacyClient.onSync(payload));
 		registrar.playToClient(StepPayload.TYPE, StepPayload.STREAM_CODEC, (payload, context) -> MagesLegacyClient.onStep(payload));
 		registrar.playToClient(FxPayload.TYPE, FxPayload.STREAM_CODEC, (payload, context) -> MagesLegacyClient.onFx(payload));
+		registrar.playToClient(NetworkViewPayload.TYPE, NetworkViewPayload.STREAM_CODEC, (payload, context) -> MagesLegacyClient.openNetwork(payload.view()));
+		registrar.playToServer(NetworkActionPayload.TYPE, NetworkActionPayload.STREAM_CODEC, (payload, context) -> {
+			if (context.player() instanceof ServerPlayer player) {
+				euf.mageslegacy.mycelid.MyceliumNetwork.act(player, payload.action(), payload.a(), payload.b());
+			}
+		});
 		registrar.playToClient(OpenPassagePayload.TYPE, OpenPassagePayload.STREAM_CODEC, (payload, context) -> MagesLegacyClient.openPassage());
 		registrar.playToServer(PassageTargetPayload.TYPE, PassageTargetPayload.STREAM_CODEC, (payload, context) -> {
 			if (context.player() instanceof ServerPlayer player) {

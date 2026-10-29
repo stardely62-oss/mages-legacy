@@ -10,8 +10,9 @@ talent_src = (root / "src/main/java/euf/mageslegacy/race/Talent.java").read_text
 lang = json.loads((root / "src/main/resources/assets/mages_legacy/lang/ru_ru.json").read_text())
 awakening_level = int(re.search(r'AWAKENING_LEVEL = (\d+);', talent_src).group(1))
 keys = re.search(r'KEY_NAMES = \{(.*?)\};', src).group(1).replace('"', "").split(", ")
-awakening_of = {"RIFT_ARENA": "awakening_rift", "PASSAGE": "awakening_worlds", "BLACK_HOLE": "awakening_hole"}
-races = {"VOIDBORN": "Пустотники"}
+awakening_of = {"RIFT_ARENA": "awakening_rift", "PASSAGE": "awakening_worlds", "BLACK_HOLE": "awakening_hole",
+                "GREAT_BLOOM": "awakening_bloom", "SPORE_STORM": "awakening_storm", "MYCELIAL_REBIRTH": "awakening_rebirth"}
+races = {"VOIDBORN": ("Пустотники", "Пустота"), "MYCELID": ("Мицелиды", "Споры")}
 
 def seconds(expr):
     ticks = eval(expr, {}, {})
@@ -21,9 +22,9 @@ def seconds(expr):
 out = ["# Способности", "",
        "Сгенерировано из `race/Ability.java` и `ru_ru.json` скриптом `tools/abilities_doc.py` — не править руками. "
        "Таланты, которые меняют способности, — в [TALENTS.md](TALENTS.md).", ""]
-for race, title in races.items():
+for race, (title, resource) in races.items():
     rows = re.findall(r'^\t([A-Z_]+)\(Race\.' + race + r', (-?\d+), ([\w.]+), (\d+), ([\d *]+)\)', src, re.M)
-    out += [f"## {title}", "", "Ресурс — **Пустота** (до 100).", "", "### Базовые способности", "",
+    out += [f"## {title}", "", f"Ресурс — **{resource}** (до 100).", "", "### Базовые способности", "",
             "| Способность | Клавиша | С уровня | Цена | Перезарядка |", "|---|---|---|---|---|"]
     basic = [r for r in rows if int(r[1]) >= 0]
     awakenings = [r for r in rows if int(r[1]) < 0]

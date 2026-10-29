@@ -159,7 +159,7 @@ public class TalentScreen extends Screen {
 		for (Talent t : Talent.of(race)) {
 			grow(b, rx(t), ry(t));
 		}
-		for (Talent.Branch branch : new Talent.Branch[] {Talent.Branch.RIFT, Talent.Branch.WORLDS, Talent.Branch.GRAVITY}) {
+		for (Talent.Branch branch : directions(race)) {
 			double[] at = labelAt(race, branch);
 			if (at != null) {
 				grow(b, at[0] - 1.2, at[1]);
@@ -167,6 +167,17 @@ public class TalentScreen extends Screen {
 			}
 		}
 		return b;
+	}
+
+	/** A race's three directions (its branches but the core and the crossings). */
+	private static List<Talent.Branch> directions(Race race) {
+		List<Talent.Branch> list = new ArrayList<>();
+		for (Talent t : Talent.of(race)) {
+			if (t.branch != Talent.Branch.CORE && t.branch != Talent.Branch.CROSS && !list.contains(t.branch)) {
+				list.add(t.branch);
+			}
+		}
+		return list;
 	}
 
 	private static void grow(double[] b, double x, double y) {
@@ -246,9 +257,9 @@ public class TalentScreen extends Screen {
 		int color = LegacyUi.argb(race.color);
 		List<Talent> tree = Talent.of(race);
 		// The directions' names, out past their outermost nodes
-		branchName(graphics, race, Talent.Branch.RIFT, color);
-		branchName(graphics, race, Talent.Branch.WORLDS, color);
-		branchName(graphics, race, Talent.Branch.GRAVITY, color);
+		for (Talent.Branch branch : directions(race)) {
+			branchName(graphics, race, branch, color);
+		}
 		// Links first, under the nodes
 		for (Talent t : tree) {
 			for (Talent near : t.requires()) {
@@ -683,8 +694,10 @@ public class TalentScreen extends Screen {
 		wrapInto(lines, Component.translatable(t.key() + ".desc").withStyle(ChatFormatting.WHITE));
 		if (t.kind == Talent.Kind.AWAKENING) {
 			lines.add(Component.empty());
-			wrapInto(lines, Component.translatable(t.key() + ".trial", trialProgress(t)).withStyle(ChatFormatting.LIGHT_PURPLE));
-			if (progress()[t == Talent.AWAKENING_RIFT ? 7 : t == Talent.AWAKENING_WORLDS ? 8 : 9] > 0) {
+			if (net.minecraft.client.resources.language.I18n.exists(t.key() + ".trial")) {
+				wrapInto(lines, Component.translatable(t.key() + ".trial", trialProgress(t)).withStyle(ChatFormatting.LIGHT_PURPLE));
+			}
+			if (t.race == Race.VOIDBORN && progress()[t == Talent.AWAKENING_RIFT ? 7 : t == Talent.AWAKENING_WORLDS ? 8 : 9] > 0) {
 				lines.add(Component.translatable("mages_legacy.talent.trial_met").withStyle(ChatFormatting.GREEN));
 			}
 			wrapInto(lines, Component.translatable("mages_legacy.talent.two_of_three").withStyle(ChatFormatting.DARK_PURPLE));

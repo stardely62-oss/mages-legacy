@@ -1,0 +1,199 @@
+{
+	"parent": "block/block",
+	"ambientocclusion": false,
+	"textures": {
+		"particle": "mages_legacy:block/node_cap",
+		"stem": "mages_legacy:block/node_stem",
+		"cap": "mages_legacy:block/node_cap",
+		"gills": "mages_legacy:block/node_gills"
+	},
+	"elements": [
+		{
+			"from": [
+				5.34,
+				0.0,
+				5.34
+			],
+			"to": [
+				10.66,
+				8.4,
+				10.66
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						6,
+						9,
+						10,
+						16
+					],
+					"texture": "#stem"
+				},
+				"south": {
+					"uv": [
+						6,
+						9,
+						10,
+						16
+					],
+					"texture": "#stem"
+				},
+				"east": {
+					"uv": [
+						6,
+						9,
+						10,
+						16
+					],
+					"texture": "#stem"
+				},
+				"west": {
+					"uv": [
+						6,
+						9,
+						10,
+						16
+					],
+					"texture": "#stem"
+				},
+				"down": {
+					"uv": [
+						6,
+						6,
+						10,
+						10
+					],
+					"texture": "#stem",
+					"cullface": "down"
+				}
+			}
+		},
+		{
+			"from": [
+				0.02,
+				8.4,
+				0.02
+			],
+			"to": [
+				15.98,
+				13.2,
+				15.98
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						2,
+						12,
+						14,
+						16
+					],
+					"texture": "#cap"
+				},
+				"south": {
+					"uv": [
+						2,
+						12,
+						14,
+						16
+					],
+					"texture": "#cap"
+				},
+				"east": {
+					"uv": [
+						2,
+						12,
+						14,
+						16
+					],
+					"texture": "#cap"
+				},
+				"west": {
+					"uv": [
+						2,
+						12,
+						14,
+						16
+					],
+					"texture": "#cap"
+				},
+				"up": {
+					"uv": [
+						2,
+						2,
+						14,
+						14
+					],
+					"texture": "#cap"
+				},
+				"down": {
+					"uv": [
+						2,
+						2,
+						14,
+						14
+					],
+					"texture": "#gills"
+				}
+			}
+		},
+		{
+			"from": [
+				2.68,
+				13.2,
+				2.68
+			],
+			"to": [
+				13.32,
+				15.6,
+				13.32
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						4,
+						0,
+						12,
+						2
+					],
+					"texture": "#cap"
+				},
+				"south": {
+					"uv": [
+						4,
+						0,
+						12,
+						2
+					],
+					"texture": "#cap"
+				},
+				"east": {
+					"uv": [
+						4,
+						0,
+						12,
+						2
+					],
+					"texture": "#cap"
+				},
+				"west": {
+					"uv": [
+						4,
+						0,
+						12,
+						2
+					],
+					"texture": "#cap"
+				},
+				"up": {
+					"uv": [
+						4,
+						4,
+						12,
+						12
+					],
+					"texture": "#cap"
+				}
+			}
+		}
+	]
+}
