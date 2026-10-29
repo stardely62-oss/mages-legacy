@@ -66,7 +66,7 @@ public final class Pocket {
 	/** How far around the platform stray blocks are cleared every second. */
 	private static final int GUARD = 2;
 	/** The rift opens first; this many ticks later it takes the travellers through. */
-	private static final int OPENING = 16;
+	private static final int OPENING = 8;
 	/** Rifts opening now: who opened them and how long until they take the travellers. */
 	private static final Map<UUID, Integer> OPENING_IN = new HashMap<>();
 	private static final Map<UUID, Boolean> OPENING_OUT = new HashMap<>();
@@ -161,7 +161,8 @@ public final class Pocket {
 		}
 		ServerLevel from = owner.serverLevel();
 		openDoor(owner);
-		from.playSound(null, owner.getX(), owner.getY(), owner.getZ(), SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, SoundSource.PLAYERS, 0.9f, 0.6f);
+		from.playSound(null, owner.getX(), owner.getY(), owner.getZ(), SoundEvents.PORTAL_TRIGGER, SoundSource.PLAYERS, 0.4f, 1.8f);
+		from.playSound(null, owner.getX(), owner.getY(), owner.getZ(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 0.6f);
 		OPENING_IN.put(owner.getUUID(), OPENING);
 		OPENING_OUT.put(owner.getUUID(), false);
 		return null;
@@ -207,10 +208,11 @@ public final class Pocket {
 					player.getXRot());
 			player.fallDistance = 0;
 		}
+		// The rift closing behind on the far side, around the one who came through, stars spilling out of it
 		Vec3 arrival = new Vec3(c.getX() + 0.5, FLOOR + 1, c.getZ() + 0.5);
-		Fx.rift(pocket, arrival.add(0, 1.3, 2.5), 2.8f, 1.7f, 14);
-		Fx.burst(pocket, arrival.add(0, 1, 0), 1.2f, 6, false);
-		pocket.playSound(null, c.getX(), FLOOR + 1, c.getZ(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 0.5f);
+		Fx.rift(pocket, arrival.add(0, 1.3, 0), 2.8f, 1.7f, 14);
+		Fx.sparkle(pocket, arrival.add(0, 1.3, 0), 0, 0);
+		pocket.playSound(null, arrival.x, arrival.y, arrival.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 1.2f);
 	}
 
 	/** The owner leaving takes every guest of their room home too; a Voidborn visiting leaves alone. */
@@ -219,8 +221,9 @@ public final class Pocket {
 			return new Abilities.Refusal("mages_legacy.refuse.busy");
 		}
 		openDoor(player);
-		player.serverLevel().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, SoundSource.PLAYERS,
-				0.9f, 0.6f);
+		player.serverLevel().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PORTAL_TRIGGER, SoundSource.PLAYERS, 0.4f, 1.8f);
+		player.serverLevel().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f,
+				0.6f);
 		OPENING_IN.put(player.getUUID(), OPENING);
 		OPENING_OUT.put(player.getUUID(), true);
 		return null;
@@ -304,8 +307,8 @@ public final class Pocket {
 			Fx.ring(level, safe, 0.3f, 4.2f, 12);
 		}
 		Fx.rift(level, safe.add(0, 1.3, 0), 2.8f, 1.7f, 14);
-		Fx.burst(level, safe.add(0, 1, 0), 1.2f, 6, false);
-		level.playSound(null, safe.x, safe.y, safe.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 0.6f);
+		Fx.sparkle(level, safe.add(0, 1.3, 0), 0, 0);
+		level.playSound(null, safe.x, safe.y, safe.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 1.2f);
 	}
 
 	private static Vec3 safeNear(ServerLevel level, ServerPlayer player, Vec3 at) {

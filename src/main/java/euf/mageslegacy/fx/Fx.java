@@ -37,6 +37,15 @@ public final class Fx {
 	/** Sounds fall quiet and low for the players near: a: radius. */
 	public static final int MUFFLE = 10;
 
+	/** The cloud of void motes and stars a walker leaves along the way (follows the entity). */
+	public static final int STEP_TRAIL = 11;
+	/** Void motes bursting out and stars glinting, at a point: a: how many motes, b: how fast. */
+	public static final int SPARKLE = 12;
+	/** Heavier Gravity's field around the caster (follows them): a: reach. */
+	public static final int GRAVITY_FIELD = 13;
+	/** The weight landing on one creature held by the field (follows it). */
+	public static final int PRESS = 14;
+
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
 
@@ -83,6 +92,23 @@ public final class Fx {
 
 	public static void muffle(ServerPlayer player, int ticks) {
 		PacketDistributor.sendToPlayer(player, new FxPayload(MUFFLE, player.getId(), player.position(), player.position(), ticks, 0, 0));
+	}
+
+	public static void stepTrail(ServerLevel level, Entity walker, int ticks) {
+		send(level, walker.position(), new FxPayload(STEP_TRAIL, walker.getId(), walker.position(), walker.position(), ticks, 0, 0));
+	}
+
+	public static void sparkle(ServerLevel level, Vec3 at, int motes, float speed) {
+		send(level, at, new FxPayload(SPARKLE, -1, at, at, 20, motes, speed));
+	}
+
+	public static void gravityField(ServerLevel level, Entity caster, float reach, int ticks) {
+		send(level, caster.position(), new FxPayload(GRAVITY_FIELD, caster.getId(), caster.position(), caster.position(), ticks, reach, 0));
+	}
+
+	public static void press(ServerLevel level, Entity target) {
+		send(level, target.position(), new FxPayload(PRESS, target.getId(), target.position(), target.position(), 12, target.getBbWidth(),
+				target.getBbHeight()));
 	}
 
 	public static void voidScreen(ServerPlayer player, int ticks) {

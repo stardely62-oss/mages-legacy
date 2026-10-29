@@ -13,10 +13,11 @@ public final class Network {
 	}
 
 	public static void register(RegisterPayloadHandlersEvent event) {
-		PayloadRegistrar registrar = event.registrar("3");
+		PayloadRegistrar registrar = event.registrar("4");
 		// The lambdas' bodies only run on a client, so a dedicated server never loads the client class
 		registrar.playToClient(OpenChoicePayload.TYPE, OpenChoicePayload.STREAM_CODEC, (payload, context) -> MagesLegacyClient.openChoice());
 		registrar.playToClient(SyncPayload.TYPE, SyncPayload.STREAM_CODEC, (payload, context) -> MagesLegacyClient.onSync(payload));
+		registrar.playToClient(StepPayload.TYPE, StepPayload.STREAM_CODEC, (payload, context) -> MagesLegacyClient.onStep(payload));
 		registrar.playToClient(FxPayload.TYPE, FxPayload.STREAM_CODEC, (payload, context) -> MagesLegacyClient.onFx(payload));
 		registrar.playToServer(ChooseRacePayload.TYPE, ChooseRacePayload.STREAM_CODEC, (payload, context) -> {
 			if (context.player() instanceof ServerPlayer player) {

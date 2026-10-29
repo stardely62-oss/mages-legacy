@@ -95,10 +95,10 @@ final class Harness {
 		shot("hud");
 
 		// The Void Step through a wall
-		run(() -> MagesLegacyClient.useAbility(0), 12);
+		run(() -> MagesLegacyClient.useAbility(0), 5);
 		shot("step_mid");
 		run(() -> {
-		}, 25);
+		}, 20);
 		run(() -> {
 			ServerPlayer player = player();
 			check("void step went through the wall (z=" + String.format("%.1f", player.getZ()) + ")",
@@ -114,13 +114,13 @@ final class Harness {
 			player.connection.teleport(player.getX(), player.getY(), player.getZ(), 180, 0);
 		}), 10);
 		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 5);
-		run(() -> MagesLegacyClient.useAbility(0), 5);
+		run(() -> MagesLegacyClient.useAbility(0), 2);
 		shot("step_side_start");
 		run(() -> {
-		}, 8);
+		}, 3);
 		shot("step_side_mid");
 		run(() -> {
-		}, 10);
+		}, 6);
 		shot("step_side_end");
 		run(() -> {
 		}, 15);
@@ -135,7 +135,10 @@ final class Harness {
 			player.serverLevel().addFreshEntity(husk);
 		}), 10);
 		run(() -> server().execute(() -> RaceState.setResource(player(), RaceState.MAX_RESOURCE)), 2);
-		run(() -> MagesLegacyClient.useAbility(1), 10);
+		run(() -> MagesLegacyClient.useAbility(1), 4);
+		shot("gravity_fold");
+		run(() -> {
+		}, 18);
 		shot("gravity_side");
 		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON), 3);
 		shot("gravity");
@@ -147,7 +150,7 @@ final class Harness {
 		// The Pocket and back
 		run(() -> beforePocket = player().position(), 0);
 		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 3);
-		run(() -> MagesLegacyClient.useAbility(3), 8);
+		run(() -> MagesLegacyClient.useAbility(3), 4);
 		shot("pocket_rift");
 		run(() -> {
 		}, 40);

@@ -24,7 +24,9 @@ import net.minecraft.world.entity.animal.FlyingAnimal;
 import net.minecraft.world.entity.monster.Blaze;
 import net.minecraft.world.entity.monster.Vex;
 import net.minecraft.world.entity.projectile.Projectile;
+import euf.mageslegacy.net.StepPayload;
 import net.neoforged.neoforge.common.Tags;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.minecraft.core.BlockPos;
@@ -68,7 +70,8 @@ public final class Voidborn {
 
 	/** Void per tick: 1 a second, half again in the dark, twice in the End and the Pocket. */
 	private static final float REGEN = 1f / 20;
-	private static final int STEP_TICKS = 25;
+	/** Half a second through the void, as in the first version: a dash, not a stroll. */
+	private static final int STEP_TICKS = 10;
 	private static final int GRAVITY_TICKS = 4 * 20;
 	/** A mark in space lasts 5 minutes and can be walked to from 32 blocks. */
 	private static final int MARK_TICKS = 5 * 60 * 20;
@@ -222,7 +225,7 @@ public final class Voidborn {
 	}
 
 	public static int stepTicks(ServerPlayer player) {
-		return Talents.has(player, Talent.STEP_QUICK) ? 15 : STEP_TICKS;
+		return STEP_TICKS;
 	}
 
 	/**
@@ -290,8 +293,9 @@ public final class Voidborn {
 		Fx.rift(level, to.add(0, 1, 0), 2.4f, 1.3f, door ? ticks + DOOR_TICKS : ticks + 14);
 		Fx.ribbon(level, from, to, ticks + 12, 1.1f);
 		Fx.burst(level, from.add(0, 1, 0), 1.3f, 6, true);
-		level.playSound(null, from.x, from.y, from.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.7f, 0.5f);
-		level.playSound(null, from.x, from.y, from.z, SoundEvents.PORTAL_AMBIENT, SoundSource.PLAYERS, 0.5f, 1.6f);
+		Fx.sparkle(level, from.add(0, 1, 0), 24, 0.06f);
+		level.playSound(null, from.x, from.y, from.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0f, 0.5f);
+		level.playSound(null, from.x, from.y, from.z, SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.PLAYERS, 0.6f, 1.6f);
 		if (door) {
 			DOORS.add(new Door(player.getUUID(), level.dimension(), from, to, level.getGameTime() + ticks + DOOR_TICKS));
 		}
@@ -313,9 +317,14 @@ public final class Voidborn {
 
 	private static void begin(ServerPlayer player, Vec3 from, Vec3 to, int ticks, boolean companion) {
 		state(player).step = new Step(from, to, ticks, companion);
+		player.stopRiding();
 		player.setNoGravity(true);
 		player.noPhysics = true;
 		player.setDeltaMovement(Vec3.ZERO);
+		// The body is gone into the void: only the cloud it leaves along the way is seen
+		player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, ticks + 4, 0, true, false, false));
+		PacketDistributor.sendToPlayer(player, new StepPayload(from, to, ticks));
+		Fx.stepTrail(player.serverLevel(), player, ticks);
 		Fx.voidScreen(player, ticks + 4);
 		Fx.fov(player, 0.3f, ticks + 6);
 		// In the in-between the world's sounds come from far away
@@ -338,12 +347,20 @@ public final class Voidborn {
 		state.step = null;
 		player.setNoGravity(false);
 		player.noPhysics = false;
+		player.removeEffect(MobEffects.INVISIBILITY);
+		player.hurtMarked = true;
 		ServerLevel level = player.serverLevel();
-		level.playSound(null, at.x, at.y, at.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.6f, 0.7f);
+		// Coming out, as in the first version: a flash of the void, a wave, the ground cracked, motes and stars thrown out
+		Fx.burst(level, at.add(0, 1, 0), 1.7f, 7, false);
+		Fx.ring(level, at, 0.3f, 2.8f, 10);
+		Fx.cracks(level, at, null, 1.6f, 40);
+		Fx.sparkle(level, at.add(0, 1, 0), 30, 0.12f);
+		Fx.shake(player, 1.2f, 7);
+		level.playSound(null, at.x, at.y, at.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0f, 1.2f);
 		if (step.companion) {
 			return;
 		}
-		state.startCooldown(Ability.VOID_STEP.slot, Ability.VOID_STEP.cooldown);
+		state.startCooldown(Ability.VOID_STEP.slot, Abilities.cooldown(player, Ability.VOID_STEP));
 		Talents.addProgress(player, Talents.STEP_BLOCKS, (int) Math.round(step.from.distanceTo(step.to)));
 		// Walking through something, not just across open air, teaches the race
 		if (!level.noCollision(player, player.getBoundingBox().move(step.from.subtract(at)).expandTowards(step.to.subtract(step.from)).deflate(0.2))) {
@@ -422,11 +439,10 @@ public final class Voidborn {
 		ServerLevel level = player.serverLevel();
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.8f, 0.5f);
 		float reach = (float) gravityReach(player);
-		// The ground cracks open onto the void under the caster, a wave goes out, the void's motes fall in
-		Fx.ring(level, player.position(), 0.3f, reach + 0.8f, 10);
-		Fx.cracks(level, player.position(), player, reach + 0.2f, GRAVITY_TICKS + 10);
-		Fx.motes(level, player, reach + 0.6f, GRAVITY_TICKS);
-		Fx.shake(player, 0.8f, 8);
+		// Space folds in on the caster and grows heavy: the field holds for as long as the gravity does
+		Fx.gravityField(level, player, reach, GRAVITY_TICKS);
+		Fx.shake(player, 0.7f, 8);
+		Fx.fov(player, -0.08f, 12);
 		pressDown(player);
 		return null;
 	}
@@ -435,7 +451,6 @@ public final class Voidborn {
 		state.gravity--;
 		if ((GRAVITY_TICKS - state.gravity) % 20 == 0) {
 			pressDown(player);
-			Fx.ring(player.serverLevel(), player.position(), 0.3f, (float) gravityReach(player) + 0.2f, 8);
 		}
 		AABB area = gravityArea(player);
 		// Earthbound: whatever flies in the field is dragged to the ground
@@ -476,6 +491,7 @@ public final class Voidborn {
 			PRESSED_BY.put(target.getUUID(), player.getUUID());
 			PRESSED_UNTIL.put(target.getUUID(), until);
 			target.hurt(player.damageSources().indirectMagic(player, player), 1);
+			Fx.press(player.serverLevel(), target);
 			Progression.addXp(player, Progression.GRAVITY, 1, 30);
 			if (pull && !target.getType().is(Tags.EntityTypes.BOSSES)) {
 				Vec3 in = player.position().subtract(target.position()).multiply(1, 0, 1);

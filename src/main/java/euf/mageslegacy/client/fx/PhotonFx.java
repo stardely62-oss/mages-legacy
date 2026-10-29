@@ -119,6 +119,16 @@ final class PhotonFx {
 			return this;
 		}
 
+		/** A burst of {@code count} repeated {@code cycles} times, every {@code interval} ticks. */
+		Emitter pulses(int count, int cycles, int interval) {
+			EmissionSetting.Burst burst = new EmissionSetting.Burst();
+			burst.setCount(NumberFunction.constant(count));
+			burst.cycles = Math.max(1, cycles);
+			burst.interval = Math.max(1, interval);
+			config.emission.getBursts().add(burst);
+			return this;
+		}
+
 		/** Particles per tick for the emitter's whole duration. */
 		Emitter flow(float perTick) {
 			config.emission.setEmissionRate(NumberFunction.constant(perTick));

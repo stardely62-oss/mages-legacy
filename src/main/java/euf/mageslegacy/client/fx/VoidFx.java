@@ -27,6 +27,7 @@ public final class VoidFx {
 	private static final int STARLIGHT = 0xFF000000 | Fx.STAR_RGB;
 	private static final int DEEP = 0xFF2A1446;
 	private static final int INK = 0xF80A0418;
+	private static final int INK_FADE = 0x000A0418;
 	private static final int CRACK = 0xFF05020A;
 
 	private VoidFx() {
@@ -54,6 +55,22 @@ public final class VoidFx {
 				case Fx.VORTEX -> {
 					if (follow != null) {
 						vortex(level, follow, payload.ticks());
+					}
+				}
+				case Fx.STEP_TRAIL -> {
+					if (follow != null) {
+						stepTrail(level, follow, payload.ticks());
+					}
+				}
+				case Fx.SPARKLE -> sparkle(level, payload.from(), (int) payload.a(), payload.b());
+				case Fx.GRAVITY_FIELD -> {
+					if (follow != null) {
+						gravityField(level, follow, payload.a(), payload.ticks());
+					}
+				}
+				case Fx.PRESS -> {
+					if (follow != null) {
+						press(level, follow, payload.a(), payload.b());
 					}
 				}
 				case Fx.VOID_SCREEN, Fx.SHAKE, Fx.FOV, Fx.MUFFLE -> ScreenFx.play(payload);
@@ -289,6 +306,82 @@ public final class VoidFx {
 				new PhotonFx.Emitter(ticks).ring(radius, 0.6f).offset(0, 3.2f, 0).flow(4).life(7, 10).speed(0, 0).size(0.04f, 0.06f)
 						.colors(0x00FFFFFF, 0xFFFFFFFF, alpha(VOID, 0.8f), alpha(VOID, 0)).force(0, -0.08f, 0).world().stretch(1.2f, 1.5f)
 						.bloom(STARLIGHT, 2.5f));
+	}
+
+	// ---- The walk, the first version's way --------------------------------------------------------------------
+
+	/**
+	 * What a walker leaves along the way while their body is in the void: a drifting cloud of void motes and stars,
+	 * with wisps of dark among them, shed every tick where the body passes and hanging there a moment.
+	 */
+	private static void stepTrail(Level level, Entity walker, int ticks) {
+		int life = Math.max(2, ticks);
+		PhotonFx.play(level, null, walker, 0,
+				new PhotonFx.Emitter(life).sphere(0.35f, 1).scale(1, 1.6f, 1).offset(0, 1, 0).flow(10).life(14, 24).speed(0, 0)
+						.size(0.12f, 0.2f).colors(0x00FFFFFF, 0xFFFFFFFF, 0xC0FFFFFF, 0x00FFFFFF).swirl(3, 0).noise(0.3f).texture(MOTE).world()
+						.bloom(VOID, 1f),
+				new PhotonFx.Emitter(life).sphere(0.5f, 1).scale(1, 1.4f, 1).offset(0, 1, 0).flow(5).life(10, 18).speed(0, 0).size(0.06f, 0.1f)
+						.colors(0x00FFFFFF, 0xFFFFFFFF, 0x50FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).texture(STAR).world().bloom(0xFFFFFF, 1.6f),
+				new PhotonFx.Emitter(life).sphere(0.3f, 1).scale(1, 1.8f, 1).offset(0, 1, 0).flow(5).life(8, 12).speed(0, 0).size(0.3f, 0.45f)
+						.colors(INK_FADE, alpha(DEEP, 0.55f), INK_FADE).world().ink());
+	}
+
+	/** Void motes thrown out from a point and stars glinting around it (with no motes: only the stars, more of them). */
+	private static void sparkle(Level level, Vec3 at, int motes, float speed) {
+		List<PhotonFx.Emitter> emitters = new ArrayList<>();
+		if (motes > 0) {
+			emitters.add(new PhotonFx.Emitter(20).sphere(0.25f, 1).scale(1, 1.4f, 1).burst(motes).life(12, 22).speed(0, 0).size(0.12f, 0.2f)
+					.colors(0xFFFFFFFF, 0xE0FFFFFF, 0x00FFFFFF).swirl(speed * 100, 0).noise(0.2f).texture(MOTE).bloom(VOID, 1.2f));
+		}
+		emitters.add(new PhotonFx.Emitter(24).sphere(0.8f, 1).scale(1, 1.25f, 1).burst(motes > 0 ? 12 : 20).life(14, 24).speed(0, 0)
+				.size(0.07f, 0.11f).colors(0x00FFFFFF, 0xFFFFFFFF, 0x50FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).texture(STAR).bloom(0xFFFFFF, 1.8f));
+		PhotonFx.play(level, at, null, 0, emitters.toArray(PhotonFx.Emitter[]::new));
+	}
+
+	// ---- Heavier Gravity ----------------------------------------------------------------------------------------
+
+	/**
+	 * Heavier Gravity, drawn anew: space folds in on the caster (a dark shell rushing inwards), then the ground
+	 * around them becomes a lens of darkness with a violet rim turning slowly; rings of light keep tightening across
+	 * it, streaks of weight drive down onto it from above and motes of the void sink through the air.
+	 */
+	private static void gravityField(Level level, Entity caster, float reach, int ticks) {
+		int life = Math.max(2, ticks);
+		float shell = reach + 1.4f;
+		PhotonFx.play(level, null, caster, 0,
+				// The fold: a shell of dark and violet collapsing onto the caster
+				new PhotonFx.Emitter(8).sphere(shell, 0).offset(0, 1, 0).burst(150).life(8, 8).speed(0, 0).size(0.3f, 0.4f)
+						.colors(alpha(DEEP, 0), alpha(DEEP, 0.6f), alpha(DEEP, 0)).swirl(-shell / 8 * 100, 0).ink(),
+				new PhotonFx.Emitter(8).sphere(shell, 0).offset(0, 1, 0).burst(110).life(8, 8).speed(0, 0).size(0.08f, 0.12f)
+						.colors(alpha(VOID, 0), alpha(VOID, 0.9f), 0xE0FFFFFF).swirl(-shell / 8 * 100, 0).stretch(0.8f, 1.4f).bloom(VOID, 2.2f),
+				// The lens of darkness on the ground
+				new PhotonFx.Emitter(life).ring(reach, 1).offset(0, 0.05f, 0).burst(150).life(life, life).speed(0, 0).size(0.55f, 0.7f)
+						.colors(hold(DEEP, 0.55f, life)).flat().ink(),
+				// Its rim, turning slowly
+				new PhotonFx.Emitter(life).ring(reach, 0).offset(0, 0.08f, 0).burst(80).life(life, life).speed(0, 0).size(0.22f, 0.28f)
+						.colors(hold(VOID, 0.8f, life)).swirl(0, 2).flat().bloom(VOID, 2f),
+				// Rings tightening across it, one every half second
+				new PhotonFx.Emitter(life).ring(reach, 0).offset(0, 0.1f, 0).pulses(56, life / 10, 10).life(10, 10).speed(0, 0).size(0.18f, 0.22f)
+						.colors(alpha(VOID, 0), alpha(VOID, 0.9f), 0xE6FFFFFF, 0x00FFFFFF).swirl(-reach / 10 * 100, 0).flat().bloom(VOID, 2.2f),
+				// Streaks of weight driven down from above
+				new PhotonFx.Emitter(life).ring(reach * 0.85f, 0.8f).offset(0, 3.4f, 0).flow(4).life(7, 10).speed(0, 0).size(0.05f, 0.07f)
+						.colors(0x00FFFFFF, 0xFFFFFFFF, alpha(VOID, 0.8f), alpha(VOID, 0)).force(0, -0.08f, 0).world().stretch(1.2f, 1.6f)
+						.bloom(STARLIGHT, 2f),
+				// Motes of the void sinking through the air
+				new PhotonFx.Emitter(life).ring(reach * 0.6f, 1).offset(0, 2.2f, 0).flow(2.5f).life(14, 20).speed(0, 0).size(0.1f, 0.16f)
+						.colors(0x00FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).force(0, -0.012f, 0).texture(MOTE).world().bloom(VOID, 1f));
+	}
+
+	/** The weight landing on one held creature: a ring snapping shut at its feet and streaks driving down onto it. */
+	private static void press(Level level, Entity target, float width, float height) {
+		float r = width + 0.6f;
+		PhotonFx.play(level, null, target, 0,
+				new PhotonFx.Emitter(8).ring(r, 0).offset(0, 0.08f, 0).burst(32).life(8, 8).speed(0, 0).size(0.15f, 0.2f)
+						.colors(alpha(VOID, 0), 0xF0FFFFFF, alpha(VOID, 0)).swirl(-r / 8 * 100, 0).flat().bloom(VOID, 2.2f),
+				new PhotonFx.Emitter(8).ring(width * 0.5f + 0.2f, 1).offset(0, height + 1.4f, 0).burst(8).life(6, 6).speed(0, 0).size(0.05f, 0.07f)
+						.colors(0xFFFFFFFF, alpha(VOID, 0)).force(0, -0.14f, 0).world().stretch(1.2f, 1.8f).bloom(STARLIGHT, 2f),
+				new PhotonFx.Emitter(8).ring(width * 0.6f, 1).offset(0, 0.06f, 0).burst(10).life(10, 10).speed(0, 0).size(0.4f, 0.5f)
+						.colors(alpha(DEEP, 0.6f), alpha(DEEP, 0)).flat().ink());
 	}
 
 	// ---- The black hole ---------------------------------------------------------------------------------------

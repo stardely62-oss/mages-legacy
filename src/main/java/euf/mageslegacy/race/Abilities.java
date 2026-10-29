@@ -101,6 +101,9 @@ public final class Abilities {
 	}
 
 	public static int cooldown(ServerPlayer player, Ability ability) {
+		if (ability == Ability.VOID_STEP && Talents.has(player, Talent.STEP_QUICK)) {
+			return 4 * 20;
+		}
 		if (ability == Ability.POCKET && Talents.has(player, Talent.POCKET_CHEAP)) {
 			return 5 * 20;
 		}

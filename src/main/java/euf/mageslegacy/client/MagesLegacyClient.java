@@ -8,6 +8,7 @@ import euf.mageslegacy.client.screen.TalentScreen;
 import euf.mageslegacy.net.AbilityPayload;
 import euf.mageslegacy.net.ChooseRacePayload;
 import euf.mageslegacy.net.FxPayload;
+import euf.mageslegacy.net.StepPayload;
 import euf.mageslegacy.net.SyncPayload;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -77,6 +78,10 @@ public class MagesLegacyClient {
 		ClientRace.update(payload);
 	}
 
+	public static void onStep(StepPayload payload) {
+		ClientStep.start(payload);
+	}
+
 	public static void onFx(FxPayload payload) {
 		VoidFx.play(payload);
 	}
@@ -93,6 +98,7 @@ public class MagesLegacyClient {
 		Minecraft client = Minecraft.getInstance();
 		ClientRace.tick();
 		ScreenFx.tick();
+		ClientStep.tick();
 		// The loading screen closes itself when the terrain arrives, so the legend waits for it instead of being closed with it
 		if (choicePending && client.player != null && !(client.screen instanceof ReceivingLevelScreen) && client.getOverlay() == null) {
 			choicePending = false;
@@ -119,7 +125,7 @@ public class MagesLegacyClient {
 
 	/** Walking through a wall shows the void, not the wall's texture pressed against the eyes. */
 	private static void onBlockOverlay(RenderBlockScreenEffectEvent event) {
-		if (ClientRace.stepping() || ScreenFx.inVoid()) {
+		if (ClientRace.stepping() || ClientStep.active() || ScreenFx.inVoid()) {
 			event.setCanceled(true);
 		}
 	}
@@ -130,7 +136,7 @@ public class MagesLegacyClient {
 
 	/** In the in-between the hands can't reach anything. */
 	private static void onInteract(InputEvent.InteractionKeyMappingTriggered event) {
-		if (ClientRace.stepping()) {
+		if (ClientRace.stepping() || ClientStep.active()) {
 			event.setCanceled(true);
 			event.setSwingHand(false);
 		}
