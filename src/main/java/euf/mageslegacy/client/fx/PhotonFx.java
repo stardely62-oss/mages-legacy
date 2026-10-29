@@ -198,7 +198,8 @@ final class PhotonFx {
 				}
 			}
 			TextureMaterial material = texture == null ? new TextureMaterial() : new TextureMaterial(texture);
-			material.setHdr(new HDRColor(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f, 1, intensity));
+			// Half of what the effects ask: whole layers of emission add up fast and wash into white
+			material.setHdr(new HDRColor(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f, 1, intensity * 0.45f));
 			MaterialSetting setting = new MaterialSetting(material);
 			setting.setRenderStateSource(MaterialSetting.RenderStateSource.CUSTOM);
 			setting.setBlend(BlendMode.Preset.ADDITIVE.create());

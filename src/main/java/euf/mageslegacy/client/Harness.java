@@ -233,6 +233,10 @@ final class Harness {
 			check("black hole pulled and crushed the husk (" + husk.getHealth() + ", d=" + String.format("%.1f", husk.distanceTo(player)) + ")",
 					!husk.isAlive() || husk.getHealth() < husk.getMaxHealth() - 8);
 			check("collapse left the Voidborn alive (" + player.getHealth() + ")", player.getHealth() >= 1 && player.isAlive());
+			server().execute(() -> {
+				husk.discard();
+				player.setHealth(player.getMaxHealth());
+			});
 		}, 5);
 
 		// The second Awakening: the superlate trial is marked passed, the arena path learnt, Alt opens the arena

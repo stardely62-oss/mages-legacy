@@ -199,7 +199,7 @@ public final class VoidFx {
 			drift.add(new Vector3f((hash(count, i) - 0.5f) * 0.05f, (hash(count, i + 300) - 0.3f) * 0.04f, (hash(count, i + 600) - 0.5f) * 0.05f));
 		}
 		emitters.add(new PhotonFx.Emitter(ticks).points(along, drift).burst(along.size()).life(12, ticks + 8).speed(0, 0).size(0.04f, 0.07f)
-				.colors(0xFFFFFFFF, alpha(VOID, 0.9f), alpha(VOID, 0)).trail(0.4f).bloom(0xFFFFFF, 3f));
+				.colors(0xFFFFFFFF, alpha(VOID, 0.9f), alpha(VOID, 0)).trail(0.2f).bloom(0xFFFFFF, 2f));
 		PhotonFx.play(level, a, null, 0, emitters.toArray(PhotonFx.Emitter[]::new));
 	}
 
@@ -282,7 +282,7 @@ public final class VoidFx {
 	private static void motes(Level level, Entity around, float radius, int ticks) {
 		PhotonFx.play(level, null, around, 0,
 				new PhotonFx.Emitter(ticks).sphere(radius, 0.35f).offset(0, 1, 0).flow(5).life(10, 14).speed(0, 0).size(0.12f, 0.2f)
-						.colors(0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(-22, 6).texture(MOTE).world().trail(0.5f).bloom(VOID, 2f),
+						.colors(0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(-22, 6).texture(MOTE).world().trail(0.15f).bloom(VOID, 1.2f),
 				new PhotonFx.Emitter(ticks).ring(radius * 1.2f, 0).offset(0, 0.1f, 0).flow(0.5f).life(16, 24).speed(0, 0).size(0.1f, 0.14f)
 						.colors(0x00FFFFFF, 0xFFFFFFFF, 0x40FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).texture(STAR).world().bloom(0xFFFFFF, 2.5f),
 				// The weight itself: streaks of light driven down onto the cracks
@@ -326,21 +326,21 @@ public final class VoidFx {
 						.size(0.45f, 0.6f).colors(0xFF000000, 0xFF000000).ink(),
 				new PhotonFx.Emitter(life).sphere(core * 1.9f, 0.45f).offset(0, 1.2f, 0).burst(80).life(life, life).speed(0, 0).size(0.5f, 0.7f)
 						.colors(alpha(0xFF0A0418, 0.55f), alpha(0xFF0A0418, 0.55f)).ink(),
-				new PhotonFx.Emitter(life).points(rim, null).offset(0, 1.2f, 0).burst(rim.size()).life(life, life).speed(0, 0).size(0.12f, 0.14f)
-						.colors(0xF2F4EEFF, 0xF2F4EEFF).bloom(0xFFFFFF, 6f),
+				new PhotonFx.Emitter(life).points(rim, null).offset(0, 1.2f, 0).burst(rim.size()).life(life, life).speed(0, 0).size(0.09f, 0.11f)
+						.colors(0xF2F4EEFF, 0xF2F4EEFF).bloom(0xFFFFFF, 3f),
 				new PhotonFx.Emitter(life).points(rim, null).offset(0, 1.2f, 0).burst(rim.size()).life(life, life).speed(0, 0).size(0.35f, 0.4f)
 						.colors(alpha(VOID, 0.45f), alpha(VOID, 0.45f)).bloom(VOID, 2.5f));
 		// The disk: violet fire spiralling in on a tilted plane, white-hot by the core; stars on its rim
 		Quaternionf tilt = new Quaternionf().rotateX(0.3f).rotateZ(0.15f);
 		PhotonFx.Emitter disk = new PhotonFx.Emitter(life).ring(radius, 0.35f).offset(0, 1.2f, 0).flow(14).life(14, 20).speed(0, 0).size(0.18f, 0.3f)
-				.colors(alpha(0xFF3A1C70, 0), alpha(VOID, 0.9f), 0xE6FFF0FF, 0x00FFF0FF).swirl(-12, 14).trail(0.35f).bloom(VOID, 3f);
+				.colors(alpha(0xFF3A1C70, 0), alpha(VOID, 0.9f), 0xE6FFF0FF, 0x00FFF0FF).swirl(-12, 14).trail(0.2f).bloom(VOID, 1.6f);
 		disk.emitter.updateRotation(tilt);
 		PhotonFx.Emitter stars = new PhotonFx.Emitter(life).ring(radius * 1.4f, 0.05f).offset(0, 1.2f, 0).flow(0.6f).life(16, 24).speed(0, 0)
-				.size(0.09f, 0.13f).colors(0x00FFFFFF, 0xFFFFFFFF, 0x50FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(0, 4).texture(STAR).bloom(0xFFFFFF, 3f);
+				.size(0.07f, 0.1f).colors(0x00FFFFFF, 0xFFFFFFFF, 0x50FFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(0, 4).texture(STAR).bloom(0xFFFFFF, 1.5f);
 		stars.emitter.updateRotation(tilt);
 		PhotonFx.play(level, null, heart, 0, swell, disk, stars,
-				new PhotonFx.Emitter(life).sphere(radius * 2.4f, 0.3f).offset(0, 1.2f, 0).flow(6).life(10, 14).speed(0, 0).size(0.12f, 0.2f)
-						.colors(0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(-40, 8).texture(MOTE).trail(0.5f).bloom(VOID, 2.5f));
+				new PhotonFx.Emitter(life).sphere(radius * 2.4f, 0.3f).offset(0, 1.2f, 0).flow(6).life(10, 14).speed(0, 0).size(0.1f, 0.16f)
+						.colors(0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF).swirl(-25, 8).texture(MOTE).trail(0.15f).bloom(VOID, 1.2f));
 	}
 
 	// ---- Helpers ----------------------------------------------------------------------------------------------
