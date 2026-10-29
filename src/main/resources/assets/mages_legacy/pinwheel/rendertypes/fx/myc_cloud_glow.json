@@ -8,15 +8,27 @@
   "layers": [
     {
       "type": "veil:shader",
-      "name": "mages_legacy:fx/mushroom"
+      "name": "mages_legacy:fx/sprite"
+    },
+    {
+      "type": "minecraft:texture",
+      "texture": "mages_legacy:textures/fx/myc_cloud.png"
     },
     {
       "type": "minecraft:transparency",
-      "mode": "translucent"
+      "mode": "additive"
+    },
+    {
+      "type": "minecraft:write_mask",
+      "depth": false
     },
     {
       "type": "minecraft:cull",
       "face": "none"
+    },
+    {
+      "type": "minecraft:output",
+      "framebuffer": "veil:bloom"
     }
   ]
 }

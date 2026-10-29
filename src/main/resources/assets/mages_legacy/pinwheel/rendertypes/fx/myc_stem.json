@@ -8,15 +8,15 @@
   "layers": [
     {
       "type": "veil:shader",
-      "name": "mages_legacy:fx/spore"
+      "name": "mages_legacy:fx/sprite"
+    },
+    {
+      "type": "minecraft:texture",
+      "texture": "mages_legacy:textures/fx/myc_stem.png"
     },
     {
       "type": "minecraft:transparency",
       "mode": "translucent"
-    },
-    {
-      "type": "minecraft:write_mask",
-      "depth": false
     },
     {
       "type": "minecraft:cull",

@@ -21,9 +21,15 @@ final class FxDraw {
 	static final String ORB = "fx/orb";
 	static final String STAR = "fx/sprite_star";
 	static final String MOTE = "fx/sprite_mote";
-	/** The Mycelid's effects and the Great Bloom's mushroom. */
-	static final String SPORE = "fx/spore";
-	static final String MUSHROOM = "fx/mushroom";
+	/** The Mycelid's painted textures: the mushroom's surfaces and the glowing decals. */
+	static final String CAP = "fx/myc_cap";
+	static final String GILLS = "fx/myc_gills";
+	static final String STEM = "fx/myc_stem";
+	static final String CLOUD = "fx/myc_cloud";
+	static final String SPIRAL = "fx/myc_spiral";
+	static final String AURA = "fx/myc_aura";
+	static final String FIELD = "fx/myc_field";
+	static final String THREAD = "fx/myc_thread";
 
 	/** The ground shader's modes, in its blue channel. */
 	static final float CRACKS = 0.1f;
@@ -82,6 +88,46 @@ final class FxDraw {
 			VertexConsumer vc = buffers.getBuffer(type);
 			for (int i = 0; i < 4; i++) {
 				vertex(vc, corners[i].subtract(cam), us[i], vs[i], r, g, b, a);
+			}
+		}
+	}
+
+	/**
+	 * A painted texture on a quad (the Mycelid's decals): its colour tinted by r, g, b and faded by a; the glow twin
+	 * (into the bloom) as strong as {@code glow} times that.
+	 */
+	void paint(String name, Vec3 centre, Vec3 halfU, Vec3 halfV, float r, float g, float b, float a, float glow) {
+		Vec3 c = centre.subtract(cam);
+		Vec3[] corners = {c.subtract(halfU).subtract(halfV), c.add(halfU).subtract(halfV), c.add(halfU).add(halfV), c.subtract(halfU).add(halfV)};
+		float[] us = {0, 1, 1, 0};
+		float[] vs = {0, 0, 1, 1};
+		paintRaw(name, corners, us, vs, r, g, b, a, glow);
+	}
+
+	/** A painted texture on a quad of its own four corners (world positions) and texture coordinates. */
+	void paintStrip(String name, Vec3[] corners, float[] us, float[] vs, float r, float g, float b, float a, float glow) {
+		Vec3[] rel = new Vec3[4];
+		for (int i = 0; i < 4; i++) {
+			rel[i] = corners[i].subtract(cam);
+		}
+		paintRaw(name, rel, us, vs, r, g, b, a, glow);
+	}
+
+	private void paintRaw(String name, Vec3[] rel, float[] us, float[] vs, float r, float g, float b, float a, float glow) {
+		RenderType plain = type(name, false);
+		if (plain != null) {
+			VertexConsumer vc = buffers.getBuffer(plain);
+			for (int i = 0; i < 4; i++) {
+				vertex(vc, rel[i], us[i], vs[i], r, g, b, a);
+			}
+		}
+		if (glow > 0) {
+			RenderType bloom = type(name, true);
+			if (bloom != null) {
+				VertexConsumer vc = buffers.getBuffer(bloom);
+				for (int i = 0; i < 4; i++) {
+					vertex(vc, rel[i], us[i], vs[i], 1, 1, 1, a * glow);
+				}
 			}
 		}
 	}

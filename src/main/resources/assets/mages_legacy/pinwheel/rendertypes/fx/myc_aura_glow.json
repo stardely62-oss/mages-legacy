@@ -8,7 +8,11 @@
   "layers": [
     {
       "type": "veil:shader",
-      "name": "mages_legacy:fx/spore_glow"
+      "name": "mages_legacy:fx/sprite"
+    },
+    {
+      "type": "minecraft:texture",
+      "texture": "mages_legacy:textures/fx/myc_aura.png"
     },
     {
       "type": "minecraft:transparency",

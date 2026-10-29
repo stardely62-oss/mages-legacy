@@ -1,0 +1,26 @@
+{
+  "format": "POSITION_TEX_COLOR",
+  "mode": "QUADS",
+  "bufferSize": "TRANSIENT",
+  "sort": false,
+  "affectsCrumbling": false,
+  "outline": false,
+  "layers": [
+    {
+      "type": "veil:shader",
+      "name": "mages_legacy:fx/sprite"
+    },
+    {
+      "type": "minecraft:texture",
+      "texture": "mages_legacy:textures/fx/myc_cap.png"
+    },
+    {
+      "type": "minecraft:transparency",
+      "mode": "translucent"
+    },
+    {
+      "type": "minecraft:cull",
+      "face": "none"
+    }
+  ]
+}

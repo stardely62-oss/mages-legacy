@@ -8,11 +8,15 @@
   "layers": [
     {
       "type": "veil:shader",
-      "name": "mages_legacy:fx/mushroom_glow"
+      "name": "mages_legacy:fx/sprite"
+    },
+    {
+      "type": "minecraft:texture",
+      "texture": "mages_legacy:textures/fx/myc_spiral.png"
     },
     {
       "type": "minecraft:transparency",
-      "mode": "additive"
+      "mode": "translucent"
     },
     {
       "type": "minecraft:write_mask",
@@ -21,10 +25,6 @@
     {
       "type": "minecraft:cull",
       "face": "none"
-    },
-    {
-      "type": "minecraft:output",
-      "framebuffer": "veil:bloom"
     }
   ]
 }
