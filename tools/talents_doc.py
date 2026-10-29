@@ -7,14 +7,21 @@ root = pathlib.Path(__file__).resolve().parent.parent
 src = (root / "src/main/java/euf/mageslegacy/race/Talent.java").read_text()
 lang = json.loads((root / "src/main/resources/assets/mages_legacy/lang/ru_ru.json").read_text())
 
-rows = re.findall(r'^\t([A-Z_0-9]+)\(Race\.(\w+), Kind\.(\w+), Branch\.(\w+), [\d.f]+, (\d+), (\d+), (\d+), "[^"]*"((?:, "[^"]*")*)\)', src, re.M)
+rows = re.findall(r'^\t([A-Z_0-9]+)\(Race\.(\w+), Kind\.(\w+), Branch\.(\w+), [\d.f]+, -?\d+, (\d+), (\d+), "[^"]*"((?:, "[^"]*")*)\)', src, re.M)
+tier3 = set(re.search(r'case (.*?) -> 3;', src, re.S).group(1).replace("\n", " ").replace("\t", "").split(", "))
+tier2 = set(re.search(r'case ([^;]*?) -> 2;', src, re.S).group(1).replace("\n", " ").replace("\t", "").split(", "))
+ids = {name.lower() for name, *_ in rows}
+awakening_children = {}
 
-def tier(kind, row):
-    # As Talent.tier(): the grid's rows are the tiers
+def tier(name, kind, requires):
     if kind in ("CORE", "BASIC"):
         return None
-    row = int(row)
-    return 1 if row <= 1 else 2 if row == 2 else 3 if row <= 4 else 4
+    if kind == "AWAKENING" or name == "WORLDS_CHARGE_3":
+        return 4
+    for r in requires:
+        if r.startswith("awakening_"):
+            return 4
+    return 3 if name in tier3 else 2 if name in tier2 else 1
 
 branches = {"CORE": "Ядро и базовые способности", "RIFT": "Разлом пространства", "WORLDS": "Сквозь миры", "GRAVITY": "Гравитация",
             "CROSS": "Перекрёстные таланты"}
@@ -30,10 +37,10 @@ for branch, title in branches.items():
     if not items:
         continue
     out += [f"## {title}", "", "| Талант | Тип | Ярус | Цена | Нужен один из | Что делает |", "|---|---|---|---|---|---|"]
-    for name, race, kind, br, row, cost, auto, req in items:
+    for name, race, kind, br, cost, auto, req in items:
         tid = name.lower()
         requires = re.findall(r'"([^"]+)"', req)
-        t = tier(kind, row)
+        t = tier(name, kind, requires)
         key = f"mages_legacy.talent.{tid}"
         title_ = lang.get(key + ".name", tid)
         desc = lang.get(key + ".desc", "")
