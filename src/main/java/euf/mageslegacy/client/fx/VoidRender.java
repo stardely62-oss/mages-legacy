@@ -149,8 +149,16 @@ public final class VoidRender {
 		}
 	}
 
+	/** Effects started while the effects tick (one effect starting another) wait here until the tick is over. */
+	private static final List<Effect> STARTED = new ArrayList<>();
+	private static boolean ticking;
+
 	static void add(Effect effect) {
-		EFFECTS.add(effect);
+		if (ticking) {
+			STARTED.add(effect);
+		} else {
+			EFFECTS.add(effect);
+		}
 	}
 
 	static void add(Particle particle) {
@@ -170,7 +178,14 @@ public final class VoidRender {
 		lensHeart = null;
 		HIDDEN.replaceAll((id, left) -> left - 1);
 		HIDDEN.values().removeIf(left -> left <= 0);
-		EFFECTS.removeIf(e -> !e.tick());
+		ticking = true;
+		try {
+			EFFECTS.removeIf(e -> !e.tick());
+		} finally {
+			ticking = false;
+		}
+		EFFECTS.addAll(STARTED);
+		STARTED.clear();
 		for (Iterator<Particle> it = PARTICLES.iterator(); it.hasNext(); ) {
 			if (!it.next().tick()) {
 				it.remove();

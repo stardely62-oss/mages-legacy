@@ -58,7 +58,7 @@ public final class Fx {
 	public static final int SPORE_CLOUD = 19;
 	/** A thread of the symbiosis to one sharing it (entity), from the caster (b: the caster's id; a: the reach, only on the caster's own). */
 	public static final int BOND = 20;
-	/** A reserve body growing beside its node (from: the body's feet, to: the node) for this many ticks. */
+	/** A reserve body standing beside its node until used (from: its feet, to: the node; ticks: left to grow, a: of how many; ticks < 0: gone). */
 	public static final int BODY = 21;
 	/** Mycelial Rebirth: a body coming apart into spores (b: 1) or a reserve body gathering and standing up (b: 0). */
 	public static final int WAKE = 22;
@@ -120,8 +120,9 @@ public final class Fx {
 		send(level, ally.position(), new FxPayload(BOND, ally.getId(), ally.position(), ally.position(), ticks, radius, caster.getId()));
 	}
 
-	public static void body(ServerLevel level, Vec3 at, Vec3 node, int ticks) {
-		send(level, at, new FxPayload(BODY, -1, at, node, ticks, 0, 0));
+	/** A reserve body standing at its node: left of total ticks still to grow; left below 0 takes it away. */
+	public static void body(ServerLevel level, Vec3 at, Vec3 node, int left, int total) {
+		send(level, at, new FxPayload(BODY, -1, at, node, left, total, 0));
 	}
 
 	public static void wake(ServerLevel level, Vec3 at, boolean out) {

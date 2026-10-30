@@ -409,14 +409,38 @@ public final class MyceliumNetwork extends SavedData {
 		net.bodyReady.put(player.getUUID(), now + ticks);
 		net.setDirty();
 		ServerLevel level = player.serverLevel();
-		// The body grows on the side of the node the grower stands on
-		Vec3 nodeAt = Vec3.atBottomCenterOf(at.pos);
-		Vec3 toward = new Vec3(player.getX() - nodeAt.x, 0, player.getZ() - nodeAt.z);
-		toward = toward.lengthSqr() < 0.01 ? new Vec3(1, 0, 0) : toward.normalize();
-		Fx.body(level, nodeAt.add(toward.scale(1.4)), nodeAt, ticks);
+		Fx.body(level, bodySpot(level, at.pos), Vec3.atBottomCenterOf(at.pos), ticks, ticks);
 		level.playSound(null, at.pos, SoundEvents.ROOTED_DIRT_PLACE, SoundSource.BLOCKS, 1f, 0.6f);
 		player.displayClientMessage(Component.translatable("mages_legacy.message.body_started", at.name, ticks / 20).withStyle(ChatFormatting.GREEN), true);
 		return null;
+	}
+
+	/** Where a reserve body stands beside its node: the first open side, else on top of it. */
+	static Vec3 bodySpot(ServerLevel level, BlockPos node) {
+		for (net.minecraft.core.Direction d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+			BlockPos p = node.relative(d);
+			if (level.getBlockState(p).getCollisionShape(level, p).isEmpty() && level.getBlockState(p.above()).getCollisionShape(level, p.above()).isEmpty()) {
+				return Vec3.atBottomCenterOf(p);
+			}
+		}
+		return Vec3.atBottomCenterOf(node.above());
+	}
+
+	/**
+	 * Shows every reserve body standing by its node to the players near it, again every 5 s: so it stands there until
+	 * used, seen after a relog or a walk up to it.
+	 */
+	private static void showBodies(MinecraftServer server, MyceliumNetwork net) {
+		for (Map.Entry<UUID, String> e : net.bodies.entrySet()) {
+			Node node = net.nodes.get(e.getValue());
+			ServerLevel level = node == null ? null : server.getLevel(node.dim);
+			if (level == null || !level.isLoaded(node.pos)) {
+				continue;
+			}
+			long left = Math.max(0, net.bodyReady.getOrDefault(e.getKey(), 0L) - level.getGameTime());
+			int total = net.growerHas(e.getKey(), Talent.REBIRTH_FAST) ? BODY_TICKS / 2 : BODY_TICKS;
+			Fx.body(level, bodySpot(level, node.pos), Vec3.atBottomCenterOf(node.pos), (int) left, total);
+		}
 	}
 
 	/** Where a woken reserve body stands. */
@@ -440,6 +464,7 @@ public final class MyceliumNetwork extends SavedData {
 		net.bodies.remove(player.getUUID());
 		net.bodyReady.remove(player.getUUID());
 		net.setDirty();
+		Fx.body(level, at, Vec3.atBottomCenterOf(node.pos), -1, 0);
 		return new Waking(level, at);
 	}
 
@@ -731,6 +756,9 @@ public final class MyceliumNetwork extends SavedData {
 	private static void onServerTick(ServerTickEvent.Post event) {
 		MinecraftServer server = event.getServer();
 		MyceliumNetwork net = get(server);
+		if (server.getTickCount() % 100 == 0) {
+			showBodies(server, net);
+		}
 		for (Iterator<Map.Entry<UUID, Journey>> it = JOURNEYS.entrySet().iterator(); it.hasNext(); ) {
 			Journey j = it.next().getValue();
 			ServerPlayer player = server.getPlayerList().getPlayer(j.player());

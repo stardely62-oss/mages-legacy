@@ -377,44 +377,100 @@ final class MycelidFx {
 
 	// ---- The reserve body -------------------------------------------------------------------------------------
 
+	/** The reserve bodies the server has shown, by their node; each stays until it is used or no longer shown. */
+	private static final java.util.Map<Long, Body> BODIES = new java.util.HashMap<>();
+
+	/** A reserve body standing at a node: this many ticks left to grow out of this many (below 0: it is gone). */
+	static void body(Vec3 at, Vec3 node, int left, int total) {
+		long key = net.minecraft.core.BlockPos.containing(node).asLong();
+		Body b = BODIES.get(key);
+		if (left < 0) {
+			if (b != null) {
+				b.gone = true;
+			}
+			return;
+		}
+		if (b == null || !VoidRender.EFFECTS.contains(b)) {
+			b = new Body(key, at, node, left, total);
+			BODIES.put(key, b);
+			VoidRender.add(b);
+		} else {
+			b.seen(at, left);
+		}
+	}
+
+	private static long gameTime() {
+		var level = Minecraft.getInstance().level;
+		return level == null ? 0 : level.getGameTime();
+	}
+
 	/**
-	 * A reserve body growing beside its node for the length of the growth: a blocky figure in the node's own pixel stem that forms from the feet
-	 * up in the first seconds, then thickens and brightens while spores stream into it from the node, and lights up as
-	 * it ripens. Six boxes (about 36 quads).
+	 * A reserve body standing beside its node until it is used: a blocky figure in the node's own pixel stem. Seen
+	 * from its first moments, it forms from the feet up; while it grows, spores stream into it from the node and it
+	 * thickens and brightens; ripe, it lights up once and then stands breathing. The server shows it again every few
+	 * seconds, so it is there after a relog or a walk up to it; unseen for 15 s (out of reach), it fades.
 	 */
 	static final class Body extends VoidRender.Effect {
 		private static final int FORM = 100;
-		final Vec3 at;
+		private static final int LOST = 300;
+		final long key;
 		final Vec3 node;
-		final double yaw;
+		final int total;
+		final boolean forming;
+		Vec3 at;
+		double yaw;
+		long readyAt;
+		int lastSeen;
+		boolean ripeShown;
+		boolean gone;
 
-		Body(Vec3 at, Vec3 node, int ticks) {
-			super(ticks);
-			this.at = at;
+		Body(long key, Vec3 at, Vec3 node, int left, int total) {
+			super(Integer.MAX_VALUE);
+			this.key = key;
 			this.node = node;
+			this.total = Math.max(1, total);
+			this.forming = total - left < FORM;
+			this.ripeShown = left <= 0;
+			seen(at, left);
+			if (forming) {
+				burst(at, 2, 16);
+			}
+		}
+
+		void seen(Vec3 at, int left) {
+			this.at = at;
 			this.yaw = Math.atan2(node.z - at.z, node.x - at.x) - Math.PI / 2;
-			burst(at, 2, 16);
+			this.readyAt = gameTime() + left;
+			this.lastSeen = age;
 		}
 
 		@Override
 		boolean tick() {
-			if (age % 3 == 0) {
+			if (gone || age - lastSeen > LOST) {
+				BODIES.remove(key, this);
+				return false;
+			}
+			long left = readyAt - gameTime();
+			if (left > 0 && age % 3 == 0) {
 				// Spores flowing from the node into the body, and rising off the ground round it
 				Vec3 from = node.add(VoidRender.rand(-0.2, 0.2), VoidRender.rand(0.3, 0.8), VoidRender.rand(-0.2, 0.2));
 				Vec3 to = at.add(0, 1, 0);
-				VoidRender.Particle p = new VoidRender.Particle(from, to.subtract(from).normalize().scale(0.08), 30, 0.1f, mote(), true, 0.97f, 0.5f);
+				VoidRender.Particle p = spore(from, to.subtract(from).normalize().scale(0.08), 30, 0.08, 0.97f);
 				p.attract = to;
 				p.pull = 0.04f;
-				if (VoidRender.PARTICLES.size() < MOTE_CAP) {
-					VoidRender.add(p);
-				}
+				add(p);
 				double a = VoidRender.rand(0, Math.PI * 2);
-				moteAt(at.add(Math.cos(a) * 0.8, 0.05, Math.sin(a) * 0.8), new Vec3(0, VoidRender.rand(0.03, 0.06), 0), 20, VoidRender.rand(0.07, 0.12));
+				add(spore(at.add(Math.cos(a) * 0.8, 0.05, Math.sin(a) * 0.8), new Vec3(0, VoidRender.rand(0.03, 0.06), 0), 20, 0.07, 0.97f));
 			}
-			if (age == ticks - 1) {
+			if (left <= 0 && !ripeShown) {
 				// Ripe: a flash of spores and a wave on the ground
+				ripeShown = true;
 				burst(at, 3, 30);
 				VoidRender.add(new Ring(at, 0.3f, 3, 14));
+			}
+			if (left <= 0 && age % 12 == 0) {
+				// Ripe and waiting: a spore now and then breathed off it
+				add(spore(at.add(VoidRender.rand(-0.3, 0.3), VoidRender.rand(0.5, 1.8), VoidRender.rand(-0.3, 0.3)), new Vec3(0, 0.02, 0), 30, 0.07, 0.97f));
 			}
 			return super.tick();
 		}
@@ -426,12 +482,13 @@ final class MycelidFx {
 		@Override
 		void draw(FxDraw draw, float partial) {
 			float life = life(partial);
-			float form = Math.min(1, life / FORM);
-			float solid = life / ticks;
-			float ripe = Math.max(0, (life - (ticks - 20)) / 20f);
-			float a = Math.min(1, life / 8f) * Math.min(1, (ticks - life) / 6f) * (0.75f + 0.25f * solid);
-			float pulse = 0.85f + 0.15f * (float) Math.sin(life * 0.2) + 0.4f * ripe;
-			decal(draw, FxDraw.AURA, at.add(0, 0.05, 0), 1.3f, life * 0.03, a * 0.7f);
+			float form = forming ? Math.min(1, life / FORM) : 1;
+			long left = readyAt - gameTime();
+			float solid = (float) Math.max(0, Math.min(1, 1 - left / (double) total));
+			float lost = Math.max(0, (age - lastSeen - (LOST - 20)) / 20f);
+			float a = Math.min(1, life / 8f) * (1 - lost) * (0.75f + 0.25f * solid);
+			float pulse = left > 0 ? 0.85f + 0.15f * (float) Math.sin(life * 0.2) : 0.95f + 0.08f * (float) Math.sin(life * 0.08);
+			decal(draw, FxDraw.AURA, at.add(0, 0.05, 0), 1.3f, life * 0.03, a * 0.6f);
 			// legs, torso, arms, head: each from its own part of the forming
 			box(draw, 0.13, 0, 0.25, 0.7, 0.25, grown(form, 0, 0.3), pulse, a);
 			box(draw, -0.13, 0, 0.25, 0.7, 0.25, grown(form, 0, 0.3), pulse, a);
@@ -439,9 +496,10 @@ final class MycelidFx {
 			box(draw, 0.35, 0.7, 0.2, 0.7, 0.2, grown(form, 0.5, 0.8), pulse, a);
 			box(draw, -0.35, 0.7, 0.2, 0.7, 0.2, grown(form, 0.5, 0.8), pulse, a);
 			box(draw, 0, 1.4, 0.45, 0.45, 0.45, grown(form, 0.75, 1), pulse, a);
-			// The thread from the node, pulsing as it feeds
+			// The thread from the node, pulsing as it feeds (and resting once ripe)
 			Vec3 chest = at.add(0, 1.05, 0);
-			band(draw, FxDraw.THREAD, node.add(0, 0.4, 0), chest, 0.3f, a * (0.6f + 0.4f * (float) Math.sin(life * 0.35)) * Math.min(1, form * 2));
+			float feed = left > 0 ? 0.6f + 0.4f * (float) Math.sin(life * 0.35) : 0.35f;
+			band(draw, FxDraw.THREAD, node.add(0, 0.4, 0), chest, 0.3f, a * feed * Math.min(1, form * 2));
 		}
 
 		/** A box of the node's stem standing on the body's feet at this offset: grown from its base by g. */
