@@ -10,13 +10,15 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * The Mycelid's effects, built to be seen from every side and to cost almost nothing: a handful of painted quads
- * shaped into volumes (a dome of haze, spiral strands, the node block itself grown huge), no bloom on anything large, and a
- * hard cap on motes. Budget per effect: the cloud ~40 quads, a bond ~20, the storm ~36, a body ~40, the bloom ~16.
+ * where shapes are needed (spiral strands, a blocky body, the node block itself grown huge), pixel spores with drift and swirl for everything airborne, no bloom on anything large, and a
+ * hard cap on motes. The spores, the storm and the waking are pixel spores only (one quad each); a bond ~20 quads, a body ~40, the bloom ~16.
  */
 final class MycelidFx {
 	private static final int[] MOTES = {0xFF8CE07A, 0xFF7FE8C8, 0xFFB0F5C8, 0xFFE8D27A};
-	/** No Mycelid effect adds motes while this many particles are already alive. */
-	private static final int MOTE_CAP = 500;
+	/** Pale moss, teal, lichen and gold, a few darker: the colours of the spores. */
+	private static final int[] SPORES = {0xD8A6E07A, 0xD87FD8B8, 0xD8D8E89A, 0xD0E8D27A, 0xC86FA05A};
+	/** No Mycelid effect adds motes or spores while this many particles are already alive. */
+	private static final int MOTE_CAP = 900;
 
 	private MycelidFx() {
 	}
@@ -33,6 +35,19 @@ final class MycelidFx {
 	private static void moteAt(Vec3 at, Vec3 vel, int life, double size) {
 		if (VoidRender.PARTICLES.size() < MOTE_CAP) {
 			VoidRender.add(new VoidRender.Particle(at, vel, life, (float) size, mote(), true, 0.98f, 0.5f));
+		}
+	}
+
+	/** A pixel spore: one small quad, no glow. */
+	private static VoidRender.Particle spore(Vec3 at, Vec3 vel, int life, double size, float drag) {
+		VoidRender.Particle p = new VoidRender.Particle(at, vel, life, (float) size, SPORES[VoidRender.RANDOM.nextInt(SPORES.length)], false, drag, 0);
+		p.tex = FxDraw.SPORE;
+		return p;
+	}
+
+	private static void add(VoidRender.Particle p) {
+		if (VoidRender.PARTICLES.size() < MOTE_CAP) {
+			VoidRender.add(p);
 		}
 	}
 
@@ -65,24 +80,6 @@ final class MycelidFx {
 	}
 
 	/**
-	 * A painted puff facing the camera, turned in its own plane. It fades out near the eyes, so standing inside a
-	 * cloud never whites out the view.
-	 */
-	private static void puff(FxDraw draw, String tex, Vec3 at, float half, double angle, float a) {
-		Vec3 toCam = draw.cam.subtract(at);
-		float near = (float) Math.max(0, Math.min(1, (toCam.length() - 1.3) / 2.2));
-		Vec3 right = toCam.cross(new Vec3(0, 1, 0));
-		if (near <= 0 || right.lengthSqr() < 1.0E-6) {
-			return;
-		}
-		right = right.normalize();
-		Vec3 up = right.cross(toCam).normalize();
-		double cos = Math.cos(angle) * half;
-		double sin = Math.sin(angle) * half;
-		draw.paint(tex, at, right.scale(cos).add(up.scale(sin)), right.scale(-sin).add(up.scale(cos)), 0.72f, 0.85f, 0.75f, a * near, 0);
-	}
-
-	/**
 	 * A beaded strand winding up from base: this high, its radius widening from r0 to r1, turning this many times
 	 * (a funnel for the storm, a spiral round a body for the symbiosis). Eight segments.
 	 */
@@ -101,28 +98,6 @@ final class MycelidFx {
 		}
 	}
 
-	/** A dome of painted haze standing over a point: three rings of quads, turning. */
-	private static void dome(FxDraw draw, Vec3 c, float radius, float height, double turn, int around, float alpha) {
-		int rings = 3;
-		Vec3[][] grid = new Vec3[rings + 1][around + 1];
-		for (int j = 0; j <= rings; j++) {
-			double phi = 1.35 * j / rings;
-			double r = radius * Math.sin(phi);
-			double y = height * Math.cos(phi);
-			for (int i = 0; i <= around; i++) {
-				double t = turn + Math.PI * 2 * i / around;
-				grid[j][i] = c.add(Math.cos(t) * r, y, Math.sin(t) * r);
-			}
-		}
-		for (int j = 0; j < rings; j++) {
-			float edge = j == 0 ? 0.55f : 1f;
-			for (int i = 0; i < around; i++) {
-				draw.paintStrip(FxDraw.CLOUD, new Vec3[] {grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]}, new float[] {0, 1, 1, 0},
-						new float[] {0, 0, 1, 1}, 0.72f, 0.85f, 0.75f, alpha * edge, 0);
-			}
-		}
-	}
-
 	private static boolean firstPersonOn(Entity e) {
 		Minecraft mc = Minecraft.getInstance();
 		return e == mc.player && mc.options.getCameraType().isFirstPerson();
@@ -131,36 +106,30 @@ final class MycelidFx {
 	// ---- Neurospores ------------------------------------------------------------------------------------------
 
 	/**
-	 * A cloud of neurospores as a volume: a dome of haze standing over its whole reach (it swells out at the cast, then
-	 * turns slowly), soft puffs rising inside, spores streaming up its edge, and a dizzy halo of motes over the head of
-	 * every enemy inside, which is what the spores do to them.
+	 * A cloud of neurospores, all of it pixel spores and no pictures: a puff thrown out from the Mycelid fills the
+	 * volume, then the cloud lives on its own (spores drifting, churning slowly round its centre and rising), a rim of
+	 * spores creeping along the ground marks its reach, and spores circle the head of every enemy inside like stars
+	 * after a blow, which is what they do to them. About 150 spores, one small quad each.
 	 */
 	static final class Cloud extends VoidRender.Effect {
-		private static final int PUFFS = 6;
 		Vec3 at;
 		final Entity follow;
 		final float radius;
-		final double spin = VoidRender.rand(0, Math.PI * 2);
-		final float[] px = new float[PUFFS];
-		final float[] pz = new float[PUFFS];
-		final float[] phase = new float[PUFFS];
-		final float[] size = new float[PUFFS];
 
 		Cloud(Vec3 at, Entity follow, float radius, int ticks) {
 			super(ticks);
 			this.at = at;
 			this.follow = follow;
 			this.radius = radius;
-			for (int i = 0; i < PUFFS; i++) {
-				double a = VoidRender.rand(0, Math.PI * 2);
-				double r = radius * 0.7 * Math.sqrt(VoidRender.rand(0.1, 1));
-				px[i] = (float) (Math.cos(a) * r);
-				pz[i] = (float) (Math.sin(a) * r);
-				phase[i] = (float) VoidRender.rand(0, 1);
-				size[i] = (float) VoidRender.rand(1.1, 1.7);
+			// The puff: spores thrown out every way from the chest, slowing as they spread through the volume
+			Vec3 chest = at.add(0, 1.0, 0);
+			for (int i = 0; i < 80; i++) {
+				Vec3 dir = new Vec3(VoidRender.rand(-1, 1), VoidRender.rand(-0.3, 0.8), VoidRender.rand(-1, 1)).normalize();
+				VoidRender.Particle p = spore(chest, dir.scale(radius * VoidRender.rand(0.05, 0.11)), (int) VoidRender.rand(30, 50), VoidRender.rand(0.06, 0.12), 0.88f);
+				p.jitter = 0.004f;
+				p.gravity = new Vec3(0, 0.0008, 0);
+				add(p);
 			}
-			VoidRender.add(new Ring(at, 0.3f, radius, 14));
-			burst(at, radius, 30);
 		}
 
 		@Override
@@ -168,24 +137,38 @@ final class MycelidFx {
 			if (follow != null) {
 				at = follow.position();
 			}
-			if (age % 3 == 0) {
-				double e = VoidRender.rand(0, Math.PI * 2);
-				// Along the edge: spores streaming up, the cloud's reach
-				moteAt(at.add(Math.cos(e) * radius, VoidRender.rand(0.1, 0.5), Math.sin(e) * radius), new Vec3(0, VoidRender.rand(0.04, 0.07), 0), 28,
-						VoidRender.rand(0.1, 0.16));
+			// The body of the cloud: spores born all through the volume, low and wide, thinning upwards
+			for (int i = 0; i < 3; i++) {
+				double a = VoidRender.rand(0, Math.PI * 2);
+				double d = Math.sqrt(VoidRender.rand(0, 1));
+				double h = VoidRender.rand(0.1, 2.4) * (1 - d * d * 0.7);
+				VoidRender.Particle p = spore(at.add(Math.cos(a) * d * radius, h, Math.sin(a) * d * radius), Vec3.ZERO, (int) VoidRender.rand(30, 50),
+						VoidRender.rand(0.05, 0.11), 0.92f);
+				p.jitter = 0.006f;
+				p.swirlAt = at;
+				p.swirl = 0.004f;
+				p.gravity = new Vec3(0, 0.0006, 0);
+				add(p);
 			}
+			// The rim: spores creeping along the ground at the edge of the reach
+			double e = VoidRender.rand(0, Math.PI * 2);
+			VoidRender.Particle rim = spore(at.add(Math.cos(e) * radius, VoidRender.rand(0.05, 0.3), Math.sin(e) * radius), new Vec3(0, 0.01, 0), 30,
+					VoidRender.rand(0.06, 0.1), 0.95f);
+			rim.swirlAt = at;
+			rim.swirl = 0.003f;
+			add(rim);
+			// Stars round the heads of the enemies inside
 			var level = Minecraft.getInstance().level;
-			if (level != null && age % 6 == 0) {
+			if (level != null && age % 2 == 0) {
 				int shown = 0;
-				for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(at, at).inflate(radius, 4, radius), x -> x instanceof Enemy && x.isAlive())) {
-					if (shown++ >= 6 || e.position().distanceToSqr(at) > radius * radius) {
+				for (LivingEntity en : level.getEntitiesOfClass(LivingEntity.class, new AABB(at, at).inflate(radius, 4, radius), x -> x instanceof Enemy && x.isAlive())) {
+					if (shown++ >= 6 || en.position().distanceToSqr(at) > radius * radius) {
 						continue;
 					}
-					double ang = (age + e.getId() * 7) * 0.5;
-					Vec3 head = e.position().add(0, e.getBbHeight() + 0.25, 0);
-					for (int k = 0; k < 2; k++) {
-						double aa = ang + k * Math.PI;
-						moteAt(head.add(Math.cos(aa) * 0.4, 0, Math.sin(aa) * 0.4), new Vec3(-Math.sin(aa) * 0.1, 0.01, Math.cos(aa) * 0.1), 10, 0.1);
+					Vec3 head = en.position().add(0, en.getBbHeight() + 0.3, 0);
+					for (int k = 0; k < 3; k++) {
+						double ang = age * 0.35 + k * Math.PI * 2 / 3;
+						add(spore(head.add(Math.cos(ang) * 0.45, 0, Math.sin(ang) * 0.45), Vec3.ZERO, 8, 0.07, 0.9f));
 					}
 				}
 			}
@@ -194,22 +177,6 @@ final class MycelidFx {
 
 		@Override
 		void draw(FxDraw draw, float partial) {
-			float life = life(partial);
-			float a = fade(life, ticks, 6, 12);
-			Vec3 c = (follow != null ? follow.getPosition(partial) : at).add(0, 0.06, 0);
-			decal(draw, FxDraw.CLOUD, c, radius, spin + life * 0.012, a * 0.28f);
-			// The dome: it swells out in the first ticks, then breathes
-			float swell = VoidRender.easeOut(Math.min(1, life / 10f)) * (1 + 0.03f * (float) Math.sin(life * 0.15));
-			float height = Math.min(radius * 0.6f, 3.5f) * swell;
-			dome(draw, c, radius * swell, height, spin + life * 0.015, 10, a * 0.15f);
-			// Puffs rising through the volume, each swelling and dissolving on its way up
-			double cos = Math.cos(life * 0.008);
-			double sin = Math.sin(life * 0.008);
-			for (int i = 0; i < PUFFS; i++) {
-				float t = (life * 0.012f + phase[i]) % 1;
-				Vec3 p = c.add(px[i] * cos - pz[i] * sin, 0.3 + t * height * 0.8, px[i] * sin + pz[i] * cos);
-				puff(draw, FxDraw.CLOUD, p, size[i] * (0.7f + 0.6f * t), spin + i + life * 0.01, a * 0.3f * (float) Math.sin(Math.PI * t));
-			}
 		}
 	}
 
@@ -295,9 +262,10 @@ final class MycelidFx {
 	// ---- Spore Storm ------------------------------------------------------------------------------------------
 
 	/**
-	 * The Spore Storm, in the cloud's own language: a cyclone of spore clouds wheeling round the heart in two rings, a
-	 * low wall of haze turning at the edge of the area it rules, spore streams, and a thread of spores torn from every
-	 * enemy in the area and drawn into the heart (what the storm does: it takes their spores). 36 quads.
+	 * The Spore Storm, all of it pixel spores: a shock of spores sweeping out over the ground at the cast, then a
+	 * cyclone of hundreds wheeling round the heart (each held on its orbit and drawn slowly inward and up), an eye of
+	 * spores spiralling up close round the Mycelid, a thin ring creeping at the edge of the area it rules, and spores
+	 * torn from every enemy in the area and drawn into the heart (what the storm does: it takes their spores).
 	 */
 	static final class Storm extends VoidRender.Effect {
 		final Entity heart;
@@ -307,36 +275,68 @@ final class MycelidFx {
 			super(ticks);
 			this.heart = heart;
 			this.radius = radius;
-			VoidRender.add(new Ring(heart.position(), 0.5f, radius, 16));
-			burst(heart.position(), Math.min(radius, 12), 30);
+			// The shock: a wave of spores sweeping out low over the ground
+			Vec3 c = heart.position();
+			for (int i = 0; i < 140; i++) {
+				double a = VoidRender.rand(0, Math.PI * 2);
+				double v = VoidRender.rand(0.5, 1.0);
+				add(spore(c.add(0, VoidRender.rand(0.2, 1.4), 0), new Vec3(Math.cos(a) * v, VoidRender.rand(0, 0.04), Math.sin(a) * v), (int) VoidRender.rand(18, 28),
+						VoidRender.rand(0.08, 0.14), 0.9f));
+			}
 		}
 
 		@Override
 		boolean tick() {
 			Vec3 c = heart.position();
-			// Streams wheeling round the heart, a little higher the farther out
-			for (int i = 0; i < 3; i++) {
+			float reach = Math.min(radius, 14);
+			float in = Math.min(1, age / 10f);
+			// The cyclone: spores on orbits round the heart, faster near it, higher farther out
+			for (int i = 0; i < 9 * in; i++) {
 				double a = VoidRender.rand(0, Math.PI * 2);
-				double r = VoidRender.rand(2, Math.min(radius, 10));
-				Vec3 tangent = new Vec3(-Math.sin(a), 0, Math.cos(a)).scale(0.35);
-				moteAt(c.add(Math.cos(a) * r, 0.4 + r * 0.25 * VoidRender.rand(0.5, 1), Math.sin(a) * r), tangent.add(0, 0.02, 0), 24, VoidRender.rand(0.12, 0.2));
+				double r = reach * Math.sqrt(VoidRender.rand(0.04, 1));
+				double h = VoidRender.rand(0.1, 0.8 + r * 0.3);
+				Vec3 at = c.add(Math.cos(a) * r, h, Math.sin(a) * r);
+				double speed = 0.18 + 0.25 * (1 - r / reach);
+				VoidRender.Particle p = spore(at, new Vec3(-Math.sin(a) * speed, 0.01, Math.cos(a) * speed), (int) VoidRender.rand(30, 45), VoidRender.rand(0.06, 0.13),
+						0.97f);
+				p.swirlAt = c;
+				p.swirl = 0.006f;
+				// held on the orbit, sinking slowly inward and rising
+				p.attract = c.add(0, h + 1.5, 0);
+				p.pull = (float) (speed * speed / Math.max(1, r)) * 1.1f;
+				p.jitter = 0.004f;
+				add(p);
 			}
+			// The eye: spores spiralling up close round the Mycelid
+			for (int i = 0; i < 2; i++) {
+				double a = VoidRender.rand(0, Math.PI * 2);
+				double r = VoidRender.rand(0.7, 1.3);
+				VoidRender.Particle p = spore(c.add(Math.cos(a) * r, 0.1, Math.sin(a) * r), new Vec3(-Math.sin(a) * 0.25, 0.12, Math.cos(a) * 0.25), 30,
+						VoidRender.rand(0.06, 0.1), 0.96f);
+				p.swirlAt = c;
+				p.swirl = 0.02f;
+				add(p);
+			}
+			// The edge of the storm's rule
+			double e = VoidRender.rand(0, Math.PI * 2);
+			VoidRender.Particle rim = spore(c.add(Math.cos(e) * radius, VoidRender.rand(0.05, 0.4), Math.sin(e) * radius), new Vec3(0, 0.01, 0), 30, 0.09, 0.95f);
+			rim.swirlAt = c;
+			rim.swirl = 0.004f;
+			add(rim);
 			var level = Minecraft.getInstance().level;
-			if (level != null && age % 5 == 0) {
+			if (level != null && age % 3 == 0) {
 				int shown = 0;
-				for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(c, c).inflate(radius, 5, radius), x -> x instanceof Enemy && x.isAlive())) {
-					if (shown++ >= 8 || e.position().distanceToSqr(c) > radius * radius) {
+				for (LivingEntity en : level.getEntitiesOfClass(LivingEntity.class, new AABB(c, c).inflate(radius, 5, radius), x -> x instanceof Enemy && x.isAlive())) {
+					if (shown++ >= 8 || en.position().distanceToSqr(c) > radius * radius) {
 						continue;
 					}
-					// A spore torn from the enemy, drawn into the heart
-					Vec3 from = e.position().add(0, e.getBbHeight() * 0.6, 0);
+					// Spores torn from the enemy, drawn into the heart
+					Vec3 from = en.position().add(VoidRender.rand(-0.3, 0.3), en.getBbHeight() * VoidRender.rand(0.3, 0.9), VoidRender.rand(-0.3, 0.3));
 					Vec3 to = c.add(0, 1.2, 0);
-					VoidRender.Particle p = new VoidRender.Particle(from, to.subtract(from).normalize().scale(0.1), 40, 0.14f, mote(), true, 0.97f, 0.5f);
+					VoidRender.Particle p = spore(from, to.subtract(from).normalize().scale(0.15), 40, 0.1, 0.96f);
 					p.attract = to;
 					p.pull = 0.05f;
-					if (VoidRender.PARTICLES.size() < MOTE_CAP) {
-						VoidRender.add(p);
-					}
+					add(p);
 				}
 			}
 			return super.tick();
@@ -344,24 +344,6 @@ final class MycelidFx {
 
 		@Override
 		void draw(FxDraw draw, float partial) {
-			float life = life(partial);
-			float a = fade(life, ticks, 10, 15);
-			Vec3 c = heart.getPosition(partial);
-			float swell = VoidRender.easeOut(Math.min(1, life / 14f));
-			// The cyclone: two rings of spore clouds wheeling round the heart, the inner one faster and lower
-			ring(draw, c, 4 * swell, 1.0, 8, life * 0.09, 2.0f, a * 0.4f, life);
-			ring(draw, c, 7.5f * swell, 2.0, 10, life * 0.055 + 0.3, 2.6f, a * 0.32f, life);
-			// The edge of the storm's rule: a low wall of haze turning slowly
-			ring(draw, c, radius * swell, 0.7, 18, -life * 0.012, 1.8f, a * 0.14f, life);
-		}
-
-		/** A ring of camera-facing puffs round c, bobbing a little. */
-		private static void ring(FxDraw draw, Vec3 c, float r, double y, int count, double turn, float size, float alpha, float life) {
-			for (int i = 0; i < count; i++) {
-				double ang = turn + i * Math.PI * 2 / count;
-				double bob = 0.3 * Math.sin(life * 0.1 + i * 1.7);
-				puff(draw, FxDraw.CLOUD, c.add(Math.cos(ang) * r, y + bob, Math.sin(ang) * r), size, i * 1.3 + life * 0.02, alpha);
-			}
 		}
 	}
 
@@ -462,6 +444,70 @@ final class MycelidFx {
 						alpha, 0);
 			}
 			draw.paintStrip(FxDraw.NODE_STEM, top, new float[] {0, 1, 1, 0}, new float[] {0, 0, 1, 1}, 0.7f * light, light, 0.75f * light, alpha, 0);
+		}
+	}
+
+	// ---- Mycelial Rebirth: the waking ------------------------------------------------------------------------
+
+	/**
+	 * Where a Mycelid dies, the body comes apart into spores that drift up and away (out); where the reserve body
+	 * wakes, spores gather in from every side to one point and burst out over the ground as it stands up.
+	 */
+	static final class Wake extends VoidRender.Effect {
+		private static final int GATHER = 14;
+		final Vec3 at;
+		final boolean out;
+
+		Wake(Vec3 at, boolean out) {
+			super(out ? 2 : GATHER + 2);
+			this.at = at;
+			this.out = out;
+			if (out) {
+				// The body coming apart: spores all through its shape, scattering and rising
+				for (int i = 0; i < 90; i++) {
+					Vec3 from = at.add(VoidRender.rand(-0.35, 0.35), VoidRender.rand(0, 1.8), VoidRender.rand(-0.35, 0.35));
+					Vec3 vel = new Vec3(VoidRender.rand(-0.08, 0.08), VoidRender.rand(0.02, 0.1), VoidRender.rand(-0.08, 0.08));
+					VoidRender.Particle p = spore(from, vel, (int) VoidRender.rand(25, 45), VoidRender.rand(0.07, 0.13), 0.94f);
+					p.jitter = 0.006f;
+					p.gravity = new Vec3(0, 0.002, 0);
+					add(p);
+				}
+				return;
+			}
+			// Spores from a shell round the waking place, all drawn in to it
+			Vec3 heart = at.add(0, 1, 0);
+			for (int i = 0; i < 110; i++) {
+				Vec3 dir = new Vec3(VoidRender.rand(-1, 1), VoidRender.rand(-0.4, 1), VoidRender.rand(-1, 1)).normalize();
+				Vec3 from = heart.add(dir.scale(VoidRender.rand(2.5, 4)));
+				VoidRender.Particle p = spore(from, Vec3.ZERO, GATHER + 4, VoidRender.rand(0.07, 0.13), 0.9f);
+				p.attract = heart;
+				p.pull = 0.06f;
+				add(p);
+			}
+		}
+
+		@Override
+		boolean tick() {
+			if (!out && age == GATHER) {
+				// Standing up: a wave of spores out over the ground, and a puff up the new body
+				for (int i = 0; i < 90; i++) {
+					double a = VoidRender.rand(0, Math.PI * 2);
+					double v = VoidRender.rand(0.25, 0.5);
+					add(spore(at.add(0, VoidRender.rand(0.1, 0.4), 0), new Vec3(Math.cos(a) * v, VoidRender.rand(0, 0.03), Math.sin(a) * v), (int) VoidRender.rand(16, 24),
+							VoidRender.rand(0.07, 0.12), 0.88f));
+				}
+				for (int i = 0; i < 30; i++) {
+					VoidRender.Particle p = spore(at.add(VoidRender.rand(-0.3, 0.3), VoidRender.rand(0, 1.8), VoidRender.rand(-0.3, 0.3)),
+							new Vec3(0, VoidRender.rand(0.03, 0.08), 0), (int) VoidRender.rand(20, 30), 0.08, 0.95f);
+					p.jitter = 0.005f;
+					add(p);
+				}
+			}
+			return super.tick();
+		}
+
+		@Override
+		void draw(FxDraw draw, float partial) {
 		}
 	}
 

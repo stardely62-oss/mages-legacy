@@ -65,6 +65,13 @@ public final class VoidRender {
 		float pull;
 		Vec3 gravity = Vec3.ZERO;
 		Vec3 prev;
+		/** Its own sprite (an FxDraw name) instead of the mote or the star. */
+		String tex;
+		/** Wheels round this point's vertical axis, pushed along by swirl each tick. */
+		Vec3 swirlAt;
+		float swirl;
+		/** A random nudge each tick, this strong on each axis: drifting, churning. */
+		float jitter;
 
 		Particle(Vec3 pos, Vec3 vel, int life, float size, int argb, boolean star, float drag, float glow) {
 			this.pos = pos;
@@ -87,6 +94,17 @@ public final class VoidRender {
 					return false;
 				}
 				vel = vel.add(in.scale(pull / Math.max(0.3, d)));
+			}
+			if (swirlAt != null) {
+				double dx = pos.x - swirlAt.x;
+				double dz = pos.z - swirlAt.z;
+				double d = Math.sqrt(dx * dx + dz * dz);
+				if (d > 0.05) {
+					vel = vel.add(-dz / d * swirl, 0, dx / d * swirl);
+				}
+			}
+			if (jitter > 0) {
+				vel = vel.add((RANDOM.nextFloat() - 0.5f) * 2 * jitter, (RANDOM.nextFloat() - 0.5f) * 2 * jitter, (RANDOM.nextFloat() - 0.5f) * 2 * jitter);
 			}
 			vel = vel.scale(drag).add(gravity);
 			pos = pos.add(vel);
@@ -183,7 +201,7 @@ public final class VoidRender {
 					float fade = Math.min(1, (1 - t) * 3) * Math.min(1, (p.age + partial) / 2f);
 					int a = (int) (((p.argb >>> 24) & 0xFF) * Math.max(0, fade));
 					Vec3 at = p.prev.lerp(p.pos, partial);
-					draw.sprite(p.star ? FxDraw.STAR : FxDraw.MOTE, at, left, up, p.size, (a << 24) | (p.argb & 0xFFFFFF), p.glow);
+					draw.sprite(p.tex != null ? p.tex : p.star ? FxDraw.STAR : FxDraw.MOTE, at, left, up, p.size, (a << 24) | (p.argb & 0xFFFFFF), p.glow);
 				}
 				draw.finish();
 			}

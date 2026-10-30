@@ -71,6 +71,7 @@ public final class VoidFx {
 				}
 				case Fx.SPORE_CLOUD -> VoidRender.add(new MycelidFx.Cloud(payload.from(), follow, payload.a(), payload.ticks()));
 				case Fx.BODY -> VoidRender.add(new MycelidFx.Body(payload.from(), payload.to(), payload.ticks()));
+				case Fx.WAKE -> VoidRender.add(new MycelidFx.Wake(payload.from(), payload.b() > 0));
 				case Fx.BOND -> {
 					Entity caster = level.getEntity((int) payload.b());
 					if (follow != null) {

@@ -60,6 +60,8 @@ public final class Fx {
 	public static final int BOND = 20;
 	/** A reserve body growing beside its node (from: the body's feet, to: the node) for this many ticks. */
 	public static final int BODY = 21;
+	/** Mycelial Rebirth: a body coming apart into spores (b: 1) or a reserve body gathering and standing up (b: 0). */
+	public static final int WAKE = 22;
 
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
@@ -120,6 +122,10 @@ public final class Fx {
 
 	public static void body(ServerLevel level, Vec3 at, Vec3 node, int ticks) {
 		send(level, at, new FxPayload(BODY, -1, at, node, ticks, 0, 0));
+	}
+
+	public static void wake(ServerLevel level, Vec3 at, boolean out) {
+		send(level, at, new FxPayload(WAKE, -1, at, at, 20, 0, out ? 1 : 0));
 	}
 
 	public static void storm(ServerLevel level, Entity heart, float radius, int ticks) {

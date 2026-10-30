@@ -466,6 +466,7 @@ final class Harness {
 			player.connection.teleport(90.5, y[0], 90.5, 0, 0);
 		}), 10);
 		run(() -> server().execute(() -> player().hurt(player().damageSources().fellOutOfWorld(), 1000)), 10);
+		film("rebirth", 6, 3);
 		run(() -> {
 			ServerPlayer player = player();
 			check("a killing blow wakes the reserve body by the Mother Mycelium (alive=" + player.isAlive() + ", x=" + String.format("%.1f", player.getX())

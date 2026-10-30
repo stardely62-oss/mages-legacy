@@ -12,7 +12,7 @@
     },
     {
       "type": "minecraft:texture",
-      "texture": "mages_legacy:textures/fx/myc_spiral.png"
+      "texture": "mages_legacy:textures/fx/spore.png"
     },
     {
       "type": "minecraft:transparency",

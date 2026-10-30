@@ -289,6 +289,7 @@ public final class Awaken {
 		event.setCanceled(true);
 		ServerLevel from = player.serverLevel();
 		MyceliumNetwork.dissolve(from, player.position());
+		Fx.wake(from, player.position(), true);
 		BLOOMS.remove(player.getUUID());
 		STORMS.remove(player.getUUID());
 		Fx.bloom(from, player, 0, 0);
@@ -303,6 +304,7 @@ public final class Awaken {
 		player.fallDistance = 0;
 		player.invulnerableTime = 40;
 		MyceliumNetwork.dissolve(to, at);
+		Fx.wake(to, at, false);
 		to.playSound(null, at.x, at.y, at.z, SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 0.8f, 0.6f);
 		to.playSound(null, at.x, at.y, at.z, SoundEvents.FUNGUS_PLACE, SoundSource.PLAYERS, 1.2f, 0.6f);
 		int slot = Awakenings.slotOf(Talents.owned(player), Ability.MYCELIAL_REBIRTH);

@@ -21,11 +21,11 @@ final class FxDraw {
 	static final String ORB = "fx/orb";
 	static final String STAR = "fx/sprite_star";
 	static final String MOTE = "fx/sprite_mote";
+	/** A pixel spore, the Mycelid's particle. */
+	static final String SPORE = "fx/sprite_spore";
 	/** The Mycelid's painted textures: the mushroom's surfaces and the glowing decals. */
 	/** The node block's own pixel stem, for the reserve body. */
 	static final String NODE_STEM = "fx/node_stem";
-	static final String CLOUD = "fx/myc_cloud";
-	static final String SPIRAL = "fx/myc_spiral";
 	static final String AURA = "fx/myc_aura";
 	static final String FIELD = "fx/myc_field";
 	static final String THREAD = "fx/myc_thread";
