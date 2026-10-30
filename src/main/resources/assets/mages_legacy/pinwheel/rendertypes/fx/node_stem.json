@@ -12,7 +12,7 @@
     },
     {
       "type": "minecraft:texture",
-      "texture": "mages_legacy:textures/fx/myc_stem.png"
+      "texture": "mages_legacy:textures/block/node_stem.png"
     },
     {
       "type": "minecraft:transparency",

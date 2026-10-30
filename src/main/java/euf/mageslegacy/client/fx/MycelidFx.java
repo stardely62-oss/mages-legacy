@@ -368,7 +368,7 @@ final class MycelidFx {
 	// ---- The reserve body -------------------------------------------------------------------------------------
 
 	/**
-	 * A reserve body growing beside its node for the length of the growth: a figure of fibre that forms from the feet
+	 * A reserve body growing beside its node for the length of the growth: a blocky figure in the node's own pixel stem that forms from the feet
 	 * up in the first seconds, then thickens and brightens while spores stream into it from the node, and lights up as
 	 * it ripens. Six boxes (about 36 quads).
 	 */
@@ -419,7 +419,7 @@ final class MycelidFx {
 			float form = Math.min(1, life / FORM);
 			float solid = life / ticks;
 			float ripe = Math.max(0, (life - (ticks - 20)) / 20f);
-			float a = Math.min(1, life / 8f) * Math.min(1, (ticks - life) / 6f) * (0.4f + 0.5f * solid);
+			float a = Math.min(1, life / 8f) * Math.min(1, (ticks - life) / 6f) * (0.75f + 0.25f * solid);
 			float pulse = 0.85f + 0.15f * (float) Math.sin(life * 0.2) + 0.4f * ripe;
 			decal(draw, FxDraw.AURA, at.add(0, 0.05, 0), 1.3f, life * 0.03, a * 0.7f);
 			// legs, torso, arms, head: each from its own part of the forming
@@ -434,7 +434,7 @@ final class MycelidFx {
 			band(draw, FxDraw.THREAD, node.add(0, 0.4, 0), chest, 0.3f, a * (0.6f + 0.4f * (float) Math.sin(life * 0.35)) * Math.min(1, form * 2));
 		}
 
-		/** A fibre box standing on the body's feet at this offset: grown from its base by g. */
+		/** A box of the node's stem standing on the body's feet at this offset: grown from its base by g. */
 		private void box(FxDraw draw, double ox, double oy, double w, double h, double d, float g, float light, float alpha) {
 			if (g <= 0.001f) {
 				return;
@@ -458,10 +458,10 @@ final class MycelidFx {
 			for (int i = 0; i < 4; i++) {
 				int n = (i + 1) % 4;
 				float l = light * shade[i];
-				draw.paintStrip(FxDraw.STEM, new Vec3[] {bottom[i], bottom[n], top[n], top[i]}, new float[] {0, 1, 1, 0}, new float[] {1, 1, 0, 0}, 0.75f * l, l, 0.8f * l,
+				draw.paintStrip(FxDraw.NODE_STEM, new Vec3[] {bottom[i], bottom[n], top[n], top[i]}, new float[] {0, 1, 1, 0}, new float[] {1, 1, 0, 0}, 0.7f * l, l, 0.75f * l,
 						alpha, 0);
 			}
-			draw.paintStrip(FxDraw.STEM, top, new float[] {0, 1, 1, 0}, new float[] {0, 0, 1, 1}, 0.8f * light, light, 0.85f * light, alpha, 0);
+			draw.paintStrip(FxDraw.NODE_STEM, top, new float[] {0, 1, 1, 0}, new float[] {0, 0, 1, 1}, 0.7f * light, light, 0.75f * light, alpha, 0);
 		}
 	}
 
