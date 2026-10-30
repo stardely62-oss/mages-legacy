@@ -436,7 +436,7 @@ final class Harness {
 			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player).cooldown, 0);
 			RaceState.setResource(player, RaceState.MAX_RESOURCE);
 			husk = EntityType.HUSK.create(player.serverLevel());
-			husk.moveTo(player.getX() + 3, player.getY(), player.getZ(), 0, 0);
+			husk.moveTo(player.getX() - 2.2, player.getY(), player.getZ() - 2.2, 0, 0);
 			husk.setNoAi(true);
 			husk.setPersistenceRequired();
 			player.serverLevel().addFreshEntity(husk);
