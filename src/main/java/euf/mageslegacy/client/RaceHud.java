@@ -103,7 +103,7 @@ public final class RaceHud {
 	}
 
 	/** An ability wears its talent's painted icon, so the bar and the tree always show the same picture. */
-	static net.minecraft.resources.ResourceLocation abilityIcon(Ability ability) {
+	public static net.minecraft.resources.ResourceLocation abilityIcon(Ability ability) {
 		var own = LegacyUi.gui("talent/" + ability.id());
 		return LegacyUi.exists(own) ? own : LegacyUi.gui("icon/ability_" + ability.id());
 	}
