@@ -41,6 +41,8 @@ final class FxDraw {
 	static final float HOLE = 0.45f;
 	static final float FOLD = 0.8f;
 
+	/** Render types by name, looked up once per draw: a lookup per quad was a cost of its own. */
+	private final java.util.Map<String, RenderType> types = new java.util.HashMap<>();
 	private final MultiBufferSource.BufferSource buffers;
 	final Vec3 cam;
 	private final Set<RenderType> used = new LinkedHashSet<>();
@@ -52,7 +54,12 @@ final class FxDraw {
 
 	/** The render type of this name, or its bloom twin; null if Veil hasn't loaded it (the effect is then skipped). */
 	private RenderType type(String name, boolean glow) {
-		RenderType type = VeilRenderType.get(MagesLegacy.id(glow ? name + "_glow" : name));
+		String key = glow ? name + "_glow" : name;
+		RenderType type = types.get(key);
+		if (type == null && !types.containsKey(key)) {
+			type = VeilRenderType.get(MagesLegacy.id(key));
+			types.put(key, type);
+		}
 		if (type != null) {
 			used.add(type);
 		}
