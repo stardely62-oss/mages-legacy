@@ -464,7 +464,7 @@ public final class MyceliumNetwork extends SavedData {
 		net.bodies.remove(player.getUUID());
 		net.bodyReady.remove(player.getUUID());
 		net.setDirty();
-		Fx.body(level, at, Vec3.atBottomCenterOf(node.pos), -1, 0);
+		Fx.bodyGone(level, player, Vec3.atBottomCenterOf(node.pos));
 		return new Waking(level, at);
 	}
 

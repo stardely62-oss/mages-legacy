@@ -125,6 +125,15 @@ public final class Fx {
 		send(level, at, new FxPayload(BODY, -1, at, node, left, total, 0));
 	}
 
+	/** A reserve body used up: taken away for the players near and for its owner wherever they are (they died far off). */
+	public static void bodyGone(ServerLevel level, ServerPlayer owner, Vec3 node) {
+		FxPayload payload = new FxPayload(BODY, -1, node, node, -1, 0, 0);
+		send(level, node, payload);
+		if (owner.level() != level || owner.position().distanceTo(node) > RANGE) {
+			PacketDistributor.sendToPlayer(owner, payload);
+		}
+	}
+
 	public static void wake(ServerLevel level, Vec3 at, boolean out) {
 		send(level, at, new FxPayload(WAKE, -1, at, at, 20, 0, out ? 1 : 0));
 	}
