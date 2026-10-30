@@ -194,6 +194,7 @@ public final class VoidRender {
 				for (Effect e : EFFECTS) {
 					e.draw(draw, partial);
 				}
+				MycelidFx.drawBadges(draw, partial);
 				Vec3 left = new Vec3(camera.getLeftVector().x(), camera.getLeftVector().y(), camera.getLeftVector().z());
 				Vec3 up = new Vec3(camera.getUpVector().x(), camera.getUpVector().y(), camera.getUpVector().z());
 				for (Particle p : PARTICLES) {

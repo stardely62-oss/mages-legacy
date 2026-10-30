@@ -436,11 +436,13 @@ final class Harness {
 			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player).cooldown, 0);
 			RaceState.setResource(player, RaceState.MAX_RESOURCE);
 			husk = EntityType.HUSK.create(player.serverLevel());
-			husk.moveTo(player.getX() + 5, player.getY(), player.getZ(), 0, 0);
+			husk.moveTo(player.getX() + 3, player.getY(), player.getZ(), 0, 0);
 			husk.setNoAi(true);
 			husk.setPersistenceRequired();
 			player.serverLevel().addFreshEntity(husk);
 		}), 5);
+		// Neurospores first, so the husk wears two badges side by side
+		run(() -> MagesLegacyClient.useAbility(0), 2);
 		run(() -> MagesLegacyClient.useAbility(4), 25);
 		run(() -> {
 			var weak = husk.getEffect(net.minecraft.world.effect.MobEffects.WEAKNESS);

@@ -15,8 +15,10 @@ import net.minecraft.world.phys.Vec3;
  */
 final class MycelidFx {
 	private static final int[] MOTES = {0xFF8CE07A, 0xFF7FE8C8, 0xFFB0F5C8, 0xFFE8D27A};
-	/** Pale moss, teal, lichen and gold, a few darker: the colours of the spores. */
-	private static final int[] SPORES = {0xD8A6E07A, 0xD87FD8B8, 0xD8D8E89A, 0xD0E8D27A, 0xC86FA05A};
+	/** Neurospores (and the network's own: bodies, the waking): cool moss, mint and teal, a few darker. */
+	private static final int[] SPORES = {0xD8A6E07A, 0xD87FD8B8, 0xD8B8F0A0, 0xD860C8A8, 0xC86FA05A};
+	/** The Spore Storm: warm dust of amber, rust, ochre and brown, so it never reads as the neurospores' cloud. */
+	private static final int[] STORM_SPORES = {0xE0E8A040, 0xE0C8703A, 0xD8F0C860, 0xD0A0603A, 0xE0E0B070};
 	/** No Mycelid effect adds motes or spores while this many particles are already alive. */
 	private static final int MOTE_CAP = 900;
 
@@ -40,7 +42,11 @@ final class MycelidFx {
 
 	/** A pixel spore: one small quad, no glow. */
 	private static VoidRender.Particle spore(Vec3 at, Vec3 vel, int life, double size, float drag) {
-		VoidRender.Particle p = new VoidRender.Particle(at, vel, life, (float) size, SPORES[VoidRender.RANDOM.nextInt(SPORES.length)], false, drag, 0);
+		return spore(SPORES, at, vel, life, size, drag);
+	}
+
+	private static VoidRender.Particle spore(int[] palette, Vec3 at, Vec3 vel, int life, double size, float drag) {
+		VoidRender.Particle p = new VoidRender.Particle(at, vel, life, (float) size, palette[VoidRender.RANDOM.nextInt(palette.length)], false, drag, 0);
 		p.tex = FxDraw.SPORE;
 		return p;
 	}
@@ -98,21 +104,39 @@ final class MycelidFx {
 		}
 	}
 
+	/** The badges asked for this frame, per creature, each with its strongest alpha; drawn together in drawBadges. */
+	private static final java.util.Map<Entity, java.util.TreeMap<String, Float>> BADGES = new java.util.LinkedHashMap<>();
+
+	/** Asks for a status badge over a creature's head this frame (two spells on one creature: two badges side by side). */
+	private static void icon(Entity e, String tex, float alpha) {
+		BADGES.computeIfAbsent(e, k -> new java.util.TreeMap<>()).merge(tex, alpha, Math::max);
+	}
+
 	/**
-	 * A status icon floating over a creature's head, facing the camera (a pixel badge like the game's own effect
-	 * icons): what the spell does to it at a glance.
+	 * Draws the frame's badges: pixel icons like the game's own effect icons, floating over the heads and facing the
+	 * camera, several on one creature in a row.
 	 */
-	private static void icon(FxDraw draw, String tex, Entity e, float partial, float life, float alpha) {
-		Vec3 at = e.getPosition(partial).add(0, e.getBbHeight() + 0.55 + 0.05 * Math.sin(life * 0.15 + e.getId()), 0);
-		Vec3 toCam = draw.cam.subtract(at);
-		Vec3 right = new Vec3(0, 1, 0).cross(toCam);
-		if (right.lengthSqr() < 1.0E-6) {
-			return;
-		}
-		right = right.normalize();
-		Vec3 down = toCam.cross(right).normalize().scale(-1);
+	static void drawBadges(FxDraw draw, float partial) {
 		float half = 0.25f;
-		draw.paint(tex, at, right.scale(half), down.scale(half), 1, 1, 1, alpha, 0);
+		float step = 0.58f;
+		for (var entry : BADGES.entrySet()) {
+			Entity e = entry.getKey();
+			Vec3 at = e.getPosition(partial).add(0, e.getBbHeight() + 0.55 + 0.05 * Math.sin((e.tickCount + partial) * 0.15), 0);
+			Vec3 toCam = draw.cam.subtract(at);
+			Vec3 right = new Vec3(0, 1, 0).cross(toCam);
+			if (right.lengthSqr() < 1.0E-6) {
+				continue;
+			}
+			right = right.normalize();
+			Vec3 down = toCam.cross(right).normalize().scale(-1);
+			int n = entry.getValue().size();
+			int i = 0;
+			for (var badge : entry.getValue().entrySet()) {
+				Vec3 c = at.add(right.scale((i++ - (n - 1) / 2f) * step));
+				draw.paint(badge.getKey(), c, right.scale(half), down.scale(half), 1, 1, 1, badge.getValue(), 0);
+			}
+		}
+		BADGES.clear();
 	}
 
 	/** The enemies within this reach of a point (at most 12). */
@@ -209,7 +233,7 @@ final class MycelidFx {
 			float life = life(partial);
 			float a = fade(life, ticks, 4, 8);
 			for (LivingEntity e : enemies) {
-				icon(draw, FxDraw.ICON_CONFUSED, e, partial, life, a);
+				icon(e, FxDraw.ICON_CONFUSED, a);
 			}
 		}
 	}
@@ -310,24 +334,25 @@ final class MycelidFx {
 			super(ticks);
 			this.heart = heart;
 			this.radius = radius;
-			wave(140, 0.5, 1.0);
+			// about 15 blocks out for the first, 8 to 12 for the rest (drag 0.94 over ~30 ticks carries a spore ~13x its speed)
+			wave(160, 0.8, 1.15);
 		}
 
-		/** Spores thrown out from the chest every way along the ground, this many, this fast. */
+		/** Spores thrown out from the chest every way along the ground, this many, this fast, in the storm's warm dust. */
 		private void wave(int count, double min, double max) {
 			Vec3 chest = heart.position().add(0, 1.0, 0);
 			for (int i = 0; i < count; i++) {
 				double a = VoidRender.rand(0, Math.PI * 2);
 				double v = VoidRender.rand(min, max);
-				add(spore(chest.add(0, VoidRender.rand(-0.6, 0.4), 0), new Vec3(Math.cos(a) * v, VoidRender.rand(-0.02, 0.06), Math.sin(a) * v),
-						(int) VoidRender.rand(18, 26), VoidRender.rand(0.07, 0.13), 0.9f));
+				add(spore(STORM_SPORES, chest.add(0, VoidRender.rand(-0.6, 0.4), 0), new Vec3(Math.cos(a) * v, VoidRender.rand(-0.01, 0.04), Math.sin(a) * v),
+						(int) VoidRender.rand(26, 34), VoidRender.rand(0.08, 0.14), 0.94f));
 			}
 		}
 
 		@Override
 		boolean tick() {
 			if (age > 0 && age % PULSE == 0 && age < ticks - 6) {
-				wave(70, 0.35, 0.65);
+				wave(80, 0.6, 0.9);
 			}
 			if (age % 5 == 0) {
 				Vec3 c = heart.position();
@@ -342,10 +367,10 @@ final class MycelidFx {
 			float life = life(partial);
 			float a = fade(life, ticks, 4, 8);
 			for (LivingEntity e : enemies) {
-				icon(draw, FxDraw.ICON_WEAKENED, e, partial, life, a);
+				icon(e, FxDraw.ICON_WEAKENED, a);
 			}
 			for (LivingEntity e : allies) {
-				icon(draw, FxDraw.ICON_QUICKENED, e, partial, life, a);
+				icon(e, FxDraw.ICON_QUICKENED, a);
 			}
 		}
 	}
