@@ -290,11 +290,11 @@ final class MycelidFx {
 		boolean tick() {
 			Vec3 c = heart.position();
 			float in = Math.min(1, age / 10f);
-			// The funnel: a dense band of spores on orbits round the heart, wider the higher, held at their height
+			// The funnel: a tight twister of spores on orbits round the heart, wider the higher, held at their height
 			for (int i = 0; i < 14 * in; i++) {
 				double a = VoidRender.rand(0, Math.PI * 2);
-				double h = VoidRender.rand(0.2, 4.5);
-				double r = 1.6 + h * 1.1 + VoidRender.rand(-0.4, 0.4);
+				double h = VoidRender.rand(0.1, 5);
+				double r = 0.9 + h * 0.45 + VoidRender.rand(-0.15, 0.15);
 				Vec3 at = c.add(Math.cos(a) * r, h, Math.sin(a) * r);
 				double speed = 0.3;
 				VoidRender.Particle p = spore(at, new Vec3(-Math.sin(a) * speed, 0, Math.cos(a) * speed), (int) VoidRender.rand(24, 36), VoidRender.rand(0.07, 0.13),
@@ -307,9 +307,9 @@ final class MycelidFx {
 				add(p);
 			}
 			// The field: spores skimming low over the whole area it rules, wheeling slowly
-			for (int i = 0; i < 4 * in; i++) {
+			for (int i = 0; i < 3 * in; i++) {
 				double a = VoidRender.rand(0, Math.PI * 2);
-				double r = VoidRender.rand(6, radius);
+				double r = VoidRender.rand(4, radius);
 				VoidRender.Particle p = spore(c.add(Math.cos(a) * r, VoidRender.rand(0.1, 0.9), Math.sin(a) * r), new Vec3(-Math.sin(a) * 0.12, 0, Math.cos(a) * 0.12), 30,
 						VoidRender.rand(0.07, 0.11), 0.97f);
 				p.swirlAt = c;
