@@ -23,6 +23,10 @@ final class FxDraw {
 	static final String MOTE = "fx/sprite_mote";
 	/** A pixel spore, the Mycelid's particle. */
 	static final String SPORE = "fx/sprite_spore";
+	/** Pixel badges floating over heads: confused (Neurospores), weakened and quickened (the Spore Storm). */
+	static final String ICON_CONFUSED = "fx/icon_confused";
+	static final String ICON_WEAKENED = "fx/icon_weakened";
+	static final String ICON_QUICKENED = "fx/icon_quickened";
 	/** The Mycelid's painted textures: the mushroom's surfaces and the glowing decals. */
 	/** The node block's own pixel stem, for the reserve body. */
 	static final String NODE_STEM = "fx/node_stem";

@@ -98,6 +98,46 @@ final class MycelidFx {
 		}
 	}
 
+	/**
+	 * A status icon floating over a creature's head, facing the camera (a pixel badge like the game's own effect
+	 * icons): what the spell does to it at a glance.
+	 */
+	private static void icon(FxDraw draw, String tex, Entity e, float partial, float life, float alpha) {
+		Vec3 at = e.getPosition(partial).add(0, e.getBbHeight() + 0.55 + 0.05 * Math.sin(life * 0.15 + e.getId()), 0);
+		Vec3 toCam = draw.cam.subtract(at);
+		Vec3 right = new Vec3(0, 1, 0).cross(toCam);
+		if (right.lengthSqr() < 1.0E-6) {
+			return;
+		}
+		right = right.normalize();
+		Vec3 down = toCam.cross(right).normalize().scale(-1);
+		float half = 0.25f;
+		draw.paint(tex, at, right.scale(half), down.scale(half), 1, 1, 1, alpha, 0);
+	}
+
+	/** The enemies within this reach of a point (at most 12). */
+	private static java.util.List<LivingEntity> enemiesNear(Vec3 c, float radius) {
+		var level = Minecraft.getInstance().level;
+		if (level == null) {
+			return java.util.List.of();
+		}
+		return level.getEntitiesOfClass(LivingEntity.class, new AABB(c, c).inflate(radius, 4, radius),
+				x -> x instanceof Enemy && x.isAlive() && x.position().distanceToSqr(c) <= radius * radius).stream().limit(12).toList();
+	}
+
+	/** The players and this player's own pets within this reach of a point, the player themself left out (at most 12). */
+	private static java.util.List<LivingEntity> alliesNear(Entity heart, Vec3 c, float radius) {
+		var level = Minecraft.getInstance().level;
+		if (level == null) {
+			return java.util.List.of();
+		}
+		return level.getEntitiesOfClass(LivingEntity.class, new AABB(c, c).inflate(radius, 4, radius),
+				x -> x != heart && x.isAlive() && x.position().distanceToSqr(c) <= radius * radius
+						&& (x instanceof net.minecraft.world.entity.player.Player p && !p.isSpectator()
+								|| x instanceof net.minecraft.world.entity.OwnableEntity o && heart.getUUID().equals(o.getOwnerUUID())))
+				.stream().limit(12).toList();
+	}
+
 	private static boolean firstPersonOn(Entity e) {
 		Minecraft mc = Minecraft.getInstance();
 		return e == mc.player && mc.options.getCameraType().isFirstPerson();
@@ -112,6 +152,7 @@ final class MycelidFx {
 	 * after a blow, which is what they do to them. About 150 spores, one small quad each.
 	 */
 	static final class Cloud extends VoidRender.Effect {
+		java.util.List<LivingEntity> enemies = java.util.List.of();
 		Vec3 at;
 		final Entity follow;
 		final float radius;
@@ -157,26 +198,19 @@ final class MycelidFx {
 			rim.swirlAt = at;
 			rim.swirl = 0.003f;
 			add(rim);
-			// Stars round the heads of the enemies inside
-			var level = Minecraft.getInstance().level;
-			if (level != null && age % 2 == 0) {
-				int shown = 0;
-				for (LivingEntity en : level.getEntitiesOfClass(LivingEntity.class, new AABB(at, at).inflate(radius, 4, radius), x -> x instanceof Enemy && x.isAlive())) {
-					if (shown++ >= 6 || en.position().distanceToSqr(at) > radius * radius) {
-						continue;
-					}
-					Vec3 head = en.position().add(0, en.getBbHeight() + 0.3, 0);
-					for (int k = 0; k < 3; k++) {
-						double ang = age * 0.35 + k * Math.PI * 2 / 3;
-						add(spore(head.add(Math.cos(ang) * 0.45, 0, Math.sin(ang) * 0.45), Vec3.ZERO, 8, 0.07, 0.9f));
-					}
-				}
+			if (age % 5 == 0) {
+				enemies = enemiesNear(at, radius);
 			}
 			return super.tick();
 		}
 
 		@Override
 		void draw(FxDraw draw, float partial) {
+			float life = life(partial);
+			float a = fade(life, ticks, 4, 8);
+			for (LivingEntity e : enemies) {
+				icon(draw, FxDraw.ICON_CONFUSED, e, partial, life, a);
+			}
 		}
 	}
 
@@ -262,98 +296,57 @@ final class MycelidFx {
 	// ---- Spore Storm ------------------------------------------------------------------------------------------
 
 	/**
-	 * The Spore Storm, all of it pixel spores: a shock of spores sweeping out over the ground at the cast, then a
-	 * funnel of hundreds wheeling round the heart (each held on its orbit at its height, wider the higher), a field of
-	 * spores skimming the whole area, an eye of
-	 * spores spiralling up close round the Mycelid, a thin ring creeping at the edge of the area it rules, and spores
-	 * torn from every enemy in the area and drawn into the heart (what the storm does: it takes their spores).
+	 * The Spore Storm: a wave of spores bursting out from the Mycelid every 0.7 s (the first one bigger), a weakening
+	 * badge over every enemy in its reach and a quickening badge over every ally. Pixel spores only.
 	 */
 	static final class Storm extends VoidRender.Effect {
+		private static final int PULSE = 14;
 		final Entity heart;
 		final float radius;
+		java.util.List<LivingEntity> enemies = java.util.List.of();
+		java.util.List<LivingEntity> allies = java.util.List.of();
 
 		Storm(Entity heart, float radius, int ticks) {
 			super(ticks);
 			this.heart = heart;
 			this.radius = radius;
-			// The shock: a wave of spores sweeping out low over the ground
-			Vec3 c = heart.position();
-			for (int i = 0; i < 140; i++) {
+			wave(140, 0.5, 1.0);
+		}
+
+		/** Spores thrown out from the chest every way along the ground, this many, this fast. */
+		private void wave(int count, double min, double max) {
+			Vec3 chest = heart.position().add(0, 1.0, 0);
+			for (int i = 0; i < count; i++) {
 				double a = VoidRender.rand(0, Math.PI * 2);
-				double v = VoidRender.rand(0.5, 1.0);
-				add(spore(c.add(0, VoidRender.rand(0.2, 1.4), 0), new Vec3(Math.cos(a) * v, VoidRender.rand(0, 0.04), Math.sin(a) * v), (int) VoidRender.rand(18, 28),
-						VoidRender.rand(0.08, 0.14), 0.9f));
+				double v = VoidRender.rand(min, max);
+				add(spore(chest.add(0, VoidRender.rand(-0.6, 0.4), 0), new Vec3(Math.cos(a) * v, VoidRender.rand(-0.02, 0.06), Math.sin(a) * v),
+						(int) VoidRender.rand(18, 26), VoidRender.rand(0.07, 0.13), 0.9f));
 			}
 		}
 
 		@Override
 		boolean tick() {
-			Vec3 c = heart.position();
-			float in = Math.min(1, age / 10f);
-			// The funnel: a tight twister of spores on orbits round the heart, wider the higher, held at their height
-			for (int i = 0; i < 14 * in; i++) {
-				double a = VoidRender.rand(0, Math.PI * 2);
-				double h = VoidRender.rand(0.1, 5);
-				double r = 0.9 + h * 0.45 + VoidRender.rand(-0.15, 0.15);
-				Vec3 at = c.add(Math.cos(a) * r, h, Math.sin(a) * r);
-				double speed = 0.3;
-				VoidRender.Particle p = spore(at, new Vec3(-Math.sin(a) * speed, 0, Math.cos(a) * speed), (int) VoidRender.rand(24, 36), VoidRender.rand(0.07, 0.13),
-						0.97f);
-				p.swirlAt = c;
-				p.swirl = 0.009f;
-				// held on the orbit (pulled towards the axis at its own height), creeping a little inward
-				p.attract = c.add(0, h, 0);
-				p.pull = (float) (speed * speed / r) * 1.15f;
-				add(p);
+			if (age > 0 && age % PULSE == 0 && age < ticks - 6) {
+				wave(70, 0.35, 0.65);
 			}
-			// The field: spores skimming low over the whole area it rules, wheeling slowly
-			for (int i = 0; i < 3 * in; i++) {
-				double a = VoidRender.rand(0, Math.PI * 2);
-				double r = VoidRender.rand(4, radius);
-				VoidRender.Particle p = spore(c.add(Math.cos(a) * r, VoidRender.rand(0.1, 0.9), Math.sin(a) * r), new Vec3(-Math.sin(a) * 0.12, 0, Math.cos(a) * 0.12), 30,
-						VoidRender.rand(0.07, 0.11), 0.97f);
-				p.swirlAt = c;
-				p.swirl = 0.004f;
-				p.jitter = 0.003f;
-				add(p);
+			if (age % 5 == 0) {
+				Vec3 c = heart.position();
+				enemies = enemiesNear(c, radius);
+				allies = alliesNear(heart, c, radius);
 			}
-			// The eye: spores spiralling up close round the Mycelid
-			for (int i = 0; i < 2; i++) {
-				double a = VoidRender.rand(0, Math.PI * 2);
-				double r = VoidRender.rand(0.7, 1.3);
-				VoidRender.Particle p = spore(c.add(Math.cos(a) * r, 0.1, Math.sin(a) * r), new Vec3(-Math.sin(a) * 0.25, 0.12, Math.cos(a) * 0.25), 30,
-						VoidRender.rand(0.06, 0.1), 0.96f);
-				p.swirlAt = c;
-				p.swirl = 0.02f;
-				add(p);
-			}
-			// The edge of the storm's rule
-			double e = VoidRender.rand(0, Math.PI * 2);
-			VoidRender.Particle rim = spore(c.add(Math.cos(e) * radius, VoidRender.rand(0.05, 0.4), Math.sin(e) * radius), new Vec3(0, 0.01, 0), 30, 0.09, 0.95f);
-			rim.swirlAt = c;
-			rim.swirl = 0.004f;
-			add(rim);
-			var level = Minecraft.getInstance().level;
-			if (level != null && age % 3 == 0) {
-				int shown = 0;
-				for (LivingEntity en : level.getEntitiesOfClass(LivingEntity.class, new AABB(c, c).inflate(radius, 5, radius), x -> x instanceof Enemy && x.isAlive())) {
-					if (shown++ >= 8 || en.position().distanceToSqr(c) > radius * radius) {
-						continue;
-					}
-					// Spores torn from the enemy, drawn into the heart
-					Vec3 from = en.position().add(VoidRender.rand(-0.3, 0.3), en.getBbHeight() * VoidRender.rand(0.3, 0.9), VoidRender.rand(-0.3, 0.3));
-					Vec3 to = c.add(0, 1.2, 0);
-					VoidRender.Particle p = spore(from, to.subtract(from).normalize().scale(0.15), 40, 0.1, 0.96f);
-					p.attract = to;
-					p.pull = 0.05f;
-					add(p);
-				}
-			}
-			return super.tick();
+			return !heart.isRemoved() && super.tick();
 		}
 
 		@Override
 		void draw(FxDraw draw, float partial) {
+			float life = life(partial);
+			float a = fade(life, ticks, 4, 8);
+			for (LivingEntity e : enemies) {
+				icon(draw, FxDraw.ICON_WEAKENED, e, partial, life, a);
+			}
+			for (LivingEntity e : allies) {
+				icon(draw, FxDraw.ICON_QUICKENED, e, partial, life, a);
+			}
 		}
 	}
 
