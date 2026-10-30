@@ -390,6 +390,13 @@ public final class MyceliumNetwork extends SavedData {
 					: Component.translatable("mages_legacy.message.body_ready", net.nodes.get(had).name), true);
 			return null;
 		}
+		// The Rebirth's 20 minutes run from the moment a body starts growing
+		int slot = euf.mageslegacy.race.Awakenings.slotOf(Talents.owned(player), euf.mageslegacy.race.Ability.MYCELIAL_REBIRTH);
+		int[] cooldown = Voidborn.state(player).cooldown;
+		if (slot >= 0 && cooldown[slot] > 0) {
+			Abilities.refuse(player, Component.translatable("mages_legacy.refuse.body_cooldown", (cooldown[slot] + 20 * 60 - 1) / (20 * 60)));
+			return null;
+		}
 		Node at = null;
 		for (Node n : net.nodesOf(player.getUUID())) {
 			if (n.dim == player.level().dimension() && Vec3.atCenterOf(n.pos).distanceTo(player.position()) <= 6) {
@@ -408,6 +415,9 @@ public final class MyceliumNetwork extends SavedData {
 		net.bodies.put(player.getUUID(), at.key);
 		net.bodyReady.put(player.getUUID(), now + ticks);
 		net.setDirty();
+		if (slot >= 0) {
+			Voidborn.state(player).startCooldown(slot, Awaken.REBIRTH_COOLDOWN);
+		}
 		ServerLevel level = player.serverLevel();
 		Fx.body(level, bodySpot(level, at.pos), Vec3.atBottomCenterOf(at.pos), ticks, ticks);
 		level.playSound(null, at.pos, SoundEvents.ROOTED_DIRT_PLACE, SoundSource.BLOCKS, 1f, 0.6f);

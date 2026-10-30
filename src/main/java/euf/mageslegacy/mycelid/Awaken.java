@@ -307,8 +307,6 @@ public final class Awaken {
 		Fx.wake(to, at, false);
 		to.playSound(null, at.x, at.y, at.z, SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 0.8f, 0.6f);
 		to.playSound(null, at.x, at.y, at.z, SoundEvents.FUNGUS_PLACE, SoundSource.PLAYERS, 1.2f, 0.6f);
-		int slot = Awakenings.slotOf(Talents.owned(player), Ability.MYCELIAL_REBIRTH);
-		Voidborn.state(player).startCooldown(slot, REBIRTH_COOLDOWN);
 		exhaust(player, Talents.has(player, Talent.REBIRTH_SOFT) ? EXHAUST_REBIRTH / 2 : EXHAUST_REBIRTH);
 		player.displayClientMessage(Component.translatable("mages_legacy.message.reborn").withStyle(ChatFormatting.GREEN), false);
 		RaceState.sync(player);

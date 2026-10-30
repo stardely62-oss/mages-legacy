@@ -62,7 +62,8 @@ public final class Abilities {
 			RaceState.sync(player);
 			return;
 		}
-		if (!free && state.cooldown[slot] > 0) {
+		// The Rebirth's key also tells how the body is, cooldown or not: growBody minds its own cooldown
+		if (!free && state.cooldown[slot] > 0 && ability != Ability.MYCELIAL_REBIRTH) {
 			refuse(player, Component.translatable("mages_legacy.refuse.cooldown", String.format("%.1f", state.cooldown[slot] / 20f)));
 			return;
 		}
@@ -98,8 +99,9 @@ public final class Abilities {
 		}
 		if (!free) {
 			RaceState.setResource(player, RaceState.resource(player) - cost);
-			// The Void Step's cooldown starts when the walk ends, the arena's when the arena does
-			if (ability != Ability.VOID_STEP && ability != Ability.RIFT_ARENA && ability != Ability.GREAT_BLOOM) {
+			// The Void Step's cooldown starts when the walk ends, the arena's when the arena does, the Rebirth's when a
+			// body starts growing
+			if (ability != Ability.VOID_STEP && ability != Ability.RIFT_ARENA && ability != Ability.GREAT_BLOOM && ability != Ability.MYCELIAL_REBIRTH) {
 				state.startCooldown(slot, cooldown(player, ability));
 			}
 		}
