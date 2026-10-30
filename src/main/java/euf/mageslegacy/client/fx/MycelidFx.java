@@ -352,7 +352,7 @@ final class MycelidFx {
 			ring(draw, c, 4 * swell, 1.0, 8, life * 0.09, 2.0f, a * 0.4f, life);
 			ring(draw, c, 7.5f * swell, 2.0, 10, life * 0.055 + 0.3, 2.6f, a * 0.32f, life);
 			// The edge of the storm's rule: a low wall of haze turning slowly
-			ring(draw, c, radius * swell, 0.7, 18, -life * 0.012, 2.2f, a * 0.22f, life);
+			ring(draw, c, radius * swell, 0.7, 18, -life * 0.012, 1.8f, a * 0.14f, life);
 		}
 
 		/** A ring of camera-facing puffs round c, bobbing a little. */

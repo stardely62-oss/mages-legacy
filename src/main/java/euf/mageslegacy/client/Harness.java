@@ -455,8 +455,9 @@ final class Harness {
 			euf.mageslegacy.race.Talents.reset(player);
 			euf.mageslegacy.race.Talents.learnAll(player, "rebirth", "bloom");
 			euf.mageslegacy.race.Talents.setNoCooldown(player, true);
-			player.connection.teleport(43.5, y[0], 43.5, 135, 15);
-		}), 10);
+			// To one side of the node, the body off the centre of the view (the storm gone first)
+			player.connection.teleport(44.5, y[0], 40.5, 115, 20);
+		}), 240);
 		run(() -> MagesLegacyClient.useAbility(2), 4);
 		film("body", 8, 12);
 		run(() -> server().execute(() -> {
