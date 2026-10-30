@@ -264,7 +264,7 @@ public final class Mycelid {
 		for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(bondRadius(player)), e -> e.isAlive()
 				&& (e == player || e instanceof Player p && !p.isSpectator() || e instanceof OwnableEntity o && player.getUUID().equals(o.getOwnerUUID())))) {
 			bond(player, e, until);
-			Fx.bond(level, player, e, bondTicks(player));
+			Fx.bond(level, player, e, bondTicks(player), e == player ? (float) bondRadius(player) : 0);
 			if (e != player) {
 				others++;
 			}
@@ -455,7 +455,7 @@ public final class Mycelid {
 					&& !BONDS.containsKey(e.getUUID()) && (e instanceof Player p && !p.isSpectator()
 					|| e instanceof OwnableEntity o && caster.getUUID().equals(o.getOwnerUUID())))) {
 				bond(caster, e, entry.getValue());
-				Fx.bond(level, caster, e, (int) (entry.getValue() - now));
+				Fx.bond(level, caster, e, (int) (entry.getValue() - now), 0);
 			}
 		}
 	}

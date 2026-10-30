@@ -72,7 +72,7 @@ public final class RaceHud {
 		int total = Math.max(1, state.cooldownTotals()[key]);
 		boolean affordable = state.resource() >= ability.cost;
 		LegacyUi.panel(graphics, x, y, x + SLOT, y + SLOT, locked ? LegacyUi.RIM_DARK : cooldown > 0 ? LegacyUi.RIM : color);
-		var icon = ability.awakening() ? awakeningIcon(ability) : LegacyUi.gui("icon/ability_" + ability.id());
+		var icon = ability.awakening() ? awakeningIcon(ability) : abilityIcon(ability);
 		if (LegacyUi.exists(icon)) {
 			LegacyUi.icon(graphics, icon, x + 3, y + 3, 16, !locked && affordable);
 		}
@@ -100,6 +100,12 @@ public final class RaceHud {
 			// An Awakening's slot wears the crown's gems
 			LegacyUi.diamond(graphics, x + SLOT / 2, y - 1, 2, color);
 		}
+	}
+
+	/** An ability wears its talent's painted icon, so the bar and the tree always show the same picture. */
+	static net.minecraft.resources.ResourceLocation abilityIcon(Ability ability) {
+		var own = LegacyUi.gui("talent/" + ability.id());
+		return LegacyUi.exists(own) ? own : LegacyUi.gui("icon/ability_" + ability.id());
 	}
 
 	private static net.minecraft.resources.ResourceLocation awakeningIcon(Ability ability) {

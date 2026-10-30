@@ -82,8 +82,8 @@ public enum Talent {
 	POCKET_HOLD(Race.VOIDBORN, Kind.CROSS, Branch.CROSS, 3.4f, -30, 3, 0, "pocket_rest", "grav_fuse", "pocket_garden"),
 	// ---- The Mycelid: the Mycelium Network at the heart, Colony up, Neurospores down-left, Symbiosis down-right ----
 	MYCELIUM_NETWORK(Race.MYCELID, Kind.CORE, Branch.CORE, 0, 0, 0, 1, "ability_mycelium_network"),
-	NEUROSPORES(Race.MYCELID, Kind.BASIC, Branch.SPORES, 1, 150, 0, 3, "ability_neurospores", "mycelium_network"),
-	NEUROSYMBIOSIS(Race.MYCELID, Kind.BASIC, Branch.SYMBIOSIS, 1, 30, 0, 5, "ability_neurosymbiosis", "mycelium_network"),
+	NEUROSPORES(Race.MYCELID, Kind.BASIC, Branch.SPORES, 1, 150, 0, 3, "neurospores", "mycelium_network"),
+	NEUROSYMBIOSIS(Race.MYCELID, Kind.BASIC, Branch.SYMBIOSIS, 1, 30, 0, 5, "neurosymbiosis", "mycelium_network"),
 	NET_NODES_1(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 1, -90, 1, 0, "net_nodes", "mycelium_network"),
 	NET_NODES_2(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 2, -90, 1, 0, "net_nodes", "net_nodes_1"),
 	NET_NODES_3(Race.MYCELID, Kind.PASSIVE, Branch.COLONY, 3, -90, 3, 0, "net_roots", "net_nodes_2"),

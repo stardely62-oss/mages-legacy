@@ -73,7 +73,7 @@ public final class VoidFx {
 				case Fx.BOND -> {
 					Entity caster = level.getEntity((int) payload.b());
 					if (follow != null) {
-						VoidRender.add(new MycelidFx.Bond(caster, follow, payload.ticks()));
+						VoidRender.add(new MycelidFx.Bond(caster, follow, payload.a(), payload.ticks()));
 					}
 				}
 				case Fx.VOID_SCREEN, Fx.SHAKE, Fx.FOV, Fx.MUFFLE, Fx.THIRD_PERSON -> ScreenFx.play(payload);

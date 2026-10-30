@@ -315,7 +315,7 @@ public class RaceSelectScreen extends Screen {
 			}
 			LegacyUi.panel(graphics, tx, ty, tx + tileW, ty + TILE_H, hot ? color : LegacyUi.RIM_DARK);
 			int cx = tx + tileW / 2;
-			var icon = LegacyUi.gui("icon/ability_" + ability.id());
+			var icon = euf.mageslegacy.client.RaceHud.abilityIcon(ability);
 			if (LegacyUi.exists(icon)) {
 				LegacyUi.icon(graphics, icon, cx - 8, ty + 4, 16, true);
 			}

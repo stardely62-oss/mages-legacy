@@ -56,7 +56,7 @@ public final class Fx {
 	public static final int STORM = 18;
 	/** A cloud of neurospores on the ground (following its Mycelid if entity is one): a: radius. */
 	public static final int SPORE_CLOUD = 19;
-	/** A thread of the symbiosis to one sharing it (entity), from the caster (b: the caster's id). */
+	/** A thread of the symbiosis to one sharing it (entity), from the caster (b: the caster's id; a: the reach, only on the caster's own). */
 	public static final int BOND = 20;
 
 	public static final int VOID_RGB = 0x9B7FD4;
@@ -112,8 +112,8 @@ public final class Fx {
 		send(level, at, new FxPayload(SPORE_CLOUD, follow == null ? -1 : follow.getId(), at, at, ticks, radius, 0));
 	}
 
-	public static void bond(ServerLevel level, Entity caster, Entity ally, int ticks) {
-		send(level, ally.position(), new FxPayload(BOND, ally.getId(), ally.position(), ally.position(), ticks, 0, caster.getId()));
+	public static void bond(ServerLevel level, Entity caster, Entity ally, int ticks, float radius) {
+		send(level, ally.position(), new FxPayload(BOND, ally.getId(), ally.position(), ally.position(), ticks, radius, caster.getId()));
 	}
 
 	public static void storm(ServerLevel level, Entity heart, float radius, int ticks) {
