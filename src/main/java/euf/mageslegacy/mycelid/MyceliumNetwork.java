@@ -409,7 +409,11 @@ public final class MyceliumNetwork extends SavedData {
 		net.bodyReady.put(player.getUUID(), now + ticks);
 		net.setDirty();
 		ServerLevel level = player.serverLevel();
-		level.sendParticles(ParticleTypes.GLOW, at.pos.getX() + 0.5, at.pos.getY() + 1, at.pos.getZ() + 0.5, 12, 0.6, 0.8, 0.6, 0.02);
+		// The body grows on the side of the node the grower stands on
+		Vec3 nodeAt = Vec3.atBottomCenterOf(at.pos);
+		Vec3 toward = new Vec3(player.getX() - nodeAt.x, 0, player.getZ() - nodeAt.z);
+		toward = toward.lengthSqr() < 0.01 ? new Vec3(1, 0, 0) : toward.normalize();
+		Fx.body(level, nodeAt.add(toward.scale(1.4)), nodeAt, ticks);
 		level.playSound(null, at.pos, SoundEvents.ROOTED_DIRT_PLACE, SoundSource.BLOCKS, 1f, 0.6f);
 		player.displayClientMessage(Component.translatable("mages_legacy.message.body_started", at.name, ticks / 20).withStyle(ChatFormatting.GREEN), true);
 		return null;

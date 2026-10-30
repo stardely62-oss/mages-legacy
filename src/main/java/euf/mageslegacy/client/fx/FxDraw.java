@@ -22,8 +22,6 @@ final class FxDraw {
 	static final String STAR = "fx/sprite_star";
 	static final String MOTE = "fx/sprite_mote";
 	/** The Mycelid's painted textures: the mushroom's surfaces and the glowing decals. */
-	static final String CAP = "fx/myc_cap";
-	static final String GILLS = "fx/myc_gills";
 	static final String STEM = "fx/myc_stem";
 	static final String CLOUD = "fx/myc_cloud";
 	static final String SPIRAL = "fx/myc_spiral";
@@ -42,6 +40,7 @@ final class FxDraw {
 	static final float FOLD = 0.8f;
 
 	/** Render types by name, looked up once per draw: a lookup per quad was a cost of its own. */
+	private boolean blocks;
 	private final java.util.Map<String, RenderType> types = new java.util.HashMap<>();
 	private final MultiBufferSource.BufferSource buffers;
 	final Vec3 cam;
@@ -177,8 +176,29 @@ final class FxDraw {
 		return Math.max(0, Math.min(1, v));
 	}
 
+	/** A block drawn from its own model, glowing, this many blocks tall per block, standing on at and tilted a little. */
+	void block(net.minecraft.world.level.block.state.BlockState state, Vec3 at, float scale, float yaw, float tiltX, float tiltZ) {
+		com.mojang.blaze3d.vertex.PoseStack pose = new com.mojang.blaze3d.vertex.PoseStack();
+		Vec3 c = at.subtract(cam);
+		pose.translate(c.x, c.y, c.z);
+		pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(yaw));
+		pose.mulPose(com.mojang.math.Axis.XP.rotationDegrees(tiltX));
+		pose.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(tiltZ));
+		pose.scale(scale, scale, scale);
+		pose.translate(-0.5, 0, -0.5);
+		net.minecraft.client.Minecraft.getInstance().getBlockRenderer().renderSingleBlock(state, pose, buffers,
+				net.minecraft.client.renderer.LightTexture.FULL_BRIGHT, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
+		blocks = true;
+	}
+
 	/** Draws everything written this frame. */
 	void finish() {
+		if (blocks) {
+			buffers.endBatch(RenderType.solid());
+			buffers.endBatch(RenderType.cutout());
+			buffers.endBatch(RenderType.cutoutMipped());
+			buffers.endBatch(RenderType.translucent());
+		}
 		for (RenderType type : used) {
 			buffers.endBatch(type);
 		}

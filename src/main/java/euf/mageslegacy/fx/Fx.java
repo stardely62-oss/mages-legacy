@@ -58,6 +58,8 @@ public final class Fx {
 	public static final int SPORE_CLOUD = 19;
 	/** A thread of the symbiosis to one sharing it (entity), from the caster (b: the caster's id; a: the reach, only on the caster's own). */
 	public static final int BOND = 20;
+	/** A reserve body growing beside its node (from: the body's feet, to: the node) for this many ticks. */
+	public static final int BODY = 21;
 
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
@@ -114,6 +116,10 @@ public final class Fx {
 
 	public static void bond(ServerLevel level, Entity caster, Entity ally, int ticks, float radius) {
 		send(level, ally.position(), new FxPayload(BOND, ally.getId(), ally.position(), ally.position(), ticks, radius, caster.getId()));
+	}
+
+	public static void body(ServerLevel level, Vec3 at, Vec3 node, int ticks) {
+		send(level, at, new FxPayload(BODY, -1, at, node, ticks, 0, 0));
 	}
 
 	public static void storm(ServerLevel level, Entity heart, float radius, int ticks) {
