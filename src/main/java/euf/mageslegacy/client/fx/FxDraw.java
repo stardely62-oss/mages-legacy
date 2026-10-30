@@ -194,10 +194,8 @@ final class FxDraw {
 	/** Draws everything written this frame. */
 	void finish() {
 		if (blocks) {
-			buffers.endBatch(RenderType.solid());
-			buffers.endBatch(RenderType.cutout());
-			buffers.endBatch(RenderType.cutoutMipped());
-			buffers.endBatch(RenderType.translucent());
+			// A single block goes into the entity block sheets, not the chunk layers: everything is flushed
+			buffers.endBatch();
 		}
 		for (RenderType type : used) {
 			buffers.endBatch(type);

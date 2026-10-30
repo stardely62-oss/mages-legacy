@@ -11,7 +11,7 @@ import net.minecraft.world.phys.Vec3;
 /**
  * The Mycelid's effects, built to be seen from every side and to cost almost nothing: a handful of painted quads
  * shaped into volumes (a dome of haze, spiral strands, the node block itself grown huge), no bloom on anything large, and a
- * hard cap on motes. Budget per effect: the cloud ~40 quads, a bond ~20, the storm ~50, a body ~40, the bloom ~16.
+ * hard cap on motes. Budget per effect: the cloud ~40 quads, a bond ~20, the storm ~36, a body ~40, the bloom ~16.
  */
 final class MycelidFx {
 	private static final int[] MOTES = {0xFF8CE07A, 0xFF7FE8C8, 0xFFB0F5C8, 0xFFE8D27A};
@@ -295,9 +295,9 @@ final class MycelidFx {
 	// ---- Spore Storm ------------------------------------------------------------------------------------------
 
 	/**
-	 * The Spore Storm, in the cloud's own language but bigger and darker: a dome of haze over the whole area it rules,
-	 * spore streams wheeling round the heart, and a thread of spores torn from every enemy in the area and drawn into
-	 * the heart (what the storm does: it takes their spores). About 50 quads and a few motes a tick.
+	 * The Spore Storm, in the cloud's own language: a cyclone of spore clouds wheeling round the heart in two rings, a
+	 * low wall of haze turning at the edge of the area it rules, spore streams, and a thread of spores torn from every
+	 * enemy in the area and drawn into the heart (what the storm does: it takes their spores). 36 quads.
 	 */
 	static final class Storm extends VoidRender.Effect {
 		final Entity heart;
@@ -346,11 +346,22 @@ final class MycelidFx {
 		void draw(FxDraw draw, float partial) {
 			float life = life(partial);
 			float a = fade(life, ticks, 10, 15);
-			Vec3 c = heart.getPosition(partial).add(0, 0.06, 0);
+			Vec3 c = heart.getPosition(partial);
 			float swell = VoidRender.easeOut(Math.min(1, life / 14f));
-			dome(draw, c, radius * swell, Math.min(radius * 0.35f, 6f) * swell, life * 0.03, 14, a * 0.16f);
-			decal(draw, FxDraw.SPIRAL, c.add(0, 0.01, 0), radius, -life * 0.06, a * 0.35f);
-			decal(draw, FxDraw.SPIRAL, c.add(0, 0.03, 0), radius * 0.5f, -life * 0.11 + 1.0, a * 0.25f);
+			// The cyclone: two rings of spore clouds wheeling round the heart, the inner one faster and lower
+			ring(draw, c, 4 * swell, 1.0, 8, life * 0.09, 2.0f, a * 0.4f, life);
+			ring(draw, c, 7.5f * swell, 2.0, 10, life * 0.055 + 0.3, 2.6f, a * 0.32f, life);
+			// The edge of the storm's rule: a low wall of haze turning slowly
+			ring(draw, c, radius * swell, 0.7, 18, -life * 0.012, 2.2f, a * 0.22f, life);
+		}
+
+		/** A ring of camera-facing puffs round c, bobbing a little. */
+		private static void ring(FxDraw draw, Vec3 c, float r, double y, int count, double turn, float size, float alpha, float life) {
+			for (int i = 0; i < count; i++) {
+				double ang = turn + i * Math.PI * 2 / count;
+				double bob = 0.3 * Math.sin(life * 0.1 + i * 1.7);
+				puff(draw, FxDraw.CLOUD, c.add(Math.cos(ang) * r, y + bob, Math.sin(ang) * r), size, i * 1.3 + life * 0.02, alpha);
+			}
 		}
 	}
 

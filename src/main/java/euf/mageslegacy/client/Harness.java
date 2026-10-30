@@ -455,9 +455,10 @@ final class Harness {
 			euf.mageslegacy.race.Talents.reset(player);
 			euf.mageslegacy.race.Talents.learnAll(player, "rebirth", "bloom");
 			euf.mageslegacy.race.Talents.setNoCooldown(player, true);
-			player.connection.teleport(41.5, y[0], 42.5, 0, 0);
+			player.connection.teleport(43.5, y[0], 43.5, 135, 15);
 		}), 10);
-		run(() -> MagesLegacyClient.useAbility(2), 10);
+		run(() -> MagesLegacyClient.useAbility(2), 4);
+		film("body", 8, 12);
 		run(() -> server().execute(() -> {
 			ServerPlayer player = player();
 			euf.mageslegacy.mycelid.MyceliumNetwork.ripenBody(player);
