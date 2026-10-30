@@ -398,8 +398,8 @@ final class MycelidFx {
 			return super.tick();
 		}
 
-		private static float grown(float form, float from, float to) {
-			return VoidRender.easeOut(Math.max(0, Math.min(1, (form - from) / (to - from))));
+		private static float grown(float form, double from, double to) {
+			return VoidRender.easeOut((float) Math.max(0, Math.min(1, (form - from) / (to - from))));
 		}
 
 		@Override
