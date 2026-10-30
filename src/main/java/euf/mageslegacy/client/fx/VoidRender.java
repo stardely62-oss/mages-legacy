@@ -201,6 +201,14 @@ public final class VoidRender {
 					float fade = Math.min(1, (1 - t) * 3) * Math.min(1, (p.age + partial) / 2f);
 					int a = (int) (((p.argb >>> 24) & 0xFF) * Math.max(0, fade));
 					Vec3 at = p.prev.lerp(p.pos, partial);
+					if (p.tex != null) {
+						// Own-sprite particles (the spores) fade out close to the eyes instead of filling the view
+						double near = (at.distanceTo(camera.getPosition()) - 1.0) / 1.5;
+						if (near <= 0) {
+							continue;
+						}
+						a = (int) (a * Math.min(1, near));
+					}
 					draw.sprite(p.tex != null ? p.tex : p.star ? FxDraw.STAR : FxDraw.MOTE, at, left, up, p.size, (a << 24) | (p.argb & 0xFFFFFF), p.glow);
 				}
 				draw.finish();

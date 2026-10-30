@@ -263,7 +263,8 @@ final class MycelidFx {
 
 	/**
 	 * The Spore Storm, all of it pixel spores: a shock of spores sweeping out over the ground at the cast, then a
-	 * cyclone of hundreds wheeling round the heart (each held on its orbit and drawn slowly inward and up), an eye of
+	 * funnel of hundreds wheeling round the heart (each held on its orbit at its height, wider the higher), a field of
+	 * spores skimming the whole area, an eye of
 	 * spores spiralling up close round the Mycelid, a thin ring creeping at the edge of the area it rules, and spores
 	 * torn from every enemy in the area and drawn into the heart (what the storm does: it takes their spores).
 	 */
@@ -288,23 +289,32 @@ final class MycelidFx {
 		@Override
 		boolean tick() {
 			Vec3 c = heart.position();
-			float reach = Math.min(radius, 14);
 			float in = Math.min(1, age / 10f);
-			// The cyclone: spores on orbits round the heart, faster near it, higher farther out
-			for (int i = 0; i < 9 * in; i++) {
+			// The funnel: a dense band of spores on orbits round the heart, wider the higher, held at their height
+			for (int i = 0; i < 14 * in; i++) {
 				double a = VoidRender.rand(0, Math.PI * 2);
-				double r = reach * Math.sqrt(VoidRender.rand(0.04, 1));
-				double h = VoidRender.rand(0.1, 0.8 + r * 0.3);
+				double h = VoidRender.rand(0.2, 4.5);
+				double r = 1.6 + h * 1.1 + VoidRender.rand(-0.4, 0.4);
 				Vec3 at = c.add(Math.cos(a) * r, h, Math.sin(a) * r);
-				double speed = 0.18 + 0.25 * (1 - r / reach);
-				VoidRender.Particle p = spore(at, new Vec3(-Math.sin(a) * speed, 0.01, Math.cos(a) * speed), (int) VoidRender.rand(30, 45), VoidRender.rand(0.06, 0.13),
+				double speed = 0.3;
+				VoidRender.Particle p = spore(at, new Vec3(-Math.sin(a) * speed, 0, Math.cos(a) * speed), (int) VoidRender.rand(24, 36), VoidRender.rand(0.07, 0.13),
 						0.97f);
 				p.swirlAt = c;
-				p.swirl = 0.006f;
-				// held on the orbit, sinking slowly inward and rising
-				p.attract = c.add(0, h + 1.5, 0);
-				p.pull = (float) (speed * speed / Math.max(1, r)) * 1.1f;
-				p.jitter = 0.004f;
+				p.swirl = 0.009f;
+				// held on the orbit (pulled towards the axis at its own height), creeping a little inward
+				p.attract = c.add(0, h, 0);
+				p.pull = (float) (speed * speed / r) * 1.15f;
+				add(p);
+			}
+			// The field: spores skimming low over the whole area it rules, wheeling slowly
+			for (int i = 0; i < 4 * in; i++) {
+				double a = VoidRender.rand(0, Math.PI * 2);
+				double r = VoidRender.rand(6, radius);
+				VoidRender.Particle p = spore(c.add(Math.cos(a) * r, VoidRender.rand(0.1, 0.9), Math.sin(a) * r), new Vec3(-Math.sin(a) * 0.12, 0, Math.cos(a) * 0.12), 30,
+						VoidRender.rand(0.07, 0.11), 0.97f);
+				p.swirlAt = c;
+				p.swirl = 0.004f;
+				p.jitter = 0.003f;
 				add(p);
 			}
 			// The eye: spores spiralling up close round the Mycelid
