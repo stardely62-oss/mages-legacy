@@ -16,7 +16,6 @@ import euf.mageslegacy.voidborn.Voidborn;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -410,13 +409,16 @@ public final class Bloodkin {
 		long now = server.overworld().getGameTime();
 		MARKED.values().removeIf(until -> until < now);
 		GIVEN.values().removeIf(g -> now - g[1] > 5 * 60 * 20);
-		for (Iterator<Map.Entry<UUID, Bleed>> it = BLEEDING.entrySet().iterator(); it.hasNext(); ) {
-			Map.Entry<UUID, Bleed> e = it.next();
+		// A snapshot: the hurt below fires damage events that may open or close bleeds (BLEEDING) meanwhile
+		for (Map.Entry<UUID, Bleed> e : new ArrayList<>(BLEEDING.entrySet())) {
 			Bleed b = e.getValue();
+			if (BLEEDING.get(e.getKey()) != b) {
+				continue;
+			}
 			ServerLevel level = server.getLevel(b.level());
 			Entity entity = level == null ? null : level.getEntity(e.getKey());
 			if (!(entity instanceof LivingEntity living) || !living.isAlive() || b.until() < now) {
-				it.remove();
+				BLEEDING.remove(e.getKey(), b);
 				continue;
 			}
 			ServerPlayer owner = server.getPlayerList().getPlayer(b.owner());

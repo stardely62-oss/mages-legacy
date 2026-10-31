@@ -120,6 +120,9 @@ public final class BloodFx {
 	/** The Blood Dash: mist and drops torn off the body along its way, stains left on the ground behind it. */
 	private static void trail(Entity body, Vec3 from, Vec3 to, int dashTicks) {
 		VoidRender.add(new Wake(body, from, to, dashTicks));
+		// It tears away from where it stood: a flash, a ring thrown out on the ground, a puff of mist
+		VoidRender.add(new Flare(null, from.add(0, 1, 0), 1.4f, 8));
+		VoidRender.add(new Wave(from, 0.4f, 2.6f, 10));
 		for (int i = 0; i < 10; i++) {
 			add(mist(from.add(r(-0.3, 0.3), r(0.2, 1.6), r(-0.3, 0.3)), VoidRender.randomDir().scale(0.06), (int) r(18, 30), r(0.4, 0.7)));
 		}
@@ -295,7 +298,7 @@ public final class BloodFx {
 		final double roll;
 
 		Slash(Vec3 at, double roll) {
-			super(10);
+			super(14);
 			this.at = at;
 			this.roll = roll;
 		}
@@ -308,12 +311,12 @@ public final class BloodFx {
 				if (t < 0) {
 					continue;
 				}
-				float size = (k == 0 ? 1.1f : 0.85f) * (0.4f + 0.6f * VoidRender.easeOutBack(Math.min(1, t / 3f)));
-				float alpha = Math.min(1, (ticks - k * 2 - t) / 5f);
-				billboard(draw, BLOOD_SLASH_TEX, at, size, roll + k * 1.9, 1, alpha, 0.9f);
+				float size = (k == 0 ? 1.4f : 1.1f) * (0.4f + 0.6f * VoidRender.easeOutBack(Math.min(1, t / 3f)));
+				float alpha = Math.min(1, (ticks - k * 2 - t) / 6f);
+				billboard(draw, BLOOD_SLASH_TEX, at, size, roll + k * 1.9, 1, alpha, 1.15f);
 			}
 			if (life < 5) {
-				billboard(draw, BLOOD_FLARE, at, 0.7f + life * 0.1f, 0, 1, (1 - life / 5) * 0.6f, 0.8f);
+				billboard(draw, BLOOD_FLARE, at, 0.8f + life * 0.12f, 0, 1, (1 - life / 5) * 0.8f, 1.1f);
 			}
 		}
 	}
