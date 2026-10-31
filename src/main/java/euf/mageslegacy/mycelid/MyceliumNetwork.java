@@ -320,15 +320,22 @@ public final class MyceliumNetwork extends SavedData {
 	private void relink() {
 		auto.clear();
 		adjacent.clear();
-		Map<ResourceKey<Level>, List<Node>> worlds = new HashMap<>();
+		// Nodes by world and square of the longest reach: each is weighed only against the squares around its own
+		int cell = (int) autoRange(true);
+		Map<String, List<Node>> squares = new HashMap<>();
 		for (Node n : nodes.values()) {
-			worlds.computeIfAbsent(n.dim, d -> new ArrayList<>()).add(n);
+			squares.computeIfAbsent(n.dim.location() + "/" + Math.floorDiv(n.pos.getX(), cell) + "/" + Math.floorDiv(n.pos.getZ(), cell),
+					k -> new ArrayList<>()).add(n);
 		}
-		for (List<Node> list : worlds.values()) {
-			for (int i = 0; i < list.size(); i++) {
-				for (int j = i + 1; j < list.size(); j++) {
-					if (joins(list.get(i), list.get(j))) {
-						auto.add(link(list.get(i).key, list.get(j).key));
+		for (Node a : nodes.values()) {
+			int cx = Math.floorDiv(a.pos.getX(), cell);
+			int cz = Math.floorDiv(a.pos.getZ(), cell);
+			for (int dx = -1; dx <= 1; dx++) {
+				for (int dz = -1; dz <= 1; dz++) {
+					for (Node b : squares.getOrDefault(a.dim.location() + "/" + (cx + dx) + "/" + (cz + dz), List.of())) {
+						if (a.key.compareTo(b.key) < 0 && joins(a, b)) {
+							auto.add(link(a.key, b.key));
+						}
 					}
 				}
 			}
@@ -1130,7 +1137,7 @@ public final class MyceliumNetwork extends SavedData {
 			double relinkMs = (t1 - t0) / 1e6;
 			double routeMs = (t2 - t1) / 1e6 / some.size();
 			check.accept(String.format("800 nodes: joins worked out in %.1f ms, a node's routes in %.3f ms (%d routes)", relinkMs, routeMs, routes),
-					relinkMs < 250 && routeMs < 5);
+					relinkMs < 40 && routeMs < 2);
 		} catch (RuntimeException e) {
 			check.accept("network self-check threw " + e, false);
 		} finally {
