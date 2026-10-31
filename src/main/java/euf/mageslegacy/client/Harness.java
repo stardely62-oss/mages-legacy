@@ -615,7 +615,10 @@ final class Harness {
 
 	/** Into the Pocket and safely back out, from where the player stands now; then the count of worlds. */
 	private static void pocketFrom(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> world, int expect) {
-		run(() -> server().execute(() -> java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player()).cooldown, 0)), 2);
+		run(() -> server().execute(() -> {
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player()).cooldown, 0);
+			RaceState.setResource(player(), RaceState.MAX_RESOURCE);
+		}), 2);
 		run(() -> MagesLegacyClient.useAbility(3), 40);
 		run(() -> check("into the Pocket from " + world.location().getPath(), euf.mageslegacy.voidborn.Pocket.isPocket(player().level())), 0);
 		run(() -> MagesLegacyClient.useAbility(3), 40);
@@ -697,7 +700,9 @@ final class Harness {
 			}
 			check("the Mage's Legacy tab: " + ours + " advancements, " + hidden + " hidden, " + missing + " without a title", ours == 25 && hidden == 2
 					&& missing == 0);
-			check("the root, Gift and Peak follow the saved state", done("root") && done("gift") && done("first_awakening") && !done("peak"));
+			// Peak was reached already by the Voidborn at level 50 earlier on: advancements belong to the player, not the race
+			check("the root, Gift, First Awakening and Peak follow the saved state (" + done("root") + done("gift") + done("first_awakening")
+					+ done("peak") + ")", done("root") && done("gift") && done("first_awakening") && done("peak"));
 			String name = player().getGameProfile().getName();
 			server().execute(() -> server().getCommands().performPrefixedCommand(server().createCommandSourceStack(),
 					"advancement revoke " + name + " only mages_legacy:legacy/myc_epidemic"));
