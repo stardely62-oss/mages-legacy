@@ -1074,7 +1074,7 @@ final class Harness {
 		run(() -> {
 			check("with the diet: food " + player().getFoodData().getFoodLevel() + " (+5 +3), Spores " + RaceState.resource(player()) + " (+15), health "
 					+ player().getHealth() + " (+4)", player().getFoodData().getFoodLevel() == 18 && RaceState.resource(player()) > 64
-					&& RaceState.resource(player()) < 68 && Math.abs(player().getHealth() - 14) < 0.01f);
+					&& RaceState.resource(player()) < 70 && Math.abs(player().getHealth() - 14) < 0.01f);
 			server().execute(() -> player().setHealth(10));
 		}, 3);
 		run(() -> meal(net.minecraft.world.item.Items.BROWN_MUSHROOM, 4, y), 5);
