@@ -25,10 +25,10 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.RelativeMovement;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.Tags;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
@@ -86,10 +86,32 @@ public final class Awaken {
 		NeoForge.EVENT_BUS.addListener(Awaken::onIncomingDamage);
 		NeoForge.EVENT_BUS.addListener(Awaken::onAttack);
 		NeoForge.EVENT_BUS.addListener(Awaken::onDeath);
-		NeoForge.EVENT_BUS.addListener((PlayerEvent.PlayerLoggedOutEvent e) -> {
-			BLOOMS.remove(e.getEntity().getUUID());
-			STORMS.remove(e.getEntity().getUUID());
-		});
+		// Before the cooldowns are saved on the player (Voidborn's own logout listener)
+		NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, Awaken::onLogout);
+		NeoForge.EVENT_BUS.addListener(Awaken::onChangeWorld);
+	}
+
+	/**
+	 * Leaving the server (or the server stopping) ends the Awakenings in progress the way their own end does: the
+	 * Bloom's cooldown starts, both exhaust.
+	 */
+	private static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+		if (event.getEntity() instanceof ServerPlayer player) {
+			leave(player);
+		}
+	}
+
+	/** What leaving does to the Awakenings in progress (public for the harness, which can't log out). */
+	public static void leave(ServerPlayer player) {
+		endBloom(player);
+		endStorm(player);
+	}
+
+	/** A rooted mushroom carried to another world withers there. */
+	private static void onChangeWorld(PlayerEvent.PlayerChangedDimensionEvent event) {
+		if (event.getEntity() instanceof ServerPlayer player) {
+			endBloom(player);
+		}
 	}
 
 	// ---- Exhaustion -------------------------------------------------------------------------------------------
@@ -126,6 +148,12 @@ public final class Awaken {
 		ServerLevel level = player.serverLevel();
 		int ticks = Talents.has(player, Talent.BLOOM_LONG) ? BLOOM_LONG : BLOOM_TICKS;
 		BLOOMS.put(player.getUUID(), new Bloom(player.position(), level.getGameTime() + ticks));
+		// Kept on the player from the start (the Bloom and its cooldown), so even a crash of the server mid-Bloom loses
+		// nothing; the end sets the cooldown proper
+		int slot = Awakenings.slotOf(Talents.owned(player), Ability.GREAT_BLOOM);
+		if (slot >= 0) {
+			Voidborn.state(player).startCooldown(slot, ticks + Abilities.cooldown(player, Ability.GREAT_BLOOM));
+		}
 		Fx.bloom(level, player, ticks, (float) bloomRadius(player, player.position()));
 		Fx.hide(level, player, ticks);
 		Fx.thirdPerson(player, ticks + 10);
@@ -140,6 +168,7 @@ public final class Awaken {
 		return blooming(player);
 	}
 
+	/** Every way the Bloom ends comes here (once: a second call finds nothing to end). */
 	private static void endBloom(ServerPlayer player) {
 		if (BLOOMS.remove(player.getUUID()) == null) {
 			return;
@@ -187,11 +216,12 @@ public final class Awaken {
 			return;
 		}
 		double radius = bloomRadius(player, bloom.at());
-		int strength = Talents.has(player, Talent.BLOOM_HEAL) ? 1 : 0;
+		// A point of health a second (Rich Spores: two). Healed directly: Regeneration renewed every second heals at the
+		// same pace whatever its level, so Regeneration II gave nothing more
+		float heal = Talents.has(player, Talent.BLOOM_HEAL) ? 2 : 1;
 		for (LivingEntity ally : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(radius), e -> e != player && e.isAlive()
-				&& e.distanceTo(player) <= radius && (e instanceof Player p && !p.isSpectator()
-				|| e instanceof OwnableEntity o && player.getUUID().equals(o.getOwnerUUID())))) {
-			ally.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 50, strength, true, true));
+				&& e.distanceTo(player) <= radius && Allies.ally(player, e))) {
+			ally.heal(heal);
 			level.sendParticles(HEAL_DUST, ally.getX(), ally.getY() + ally.getBbHeight() + 0.3, ally.getZ(), 4, 0.3, 0.2, 0.3, 0);
 		}
 	}
@@ -220,12 +250,18 @@ public final class Awaken {
 		return STORMS.containsKey(player.getUUID());
 	}
 
+	/** Every way the storm ends comes here (once). Its cooldown started with it. */
+	private static void endStorm(ServerPlayer player) {
+		if (STORMS.remove(player.getUUID()) != null) {
+			exhaust(player, EXHAUST_STORM);
+		}
+	}
+
 	private static void tickStorm(ServerPlayer player, Storm storm) {
 		ServerLevel level = player.serverLevel();
 		long now = level.getGameTime();
 		if (!player.isAlive() || now >= storm.until()) {
-			STORMS.remove(player.getUUID());
-			exhaust(player, EXHAUST_STORM);
+			endStorm(player);
 			return;
 		}
 		double r = storm.radius();
@@ -251,7 +287,7 @@ public final class Awaken {
 						e.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 25, 0, false, true), player);
 					}
 				}
-			} else if (e instanceof Player p && !p.isSpectator() || e instanceof OwnableEntity o && player.getUUID().equals(o.getOwnerUUID())) {
+			} else if (Allies.ally(player, e)) {
 				e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 30, 0, true, true));
 				e.addEffect(new MobEffectInstance(MobEffects.DIG_SPEED, 30, 0, true, true));
 				e.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
@@ -290,11 +326,9 @@ public final class Awaken {
 		ServerLevel from = player.serverLevel();
 		MyceliumNetwork.dissolve(from, player.position());
 		Fx.wake(from, player.position(), true);
-		BLOOMS.remove(player.getUUID());
-		STORMS.remove(player.getUUID());
-		Fx.bloom(from, player, 0, 0);
-		Fx.hide(from, player, 0);
-		Fx.thirdPerson(player, 0);
+		// A Bloom or a storm cut short by the blow ends as it would anyway: cooldown and exhaustion
+		endBloom(player);
+		endStorm(player);
 		ServerLevel to = waking.level();
 		player.clearFire();
 		player.removeEffect(MobEffects.WITHER);
@@ -348,9 +382,7 @@ public final class Awaken {
 
 	/** Forgets a player's Awakenings in progress (a new race). */
 	public static void reset(ServerPlayer player) {
-		if (blooming(player)) {
-			endBloom(player);
-		}
+		endBloom(player);
 		STORMS.remove(player.getUUID());
 		EXHAUSTED.remove(player.getUUID());
 	}

@@ -411,6 +411,8 @@ final class Harness {
 		}, 5);
 		run(() -> server().execute(() -> euf.mageslegacy.mycelid.MyceliumNetwork.openColony(player())), 10);
 		shot("network_colony");
+		// The network at server scale, on a network of its own: limits, far threads, colonies, closed nodes, a restart
+		run(() -> RESULTS.addAll(server().submit(() -> euf.mageslegacy.mycelid.MyceliumNetwork.selfCheck(player())).join()), 5);
 		run(() -> mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen()), 20);
 		shot("talents_mycelid");
 		run(() -> mc.setScreen(null), 5);
@@ -450,6 +452,7 @@ final class Harness {
 			check("the Spore Storm takes the spores (" + RaceState.resource(player()) + ")", RaceState.resource(player()) < 50);
 		}, 0);
 		film("storm", 6, 4);
+		bloomAndStorm();
 		// Mycelial Rebirth: a reserve body at the Mother Mycelium, a killing blow far away
 		run(() -> server().execute(() -> {
 			ServerPlayer player = player();
@@ -467,10 +470,22 @@ final class Harness {
 			euf.mageslegacy.mycelid.MyceliumNetwork.ripenBody(player);
 			player.connection.teleport(90.5, y[0], 90.5, 0, 0);
 		}), 10);
+		// Blooming far away when the blow comes: the Bloom ends as it would, its cooldown starts
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			euf.mageslegacy.race.Talents.setNoCooldown(player, false);
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player).cooldown, 0);
+			RaceState.setResource(player, RaceState.MAX_RESOURCE);
+		}), 3);
+		run(() -> MagesLegacyClient.useAbility(4), 10);
+		run(() -> check("blooming before the blow", euf.mageslegacy.mycelid.Awaken.blooming(player())), 0);
 		run(() -> server().execute(() -> player().hurt(player().damageSources().fellOutOfWorld(), 1000)), 10);
 		film("rebirth", 6, 3);
 		run(() -> {
 			ServerPlayer player = player();
+			int cd = euf.mageslegacy.voidborn.Voidborn.state(player).cooldown[4];
+			check("reborn mid-Bloom, the Bloom is over with its 5-minute cooldown (" + cd + ")", !euf.mageslegacy.mycelid.Awaken.blooming(player)
+					&& cd > 5900 && cd <= 6000);
 			check("a killing blow wakes the reserve body by the Mother Mycelium (alive=" + player.isAlive() + ", x=" + String.format("%.1f", player.getX())
 					+ ")", player.isAlive() && Math.abs(player.getX() - 40.5) < 3 && Math.abs(player.getZ() - 40.5) < 3);
 			server().execute(() -> euf.mageslegacy.race.Talents.setNoCooldown(player, false));
@@ -486,6 +501,83 @@ final class Harness {
 		}, 30);
 		shot("colony_trial");
 		run(() -> server().execute(() -> player().kill()), 20);
+	}
+
+	/**
+	 * The Great Bloom and the Spore Storm at once in plain survival (no testing mode): the Bloom first, the storm once
+	 * 10 Spores have grown back in the shade. Then the Bloom's cooldown through a logout, a second call, the save on
+	 * the player and a trip to another world.
+	 */
+	private static void bloomAndStorm() {
+		int bloomSlot = euf.mageslegacy.race.Awakenings.FIRST_SLOT;
+		int full = 5 * 60 * 20;
+		int[] seen = new int[1];
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			husk.discard();
+			euf.mageslegacy.mycelid.Awaken.reset(player);
+			euf.mageslegacy.race.Talents.setNoCooldown(player, false);
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player).cooldown, 0);
+			RaceState.setResource(player, RaceState.MAX_RESOURCE);
+			net.minecraft.core.BlockPos roof = player.blockPosition().above(3);
+			for (int dx = -2; dx <= 2; dx++) {
+				for (int dz = -2; dz <= 2; dz++) {
+					player.serverLevel().setBlockAndUpdate(roof.offset(dx, 0, dz), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+				}
+			}
+		}), 5);
+		run(() -> MagesLegacyClient.useAbility(bloomSlot), 5);
+		run(() -> {
+			ServerPlayer player = player();
+			int cd = euf.mageslegacy.voidborn.Voidborn.state(player).cooldown[bloomSlot];
+			check("survival: the Bloom grows for 60 Spores (" + RaceState.resource(player) + " left)", euf.mageslegacy.mycelid.Awaken.blooming(player)
+					&& RaceState.resource(player) <= 41);
+			check("the Bloom's cooldown is kept on the player from its start (" + cd + ")", cd > full);
+		}, 210);
+		run(() -> check("10 s in the shade grow 10 Spores back (" + RaceState.resource(player()) + ")", RaceState.resource(player()) >= 50), 0);
+		run(() -> MagesLegacyClient.useAbility(euf.mageslegacy.race.Awakenings.SECOND_SLOT), 5);
+		run(() -> check("the Spore Storm whirls round the blooming Mycelid", euf.mageslegacy.mycelid.Awaken.blooming(player())
+				&& euf.mageslegacy.mycelid.Awaken.storming(player())), 0);
+		run(() -> server().execute(() -> euf.mageslegacy.mycelid.Awaken.leave(player())), 3);
+		run(() -> {
+			ServerPlayer player = player();
+			seen[0] = euf.mageslegacy.voidborn.Voidborn.state(player).cooldown[bloomSlot];
+			check("leaving mid-Bloom ends it with the full cooldown and exhaustion (" + seen[0] + ")", !euf.mageslegacy.mycelid.Awaken.blooming(player)
+					&& !euf.mageslegacy.mycelid.Awaken.storming(player) && seen[0] > full - 20 && seen[0] <= full
+					&& euf.mageslegacy.mycelid.Awaken.exhausted(player));
+		}, 5);
+		run(() -> server().execute(() -> euf.mageslegacy.mycelid.Awaken.leave(player())), 3);
+		run(() -> {
+			int cd = euf.mageslegacy.voidborn.Voidborn.state(player()).cooldown[bloomSlot];
+			check("a second end changes nothing (" + seen[0] + " -> " + cd + ")", cd < seen[0]);
+		}, 100);
+		run(() -> {
+			int[] left = player().getData(RaceState.COOLDOWNS).getIntArray("left");
+			check("the cooldown is saved on the player (" + (left.length > bloomSlot ? left[bloomSlot] : -1) + ")",
+					left.length > bloomSlot && left[bloomSlot] > full - 200);
+		}, 0);
+		// Carried to another world mid-Bloom: it withers there, the cooldown starts
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			euf.mageslegacy.voidborn.Voidborn.state(player).cooldown[bloomSlot] = 0;
+			RaceState.setResource(player, RaceState.MAX_RESOURCE);
+		}), 3);
+		run(() -> MagesLegacyClient.useAbility(bloomSlot), 5);
+		double[] home = new double[3];
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			home[0] = player.getX();
+			home[1] = player.getY();
+			home[2] = player.getZ();
+			player.teleportTo(server().getLevel(net.minecraft.world.level.Level.NETHER), 0.5, 130, 0.5, player.getYRot(), player.getXRot());
+		}), 10);
+		run(() -> {
+			ServerPlayer player = player();
+			int cd = euf.mageslegacy.voidborn.Voidborn.state(player).cooldown[bloomSlot];
+			check("another world ends the Bloom with its cooldown (" + cd + ")", !euf.mageslegacy.mycelid.Awaken.blooming(player) && cd > full - 40
+					&& cd <= full);
+			server().execute(() -> player.teleportTo(server().overworld(), home[0], home[1], home[2], player.getYRot(), player.getXRot()));
+		}, 20);
 	}
 
 	private static MinecraftServer server() {

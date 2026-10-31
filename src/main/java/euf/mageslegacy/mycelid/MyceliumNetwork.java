@@ -77,16 +77,23 @@ public final class MyceliumNetwork extends SavedData {
 	/** Nutrients a new grower starts with: enough for a few nodes and a first far thread. */
 	private static final int START_NUTRIENTS = 60;
 	private static final int NODE_COST = 20;
-	private static final int BASE_NODES = 4;
-	private static final double AUTO_RANGE = 128;
-	private static final double FAR_RANGE = 2000;
-	/** A far thread: a nutrient per 20 blocks, a second of growth per 25 blocks. */
-	private static final double COST_PER_BLOCK = 1 / 20.0;
-	private static final double TICKS_PER_BLOCK = 20 / 25.0;
+	/** Nodes a colony holds, the Mother Mycelium counted: without talents, then with Spreading I, II and III. */
+	private static final int[] MAX_NODES = {8, 14, 22, 32};
+	private static final double AUTO_RANGE = 256;
+	private static final double FAR_RANGE = 6000;
+	/** A far thread: a nutrient per 80 blocks (5 at least), a second of growth per 50 blocks. */
+	private static final double COST_PER_BLOCK = 1 / 80.0;
+	private static final int LINK_MIN_COST = 5;
+	private static final double TICKS_PER_BLOCK = 20 / 50.0;
 	private static final int TRAVEL_BASE = 30;
 	private static final int TRAVEL_PER_HOP = 6;
 	private static final int TRAVEL_MAX = 70;
 	private static final int RECALL_COOLDOWN = 10 * 60 * 20;
+	/** Healing Nodes rest while the player has been hurt in the last 5 s. */
+	private static final int HEAL_CALM = 5 * 20;
+	/** Fungal Larders: a point of food every 6 s, and never past 16 of 20 (enough to sprint, not to heal by itself). */
+	private static final int FOOD_EVERY = 6 * 20;
+	private static final int FOOD_CAP = 16;
 	/** Food for the network; a datapack can add to it. */
 	public static final TagKey<net.minecraft.world.item.Item> FUNGAL_FOOD = TagKey.create(Registries.ITEM, MagesLegacy.id("fungal_food"));
 
@@ -111,8 +118,17 @@ public final class MyceliumNetwork extends SavedData {
 	}
 
 	private final Map<String, Node> nodes = new LinkedHashMap<>();
-	/** Threads between two nodes ("a|b", sorted): the game time they are grown by (0 once grown). */
+	/** Grown threads between two nodes ("a|b", sorted): the game time they are grown by. */
 	private final Map<String, Long> links = new HashMap<>();
+	/**
+	 * Threads that join by themselves: close nodes of one grower, and with Shared Mycelium open nodes of different
+	 * growers. Never saved: worked out again whenever nodes, their access or their growers' talents change, so a talent
+	 * bought later reaches the nodes already grown.
+	 */
+	private final Set<String> auto = new HashSet<>();
+	/** Every node's neighbours along threads of either kind, kept with {@link #auto}. */
+	private final Map<String, List<String>> adjacent = new HashMap<>();
+	private boolean stale = true;
 	private final Map<UUID, Integer> nutrients = new HashMap<>();
 	/** Reserve bodies (Mycelial Rebirth): whose, at which node, grown by when. One per Mycelid. */
 	private final Map<UUID, String> bodies = new HashMap<>();
@@ -183,6 +199,7 @@ public final class MyceliumNetwork extends SavedData {
 		Set<String> now = new HashSet<>(Talents.owned(player));
 		if (!now.equals(growerTalents.get(player.getUUID()))) {
 			growerTalents.put(player.getUUID(), now);
+			stale = true;
 			setDirty();
 		}
 	}
@@ -190,17 +207,8 @@ public final class MyceliumNetwork extends SavedData {
 	// ---- What a grower may do --------------------------------------------------------------------------------
 
 	public static int maxNodes(ServerPlayer player) {
-		int n = BASE_NODES;
-		if (Talents.has(player, Talent.NET_NODES_1)) {
-			n += 2;
-		}
-		if (Talents.has(player, Talent.NET_NODES_2)) {
-			n += 3;
-		}
-		if (Talents.has(player, Talent.NET_NODES_3)) {
-			n += 4;
-		}
-		return n;
+		return MAX_NODES[Talents.has(player, Talent.NET_NODES_3) ? 3 : Talents.has(player, Talent.NET_NODES_2) ? 2
+				: Talents.has(player, Talent.NET_NODES_1) ? 1 : 0];
 	}
 
 	private static boolean far(ServerPlayer player) {
@@ -220,7 +228,7 @@ public final class MyceliumNetwork extends SavedData {
 	}
 
 	static int linkCost(ServerPlayer player, double distance) {
-		double cost = Math.ceil(distance * COST_PER_BLOCK);
+		double cost = Math.max(LINK_MIN_COST, Math.ceil(distance * COST_PER_BLOCK));
 		return (int) (Talents.has(player, Talent.NET_THRIFT) ? Math.ceil(cost * 0.6) : cost);
 	}
 
@@ -282,7 +290,7 @@ public final class MyceliumNetwork extends SavedData {
 		net.nodes.put(key, node);
 		net.addNutrients(player.getUUID(), -cost);
 		net.remember(player);
-		net.joinNear(node);
+		net.stale = true;
 		net.setDirty();
 		// The Great Bloom's trial counts the biggest network the Mycelid has had
 		int count = net.nodesOf(player.getUUID()).size();
@@ -298,21 +306,53 @@ public final class MyceliumNetwork extends SavedData {
 		RaceState.sync(player);
 	}
 
-	/** A new node joins the grower's nodes close by (and, with Shared Mycelium, other growers' open nodes close by). */
-	private void joinNear(Node node) {
-		boolean reach = growerHas(node.owner, Talent.NET_REACH);
-		boolean shared = growerHas(node.owner, Talent.NET_SHARED);
-		for (Node other : nodes.values()) {
-			if (other == node || other.dim != node.dim) {
-				continue;
-			}
-			boolean mine = other.owner.equals(node.owner);
-			boolean share = !mine && other.open && node.open && (shared || growerHas(other.owner, Talent.NET_SHARED));
-			double range = autoRange(reach || !mine && growerHas(other.owner, Talent.NET_REACH));
-			if ((mine || share) && Math.sqrt(other.pos.distSqr(node.pos)) <= range) {
-				links.put(link(node.key, other.key), 0L);
+	/** Whether two nodes in one world join by themselves: one grower's within reach, or two growers' open ones with Shared Mycelium. */
+	private boolean joins(Node a, Node b) {
+		boolean mine = a.owner.equals(b.owner);
+		if (!mine && !(a.open && b.open && (growerHas(a.owner, Talent.NET_SHARED) || growerHas(b.owner, Talent.NET_SHARED)))) {
+			return false;
+		}
+		double range = autoRange(growerHas(a.owner, Talent.NET_REACH) || growerHas(b.owner, Talent.NET_REACH));
+		return a.pos.distSqr(b.pos) <= range * range;
+	}
+
+	/** Works out the threads that join by themselves again, and every node's neighbours. */
+	private void relink() {
+		auto.clear();
+		adjacent.clear();
+		Map<ResourceKey<Level>, List<Node>> worlds = new HashMap<>();
+		for (Node n : nodes.values()) {
+			worlds.computeIfAbsent(n.dim, d -> new ArrayList<>()).add(n);
+		}
+		for (List<Node> list : worlds.values()) {
+			for (int i = 0; i < list.size(); i++) {
+				for (int j = i + 1; j < list.size(); j++) {
+					if (joins(list.get(i), list.get(j))) {
+						auto.add(link(list.get(i).key, list.get(j).key));
+					}
+				}
 			}
 		}
+		Set<String> all = new HashSet<>(auto);
+		all.addAll(links.keySet());
+		for (String l : all) {
+			String[] ends = l.split("\\|");
+			if (nodes.containsKey(ends[0]) && nodes.containsKey(ends[1])) {
+				adjacent.computeIfAbsent(ends[0], k -> new ArrayList<>()).add(ends[1]);
+				adjacent.computeIfAbsent(ends[1], k -> new ArrayList<>()).add(ends[0]);
+			}
+		}
+		stale = false;
+	}
+
+	/** Whether two nodes are joined by a thread ready to carry a body. */
+	private boolean joined(String a, String b, long now) {
+		String l = link(a, b);
+		if (auto.contains(l)) {
+			return true;
+		}
+		Long ready = links.get(l);
+		return ready != null && ready <= now;
 	}
 
 	/** A far thread between two of one's own nodes in one world: paid now, grown over time. */
@@ -323,7 +363,7 @@ public final class MyceliumNetwork extends SavedData {
 			why = "mages_legacy.refuse.not_your_node";
 		} else if (a.dim != b.dim) {
 			why = "mages_legacy.refuse.link_world";
-		} else if (links.containsKey(link(a.key, b.key))) {
+		} else if (links.containsKey(link(a.key, b.key)) || auto.contains(link(a.key, b.key))) {
 			why = "mages_legacy.refuse.link_exists";
 		} else if (distance > farRange(far(player))) {
 			why = "mages_legacy.refuse.link_far";
@@ -337,37 +377,42 @@ public final class MyceliumNetwork extends SavedData {
 		addNutrients(player.getUUID(), -linkCost(player, distance));
 		long ready = player.serverLevel().getGameTime() + linkTicks(player, distance);
 		links.put(link(a.key, b.key), ready);
+		stale = true;
 		setDirty();
 		player.displayClientMessage(Component.translatable("mages_legacy.message.link_growing", a.name, b.name, linkTicks(player, distance) / 20)
 				.withStyle(ChatFormatting.GREEN), true);
 	}
 
-	private boolean grown(String a, String b, long now) {
-		Long ready = links.get(link(a, b));
-		return ready != null && ready <= now;
-	}
-
 	/** Who may set out from or arrive at a node: anyone at an open one; only its grower (and operators) at a closed one. */
 	private static boolean mayUse(ServerPlayer player, Node node) {
-		return node.open || node.owner.equals(player.getUUID()) || player.hasPermissions(2);
+		return mayUse(player.getUUID(), player.hasPermissions(2), node);
 	}
 
-	/** Every node reachable from this one along grown threads, with the number of hops. */
-	private Map<Node, Integer> reachable(Node from, long now) {
+	private static boolean mayUse(UUID who, boolean operator, Node node) {
+		return node.open || node.owner.equals(who) || operator;
+	}
+
+	/**
+	 * Every node this player can reach from this one along ready threads, with the number of hops. A closed node of
+	 * someone else is a wall: the way neither ends at it nor goes through it.
+	 */
+	private Map<Node, Integer> reachable(Node from, long now, ServerPlayer player) {
+		return reachable(from, now, player.getUUID(), player.hasPermissions(2));
+	}
+
+	private Map<Node, Integer> reachable(Node from, long now, UUID who, boolean operator) {
+		if (stale) {
+			relink();
+		}
 		Map<Node, Integer> hops = new LinkedHashMap<>();
 		ArrayDeque<Node> queue = new ArrayDeque<>();
 		hops.put(from, 0);
 		queue.add(from);
 		while (!queue.isEmpty()) {
 			Node at = queue.poll();
-			for (Map.Entry<String, Long> e : links.entrySet()) {
-				if (e.getValue() > now) {
-					continue;
-				}
-				String[] ends = e.getKey().split("\\|");
-				String next = ends[0].equals(at.key) ? ends[1] : ends[1].equals(at.key) ? ends[0] : null;
-				Node n = next == null ? null : nodes.get(next);
-				if (n != null && !hops.containsKey(n)) {
+			for (String next : adjacent.getOrDefault(at.key, List.of())) {
+				Node n = nodes.get(next);
+				if (n != null && !hops.containsKey(n) && mayUse(who, operator, n) && joined(at.key, next, now)) {
 					hops.put(n, hops.get(at) + 1);
 					queue.add(n);
 				}
@@ -521,11 +566,8 @@ public final class MyceliumNetwork extends SavedData {
 			tag.putString("grower", ownerName);
 			ListTag to = new ListTag();
 			if (mayUse(player, here)) {
-				for (Map.Entry<Node, Integer> e : reachable(here, now).entrySet()) {
+				for (Map.Entry<Node, Integer> e : reachable(here, now, player).entrySet()) {
 					Node n = e.getKey();
-					if (!mayUse(player, n)) {
-						continue;
-					}
 					CompoundTag d = new CompoundTag();
 					d.putString("key", n.key);
 					d.putString("name", n.name);
@@ -539,6 +581,9 @@ public final class MyceliumNetwork extends SavedData {
 		// The grower's own nodes: in the colony view all of them, at an own node the threads it could grow
 		ListTag own = new ListTag();
 		if (mycelid) {
+			if (stale) {
+				relink();
+			}
 			for (Node n : nodesOf(player.getUUID())) {
 				CompoundTag d = new CompoundTag();
 				d.putString("key", n.key);
@@ -552,6 +597,8 @@ public final class MyceliumNetwork extends SavedData {
 					d.putInt("dist", (int) distance);
 					if (n.dim != here.dim) {
 						d.putString("state", "world");
+					} else if (auto.contains(link(here.key, n.key))) {
+						d.putString("state", "linked");
 					} else if (ready == null) {
 						boolean tooFar = distance > farRange(far(player));
 						d.putString("state", tooFar ? "far" : "none");
@@ -598,6 +645,7 @@ public final class MyceliumNetwork extends SavedData {
 			case "open" -> {
 				if (na != null && na.owner.equals(player.getUUID())) {
 					na.open = !na.open;
+					net.stale = true;
 					net.setDirty();
 				}
 			}
@@ -660,11 +708,11 @@ public final class MyceliumNetwork extends SavedData {
 		String why = null;
 		if (from == null || to == null || from == to) {
 			why = "mages_legacy.refuse.no_route";
-		} else if (travelling(player) || Voidborn.stepping(player)) {
+		} else if (travelling(player) || Voidborn.stepping(player) || Awaken.blooming(player)) {
 			why = "mages_legacy.refuse.busy";
 		} else if (from.dim != player.level().dimension() || Vec3.atCenterOf(from.pos).distanceTo(player.position()) > 4) {
 			why = "mages_legacy.refuse.node_close";
-		} else if (!mayUse(player, from) || !mayUse(player, to) || !reachable(from, now).containsKey(to)) {
+		} else if (!mayUse(player, from) || !mayUse(player, to) || !reachable(from, now, player).containsKey(to)) {
 			why = "mages_legacy.refuse.no_route";
 		}
 		ServerLevel level = why == null ? player.server.getLevel(to.dim) : null;
@@ -676,7 +724,7 @@ public final class MyceliumNetwork extends SavedData {
 			Abilities.refuse(player, Component.translatable(why));
 			return;
 		}
-		int hops = reachable(from, now).get(to);
+		int hops = reachable(from, now, player).get(to);
 		int ticks = Math.min(TRAVEL_MAX, TRAVEL_BASE + TRAVEL_PER_HOP * hops);
 		if (growerHas(from.owner, Talent.NET_SWIFT)) {
 			ticks = ticks * 6 / 10;
@@ -700,7 +748,7 @@ public final class MyceliumNetwork extends SavedData {
 		if (now < state.recallReady) {
 			return new Abilities.Refusal("mages_legacy.refuse.recall_wait");
 		}
-		if (travelling(player) || Pocket.isPocket(player.level()) || Arena.isArena(player.level())) {
+		if (travelling(player) || Awaken.blooming(player) || Pocket.isPocket(player.level()) || Arena.isArena(player.level())) {
 			return new Abilities.Refusal("mages_legacy.refuse.busy");
 		}
 		ServerLevel level = player.server.getLevel(mother.dim);
@@ -787,6 +835,12 @@ public final class MyceliumNetwork extends SavedData {
 			net.arrive(player, j);
 		}
 		if (server.getTickCount() % 40 == 0) {
+			// Talents bought or forgotten reach the nodes already grown
+			for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+				if (RaceState.is(p, Race.MYCELID)) {
+					net.remember(p);
+				}
+			}
 			net.pulse(server);
 		}
 	}
@@ -844,6 +898,8 @@ public final class MyceliumNetwork extends SavedData {
 
 	/** Every two seconds the nodes of growers who are online act on what is around them (their talents). */
 	private void pulse(MinecraftServer server) {
+		boolean feeding = server.getTickCount() % FOOD_EVERY == 0;
+		Set<UUID> fed = new HashSet<>();
 		for (Node n : nodes.values()) {
 			ServerLevel level = server.getLevel(n.dim);
 			if (level == null || !level.isLoaded(n.pos)) {
@@ -868,14 +924,17 @@ public final class MyceliumNetwork extends SavedData {
 				}
 			}
 			boolean heal = Talents.has(grower, Talent.HEAL_NODES);
-			boolean food = Talents.has(grower, Talent.NODE_FOOD);
+			boolean food = feeding && Talents.has(grower, Talent.NODE_FOOD);
 			if (heal || food) {
-				for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, new AABB(c, c).inflate(8), p -> p.isAlive() && !p.isSpectator())) {
-					if (heal) {
+				for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, new AABB(c, c).inflate(8),
+						p -> p.isAlive() && !p.isSpectator() && Allies.ally(grower, p))) {
+					// Healing Nodes: Regeneration I, renewed every pulse (a point of health every 2 s), while no blow lands
+					if (heal && !Voidborn.hurtRecently(p, HEAL_CALM)) {
 						p.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 50, 0, true, true));
 					}
-					if (food && p.distanceToSqr(c) <= 36) {
-						p.getFoodData().eat(1, 0.2f);
+					// Fungal Larders: once per round however many nodes are near
+					if (food && p.distanceToSqr(c) <= 36 && p.getFoodData().getFoodLevel() < FOOD_CAP && fed.add(p.getUUID())) {
+						p.getFoodData().eat(1, 0f);
 					}
 				}
 			}
@@ -908,6 +967,7 @@ public final class MyceliumNetwork extends SavedData {
 		String key = key(level.dimension(), pos);
 		if (net.nodes.remove(key) != null) {
 			net.links.keySet().removeIf(l -> l.startsWith(key + "|") || l.endsWith("|" + key));
+			net.stale = true;
 			net.setDirty();
 		}
 	}
@@ -940,6 +1000,152 @@ public final class MyceliumNetwork extends SavedData {
 				get(player.server).arrive(player, j);
 			}
 		}
+	}
+
+	// ---- For the harness -------------------------------------------------------------------------------------
+
+	/**
+	 * Checks the network on a network of its own (the world's is left alone): node limits, threads of thousands of
+	 * blocks, a talent reaching nodes already grown, colonies joined, closed nodes, a restart, and how long the routes
+	 * take to work out on a big server. The player's talents are put back afterwards. Lines start PASS or FAIL.
+	 */
+	public static List<String> selfCheck(ServerPlayer player) {
+		List<String> out = new ArrayList<>();
+		java.util.function.BiConsumer<String, Boolean> check = (name, ok) -> out.add((ok ? "PASS " : "FAIL ") + name);
+		List<String> had = new ArrayList<>(Talents.owned(player));
+		UUID me = player.getUUID();
+		UUID other = UUID.fromString("00000000-0000-4000-8000-00000000000b");
+		UUID visitor = UUID.fromString("00000000-0000-4000-8000-00000000000c");
+		ResourceKey<Level> world = Level.OVERWORLD;
+		long now = player.serverLevel().getGameTime();
+		HolderLookup.Provider registries = player.server.registryAccess();
+		try {
+			// Node limits, as the server and the screen see them
+			int[] want = {8, 14, 22, 32};
+			String[][] sets = {{}, {"net_nodes_1"}, {"net_nodes_1", "net_nodes_2"}, {"net_nodes_1", "net_nodes_2", "net_nodes_3"}};
+			boolean limits = true;
+			for (int i = 0; i < sets.length; i++) {
+				player.setData(RaceState.TALENTS, new ArrayList<>(List.of(sets[i])));
+				limits &= maxNodes(player) == want[i] && get(player.server).view(player, null).getInt("max") == want[i];
+			}
+			check.accept("node limits 8/14/22/32, on the screen too", limits);
+
+			// 32 nodes 200 blocks apart: one chain of 31 hops by themselves
+			MyceliumNetwork t = new MyceliumNetwork();
+			t.remember(player);
+			List<Node> chain = new ArrayList<>();
+			for (int i = 0; i < 32; i++) {
+				chain.add(t.put(world, new BlockPos(i * 200, 64, 0), me, i == 0));
+			}
+			Map<Node, Integer> all = t.reachable(chain.get(0), now, visitor, false);
+			check.accept("32 nodes join into one chain (" + all.size() + " reached, last in " + all.get(chain.get(31)) + " hops)",
+					all.size() == 31 && all.get(chain.get(31)) == 31);
+
+			// Far Threads bought later: two nodes 400 apart join without being grown again
+			MyceliumNetwork r = new MyceliumNetwork();
+			r.remember(player);
+			Node r0 = r.put(world, new BlockPos(0, 64, 0), me, true);
+			Node r1 = r.put(world, new BlockPos(400, 64, 0), me, false);
+			boolean before = r.reachable(r0, now, me, false).containsKey(r1);
+			player.setData(RaceState.TALENTS, new ArrayList<>(List.of("net_reach")));
+			r.remember(player);
+			check.accept("Far Threads joins nodes already grown 400 apart (before " + before + ")", !before && r.reachable(r0, now, me, false).containsKey(r1));
+
+			// Grown threads of thousands of blocks: cost, time, range
+			player.setData(RaceState.TALENTS, new ArrayList<>());
+			MyceliumNetwork g = new MyceliumNetwork();
+			g.remember(player);
+			g.nutrients.put(me, 10_000);
+			Node g0 = g.put(world, new BlockPos(0, 64, 0), me, true);
+			Node g1 = g.put(world, new BlockPos(5000, 64, 0), me, false);
+			Node g2 = g.put(world, new BlockPos(0, 64, 6100), me, false);
+			check.accept("thread costs: 5000 blocks " + linkCost(player, 5000) + " nutrients / " + linkTicks(player, 5000) / 20 + " s, 100 blocks "
+					+ linkCost(player, 100), linkCost(player, 5000) == 63 && linkTicks(player, 5000) == 2000 && linkCost(player, 100) == LINK_MIN_COST);
+			g.growLink(player, g0, g1);
+			g.growLink(player, g0, g2);
+			long ready = g.links.getOrDefault(link(g0.key, g1.key), -1L);
+			check.accept("a 5000-block thread grows, carries once grown; 6100 is too far without Far Threads",
+					ready > now && !g.reachable(g0, now, me, false).containsKey(g1) && g.reachable(g0, ready, visitor, false).containsKey(g1)
+							&& !g.links.containsKey(link(g0.key, g2.key)) && g.nutrients(me) == 10_000 - 63);
+			player.setData(RaceState.TALENTS, new ArrayList<>(List.of("net_reach", "net_thrift", "net_growth")));
+			Node g3 = g.put(world, new BlockPos(-11_900, 64, 0), me, false);
+			g.growLink(player, g0, g3);
+			check.accept("with Far Threads, Thrifty Colony and Quick Growth a 11900-block thread: " + linkCost(player, 11_900) + " nutrients, "
+					+ linkTicks(player, 11_900) / 20 + " s", g.links.containsKey(link(g0.key, g3.key)) && linkCost(player, 11_900) == 90
+							&& linkTicks(player, 11_900) == 2380);
+
+			// Two colonies: Shared Mycelium joins open nodes, a closed one cuts the way, opening it again joins again
+			player.setData(RaceState.TALENTS, new ArrayList<>());
+			MyceliumNetwork c = new MyceliumNetwork();
+			c.remember(player);
+			Node mine = c.put(world, new BlockPos(0, 64, 0), me, true);
+			Node o1 = c.put(world, new BlockPos(150, 64, 0), other, true);
+			Node o2 = c.put(world, new BlockPos(350, 64, 0), other, false);
+			boolean apart = c.reachable(mine, now, visitor, false).isEmpty();
+			c.growerTalents.put(other, Set.of(Talent.NET_SHARED.id()));
+			c.stale = true;
+			boolean joined = c.reachable(mine, now, visitor, false).keySet().containsAll(List.of(o1, o2));
+			check.accept("Shared Mycelium joins colonies already grown (apart before: " + apart + ")", apart && joined);
+			o1.open = false;
+			c.stale = true;
+			Map<Node, Integer> closed = c.reachable(mine, now, visitor, false);
+			check.accept("a closed node is neither a way's end nor a way through for others", !closed.containsKey(o1) && !closed.containsKey(o2));
+			check.accept("its grower still goes through it", c.reachable(o2, now, other, false).containsKey(o1));
+			o1.open = true;
+			c.stale = true;
+			check.accept("opened again, the way is back", c.reachable(mine, now, visitor, false).containsKey(o2));
+
+			// A restart: saved and loaded, the same ways (and old saves' self-joined threads worked out anew)
+			CompoundTag saved = g.save(new CompoundTag(), registries);
+			saved.getCompound("links").putLong(link(g0.key, g2.key), 0L);
+			MyceliumNetwork back = load(saved, registries);
+			Node b0 = back.node(g0.key);
+			check.accept("after a restart the grown threads still carry", b0 != null && back.reachable(b0, ready, visitor, false).containsKey(back.node(g1.key))
+					&& !back.reachable(b0, ready, visitor, false).containsKey(back.node(g2.key)));
+			CompoundTag shared = c.save(new CompoundTag(), registries);
+			MyceliumNetwork c2 = load(shared, registries);
+			check.accept("after a restart the shared colonies are joined again", c2.reachable(c2.node(mine.key), now, visitor, false).containsKey(c2.node(o2.key)));
+
+			// A big server: 25 colonies of 32 nodes, joins and routes worked out
+			MyceliumNetwork big = new MyceliumNetwork();
+			java.util.Random random = new java.util.Random(7);
+			List<Node> some = new ArrayList<>();
+			for (int colony = 0; colony < 25; colony++) {
+				UUID owner = new UUID(colony, colony);
+				big.growerTalents.put(owner, Set.of(Talent.NET_SHARED.id(), Talent.NET_REACH.id()));
+				int cx = random.nextInt(20_000) - 10_000;
+				int cz = random.nextInt(20_000) - 10_000;
+				for (int i = 0; i < 32; i++) {
+					some.add(big.put(world, new BlockPos(cx + random.nextInt(3000), 64, cz + random.nextInt(3000)), owner, i == 0));
+				}
+			}
+			long t0 = System.nanoTime();
+			big.relink();
+			long t1 = System.nanoTime();
+			int routes = 0;
+			for (Node n : some) {
+				routes += big.reachable(n, now, visitor, false).size();
+			}
+			long t2 = System.nanoTime();
+			double relinkMs = (t1 - t0) / 1e6;
+			double routeMs = (t2 - t1) / 1e6 / some.size();
+			check.accept(String.format("800 nodes: joins worked out in %.1f ms, a node's routes in %.3f ms (%d routes)", relinkMs, routeMs, routes),
+					relinkMs < 250 && routeMs < 5);
+		} catch (RuntimeException e) {
+			check.accept("network self-check threw " + e, false);
+		} finally {
+			player.setData(RaceState.TALENTS, had);
+			RaceState.sync(player);
+		}
+		return out;
+	}
+
+	/** A node put straight into this network (no block): for {@link #selfCheck}. */
+	private Node put(ResourceKey<Level> dim, BlockPos pos, UUID owner, boolean mother) {
+		Node n = new Node(key(dim, pos), dim, pos, owner, "test", mother);
+		nodes.put(n.key, n);
+		stale = true;
+		return n;
 	}
 
 	// ---- Saving ----------------------------------------------------------------------------------------------
@@ -994,7 +1200,10 @@ public final class MyceliumNetwork extends SavedData {
 		}
 		CompoundTag l = tag.getCompound("links");
 		for (String k : l.getAllKeys()) {
-			net.links.put(k, l.getLong(k));
+			// Threads that joined by themselves were once saved as 0: now they are worked out anew
+			if (l.getLong(k) != 0) {
+				net.links.put(k, l.getLong(k));
+			}
 		}
 		CompoundTag food = tag.getCompound("nutrients");
 		for (String k : food.getAllKeys()) {

@@ -232,6 +232,10 @@ public final class Voidborn {
 			state.shelterReady = 0;
 			RaceState.setResource(player, RaceState.MAX_RESOURCE);
 		}
+		// Kept on the player every 5 s too, not only at logout: a server that falls mid-cooldown loses little
+		if (player.tickCount % 100 == 0 && RaceState.get(player).isPresent()) {
+			saveCooldowns(player, state);
+		}
 		// Companions of a walk (Fellow Traveller) walk too, whatever their race
 		if (state.step != null) {
 			tickStep(player, state);

@@ -39,6 +39,7 @@ public class MagesLegacy {
 		euf.mageslegacy.mycelid.MyceliumNetwork.register();
 		euf.mageslegacy.mycelid.Mycelid.register();
 		euf.mageslegacy.mycelid.Awaken.register();
+		euf.mageslegacy.mycelid.Allies.register();
 	}
 
 	public static ResourceLocation id(String path) {

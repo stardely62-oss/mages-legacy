@@ -29,11 +29,9 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -261,8 +259,8 @@ public final class Mycelid {
 		ServerLevel level = player.serverLevel();
 		long until = level.getGameTime() + bondTicks(player);
 		int others = 0;
-		for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(bondRadius(player)), e -> e.isAlive()
-				&& (e == player || e instanceof Player p && !p.isSpectator() || e instanceof OwnableEntity o && player.getUUID().equals(o.getOwnerUUID())))) {
+		for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(bondRadius(player)),
+				e -> e.isAlive() && Allies.ally(player, e))) {
 			bond(player, e, until);
 			Fx.bond(level, player, e, bondTicks(player), e == player ? (float) bondRadius(player) : 0);
 			if (e != player) {
@@ -283,9 +281,9 @@ public final class Mycelid {
 
 	private static void bond(ServerPlayer caster, LivingEntity e, long until) {
 		BONDS.put(e.getUUID(), new Bond(caster.getUUID(), until));
-		double speed = Talents.has(caster, Talent.SYM_PULSE) ? 0.15 : 0.10;
+		double speed = Talents.has(caster, Talent.SYM_PULSE) ? 0.30 : 0.20;
 		modify(e.getAttribute(Attributes.MOVEMENT_SPEED), SPEED, speed);
-		modify(e.getAttribute(Attributes.ATTACK_SPEED), ATTACK, 0.05);
+		modify(e.getAttribute(Attributes.ATTACK_SPEED), ATTACK, 0.15);
 		// Steadier nerves shrug off a slowing
 		e.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
 		if (Talents.has(caster, Talent.SYM_PULSE)) {
@@ -452,8 +450,7 @@ public final class Mycelid {
 			}
 			ServerLevel level = caster.serverLevel();
 			for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, caster.getBoundingBox().inflate(bondRadius(caster)), e -> e.isAlive()
-					&& !BONDS.containsKey(e.getUUID()) && (e instanceof Player p && !p.isSpectator()
-					|| e instanceof OwnableEntity o && caster.getUUID().equals(o.getOwnerUUID())))) {
+					&& !BONDS.containsKey(e.getUUID()) && Allies.ally(caster, e))) {
 				bond(caster, e, entry.getValue());
 				Fx.bond(level, caster, e, (int) (entry.getValue() - now), 0);
 			}

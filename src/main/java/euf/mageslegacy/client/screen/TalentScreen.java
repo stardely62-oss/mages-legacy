@@ -424,7 +424,8 @@ public class TalentScreen extends Screen {
 			}
 			boolean locked = !a.awakening() && level() < a.level;
 			LegacyUi.panel(graphics, x, y, x + tileW, y + 24, hot ? color : LegacyUi.RIM_DARK);
-			ResourceLocation icon = a.awakening() ? icon(euf.mageslegacy.race.Awakenings.talentOf(a)) : LegacyUi.gui("icon/ability_" + a.id());
+			// The same painted icon as on the hotbar (the talent's own), never the old placeholder
+			ResourceLocation icon = a.awakening() ? icon(euf.mageslegacy.race.Awakenings.talentOf(a)) : euf.mageslegacy.client.RaceHud.abilityIcon(a);
 			if (icon != null && LegacyUi.exists(icon)) {
 				LegacyUi.icon(graphics, icon, x + 4, y + 4, 16, !locked);
 			}
