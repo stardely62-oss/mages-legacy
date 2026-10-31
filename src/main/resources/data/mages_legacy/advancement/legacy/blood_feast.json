@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/blood_harvest_five",
   "display": {
     "icon": {
-      "id": "minecraft:rabbit_stew"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 55
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.blood_feast.title"

@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/blood_first_bite",
   "display": {
     "icon": {
-      "id": "minecraft:potion"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 54
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.blood_transfusion.title"

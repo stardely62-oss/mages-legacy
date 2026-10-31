@@ -249,6 +249,114 @@
         "custom_model_data": 41
       },
       "model": "mages_legacy:item/legacy/myc_peak"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 42
+      },
+      "model": "mages_legacy:item/legacy/blood_root"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 43
+      },
+      "model": "mages_legacy:item/legacy/blood_gift"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 44
+      },
+      "model": "mages_legacy:item/legacy/blood_first_choice"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 45
+      },
+      "model": "mages_legacy:item/legacy/blood_cross"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 46
+      },
+      "model": "mages_legacy:item/legacy/blood_first_awakening"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 47
+      },
+      "model": "mages_legacy:item/legacy/blood_mastery"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 48
+      },
+      "model": "mages_legacy:item/legacy/blood_double"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 49
+      },
+      "model": "mages_legacy:item/legacy/blood_peak"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 50
+      },
+      "model": "mages_legacy:item/legacy/blood_first_bite"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 51
+      },
+      "model": "mages_legacy:item/legacy/blood_thirst"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 52
+      },
+      "model": "mages_legacy:item/legacy/blood_dash_three"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 53
+      },
+      "model": "mages_legacy:item/legacy/blood_harvest_five"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 54
+      },
+      "model": "mages_legacy:item/legacy/blood_transfusion"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 55
+      },
+      "model": "mages_legacy:item/legacy/blood_feast"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 56
+      },
+      "model": "mages_legacy:item/legacy/blood_storm"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 57
+      },
+      "model": "mages_legacy:item/legacy/blood_swarm"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 58
+      },
+      "model": "mages_legacy:item/legacy/blood_last_breath"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 59
+      },
+      "model": "mages_legacy:item/legacy/blood_scarlet"
     }
   ]
 }

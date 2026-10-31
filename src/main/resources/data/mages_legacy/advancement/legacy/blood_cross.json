@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/blood_first_choice",
   "display": {
     "icon": {
-      "id": "minecraft:lodestone"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 45
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.blood_cross.title"

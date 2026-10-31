@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/blood_swarm",
   "display": {
     "icon": {
-      "id": "minecraft:totem_of_undying"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 58
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.blood_last_breath.title"

@@ -106,6 +106,10 @@ public class MyceliumScreen extends Screen {
 				graphics.drawString(font, Component.translatable("mages_legacy.network.body_pick", view.getInt("bodyCost")), 10, 22, LegacyUi.GOLD);
 			}
 		}
+		// How to feed the colony, always at hand in its view
+		if (!atNode() && view.getBoolean("mycelid")) {
+			graphics.drawCenteredString(font, Component.translatable("mages_legacy.network.feed_hint"), cx, height - 14, LegacyUi.MUTED);
+		}
 		if (atNode()) {
 			drawDestinations(graphics, mouseX, mouseY);
 			if (owner()) {

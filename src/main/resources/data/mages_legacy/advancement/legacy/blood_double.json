@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/blood_mastery",
   "display": {
     "icon": {
-      "id": "minecraft:dragon_breath"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 48
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.blood_double.title"

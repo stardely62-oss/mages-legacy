@@ -233,10 +233,10 @@ public class LoreScreen extends Screen {
 		return t * t * (3 - 2 * t);
 	}
 
-	/** The choice can be put off: the legend comes back on the next join, or with the legacy key. */
+	/** Without a race the choice can't be put off (Esc does nothing); a player with a race reading it again may leave. */
 	@Override
 	public boolean shouldCloseOnEsc() {
-		return true;
+		return euf.mageslegacy.client.ClientRace.race() != null;
 	}
 
 	@Override

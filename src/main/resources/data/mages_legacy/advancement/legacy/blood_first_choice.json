@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/blood_gift",
   "display": {
     "icon": {
-      "id": "minecraft:writable_book"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 44
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.blood_first_choice.title"

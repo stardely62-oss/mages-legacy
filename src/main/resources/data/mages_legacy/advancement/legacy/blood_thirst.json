@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/blood_first_bite",
   "display": {
     "icon": {
-      "id": "minecraft:glass_bottle"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 51
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.blood_thirst.title"

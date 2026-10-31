@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/blood_root",
   "display": {
     "icon": {
-      "id": "minecraft:iron_sword"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 52
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.blood_dash_three.title"

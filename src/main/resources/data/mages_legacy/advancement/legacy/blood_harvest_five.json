@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/blood_dash_three",
   "display": {
     "icon": {
-      "id": "minecraft:crimson_roots"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 53
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.blood_harvest_five.title"

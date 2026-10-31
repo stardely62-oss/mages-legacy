@@ -89,6 +89,8 @@ public final class MyceliumNetwork extends SavedData {
 	private static final int TRAVEL_PER_HOP = 6;
 	private static final int TRAVEL_MAX = 70;
 	private static final int RECALL_COOLDOWN = 10 * 60 * 20;
+	/** Set (in the progress tag) once the first Mother Mycelium has told how to feed the colony. */
+	public static final String TUTORIAL = "mother_tutorial";
 	/** Healing Nodes rest while the player has been hurt in the last 5 s. */
 	private static final int HEAL_CALM = 5 * 20;
 	/** Fungal Larders: a point of food every 6 s, and never past 16 of 20 (enough to sprint, not to heal by itself). */
@@ -311,6 +313,15 @@ public final class MyceliumNetwork extends SavedData {
 		Progression.addXp(player, "network", 5, 30);
 		if (first) {
 			euf.mageslegacy.race.Deeds.grant(player, "myc_sprout");
+			// Once in a character's life: how to feed the colony (kept on the player: not again after a death, a relog or
+			// a Mother grown anew)
+			CompoundTag progress = player.getData(RaceState.PROGRESS);
+			if (!progress.getBoolean(TUTORIAL)) {
+				CompoundTag tag = progress.copy();
+				tag.putBoolean(TUTORIAL, true);
+				player.setData(RaceState.PROGRESS, tag);
+				player.sendSystemMessage(Component.translatable("mages_legacy.message.mother_tutorial").withStyle(ChatFormatting.GOLD));
+			}
 		}
 		RaceState.sync(player);
 	}
