@@ -81,6 +81,12 @@ public final class Abilities {
 			refuse(player, Component.translatable("mages_legacy.refuse.resource." + race.get().id()));
 			return;
 		}
+		// A Bloodkin pays before the ability acts: blood it drinks while acting (the Harvest) must not be lost to a full
+		// vein and then paid out of what is left; refused, the price comes back
+		boolean paidFirst = !free && ability.race == Race.BLOODKIN;
+		if (paidFirst) {
+			RaceState.setResource(player, RaceState.resource(player) - cost);
+		}
 		Refusal refusal = switch (ability) {
 			case VOID_STEP -> Voidborn.step(player);
 			case GRAVITY -> Voidborn.gravity(player);
@@ -102,11 +108,16 @@ public final class Abilities {
 			case NIGHT_PRINCE -> euf.mageslegacy.bloodkin.Bloodkin.swarm(player);
 		};
 		if (refusal != null) {
+			if (paidFirst) {
+				RaceState.setResource(player, RaceState.resource(player) + cost);
+			}
 			refuse(player, Component.translatable(refusal.key()));
 			return;
 		}
 		if (!free) {
-			RaceState.setResource(player, RaceState.resource(player) - cost);
+			if (!paidFirst) {
+				RaceState.setResource(player, RaceState.resource(player) - cost);
+			}
 			// The Void Step's cooldown starts when the walk ends, the arena's when the arena does, the Rebirth's when a
 			// body starts growing
 			// (the Sacrifice and the Transfusion set their own: they share the key, not the wait)

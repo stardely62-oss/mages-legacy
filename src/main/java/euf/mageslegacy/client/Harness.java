@@ -1099,8 +1099,8 @@ final class Harness {
 			}
 		}, 0);
 		// The Sacrifice: refused when it would kill; 4 health for 40 blood otherwise
+		run(Harness::bloodSetUp, 3);
 		run(() -> server().execute(() -> {
-			bloodSetUp();
 			ServerPlayer player = player();
 			player.connection.teleport(300.5, y[0], 0.5, 0, 0);
 			player.setHealth(4);
@@ -1140,8 +1140,8 @@ final class Harness {
 			check("the Prince on Z, the Feast on Alt, the Blood Storm closed", euf.mageslegacy.race.Awakenings.at(owned,
 					euf.mageslegacy.race.Awakenings.FIRST_SLOT).orElse(null) == euf.mageslegacy.race.Ability.NIGHT_PRINCE
 					&& euf.mageslegacy.race.Awakenings.at(owned, euf.mageslegacy.race.Awakenings.SECOND_SLOT).orElse(null) == euf.mageslegacy.race.Ability.FEAST
-					&& "mages_legacy.talent.state.third_closed".equals(euf.mageslegacy.race.Talents.refusal(player(),
-							euf.mageslegacy.race.Talent.AWAKENING_BLOOD_STORM)));
+					&& "mages_legacy.talent.state.third_closed".equals(euf.mageslegacy.race.Talents.awakeningRefusal(owned, 50,
+							euf.mageslegacy.race.Talent.AWAKENING_BLOOD_STORM, player().getData(RaceState.PROGRESS))));
 		}, 0);
 		// The Bat Swarm by hand: 30 blood, 3 s, its own 25 s, untouchable, stopped by a wall; the Last Breath untouched
 		run(() -> server().execute(() -> {
@@ -1251,6 +1251,7 @@ final class Harness {
 					&& euf.mageslegacy.bloodkin.Bloodkin.storming(player()) && prey[0].getHealth() < prey[0].getMaxHealth());
 			server().execute(() -> {
 				prey[0].setHealth(1);
+				prey[0].invulnerableTime = 0;
 				player().attack(prey[0]);
 			});
 		}, 5);
