@@ -135,7 +135,7 @@ def sigil():
         a = smooth(i * 1.6)
         # A faint pool of blood inside it all
         if r < 0.92:
-            a = max(a, 0.12 * (1 - r))
+            a = max(a, 0.05 * (1 - r))
             i = max(i, 0.3)
         return i, a
 

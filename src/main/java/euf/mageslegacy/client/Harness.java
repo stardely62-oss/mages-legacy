@@ -1016,7 +1016,7 @@ final class Harness {
 	/** Night, Spores-free: the Bloodkin at level 30 on open ground, blood full, food low (no natural healing to blur counts). */
 	/**
 	 * Films from a still point instead of the player's eyes: a client-only stand there, looking at a point, becomes
-	 * the camera (the player is drawn, the HUD is not). watchSelf() gives the view back.
+	 * the camera (the player is drawn, the HUD and the hand are hidden). watchSelf() gives the view back.
 	 */
 	private static void watch(Vec3 at, Vec3 target) {
 		Minecraft mc = Minecraft.getInstance();
@@ -1032,11 +1032,13 @@ final class Harness {
 		stand.setYHeadRot(yaw);
 		stand.setInvisible(true);
 		mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+		mc.options.hideGui = true;
 		mc.setCameraEntity(stand);
 	}
 
 	private static void watchSelf() {
 		Minecraft mc = Minecraft.getInstance();
+		mc.options.hideGui = false;
 		mc.setCameraEntity(mc.player);
 	}
 

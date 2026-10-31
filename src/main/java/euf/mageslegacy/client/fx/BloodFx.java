@@ -257,7 +257,9 @@ public final class BloodFx {
 				Vec3 dir = step.lengthSqr() > 1.0E-6 ? step.normalize() : Vec3.ZERO;
 				for (int i = 0; i < n; i++) {
 					Vec3 p = last.add(step.scale(i / (double) n));
-					add(mist(p.add(r(-0.25, 0.25), r(0.2, 1.7), r(-0.25, 0.25)), dir.scale(0.04).add(0, 0.01, 0), (int) r(26, 44), r(0.5, 0.85)));
+					if (i % 2 == 0) {
+						add(mist(p.add(r(-0.25, 0.25), r(0.2, 1.7), r(-0.25, 0.25)), dir.scale(0.04).add(0, 0.01, 0), (int) r(26, 44), r(0.3, 0.5)));
+					}
 					add(drop(p.add(r(-0.2, 0.2), r(0.3, 1.6), r(-0.2, 0.2)), dir.scale(r(0.05, 0.2)).add(r(-0.08, 0.08), r(0.04, 0.16),
 							r(-0.08, 0.08)), (int) r(16, 28), r(0.1, 0.18)));
 					if (i % 2 == 0) {
@@ -282,11 +284,11 @@ public final class BloodFx {
 				return;
 			}
 			float alpha = (1 - k * k) * Math.min(1, life / 1.5f);
-			float width = 1.5f * (1 - 0.5f * k);
-			band(draw, BLOOD_STREAK, tail.add(0, 1.05, 0), head.add(0, 1.05, 0), width, 0, 1, alpha * 0.95f, 1.1f);
-			band(draw, BLOOD_STREAK, tail.add(0, 0.45, 0), head.add(0, 0.45, 0), width * 0.55f, 0, 1, alpha * 0.6f, 0.6f);
+			float width = 1.1f * (1 - 0.5f * k);
+			band(draw, BLOOD_STREAK, tail.add(0, 1.05, 0), head.add(0, 1.05, 0), width, 0, 1, alpha * 0.9f, 0.5f);
+			band(draw, BLOOD_STREAK, tail.add(0, 0.45, 0), head.add(0, 0.45, 0), width * 0.55f, 0, 1, alpha * 0.4f, 0.25f);
 			double y = groundY(head);
-			flatBand(draw, BLOOD_STREAK, new Vec3(tail.x, y + 0.01, tail.z), new Vec3(head.x, y + 0.01, head.z), width * 0.9f, alpha * 0.7f, 0.8f);
+			flatBand(draw, BLOOD_STREAK, new Vec3(tail.x, y + 0.01, tail.z), new Vec3(head.x, y + 0.01, head.z), width, alpha * 0.55f, 0.35f);
 		}
 	}
 
@@ -332,10 +334,10 @@ public final class BloodFx {
 				}
 				float size = (k == 0 ? 1.1f : 0.85f) * (0.4f + 0.6f * VoidRender.easeOutBack(Math.min(1, t / 3f)));
 				float alpha = Math.min(1, (ticks - k * 2 - t) / 5f);
-				billboard(draw, BLOOD_SLASH_TEX, at, size, roll + k * 1.9, 1, alpha, 1.3f);
+				billboard(draw, BLOOD_SLASH_TEX, at, size, roll + k * 1.9, 1, alpha, 0.9f);
 			}
 			if (life < 5) {
-				billboard(draw, BLOOD_FLARE, at, 0.9f + life * 0.15f, 0, 1, 1 - life / 5, 1.5f);
+				billboard(draw, BLOOD_FLARE, at, 0.7f + life * 0.1f, 0, 1, (1 - life / 5) * 0.6f, 0.8f);
 			}
 		}
 	}
@@ -357,7 +359,7 @@ public final class BloodFx {
 		void draw(FxDraw draw, float partial) {
 			float t = progress(partial);
 			Vec3 c = body != null && body.isAlive() ? body.getPosition(partial).add(0, body.getBbHeight() * 0.6, 0) : at;
-			billboard(draw, BLOOD_FLARE, c, size * (0.6f + 0.6f * VoidRender.easeOut(t)), 0, 1, (1 - t) * (1 - t), 1.6f);
+			billboard(draw, BLOOD_FLARE, c, size * (0.6f + 0.6f * VoidRender.easeOut(t)), 0, 1, (1 - t) * (1 - t) * 0.7f, 0.9f);
 		}
 	}
 
@@ -379,7 +381,7 @@ public final class BloodFx {
 			float t = progress(partial);
 			float e = r1 > r0 ? VoidRender.easeOut(t) : t * t;
 			float alpha = (float) Math.sqrt(Math.sin(Math.PI * t));
-			decal(draw, BLOOD_WAVE, at, r0 + (r1 - r0) * e, 0, 1, alpha, 1.2f);
+			decal(draw, BLOOD_WAVE, at, r0 + (r1 - r0) * e, 0, 0.9f, alpha * 0.85f, 0.6f);
 		}
 	}
 
@@ -398,7 +400,7 @@ public final class BloodFx {
 			float close = Math.min(14, radius * 1.6f);
 			VoidRender.add(new Wave(at, radius, 0.3f, (int) close));
 			VoidRender.add(new Delayed(6, () -> VoidRender.add(new Wave(at, radius * 0.8f, 0.3f, (int) close))));
-			VoidRender.add(new Delayed((int) close, () -> VoidRender.add(new Flare(null, at.add(0, 1, 0), Math.min(2.2f, 0.8f + radius * 0.15f), 10))));
+			VoidRender.add(new Delayed((int) close, () -> VoidRender.add(new Flare(null, at.add(0, 1, 0), Math.min(1.5f, 0.7f + radius * 0.1f), 10))));
 		}
 
 		@Override
@@ -409,9 +411,9 @@ public final class BloodFx {
 			// Lub-dub every second
 			float beat = (float) (Math.exp(-Math.pow((life % 20) / 2.0, 2)) + 0.7 * Math.exp(-Math.pow((life % 20 - 7) / 2.0, 2)));
 			float alpha = Math.min(1, life / 3f) * (1 - smooth((life - (ticks - 14)) / 14f));
-			float bright = 0.75f + 0.25f * beat;
-			decal(draw, BLOOD_SIGIL, at, half, life * 0.03, bright, alpha, 0.6f + 0.8f * beat);
-			decal(draw, BLOOD_SIGIL, at.add(0, 0.01, 0), half * 0.42f, -life * 0.07, bright, alpha * 0.7f, 0.5f + 0.8f * beat);
+			float bright = 0.7f + 0.3f * beat;
+			decal(draw, BLOOD_SIGIL, at, half, life * 0.03, bright, alpha * 0.9f, 0.25f + 0.5f * beat);
+			decal(draw, BLOOD_SIGIL, at.add(0, 0.01, 0), half * 0.42f, -life * 0.07, bright, alpha * 0.6f, 0.2f + 0.5f * beat);
 		}
 	}
 
@@ -494,7 +496,7 @@ public final class BloodFx {
 				}
 				Vec3 p = a.lerp(b, s).add(lift.scale(4 * s * (1 - s)));
 				float pulse = 0.55f + 0.45f * (float) Math.pow(Math.sin(s * 9 - life * 1.1), 2);
-				band(draw, BLOOD_STREAK, prev, p, 0.32f * fade + 0.06f, (i - 1) / (float) segs, s, fade * pulse, 1.2f * pulse);
+				band(draw, BLOOD_STREAK, prev, p, 0.3f * fade + 0.06f, (i - 1) / (float) segs, s, fade * pulse, 0.7f * pulse);
 				prev = p;
 			}
 		}
@@ -526,7 +528,7 @@ public final class BloodFx {
 				}
 			}
 			if (age == ticks - 7) {
-				VoidRender.add(new Flare(body, chest, 1.8f, 10));
+				VoidRender.add(new Flare(body, chest, 1.1f, 10));
 				splash(chest, 0.3f, 8);
 			}
 			if (age > 4 && age < ticks - 7) {
@@ -554,7 +556,7 @@ public final class BloodFx {
 			float in = Math.min(1, life / 4f);
 			float out = Math.min(1, (ticks - life) / 6f);
 			decal(draw, BLOOD_SIGIL, new Vec3(c.x, groundY(c), c.z), 1.5f * VoidRender.easeOutBack(Math.min(1, life / 6f)), life * 0.12, 1,
-					in * out * 0.9f, 1);
+					in * out * 0.85f, 0.5f);
 			// The strands rise over the first 12 ticks after the cut and close into the chest over the last 8
 			float rise = smooth((life - 3) / 12f);
 			float close = smooth((life - (ticks - 9)) / 6f);
@@ -571,7 +573,7 @@ public final class BloodFx {
 					double radius = 0.85 * (1 - 0.45 * s);
 					Vec3 p = c.add(Math.cos(ang) * radius, 0.1 + s * 2.1, Math.sin(ang) * radius).lerp(chest, close);
 					if (prev != null) {
-						band(draw, BLOOD_STREAK, prev, p, 0.24f, (i - 1) / (float) segs, i / (float) segs, out * 0.95f, 1.2f);
+						band(draw, BLOOD_STREAK, prev, p, 0.24f, (i - 1) / (float) segs, i / (float) segs, out * 0.95f, 0.7f);
 					}
 					prev = p;
 				}
