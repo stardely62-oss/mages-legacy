@@ -92,6 +92,7 @@ final class Harness {
 			screen.choose();
 		}, 30);
 		run(() -> check("chose the Voidborn", RaceState.is(player(), Race.VOIDBORN) && mc.screen == null), 0);
+		run(() -> check("a new Voidborn has the Way of the Void tab, not the Colony's", done("void_root") && !done("myc_root")), 0);
 		run(() -> server().execute(Harness::setUp), 40);
 		shot("hud");
 
@@ -363,6 +364,9 @@ final class Harness {
 			player.serverLevel().addFreshEntity(husk);
 		}), 10);
 		run(() -> check("became a Mycelid", RaceState.is(player(), Race.MYCELID)), 0);
+		run(() -> check("a Voidborn turned Mycelid: the Colony's tab open, the Void's archived, not lost (" + euf.mageslegacy.race.Deeds.archived(player())
+				.size() + " kept)", done("myc_root") && !done("void_root") && !done("void_walls")
+				&& euf.mageslegacy.race.Deeds.archived(player()).contains("mages_legacy:legacy/void_walls")), 0);
 		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 3);
 		run(() -> MagesLegacyClient.useAbility(0), 1);
 		film("spores", 8, 3);
@@ -519,6 +523,7 @@ final class Harness {
 	 * meal, cross talents needing both sides, Humble Body from afar and Gentle Awakening.
 	 */
 	private static void balance(int[] y) {
+		crossTalents(Race.MYCELID);
 		float[] at = new float[4];
 		// A wounded tamed wolf beside the Mycelid
 		run(() -> {
@@ -636,9 +641,9 @@ final class Harness {
 			var spores = euf.mageslegacy.race.Talent.SPORE_NODES;
 			var reach = euf.mageslegacy.race.Talent.NET_REACH;
 			var quick = euf.mageslegacy.race.Talent.SPORE_QUICK;
-			check("a Mycelid cross talent needs both neighbours, the Voidborn's one", !euf.mageslegacy.race.Talents.linked(spores, t -> t == reach)
+			check("cross talents of both races need both neighbours", !euf.mageslegacy.race.Talents.linked(spores, t -> t == reach)
 					&& euf.mageslegacy.race.Talents.linked(spores, t -> t == reach || t == quick)
-					&& euf.mageslegacy.race.Talents.linked(euf.mageslegacy.race.Talent.STEP_DOOR, t -> t == euf.mageslegacy.race.Talent.STEP_QUICK));
+					&& !euf.mageslegacy.race.Talents.linked(euf.mageslegacy.race.Talent.STEP_DOOR, t -> t == euf.mageslegacy.race.Talent.STEP_QUICK));
 		}, 0);
 		// Humble Body: from 50 blocks away, the body starts at the Mother Mycelium; a node not one's own is refused
 		run(() -> {
@@ -730,8 +735,52 @@ final class Harness {
 		});
 	}
 
+	/**
+	 * Every cross talent of a race: with one neighbour the node stays closed on the server and in the tree, with both it
+	 * opens and is bought; one learnt under the old one-of rule is kept.
+	 */
+	private static void crossTalents(Race race) {
+		for (var t : euf.mageslegacy.race.Talent.of(race)) {
+			if (t.kind != euf.mageslegacy.race.Talent.Kind.CROSS) {
+				continue;
+			}
+			var near = t.requires();
+			run(() -> server().execute(() -> {
+				ServerPlayer player = player();
+				euf.mageslegacy.race.Talents.setNoCooldown(player, false);
+				Progression.setLevel(player, 30);
+				player.setData(RaceState.TALENTS, new ArrayList<>(List.of(near.get(0).id())));
+				RaceState.sync(player);
+			}), 6);
+			run(() -> {
+				String server = euf.mageslegacy.race.Talents.refusal(player(), t);
+				String client = euf.mageslegacy.client.screen.TalentScreen.shownRefusal(t);
+				check(t.id() + ": one neighbour is not enough (server " + server + ", tree " + client + ")",
+						"mages_legacy.talent.state.needs".equals(server) && "mages_legacy.talent.state.needs".equals(client));
+				server().execute(() -> {
+					player().setData(RaceState.TALENTS, new ArrayList<>(List.of(near.get(0).id(), near.get(1).id())));
+					RaceState.sync(player());
+				});
+			}, 6);
+			run(() -> {
+				String server = euf.mageslegacy.race.Talents.refusal(player(), t);
+				String client = euf.mageslegacy.client.screen.TalentScreen.shownRefusal(t);
+				server().execute(() -> euf.mageslegacy.race.Talents.learn(player(), t.id()));
+				check(t.id() + ": both neighbours open it (server " + server + ", tree " + client + ")", server == null && client == null);
+			}, 4);
+			run(() -> {
+				boolean bought = euf.mageslegacy.race.Talents.owned(player()).contains(t.id());
+				// Learnt in an old world with one neighbour only: it stays
+				server().execute(() -> player().setData(RaceState.TALENTS, new ArrayList<>(List.of(near.get(1).id(), t.id()))));
+				check(t.id() + ": bought", bought);
+			}, 3);
+			run(() -> check(t.id() + ": an old one learnt with one neighbour is kept", euf.mageslegacy.race.Talents.has(player(), t)), 0);
+		}
+	}
+
 	/** The Voidborn's trial done for real: a step through stone with a foe near, Heavier Gravity on four, the Pocket from two worlds. */
 	private static void voidMastery() {
+		crossTalents(Race.VOIDBORN);
 		run(() -> server().execute(Harness::setUp), 10);
 		startMastery("awakening_hole", "pocket_wide_3", "awakening_rift");
 		run(() -> husks(1, 6), 5);
@@ -763,7 +812,7 @@ final class Harness {
 		run(() -> {
 			ServerPlayer player = player();
 			check("the trial is passed, the third goal counting worlds, not visits", euf.mageslegacy.race.Mastery.passed(player.getData(RaceState.PROGRESS))
-					&& done("mastery") && done("void_pocket") && done("void_pocket_big"));
+					&& done("void_mastery") && done("void_pocket") && done("void_pocket_big"));
 			server().execute(() -> {
 				player.teleportTo(server().overworld(), 0.5, -60, 0.5, 0, 0);
 				euf.mageslegacy.race.Talents.learn(player, "awakening_rift");
@@ -775,7 +824,7 @@ final class Harness {
 			check("passed, the second Awakening is bought for its points and sits on Alt", euf.mageslegacy.race.Awakenings.at(owned,
 					euf.mageslegacy.race.Awakenings.FIRST_SLOT).orElse(null) == euf.mageslegacy.race.Ability.BLACK_HOLE
 					&& euf.mageslegacy.race.Awakenings.at(owned, euf.mageslegacy.race.Awakenings.SECOND_SLOT).orElse(null) == euf.mageslegacy.race.Ability.RIFT_ARENA
-					&& euf.mageslegacy.race.Talents.refusal(player, euf.mageslegacy.race.Talent.AWAKENING_WORLDS) != null && done("double"));
+					&& euf.mageslegacy.race.Talents.refusal(player, euf.mageslegacy.race.Talent.AWAKENING_WORLDS) != null && done("void_double"));
 			// Saves from before: the arena trial's flag still opens the second Awakening; the trial is the race's, not a path's
 			var old = new net.minecraft.nbt.CompoundTag();
 			old.putInt(euf.mageslegacy.race.Talents.SUPERLATE, 1);
@@ -841,7 +890,7 @@ final class Harness {
 		}, 10);
 		run(() -> {
 			ServerPlayer player = player();
-			check("three far threads pass the trial", euf.mageslegacy.race.Mastery.passed(player.getData(RaceState.PROGRESS)) && done("mastery")
+			check("three far threads pass the trial", euf.mageslegacy.race.Mastery.passed(player.getData(RaceState.PROGRESS)) && done("myc_mastery")
 					&& done("myc_roots"));
 			server().execute(() -> euf.mageslegacy.race.Talents.learn(player, "awakening_storm"));
 		}, 5);
@@ -850,7 +899,7 @@ final class Harness {
 			check("the Mycelid's second Awakening bought, the Bloom on Z, the storm on Alt", euf.mageslegacy.race.Awakenings.at(owned,
 					euf.mageslegacy.race.Awakenings.FIRST_SLOT).orElse(null) == euf.mageslegacy.race.Ability.GREAT_BLOOM
 					&& euf.mageslegacy.race.Awakenings.at(owned, euf.mageslegacy.race.Awakenings.SECOND_SLOT).orElse(null) == euf.mageslegacy.race.Ability.SPORE_STORM
-					&& done("double"));
+					&& done("myc_double"));
 		}, 0);
 	}
 
@@ -859,33 +908,69 @@ final class Harness {
 		return holder != null && player().getAdvancements().getOrStartProgress(holder).isDone();
 	}
 
-	/** The tab: every advancement loaded with a title in both languages, the secrets hidden, the vanilla commands at work. */
+	/**
+	 * The two race tabs: every advancement loaded with a title, under its own race's root, with its own painted icon, the
+	 * secrets hidden, the old shared tab kept invisible; the saved state and an old world's records; the vanilla
+	 * commands; the archive on a change of race; and both tabs as a player sees them.
+	 */
 	private static void advancements() {
 		run(() -> {
-			int ours = 0;
+			int shown = 0;
 			int hidden = 0;
+			int technical = 0;
 			int missing = 0;
-			for (var holder : server().getAdvancements().getAllAdvancements()) {
+			int strays = 0;
+			java.util.Set<Integer> icons = new java.util.HashSet<>();
+			var all = server().getAdvancements();
+			for (var holder : all.getAllAdvancements()) {
 				if (!holder.id().getNamespace().equals(MagesLegacy.MOD_ID)) {
 					continue;
 				}
-				ours++;
 				var display = holder.value().display().orElse(null);
 				if (display == null) {
-					missing++;
+					technical++;
 					continue;
 				}
+				shown++;
 				hidden += display.isHidden() ? 1 : 0;
 				if (display.getTitle().getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t
 						&& !net.minecraft.client.resources.language.I18n.exists(t.getKey())) {
 					missing++;
 				}
+				// Up to its root, every ancestor of the same race
+				String race = holder.id().getPath().substring("legacy/".length()).split("_")[0];
+				var at = holder;
+				while (at != null) {
+					if (!at.id().getPath().startsWith("legacy/" + race + "_")) {
+						strays++;
+					}
+					at = at.value().parent().map(all::get).orElse(null);
+				}
+				var icon = display.getIcon();
+				Integer data = icon.get(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA) == null ? null
+						: icon.get(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA).value();
+				if (icon.is(euf.mageslegacy.item.LegacyIcon.ICON.get()) && data != null) {
+					icons.add(data);
+				}
 			}
-			check("the Mage's Legacy tab: " + ours + " advancements, " + hidden + " hidden, " + missing + " without a title", ours == 25 && hidden == 2
-					&& missing == 0);
-			// Peak was reached already by the Voidborn at level 50 earlier on: advancements belong to the player, not the race
-			check("the root, Gift, First Awakening and Peak follow the saved state (" + done("root") + done("gift") + done("first_awakening")
-					+ done("peak") + ")", done("root") && done("gift") && done("first_awakening") && done("peak"));
+			check("two race tabs: " + shown + " advancements, " + hidden + " hidden, " + technical + " old kept invisible, " + missing
+					+ " without a title, " + strays + " under another race", shown == 33 && hidden == 2 && technical == 8 && missing == 0 && strays == 0);
+			check("every advancement wears its own painted icon (" + icons.size() + ")", icons.size() == 33);
+			check("the Colony's path follows the saved state (root, gift, first awakening; no peak at 45)", done("myc_root") && done("myc_gift")
+					&& done("myc_first_awakening") && !done("myc_peak") && !done("void_root"));
+			// An old world: the shared tab's records stay, and count again only where the state proves them
+			String name = player().getGameProfile().getName();
+			server().execute(() -> {
+				for (String old : new String[] {"first_awakening", "peak"}) {
+					server().getCommands().performPrefixedCommand(server().createCommandSourceStack(),
+							"advancement grant " + name + " only mages_legacy:legacy/" + old);
+				}
+				euf.mageslegacy.race.Deeds.refresh(player());
+			});
+		}, 5);
+		run(() -> {
+			check("an old world's shared records stay, Peak isn't copied without level 50", done("first_awakening") && done("peak")
+					&& done("myc_first_awakening") && !done("myc_peak"));
 			String name = player().getGameProfile().getName();
 			server().execute(() -> server().getCommands().performPrefixedCommand(server().createCommandSourceStack(),
 					"advancement revoke " + name + " only mages_legacy:legacy/myc_epidemic"));
@@ -898,17 +983,27 @@ final class Harness {
 			check("revoked by the vanilla command (" + revoked + ")", revoked);
 		}, 5);
 		run(() -> check("granted by the vanilla command", done("myc_epidemic")), 0);
-		// The tab as a player sees it
+		tabShot("advancements_mycelid", "myc_root");
+		// Back to the Voidborn: the Void's history returns from the archive, the Colony's goes into it
+		run(() -> server().execute(() -> RaceState.set(player(), Race.VOIDBORN)), 20);
+		run(() -> check("Voidborn again: the Void's advancements back, the Colony's archived", done("void_root") && done("void_walls")
+				&& done("void_mastery") && !done("myc_root") && !done("myc_epidemic")
+				&& euf.mageslegacy.race.Deeds.archived(player()).contains("mages_legacy:legacy/myc_epidemic")), 0);
+		tabShot("advancements_voidborn", "void_root");
+	}
+
+	/** One race's tab, as a player opens it. */
+	private static void tabShot(String name, String root) {
 		run(() -> {
 			Minecraft mc = Minecraft.getInstance();
 			var client = mc.player.connection.getAdvancements();
-			var root = client.get(MagesLegacy.id("legacy/root"));
+			var tab = client.get(MagesLegacy.id("legacy/" + root));
 			mc.setScreen(new net.minecraft.client.gui.screens.advancements.AdvancementsScreen(client));
-			if (root != null) {
-				client.setSelectedTab(root, true);
+			if (tab != null) {
+				client.setSelectedTab(tab, true);
 			}
 		}, 20);
-		shot("advancements");
+		shot(name);
 		run(() -> Minecraft.getInstance().setScreen(null), 3);
 	}
 

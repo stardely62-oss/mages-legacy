@@ -100,6 +100,11 @@ public class TalentScreen extends Screen {
 	}
 
 	/** Same rules as the server's {@link Talents#refusal}, for what the screen shows. */
+	/** What the tree shows for a node now (null: it can be learnt): for the harness to compare with the server. */
+	public static String shownRefusal(Talent t) {
+		return refusal(t);
+	}
+
 	private static String refusal(Talent t) {
 		if (t.automatic()) {
 			return "mages_legacy.talent.state.automatic";

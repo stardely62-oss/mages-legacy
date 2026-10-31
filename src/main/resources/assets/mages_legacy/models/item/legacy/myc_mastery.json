@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "mages_legacy:item/legacy/myc_mastery"
+  }
+}

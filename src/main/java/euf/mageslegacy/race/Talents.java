@@ -79,8 +79,8 @@ public final class Talents {
 	}
 
 	/**
-	 * Whether a talent's neighbours towards the core allow it: one of them is enough, but the Mycelid's cross talents
-	 * join two directions and need both (talents learnt before this rule are kept).
+	 * Whether a talent's neighbours towards the core allow it: one of them is enough, but cross talents join two
+	 * directions and need both (talents learnt before this rule are kept).
 	 */
 	public static boolean linked(Talent talent, java.util.function.Predicate<Talent> has) {
 		if (talent.requires().isEmpty()) {
@@ -95,9 +95,9 @@ public final class Talents {
 		return all;
 	}
 
-	/** The cross talents that need every listed neighbour (the Mycelid's; the Voidborn's keep one-of). */
+	/** The cross talents need every listed neighbour, for every race. */
 	public static boolean needsAll(Talent talent) {
-		return talent.kind == Talent.Kind.CROSS && talent.race == Race.MYCELID;
+		return talent.kind == Talent.Kind.CROSS;
 	}
 
 	/** Why a talent can't be learnt now, or null if it can. */

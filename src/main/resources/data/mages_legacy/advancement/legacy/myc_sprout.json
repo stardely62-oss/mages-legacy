@@ -1,5 +1,5 @@
 {
-  "parent": "mages_legacy:legacy/root",
+  "parent": "mages_legacy:legacy/myc_root",
   "display": {
     "icon": {
       "id": "mages_legacy:legacy_icon",

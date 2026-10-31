@@ -63,6 +63,13 @@ public final class RaceState {
 	public static final Supplier<AttachmentType<CompoundTag>> PROGRESS = ATTACHMENTS.register("progress",
 			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).copyOnDeath().build());
 
+	/**
+	 * Advancements of a race the player no longer is, taken off the screen but kept here (ids, with the criteria they had
+	 * met) so they come back if the player becomes that race again (see {@link Deeds}).
+	 */
+	public static final Supplier<AttachmentType<CompoundTag>> ARCHIVED = ATTACHMENTS.register("archived_advancements",
+			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).copyOnDeath().build());
+
 	public static final float MAX_RESOURCE = 100;
 	/** How often the client hears about its race, in ticks (and at once after anything changes). */
 	private static final int SYNC_EVERY = 5;
@@ -137,7 +144,7 @@ public final class RaceState {
 		player.setData(PROGRESS, new CompoundTag());
 		player.setData(PASSAGE_POINT, new CompoundTag());
 		Pocket.refresh(player);
-		Deeds.check(player);
+		Deeds.refresh(player);
 		sync(player);
 	}
 

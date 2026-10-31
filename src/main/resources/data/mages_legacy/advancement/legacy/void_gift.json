@@ -1,0 +1,29 @@
+{
+  "parent": "mages_legacy:legacy/void_root",
+  "display": {
+    "icon": {
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 27
+      }
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.void_gift.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.void_gift.desc"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "void_gift"
+      }
+    }
+  }
+}

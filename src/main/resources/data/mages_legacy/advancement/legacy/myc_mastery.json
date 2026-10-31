@@ -1,0 +1,29 @@
+{
+  "parent": "mages_legacy:legacy/myc_first_awakening",
+  "display": {
+    "icon": {
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 39
+      }
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.myc_mastery.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.myc_mastery.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "myc_mastery"
+      }
+    }
+  }
+}

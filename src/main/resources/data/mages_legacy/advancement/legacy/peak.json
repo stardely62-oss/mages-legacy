@@ -1,23 +1,4 @@
 {
-  "parent": "mages_legacy:legacy/first_awakening",
-  "display": {
-    "icon": {
-      "id": "mages_legacy:legacy_icon",
-      "components": {
-        "minecraft:custom_model_data": 8
-      }
-    },
-    "title": {
-      "translate": "mages_legacy.advancement.peak.title"
-    },
-    "description": {
-      "translate": "mages_legacy.advancement.peak.desc"
-    },
-    "frame": "challenge",
-    "show_toast": true,
-    "announce_to_chat": true,
-    "hidden": false
-  },
   "criteria": {
     "deed": {
       "trigger": "mages_legacy:deed",

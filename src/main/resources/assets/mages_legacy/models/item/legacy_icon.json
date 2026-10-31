@@ -153,6 +153,102 @@
         "custom_model_data": 25
       },
       "model": "mages_legacy:item/legacy/myc_perfect"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 26
+      },
+      "model": "mages_legacy:item/legacy/void_root"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 27
+      },
+      "model": "mages_legacy:item/legacy/void_gift"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 28
+      },
+      "model": "mages_legacy:item/legacy/void_first_choice"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 29
+      },
+      "model": "mages_legacy:item/legacy/void_cross"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 30
+      },
+      "model": "mages_legacy:item/legacy/void_first_awakening"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 31
+      },
+      "model": "mages_legacy:item/legacy/void_mastery"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 32
+      },
+      "model": "mages_legacy:item/legacy/void_double"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 33
+      },
+      "model": "mages_legacy:item/legacy/void_peak"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 34
+      },
+      "model": "mages_legacy:item/legacy/myc_root"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 35
+      },
+      "model": "mages_legacy:item/legacy/myc_gift"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 36
+      },
+      "model": "mages_legacy:item/legacy/myc_first_choice"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 37
+      },
+      "model": "mages_legacy:item/legacy/myc_cross"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 38
+      },
+      "model": "mages_legacy:item/legacy/myc_first_awakening"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 39
+      },
+      "model": "mages_legacy:item/legacy/myc_mastery"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 40
+      },
+      "model": "mages_legacy:item/legacy/myc_double"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 41
+      },
+      "model": "mages_legacy:item/legacy/myc_peak"
     }
   ]
 }

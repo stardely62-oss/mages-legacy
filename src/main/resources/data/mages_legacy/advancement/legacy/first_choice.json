@@ -1,23 +1,4 @@
 {
-  "parent": "mages_legacy:legacy/gift",
-  "display": {
-    "icon": {
-      "id": "mages_legacy:legacy_icon",
-      "components": {
-        "minecraft:custom_model_data": 3
-      }
-    },
-    "title": {
-      "translate": "mages_legacy.advancement.first_choice.title"
-    },
-    "description": {
-      "translate": "mages_legacy.advancement.first_choice.desc"
-    },
-    "frame": "task",
-    "show_toast": true,
-    "announce_to_chat": false,
-    "hidden": false
-  },
   "criteria": {
     "deed": {
       "trigger": "mages_legacy:deed",

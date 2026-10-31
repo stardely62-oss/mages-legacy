@@ -40,7 +40,7 @@ for race_id, race_title in races.items():
     items = [r for r in race_rows if r[3] == branch]
     if not items:
         continue
-    out += [f"## {title}", "", "| Талант | Тип | Ярус | Цена | Нужен один из | Что делает |", "|---|---|---|---|---|---|"]
+    out += [f"## {title}", "", "| Талант | Тип | Ярус | Цена | Нужно | Что делает |", "|---|---|---|---|---|---|"]
     for name, race, kind, br, cost, auto, req in items:
         tid = name.lower()
         requires = re.findall(r'"([^"]+)"', req)
@@ -51,7 +51,8 @@ for race_id, race_title in races.items():
         lore = lang.get(key + ".lore")
         if lore:
             desc += f" *{lore}*"
-        needs = ", ".join(lang.get(f"mages_legacy.talent.{r}.name", r) for r in requires) or "—"
+        # A cross talent needs both of its neighbours, any other one of them
+        needs = (" **и** " if kind == "CROSS" else " или ").join(lang.get(f"mages_legacy.talent.{r}.name", r) for r in requires) or "—"
         if t is None:
             tier_s, cost_s = f"сама на {auto} ур.", "0"
         else:
