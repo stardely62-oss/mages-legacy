@@ -79,7 +79,8 @@ public final class VoidFx {
 					}
 				}
 				case Fx.VOID_SCREEN, Fx.SHAKE, Fx.FOV, Fx.MUFFLE, Fx.THIRD_PERSON, Fx.BLOOD_SCREEN -> ScreenFx.play(payload);
-				case Fx.BLOOD, Fx.THREAD, Fx.BLOOD_TRAIL, Fx.BLOOD_RING, Fx.SACRIFICE, Fx.BLOOD_AURA, Fx.BLOOD_VORTEX, Fx.BAT_SWARM ->
+				case Fx.BLOOD, Fx.THREAD, Fx.BLOOD_TRAIL, Fx.BLOOD_RING, Fx.SACRIFICE, Fx.BLOOD_AURA, Fx.BLOOD_VORTEX, Fx.BAT_SWARM,
+						Fx.BLOOD_SLASH ->
 						BloodFx.play(payload, follow, level);
 				default -> {
 				}
