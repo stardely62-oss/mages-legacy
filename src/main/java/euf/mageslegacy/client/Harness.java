@@ -1181,6 +1181,35 @@ final class Harness {
 					hound.getHealth() >= 16 && hound.getHealth() <= 17 && Math.abs(player().getHealth() - 14) < 0.01f && blood() < 36 && blood() > 33);
 			server().execute(hound::discard);
 		}, 0);
+		// The Harvest draws from every creature but allies: a husk (undead), an enderman (neutral) and a pig, never one's own wolf
+		net.minecraft.world.entity.LivingEntity[] drawn = new net.minecraft.world.entity.LivingEntity[4];
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player).cooldown, 0);
+			RaceState.setResource(player, 100);
+			EntityType<?>[] kinds = {EntityType.HUSK, EntityType.ENDERMAN, EntityType.PIG, EntityType.WOLF};
+			for (int i = 0; i < 4; i++) {
+				var e = (net.minecraft.world.entity.Mob) kinds[i].create(player.serverLevel());
+				e.moveTo(298.5 + i * 1.5, y[0], 4.5, 180, 0);
+				e.setNoAi(true);
+				if (e instanceof net.minecraft.world.entity.animal.Wolf w) {
+					w.tame(player);
+				}
+				player.serverLevel().addFreshEntity(e);
+				drawn[i] = e;
+			}
+			player.connection.teleport(300.5, y[0], 0.5, 0, 0);
+		}), 10);
+		run(() -> MagesLegacyClient.useAbility(1), 5);
+		run(() -> {
+			check("the Harvest draws from a husk, an enderman and a pig, not from one's own wolf (" + drawn[0].getHealth() + ", " + drawn[1].getHealth()
+					+ ", " + drawn[2].getHealth() + ", " + drawn[3].getHealth() + ")", drawn[0].getHealth() < drawn[0].getMaxHealth()
+					&& drawn[1].getHealth() < drawn[1].getMaxHealth() && drawn[2].getHealth() < drawn[2].getMaxHealth()
+					&& drawn[3].getHealth() >= drawn[3].getMaxHealth());
+			for (var e : drawn) {
+				server().execute(e::discard);
+			}
+		}, 0);
 		// Two Awakenings of three: the Prince on Z, the Feast on Alt, the Storm closed (set by the test command)
 		run(Harness::bloodSetUp, 3);
 		run(() -> server().execute(() -> server().getCommands().performPrefixedCommand(server().createCommandSourceStack(),
@@ -1288,6 +1317,7 @@ final class Harness {
 			var tag = player().getData(RaceState.COOLDOWNS);
 			check("the Last Breath's wait is kept on the player (" + tag.getInt("prince") + ")", tag.getInt("prince") > 23000);
 		}, 0);
+		Husk[] undead = new Husk[1];
 		// The Feast and the Blood Storm together, a vindicator killed under both
 		run(() -> {
 			bloodSetUp("awakening_feast", "awakening_blood_storm");
@@ -1298,11 +1328,23 @@ final class Harness {
 				prey[0].moveTo(300.5, y[0], -18.5, 180, 0);
 				prey[0].setNoAi(true);
 				player.serverLevel().addFreshEntity(prey[0]);
+				undead[0] = EntityType.HUSK.create(player.serverLevel());
+				undead[0].moveTo(304.5, y[0], -22.5, 0, 0);
+				undead[0].setNoAi(true);
+				player.serverLevel().addFreshEntity(undead[0]);
 			});
 		}, 10);
-		run(() -> MagesLegacyClient.useAbility(2), 3);
-		run(() -> MagesLegacyClient.useAbility(4), 3);
-		film("blood_storm", 6, 4);
+		run(() -> watch(new Vec3(303.5, y[0] + 2.2, -17.5), new Vec3(300.5, y[0] + 1, -20.5)), 2);
+		run(() -> MagesLegacyClient.useAbility(2), 1);
+		film("blood_feast", 6, 3);
+		run(() -> watch(new Vec3(310.5, y[0] + 9, -11.5), new Vec3(300.5, y[0] + 1, -20.5)), 0);
+		run(() -> MagesLegacyClient.useAbility(4), 1);
+		film("blood_storm", 8, 4);
+		run(() -> {
+			watchSelf();
+			check("the Blood Storm draws from a husk too (" + undead[0].getHealth() + ")", undead[0].getHealth() < undead[0].getMaxHealth());
+			server().execute(undead[0]::discard);
+		}, 0);
 		run(() -> {
 			check("the Feast and the Blood Storm at once, the storm drawing blood", euf.mageslegacy.bloodkin.Bloodkin.feasting(player())
 					&& euf.mageslegacy.bloodkin.Bloodkin.storming(player()) && prey[0].getHealth() < prey[0].getMaxHealth());
