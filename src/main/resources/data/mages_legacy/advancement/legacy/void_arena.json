@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/void_gravity",
   "display": {
     "icon": {
-      "id": "minecraft:crying_obsidian"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 13
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.void_arena.title"

@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/cross",
   "display": {
     "icon": {
-      "id": "minecraft:end_crystal"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 5
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.first_awakening.title"

@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/myc_sprout",
   "display": {
     "icon": {
-      "id": "minecraft:hanging_roots"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 18
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.myc_roots.title"

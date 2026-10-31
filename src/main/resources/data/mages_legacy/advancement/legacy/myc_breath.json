@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/myc_epidemic",
   "display": {
     "icon": {
-      "id": "minecraft:red_mushroom"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 21
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.myc_breath.title"

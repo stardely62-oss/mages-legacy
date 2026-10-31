@@ -1031,6 +1031,8 @@ final class Harness {
 
 	/** A run of screenshots, every few ticks: the CI lays them out in a sheet, so the animation itself can be judged. */
 	private static void film(String name, int frames, int every) {
+		// No advancement toasts over the effect being filmed
+		run(() -> Minecraft.getInstance().getToasts().clear(), 0);
 		for (int i = 0; i < frames; i++) {
 			int frame = i;
 			run(() -> {
@@ -1051,6 +1053,8 @@ final class Harness {
 		rules.getRule(GameRules.RULE_DAYLIGHT).set(false, null);
 		rules.getRule(GameRules.RULE_WEATHER_CYCLE).set(false, null);
 		rules.getRule(GameRules.RULE_DOMOBSPAWNING).set(false, null);
+		// Advancements still count, but their chat lines stay out of the films
+		rules.getRule(GameRules.RULE_ANNOUNCE_ADVANCEMENTS).set(false, null);
 		LevelSettings settings = new LevelSettings("harness", GameType.SURVIVAL, false, Difficulty.NORMAL, true, rules, WorldDataConfiguration.DEFAULT);
 		mc.createWorldOpenFlows().createFreshLevel("harness", settings, new WorldOptions(1L, false, false),
 				registries -> registries.registryOrThrow(Registries.WORLD_PRESET).getHolderOrThrow(WorldPresets.FLAT).value().createWorldDimensions(),

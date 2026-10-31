@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/myc_one",
   "display": {
     "icon": {
-      "id": "minecraft:spore_blossom"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 23
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.myc_bloom.title"

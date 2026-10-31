@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/myc_bloom",
   "display": {
     "icon": {
-      "id": "minecraft:mushroom_stem"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 24
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.myc_rebirth.title"

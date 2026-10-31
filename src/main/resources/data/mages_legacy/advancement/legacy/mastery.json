@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/first_awakening",
   "display": {
     "icon": {
-      "id": "minecraft:beacon"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 6
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.mastery.title"

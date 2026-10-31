@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Generates GUI art with Codex image generation (the user's ChatGPT subscription), one image at a time.
 # Usage: tools/gen_codex_art.sh <output folder> [name ...]; then python3 tools/import_codex_art.py <output folder>
-# Names: talent_<id> become textures/gui/talent/<id>.png; the old prompts (emblems, old abilities) are in
+# Names: talent_<id> become textures/gui/talent/<id>.png, adv_<id> the advancement icons textures/item/legacy/<id>.png; the old prompts (emblems, old abilities) are in
 # archive/tools/gen_codex_art.sh.
 OUT="${1:?usage: tools/gen_codex_art.sh <output folder> [name ...]}"
 shift
@@ -9,7 +9,33 @@ mkdir -p "$OUT"
 ICON="Minecraft-style pixel art GUI ICON. The square canvas is a 32 by 32 grid of large, perfectly square, flat-colored pixels. ONE symbol centered, filling about 85 percent of the canvas, with a crisp 1-pixel near-black outline. The background is a flat, uniform, pure magenta (#FF00FF) everywhere around the symbol, no shadow, no vignette. No text, no frame, no gradients inside a pixel. Dark fantasy mood. It must read instantly at 16 pixels: ONE bold simple shape with a strong silhouette, at most 6 colours, high contrast against the dark, no tiny noisy details, no thin stringy lines."
 MYC="Palette of a race of living fungus: deep moss green and dark teal, glowing bioluminescent cyan-green as the accent, pale mushroom beige, a touch of warm gold."
 VOID="Palette of a race touched by the void between worlds: near-black deep violet, glowing lavender violet (#9B7FD4) as the accent, and tiny white stars."
+GEN="Palette of the nameless mage's legacy: deep midnight blue and dark violet, antique gold as the accent, a touch of glowing white."
 declare -A P=(
+  [adv_root]="$ICON $GEN Subject: an open ancient spellbook with a glowing golden rune rising from its pages."
+  [adv_gift]="$ICON $GEN Subject: a bright glowing golden seed sprouting two small green leaves and a white spark of light."
+  [adv_first_choice]="$ICON $GEN Subject: a fork in a path with two signposts, one glowing green, one glowing violet."
+  [adv_cross]="$ICON $GEN Subject: two glowing paths, one green and one violet, crossing in an X with a gold star at the centre."
+  [adv_first_awakening]="$ICON $GEN Subject: a single eye opening wide, golden rays bursting around it."
+  [adv_mastery]="$ICON $GEN Subject: a golden laurel wreath around three small glowing gems, green, violet and gold."
+  [adv_double]="$ICON $GEN Subject: two small crowns side by side, one glowing violet, one glowing green."
+  [adv_peak]="$ICON $GEN Subject: a snowy white mountain peak under a large bright golden star."
+  [adv_void_pocket]="$ICON $VOID Subject: a small floating stone island with a tiny house, floating in starry darkness."
+  [adv_void_pocket_big]="$ICON $VOID Subject: a large floating island with a house and a small tree, a glowing violet rim around it."
+  [adv_void_walls]="$ICON $VOID Subject: a bold violet dashed arrow passing straight through a grey brick wall."
+  [adv_void_gravity]="$ICON $VOID Subject: a heavy dark violet sphere pressing four small monster heads down into cracked ground."
+  [adv_void_arena]="$ICON $VOID Subject: a square violet stone arena torn out of space, crossed swords above it."
+  [adv_void_passage]="$ICON $VOID Subject: two glowing violet rifts facing each other, joined by a bright arc of stars."
+  [adv_void_horizon]="$ICON $VOID Subject: a black hole: a pure black core, a white-hot ring and a glowing violet disk spiralling in."
+  [adv_void_cage]="$ICON $VOID Subject: a small black hole with a glowing violet ring trapped inside a square iron cage."
+  [adv_myc_sprout]="$ICON $MYC Subject: one big glowing mother mushroom with luminous roots spreading below it."
+  [adv_myc_roots]="$ICON $MYC Subject: two mushrooms at opposite corners joined by one long glowing root across dark ground."
+  [adv_myc_road]="$ICON $MYC Subject: a glowing mushroom signpost with a small blocky traveller walking past it."
+  [adv_myc_epidemic]="$ICON $MYC Subject: a big glowing green spore cloud with four small angry red monster eyes peeking out of it."
+  [adv_myc_breath]="$ICON $MYC Subject: a whirling spiral storm of amber and green spores."
+  [adv_myc_one]="$ICON $MYC Subject: a bright red heart split in two halves, the halves sewn together by glowing cyan-green fungal threads."
+  [adv_myc_bloom]="$ICON $MYC Subject: a huge glowing mushroom with a pink heart floating above its cap."
+  [adv_myc_rebirth]="$ICON $MYC Subject: a blocky figure made of mushroom stem rising beside a glowing node, a faded skull behind it."
+  [adv_myc_perfect]="$ICON $MYC Subject: a giant glowing mushroom standing in the calm eye of a swirling amber spore storm."
   [talent_pocket_wide_1]="$ICON $VOID Subject: a small square floating stone island in starry darkness with a bold arrow pointing outward from each side."
   [talent_pocket_wide_2]="$ICON $VOID Subject: a medium floating stone island with a tiny house on it, floating among stars, two outward arrows."
   [talent_pocket_wide_3]="$ICON $VOID Subject: a large floating island with a small tree and a house, a glowing violet rim around it, stars around."

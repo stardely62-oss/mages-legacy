@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/root",
   "display": {
     "icon": {
-      "id": "minecraft:experience_bottle"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 2
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.gift.title"

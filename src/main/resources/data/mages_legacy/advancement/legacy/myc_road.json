@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/myc_sprout",
   "display": {
     "icon": {
-      "id": "minecraft:compass"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 19
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.myc_road.title"

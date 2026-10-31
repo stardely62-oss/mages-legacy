@@ -616,5 +616,6 @@
   "mages_legacy.advancement.myc_perfect.title": "A Perfect Symbiosis",
   "mages_legacy.advancement.myc_perfect.desc": "Keep the Great Bloom and the Spore Storm going together for a whole second",
   "mages_legacy.network.body_pick": "Humble Body: click a node to grow the reserve body there (%s nutrients)",
-  "mages_legacy.refuse.body_remote": "Growing a body from afar needs Humble Body"
+  "mages_legacy.refuse.body_remote": "Growing a body from afar needs Humble Body",
+  "item.mages_legacy.legacy_icon": "Sign of the Legacy"
 }

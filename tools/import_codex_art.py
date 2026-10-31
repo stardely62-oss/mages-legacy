@@ -104,6 +104,9 @@ def convert(path):
         return reduce(sample(crop_to_symbol(img), 32, 32, True), 16), GUI / "beast" / f"{name[6:]}.png"
     if name.startswith("echo_"):
         return add_rim(spectral(reduce(sample(crop_to_symbol(img), 32, 32, True), 16)), (159, 232, 224, 60)), GUI / "echo" / f"{name[5:]}.png"
+    # Advancement icons: the textures of the hidden icon item (one model per advancement)
+    if name.startswith("adv_"):
+        return add_rim(reduce(sample(crop_to_symbol(img), 32, 32, True), 16)), ROOT / "src/main/resources/assets/mages_legacy/textures/item/legacy" / f"{name[4:]}.png"
     if name.startswith("talent_"):
         return add_rim(reduce(sample(crop_to_symbol(img), 32, 32, True), 16)), GUI / "talent" / f"{name[7:]}.png"
     return add_rim(reduce(sample(crop_to_symbol(img), 32, 32, True), 16)), GUI / "icon" / f"{name}.png"

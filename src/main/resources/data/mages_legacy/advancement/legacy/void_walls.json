@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/root",
   "display": {
     "icon": {
-      "id": "minecraft:chorus_fruit"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 11
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.void_walls.title"

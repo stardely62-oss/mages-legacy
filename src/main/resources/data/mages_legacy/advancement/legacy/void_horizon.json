@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/void_gravity",
   "display": {
     "icon": {
-      "id": "minecraft:echo_shard"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 15
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.void_horizon.title"

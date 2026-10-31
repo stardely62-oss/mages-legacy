@@ -616,5 +616,6 @@
   "mages_legacy.advancement.myc_perfect.title": "Идеальный симбиоз",
   "mages_legacy.advancement.myc_perfect.desc": "Целую секунду держать Великое цветение и Споровую бурю одновременно",
   "mages_legacy.network.body_pick": "Скромное тело: нажмите на узел, чтобы вырастить там резервное тело (%s веществ)",
-  "mages_legacy.refuse.body_remote": "Растить тело издалека позволяет «Скромное тело»"
+  "mages_legacy.refuse.body_remote": "Растить тело издалека позволяет «Скромное тело»",
+  "item.mages_legacy.legacy_icon": "Знак наследия"
 }

@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/void_horizon",
   "display": {
     "icon": {
-      "id": "minecraft:respawn_anchor"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 16
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.void_cage.title"

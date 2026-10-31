@@ -40,12 +40,31 @@ TABLE = [
     ("myc_perfect", "myc_bloom", "minecraft:shroomlight", "challenge", True, True),
 ]
 
+# The painted icons: the item mages_legacy:legacy_icon, one model per advancement chosen by custom model data (its place in
+# TABLE, from 1); an advancement whose picture isn't painted yet keeps its vanilla item
+assets = root / "src/main/resources/assets/mages_legacy"
+painted = assets / "textures/item/legacy"
+models = assets / "models/item"
+(models / "legacy").mkdir(parents=True, exist_ok=True)
+overrides = []
+for n, (aid, *_) in enumerate(TABLE, 1):
+    if (painted / f"{aid}.png").exists():
+        (models / "legacy" / f"{aid}.json").write_text(json.dumps(
+            {"parent": "minecraft:item/generated", "textures": {"layer0": f"mages_legacy:item/legacy/{aid}"}}, indent=2) + "\n")
+        overrides.append({"predicate": {"custom_model_data": n}, "model": f"mages_legacy:item/legacy/{aid}"})
+base = "mages_legacy:item/legacy/root" if (painted / "root.png").exists() else "minecraft:item/amethyst_shard"
+(models / "legacy_icon.json").write_text(json.dumps({"parent": "minecraft:item/generated", "textures": {"layer0": base},
+                                                       "overrides": overrides}, indent=2) + "\n")
+
 out.mkdir(parents=True, exist_ok=True)
 for old in out.glob("*.json"):
     old.unlink()
-for aid, parent, icon, frame, hidden, announce in TABLE:
+for n, (aid, parent, icon, frame, hidden, announce) in enumerate(TABLE, 1):
+    item = {"id": icon}
+    if (painted / f"{aid}.png").exists():
+        item = {"id": "mages_legacy:legacy_icon", "components": {"minecraft:custom_model_data": n}}
     display = {
-        "icon": {"id": icon},
+        "icon": item,
         "title": {"translate": f"mages_legacy.advancement.{aid}.title"},
         "description": {"translate": f"mages_legacy.advancement.{aid}.desc"},
         "frame": frame,

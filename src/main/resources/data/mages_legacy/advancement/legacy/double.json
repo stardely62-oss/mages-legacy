@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/mastery",
   "display": {
     "icon": {
-      "id": "minecraft:dragon_breath"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 7
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.double.title"

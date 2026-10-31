@@ -1,0 +1,158 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "mages_legacy:item/legacy/root"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "custom_model_data": 1
+      },
+      "model": "mages_legacy:item/legacy/root"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 2
+      },
+      "model": "mages_legacy:item/legacy/gift"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 3
+      },
+      "model": "mages_legacy:item/legacy/first_choice"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 4
+      },
+      "model": "mages_legacy:item/legacy/cross"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 5
+      },
+      "model": "mages_legacy:item/legacy/first_awakening"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 6
+      },
+      "model": "mages_legacy:item/legacy/mastery"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 7
+      },
+      "model": "mages_legacy:item/legacy/double"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 8
+      },
+      "model": "mages_legacy:item/legacy/peak"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 9
+      },
+      "model": "mages_legacy:item/legacy/void_pocket"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 10
+      },
+      "model": "mages_legacy:item/legacy/void_pocket_big"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 11
+      },
+      "model": "mages_legacy:item/legacy/void_walls"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 12
+      },
+      "model": "mages_legacy:item/legacy/void_gravity"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 13
+      },
+      "model": "mages_legacy:item/legacy/void_arena"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 14
+      },
+      "model": "mages_legacy:item/legacy/void_passage"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 15
+      },
+      "model": "mages_legacy:item/legacy/void_horizon"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 16
+      },
+      "model": "mages_legacy:item/legacy/void_cage"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 17
+      },
+      "model": "mages_legacy:item/legacy/myc_sprout"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 18
+      },
+      "model": "mages_legacy:item/legacy/myc_roots"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 19
+      },
+      "model": "mages_legacy:item/legacy/myc_road"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 20
+      },
+      "model": "mages_legacy:item/legacy/myc_epidemic"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 21
+      },
+      "model": "mages_legacy:item/legacy/myc_breath"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 22
+      },
+      "model": "mages_legacy:item/legacy/myc_one"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 23
+      },
+      "model": "mages_legacy:item/legacy/myc_bloom"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 24
+      },
+      "model": "mages_legacy:item/legacy/myc_rebirth"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 25
+      },
+      "model": "mages_legacy:item/legacy/myc_perfect"
+    }
+  ]
+}
