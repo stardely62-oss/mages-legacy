@@ -132,6 +132,8 @@ def sigil():
             d = math.hypot(dx - px, dy - py)
             if d < rad:
                 i = max(i, 0.7 + 0.2 * (1 - d / rad))
+        # Never the hot core: lines of blood, not of light
+        i *= 0.82
         a = smooth(i * 1.6)
         # A faint pool of blood inside it all
         if r < 0.92:
@@ -156,7 +158,7 @@ def wave():
         if r > 0.94:
             e = math.exp(-((r - 0.94) / 0.025) ** 2)
         else:
-            e = math.exp(-((0.94 - r) / 0.16) ** 2) * 0.55 + math.exp(-((0.94 - r) / 0.02) ** 2) * 0.45
+            e = math.exp(-((0.94 - r) / 0.12) ** 2) * 0.25 + math.exp(-((0.94 - r) / 0.02) ** 2) * 0.6
         return e * k, smooth(e * 1.3) * k
 
     img = Image.new("RGBA", (s, s))

@@ -412,8 +412,8 @@ public final class BloodFx {
 			float beat = (float) (Math.exp(-Math.pow((life % 20) / 2.0, 2)) + 0.7 * Math.exp(-Math.pow((life % 20 - 7) / 2.0, 2)));
 			float alpha = Math.min(1, life / 3f) * (1 - smooth((life - (ticks - 14)) / 14f));
 			float bright = 0.7f + 0.3f * beat;
-			decal(draw, BLOOD_SIGIL, at, half, life * 0.03, bright, alpha * 0.9f, 0.25f + 0.5f * beat);
-			decal(draw, BLOOD_SIGIL, at.add(0, 0.01, 0), half * 0.42f, -life * 0.07, bright, alpha * 0.6f, 0.2f + 0.5f * beat);
+			decal(draw, BLOOD_SIGIL, at, half, life * 0.03, bright, alpha * 0.8f, 0.15f + 0.4f * beat);
+			decal(draw, BLOOD_SIGIL, at.add(0, 0.01, 0), half * 0.42f, -life * 0.07, bright, alpha * 0.55f, 0.15f + 0.4f * beat);
 		}
 	}
 
