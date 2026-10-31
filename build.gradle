@@ -39,6 +39,8 @@ neoForge {
 		server {
 			server()
 			programArgument '--nogui'
+			// The CI's dedicated-server check: starts, ticks five seconds, writes server-smoke.txt, stops
+			systemProperty 'mages_legacy.server_smoke', project.findProperty('serverSmoke') ?: 'false'
 		}
 		configureEach {
 			logLevel = org.slf4j.event.Level.INFO

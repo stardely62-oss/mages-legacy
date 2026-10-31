@@ -45,6 +45,10 @@ jobs:
       - name: Client scenario and screenshots
         run: bash scripts/ci-harness.sh
 
+      - name: Dedicated server starts with the mod
+        if: always()
+        run: bash scripts/ci-server.sh
+
       - name: Contact sheets of the films
         if: always()
         run: |
@@ -61,6 +65,8 @@ jobs:
             build/libs/*.jar
             run/logs/latest.log
             run/harness-result.txt
+            run/server-smoke.txt
+            run/server-latest.log
             run/screenshots/
             run/crash-reports/
 
