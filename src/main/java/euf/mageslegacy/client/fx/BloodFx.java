@@ -117,12 +117,9 @@ public final class BloodFx {
 		}
 	}
 
-	/** The Blood Dash: its wake follows the body from where it began, and a stain is left on the ground behind it. */
+	/** The Blood Dash: mist and drops torn off the body along its way, stains left on the ground behind it. */
 	private static void trail(Entity body, Vec3 from, Vec3 to, int dashTicks) {
 		VoidRender.add(new Wake(body, from, to, dashTicks));
-		// It tears away from where it stood: a flash, a ring thrown out on the ground, a puff of mist
-		VoidRender.add(new Flare(null, from.add(0, 1, 0), 1.4f, 8));
-		VoidRender.add(new Wave(from, 0.4f, 2.6f, 10));
 		for (int i = 0; i < 10; i++) {
 			add(mist(from.add(r(-0.3, 0.3), r(0.2, 1.6), r(-0.3, 0.3)), VoidRender.randomDir().scale(0.06), (int) r(18, 30), r(0.4, 0.7)));
 		}
@@ -181,15 +178,15 @@ public final class BloodFx {
 				new float[] {0, 0, 1, 1}, 1, 1, 1, alpha, glow);
 	}
 
-	/** The same band lying flat (its side across it on the ground), for a wake seen from behind or above. */
-	private static void flatBand(FxDraw draw, String tex, Vec3 a, Vec3 b, float width, float alpha, float glow) {
+	/** The same band lying flat (its side across it on the ground). */
+	private static void flatBand(FxDraw draw, String tex, Vec3 a, Vec3 b, float width, float u0, float u1, float alpha, float glow) {
 		Vec3 along = b.subtract(a);
 		Vec3 side = new Vec3(-along.z, 0, along.x);
 		if (side.lengthSqr() < 1.0E-6) {
 			return;
 		}
 		side = side.normalize().scale(width / 2);
-		draw.paintStrip(tex, new Vec3[] {a.subtract(side), b.subtract(side), b.add(side), a.add(side)}, new float[] {0, 1, 1, 0},
+		draw.paintStrip(tex, new Vec3[] {a.subtract(side), b.subtract(side), b.add(side), a.add(side)}, new float[] {u0, u1, u1, u0},
 				new float[] {0, 0, 1, 1}, 1, 1, 1, alpha, glow);
 	}
 
@@ -218,13 +215,8 @@ public final class BloodFx {
 		return t * t * (3 - 2 * t);
 	}
 
-	/**
-	 * The Blood Dash's wake: a streak of blood stretched from where it began to the body as it rushes (its head on the
-	 * body), standing and lying on the ground, then drawn after it and gone; mist and drops torn off the body as it goes,
-	 * a stain left on the ground every step.
-	 */
+	/** The Blood Dash's wake: mist and drops torn off the body as it rushes, a stain left on the ground every step. */
 	static final class Wake extends VoidRender.Effect {
-		static final int LINGER = 20;
 		final Entity body;
 		final Vec3 from;
 		final Vec3 to;
@@ -232,7 +224,7 @@ public final class BloodFx {
 		Vec3 last;
 
 		Wake(Entity body, Vec3 from, Vec3 to, int dash) {
-			super(dash + LINGER);
+			super(dash + 2);
 			this.body = body;
 			this.from = from;
 			this.to = to;
@@ -257,9 +249,7 @@ public final class BloodFx {
 				Vec3 dir = step.lengthSqr() > 1.0E-6 ? step.normalize() : Vec3.ZERO;
 				for (int i = 0; i < n; i++) {
 					Vec3 p = last.add(step.scale(i / (double) n));
-					if (i % 2 == 0) {
-						add(mist(p.add(r(-0.25, 0.25), r(0.2, 1.7), r(-0.25, 0.25)), dir.scale(0.04).add(0, 0.01, 0), (int) r(26, 44), r(0.3, 0.5)));
-					}
+					add(mist(p.add(r(-0.25, 0.25), r(0.2, 1.7), r(-0.25, 0.25)), dir.scale(0.04).add(0, 0.01, 0), (int) r(28, 46), r(0.35, 0.6)));
 					add(drop(p.add(r(-0.2, 0.2), r(0.3, 1.6), r(-0.2, 0.2)), dir.scale(r(0.05, 0.2)).add(r(-0.08, 0.08), r(0.04, 0.16),
 							r(-0.08, 0.08)), (int) r(16, 28), r(0.1, 0.18)));
 					if (i % 2 == 0) {
@@ -275,20 +265,6 @@ public final class BloodFx {
 
 		@Override
 		void draw(FxDraw draw, float partial) {
-			float life = life(partial);
-			Vec3 head = head(partial);
-			// After the rush the tail is drawn in after the body, thinning and fading
-			float k = smooth((life - dash) / LINGER);
-			Vec3 tail = from.lerp(head, VoidRender.easeOut(k) * 0.9);
-			if (tail.distanceToSqr(head) < 0.04) {
-				return;
-			}
-			float alpha = (1 - k * k) * Math.min(1, life / 1.5f);
-			float width = 1.1f * (1 - 0.5f * k);
-			band(draw, BLOOD_STREAK, tail.add(0, 1.05, 0), head.add(0, 1.05, 0), width, 0, 1, alpha * 0.9f, 0.5f);
-			band(draw, BLOOD_STREAK, tail.add(0, 0.45, 0), head.add(0, 0.45, 0), width * 0.55f, 0, 1, alpha * 0.4f, 0.25f);
-			double y = groundY(head);
-			flatBand(draw, BLOOD_STREAK, new Vec3(tail.x, y + 0.01, tail.z), new Vec3(head.x, y + 0.01, head.z), width, alpha * 0.55f, 0.35f);
 		}
 	}
 
@@ -581,13 +557,43 @@ public final class BloodFx {
 		}
 	}
 
-	/** The Feast: embers of blood rising off the body, a slow dark mist round the feet. */
+	/** A band of blood bent along a path of points (u running from the first to the last), standing or lying flat. */
+	private static void path(FxDraw draw, Vec3[] pts, float width, float alpha, float glow, boolean flat) {
+		for (int i = 1; i < pts.length; i++) {
+			float u0 = (i - 1) / (float) (pts.length - 1);
+			float u1 = i / (float) (pts.length - 1);
+			// Thin at the tail, full at the head
+			float w = width * (0.35f + 0.65f * u1);
+			if (flat) {
+				flatBand(draw, BLOOD_STREAK, pts[i - 1], pts[i], w, u0, u1, alpha, glow);
+			} else {
+				band(draw, BLOOD_STREAK, pts[i - 1], pts[i], w, u0, u1, alpha, glow);
+			}
+		}
+	}
+
+	/**
+	 * The Feast: the body bursts with blood (a geyser of it round the feet, a ring thrown out on the ground), then three
+	 * streams of blood race round it at the hips, the chest and the head, beating with a heartbeat, embers of blood
+	 * rising off it; at the end the streams break into drops.
+	 */
 	static final class Aura extends VoidRender.Effect {
 		final Entity body;
 
 		Aura(Entity body, int ticks) {
 			super(ticks);
 			this.body = body;
+			Vec3 c = body.position();
+			VoidRender.add(new Wave(c, 0.4f, 4.5f, 14));
+			VoidRender.add(new Flare(body, c, 1.3f, 10));
+			for (int i = 0; i < 28; i++) {
+				double a = Math.PI * 2 * i / 28;
+				Vec3 at = c.add(Math.cos(a) * 0.7, 0.1, Math.sin(a) * 0.7);
+				add(drop(at, new Vec3(Math.cos(a) * 0.08, r(0.3, 0.5), Math.sin(a) * 0.08), (int) r(24, 34), r(0.12, 0.2)));
+				if (i % 2 == 0) {
+					add(mist(at, new Vec3(Math.cos(a) * 0.1, 0.02, Math.sin(a) * 0.1), 30, r(0.4, 0.7)));
+				}
+			}
 		}
 
 		@Override
@@ -603,18 +609,50 @@ public final class BloodFx {
 				d.gravity = Vec3.ZERO;
 				add(d);
 			}
-			if (age % 3 == 0) {
-				add(mist(c.add(r(-0.6, 0.6), 0.1, r(-0.6, 0.6)), new Vec3(0, 0.01, 0), 30, r(0.35, 0.6)));
+			if (age % 4 == 0) {
+				add(mist(c.add(r(-0.6, 0.6), 0.1, r(-0.6, 0.6)), new Vec3(0, 0.01, 0), 30, r(0.3, 0.5)));
+			}
+			if (age == ticks - 2) {
+				// The streams break
+				for (int k = 0; k < 3; k++) {
+					splash(c.add(0, 0.5 + k * 0.55, 0), 0.8f, 10);
+				}
 			}
 			return super.tick();
 		}
 
 		@Override
 		void draw(FxDraw draw, float partial) {
+			if (body.isRemoved()) {
+				return;
+			}
+			float life = life(partial);
+			Vec3 c = body.getPosition(partial);
+			float env = Math.min(1, life / 6f) * Math.min(1, (ticks - life) / 10f);
+			float beat = (float) (Math.exp(-Math.pow((life % 20) / 2.0, 2)) + 0.7 * Math.exp(-Math.pow((life % 20 - 7) / 2.0, 2)));
+			int segs = 14;
+			for (int k = 0; k < 3; k++) {
+				// Each stream a comet of blood two thirds of the way round, turning its own way, its circle a little tilted
+				double dir = k == 1 ? -1 : 1;
+				double head = dir * life * (0.22 + 0.05 * k) + k * 2.1;
+				double radius = (k == 2 ? 0.8 : 1.0) * (1 + 0.08 * beat);
+				double height = 0.45 + k * 0.6;
+				Vec3[] pts = new Vec3[segs + 1];
+				for (int i = 0; i <= segs; i++) {
+					double a = head - dir * (1 - i / (double) segs) * Math.PI * 1.6;
+					pts[i] = c.add(Math.cos(a) * radius, height + Math.sin(a + k) * 0.18, Math.sin(a) * radius);
+				}
+				path(draw, pts, 0.36f, env * (0.8f + 0.2f * beat), 0.45f + 0.4f * beat, false);
+			}
 		}
 	}
 
-	/** The Blood Storm: drops and mist wheeling round the Bloodkin out to its reach, drawn slowly inward and up. */
+	/**
+	 * The Blood Storm: a ring thrown out to its reach; then a whirl of blood round the Bloodkin: three arms of it spiral
+	 * in across the ground to its feet, a funnel of three strands winds up round it, widening, blood rains out of the
+	 * dark over the whole reach, drops and mist wheel round; every second a ring closes in from the edge (the pulse
+	 * that tears the blood out).
+	 */
 	static final class Vortex extends VoidRender.Effect {
 		final Entity heart;
 		final float radius;
@@ -623,6 +661,8 @@ public final class BloodFx {
 			super(ticks);
 			this.heart = heart;
 			this.radius = radius;
+			VoidRender.add(new Wave(heart.position(), 0.5f, radius, 16));
+			VoidRender.add(new Flare(heart, heart.position(), 1.4f, 12));
 		}
 
 		@Override
@@ -631,10 +671,10 @@ public final class BloodFx {
 				return false;
 			}
 			Vec3 c = heart.position();
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 6; i++) {
 				double a = r(0, Math.PI * 2);
 				double d = r(1.5, radius);
-				VoidRender.Particle p = i % 3 == 0 ? mist(c.add(Math.cos(a) * d, r(0.2, 1.4), Math.sin(a) * d), Vec3.ZERO, 26, r(0.4, 0.7))
+				VoidRender.Particle p = i % 3 == 0 ? mist(c.add(Math.cos(a) * d, r(0.2, 1.4), Math.sin(a) * d), Vec3.ZERO, 26, r(0.35, 0.6))
 						: drop(c.add(Math.cos(a) * d, r(0.2, 1.8), Math.sin(a) * d), new Vec3(0, 0.02, 0), 26, r(0.09, 0.15));
 				p.gravity = Vec3.ZERO;
 				p.swirlAt = c;
@@ -643,11 +683,50 @@ public final class BloodFx {
 				p.pull = 0.006f;
 				add(p);
 			}
+			// Blood rain over the whole reach
+			for (int i = 0; i < 5; i++) {
+				double a = r(0, Math.PI * 2);
+				double d = Math.sqrt(VoidRender.RANDOM.nextDouble()) * radius;
+				VoidRender.Particle p = drop(c.add(Math.cos(a) * d, r(5, 7), Math.sin(a) * d), new Vec3(0, -0.35, 0), 30, r(0.08, 0.13));
+				p.gravity = new Vec3(0, -0.04, 0);
+				add(p);
+			}
+			if (age > 0 && age % 20 == 0 && age < ticks - 4) {
+				VoidRender.add(new Wave(c, radius, 0.6f, 14));
+			}
 			return super.tick();
 		}
 
 		@Override
 		void draw(FxDraw draw, float partial) {
+			if (heart.isRemoved()) {
+				return;
+			}
+			float life = life(partial);
+			Vec3 c = heart.getPosition(partial);
+			float env = Math.min(1, life / 8f) * Math.min(1, (ticks - life) / 12f);
+			double ground = groundY(c) + 0.02;
+			int segs = 14;
+			for (int k = 0; k < 3; k++) {
+				// An arm across the ground, from the edge in to the feet (its head)
+				Vec3[] arm = new Vec3[segs + 1];
+				for (int i = 0; i <= segs; i++) {
+					double s = i / (double) segs;
+					double rr = radius * 0.95 * (1 - s) + 0.5 * s;
+					double a = k * Math.PI * 2 / 3 + life * 0.07 + s * 2.8;
+					arm[i] = new Vec3(c.x + Math.cos(a) * rr, ground, c.z + Math.sin(a) * rr);
+				}
+				path(draw, arm, 1.3f, env * 0.6f, 0.35f, true);
+				// A strand of the funnel, up from the feet and out
+				Vec3[] up = new Vec3[segs + 1];
+				for (int i = 0; i <= segs; i++) {
+					double s = i / (double) segs;
+					double a = k * Math.PI * 2 / 3 + life * 0.3 + s * Math.PI * 2 * 1.2;
+					double rr = 1.1 + 1.6 * s * s;
+					up[i] = c.add(Math.cos(a) * rr, 0.1 + s * 4.2, Math.sin(a) * rr);
+				}
+				path(draw, up, 0.3f, env * 0.85f, 0.45f, false);
+			}
 		}
 	}
 

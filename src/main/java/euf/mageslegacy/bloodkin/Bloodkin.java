@@ -215,7 +215,7 @@ public final class Bloodkin {
 	}
 
 	/**
-	 * Prey for the Dash, the Harvest, the Storm and the Swarm: a monster, a mob hunting a player, or a player who is no
+	 * Prey for the Dash and the Swarm (and what counts as an enemy for the deeds): a monster, a mob hunting a player, or a player who is no
 	 * ally (PvP, see {@link Allies}); never one's own pets, other tamed creatures or allies.
 	 */
 	static boolean prey(LivingEntity e, ServerPlayer player) {
@@ -229,6 +229,18 @@ public final class Bloodkin {
 			return false;
 		}
 		return e instanceof Enemy || e instanceof Mob mob && mob.getTarget() instanceof Player;
+	}
+
+	/**
+	 * What the Harvest and the Blood Storm draw from: every living creature near by but the Bloodkin's allies (allied
+	 * players, its own pets; players only with PvP on), blood or not: the undead, golems and the like give their dead
+	 * blood too.
+	 */
+	static boolean drawable(LivingEntity e, ServerPlayer player) {
+		if (e == player || !e.isAlive() || e instanceof ArmorStand || Allies.ally(player, e)) {
+			return false;
+		}
+		return !(e instanceof Player p) || !p.isSpectator() && !p.isCreative() && player.server.isPvpAllowed();
 	}
 
 	public static boolean isNight(Level level) {
@@ -756,8 +768,9 @@ public final class Bloodkin {
 	}
 
 	/**
-	 * The Harvest: blood drawn out of every enemy with blood within 9 blocks: each takes 4; the Bloodkin heals 2 from
-	 * each (4 with Greedy Harvest), 10 at most, and drinks 5 from each, 30 at most.
+	 * The Harvest: blood drawn out of every creature but allies within 9 blocks: each takes 4; the Bloodkin heals 2 from
+	 * each (4 with Greedy Harvest), 10 at most, and drinks 5 from each, 30 at most. Only enemies count for the deeds and
+	 * the trial (a herd of cows is no horde).
 	 */
 	public static Abilities.Refusal harvest(ServerPlayer player) {
 		ServerLevel level = player.serverLevel();
@@ -766,8 +779,9 @@ public final class Bloodkin {
 		float healed = 0;
 		float drunk = 0;
 		int drawn = 0;
+		int enemies = 0;
 		for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(radius),
-				e -> prey(e, player) && bloodful(e) && e.distanceToSqr(player) < radius * radius)) {
+				e -> drawable(e, player) && e.distanceToSqr(player) < radius * radius)) {
 			boolean bleeding = BLEEDING.containsKey(e.getUUID());
 			e.invulnerableTime = 0;
 			e.hurt(level.damageSources().indirectMagic(player, player), 4);
@@ -790,8 +804,11 @@ public final class Bloodkin {
 				e.hurtMarked = true;
 			}
 			Fx.thread(level, e, player, 18);
-			Progression.addXp(player, "blood_harvest", 2, 30);
 			drawn++;
+			if (prey(e, player)) {
+				Progression.addXp(player, "blood_harvest", 2, 30);
+				enemies++;
+			}
 		}
 		Fx.bloodRing(level, player.position(), (float) radius, 40);
 		level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.5f, 0.8f);
@@ -799,10 +816,10 @@ public final class Bloodkin {
 			Fx.shake(player, 1, 10);
 			level.playSound(null, player.blockPosition(), SoundEvents.GENERIC_DRINK, SoundSource.PLAYERS, 1, 0.6f);
 		}
-		if (drawn >= 3) {
+		if (enemies >= 3) {
 			Talents.addProgress(player, HARVEST_GROUP, 1);
 		}
-		if (drawn >= 5) {
+		if (enemies >= 5) {
 			Deeds.grant(player, "blood_harvest_five");
 			Mastery.add(player, Mastery.Goal.HARVEST_HORDE);
 		}
@@ -911,7 +928,7 @@ public final class Bloodkin {
 	// ---- The Blood Storm (an Awakening) ---------------------------------------------------------------------------
 
 	/**
-	 * The Blood Storm: for 6 s (9 with a Long Storm), every second blood is torn out of every enemy with blood within 10
+	 * The Blood Storm: for 6 s (9 with a Long Storm), every second blood is torn out of every creature but allies within 10
 	 * blocks (14 with a Wide Storm): 3 each; the Bloodkin drinks 3 from each (15 a pulse at most) and heals 1 from each (2
 	 * with Thirsting Storm; 6, or 10, a pulse at most). A Pulling Storm drags them in.
 	 */
@@ -952,7 +969,7 @@ public final class Bloodkin {
 		float healed = 0;
 		float drunk = 0;
 		for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(radius),
-				e -> prey(e, player) && bloodful(e) && e.distanceToSqr(player) < radius * radius)) {
+				e -> drawable(e, player) && e.distanceToSqr(player) < radius * radius)) {
 			e.invulnerableTime = 0;
 			e.hurt(level.damageSources().indirectMagic(player, player), 3);
 			if (healed < healCap) {
@@ -971,7 +988,7 @@ public final class Bloodkin {
 				}
 			}
 			Fx.thread(level, e, player, 14);
-			if (s.stormCaught.add(e.getUUID()) && s.stormCaught.size() == 8) {
+			if (prey(e, player) && s.stormCaught.add(e.getUUID()) && s.stormCaught.size() == 8) {
 				Deeds.grant(player, "blood_storm");
 			}
 		}
