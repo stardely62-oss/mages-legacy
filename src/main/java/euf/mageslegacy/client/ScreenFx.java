@@ -23,6 +23,8 @@ public final class ScreenFx {
 	private static final List<float[]> VOIDS = new ArrayList<>();
 	private static final List<float[]> SHAKES = new ArrayList<>();
 	private static final List<float[]> FOVS = new ArrayList<>();
+	/** The Bloodkin's: the view edged in red (the Sacrifice, the Feast, the Last Breath). */
+	private static final List<float[]> BLOODS = new ArrayList<>();
 	/** Ticks left of a view from behind (the Black Hole), and the view to return to. */
 	private static int outside;
 	private static net.minecraft.client.CameraType before;
@@ -39,6 +41,7 @@ public final class ScreenFx {
 			case Fx.VOID_SCREEN -> VOIDS.add(new float[] {payload.ticks(), 0, 1});
 			case Fx.SHAKE -> SHAKES.add(new float[] {payload.ticks(), 0, payload.a()});
 			case Fx.FOV -> FOVS.add(new float[] {payload.ticks(), 0, payload.a()});
+			case Fx.BLOOD_SCREEN -> BLOODS.add(new float[] {payload.ticks(), 0, 1});
 			case Fx.THIRD_PERSON -> {
 				var options = Minecraft.getInstance().options;
 				if (payload.ticks() <= 0) {
@@ -74,7 +77,7 @@ public final class ScreenFx {
 			before = null;
 		}
 		hearing();
-		for (List<float[]> list : List.of(VOIDS, SHAKES, FOVS)) {
+		for (List<float[]> list : List.of(VOIDS, SHAKES, FOVS, BLOODS)) {
 			list.removeIf(f -> ++f[1] >= f[0]);
 		}
 	}
@@ -163,12 +166,21 @@ public final class ScreenFx {
 
 	/** The passage through the void: dark, violet edges, and stars streaking out from the middle. */
 	static void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
-		if (VOIDS.isEmpty()) {
-			return;
-		}
 		float delta = deltaTracker.getGameTimeDeltaPartialTick(false);
 		int w = graphics.guiWidth();
 		int h = graphics.guiHeight();
+		// Blood: a dark red veil that swells in and drains away, the edges deep crimson
+		for (float[] f : BLOODS) {
+			float life = f[1] + delta;
+			float a = Math.min(1, life / 2f) * Math.min(1, (f[0] - life) / 8f);
+			if (a > 0) {
+				graphics.fill(0, 0, w, h, argb(0x3A0008, 0.08f * a));
+				edges(graphics, w, h, 0x8E0E1E, 0.45f * a, 5);
+			}
+		}
+		if (VOIDS.isEmpty()) {
+			return;
+		}
 		for (float[] f : VOIDS) {
 			float life = f[1] + delta;
 			float a = Math.min(1, life / 2f) * Math.min(1, (f[0] - life) / 4f);

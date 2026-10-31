@@ -1,0 +1,29 @@
+{
+  "parent": "mages_legacy:legacy/blood_storm",
+  "display": {
+    "icon": {
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 59
+      }
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.blood_scarlet.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.blood_scarlet.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "blood_scarlet"
+      }
+    }
+  }
+}

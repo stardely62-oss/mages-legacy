@@ -25,6 +25,9 @@ public final class Awakenings {
 			case AWAKENING_BLOOM -> Ability.GREAT_BLOOM;
 			case AWAKENING_STORM -> Ability.SPORE_STORM;
 			case AWAKENING_REBIRTH -> Ability.MYCELIAL_REBIRTH;
+			case AWAKENING_FEAST -> Ability.FEAST;
+			case AWAKENING_BLOOD_STORM -> Ability.BLOOD_STORM;
+			case AWAKENING_PRINCE -> Ability.NIGHT_PRINCE;
 			default -> null;
 		};
 	}
@@ -37,6 +40,9 @@ public final class Awakenings {
 			case GREAT_BLOOM -> Talent.AWAKENING_BLOOM;
 			case SPORE_STORM -> Talent.AWAKENING_STORM;
 			case MYCELIAL_REBIRTH -> Talent.AWAKENING_REBIRTH;
+			case FEAST -> Talent.AWAKENING_FEAST;
+			case BLOOD_STORM -> Talent.AWAKENING_BLOOD_STORM;
+			case NIGHT_PRINCE -> Talent.AWAKENING_PRINCE;
 			default -> null;
 		};
 	}

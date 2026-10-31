@@ -63,7 +63,7 @@ public class TalentScreen extends Screen {
 
 	private static int[] progress() {
 		SyncPayload state = ClientRace.state();
-		return state == null || state.progress().length < 21 ? new int[21] : state.progress();
+		return state == null || state.progress().length < 29 ? new int[29] : state.progress();
 	}
 
 	private static int openTiers() {
@@ -96,6 +96,9 @@ public class TalentScreen extends Screen {
 		tag.putBoolean("done_" + Talent.AWAKENING_BLOOM.id(), p[14] > 0);
 		tag.putBoolean("done_" + Talent.AWAKENING_STORM.id(), p[15] > 0);
 		tag.putBoolean("done_" + Talent.AWAKENING_REBIRTH.id(), p[16] > 0);
+		tag.putBoolean("done_" + Talent.AWAKENING_FEAST.id(), p[26] > 0);
+		tag.putBoolean("done_" + Talent.AWAKENING_BLOOD_STORM.id(), p[27] > 0);
+		tag.putBoolean("done_" + Talent.AWAKENING_PRINCE.id(), p[28] > 0);
 		return tag;
 	}
 
@@ -775,6 +778,9 @@ public class TalentScreen extends Screen {
 				case AWAKENING_HOLE -> 9;
 				case AWAKENING_BLOOM -> 14;
 				case AWAKENING_STORM -> 15;
+				case AWAKENING_FEAST -> 26;
+				case AWAKENING_BLOOD_STORM -> 27;
+				case AWAKENING_PRINCE -> 28;
 				default -> 16;
 			};
 			if (progress()[met] > 0) {
@@ -839,6 +845,11 @@ public class TalentScreen extends Screen {
 			case AWAKENING_STORM -> new Object[] {Math.min(p[12], Talents.STORM_KILLS), Talents.STORM_KILLS};
 			case AWAKENING_REBIRTH -> new Object[] {Math.min(p[13], Talents.REBIRTH_SHARED), Talents.REBIRTH_SHARED, Math.min(p[10], Talents.REBIRTH_NODES),
 					Talents.REBIRTH_NODES};
+			case AWAKENING_FEAST -> new Object[] {Math.min(p[22], euf.mageslegacy.bloodkin.Bloodkin.FEAST_TRIAL), euf.mageslegacy.bloodkin.Bloodkin.FEAST_TRIAL};
+			case AWAKENING_BLOOD_STORM -> new Object[] {Math.min(p[23], euf.mageslegacy.bloodkin.Bloodkin.STORM_TRIAL),
+					euf.mageslegacy.bloodkin.Bloodkin.STORM_TRIAL};
+			case AWAKENING_PRINCE -> new Object[] {Math.min(p[24], euf.mageslegacy.bloodkin.Bloodkin.PRINCE_HEAL), euf.mageslegacy.bloodkin.Bloodkin.PRINCE_HEAL,
+					Math.min(p[25], euf.mageslegacy.bloodkin.Bloodkin.PRINCE_SACRIFICES), euf.mageslegacy.bloodkin.Bloodkin.PRINCE_SACRIFICES};
 			default -> new Object[0];
 		};
 	}

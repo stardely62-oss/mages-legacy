@@ -96,6 +96,19 @@ public final class RaceHud {
 				LegacyUi.diamond(graphics, gx, y + SLOT - 3, 2, i < state.charges() ? 0xFFE8DEFF : 0xFF3A2E48);
 			}
 		}
+		// The Prince of the Night: the Last Breath's own readiness, apart from the swarm's cooldown: a heart, lit when it can save
+		if (ability == Ability.NIGHT_PRINCE && state.progress().length > 21) {
+			boolean ready = state.progress()[21] <= 0;
+			LegacyUi.diamond(graphics, x + 4, y + SLOT - 4, 2, ready ? 0xFFE0283C : 0xFF3A1418);
+			if (!ready) {
+				String mins = (state.progress()[21] + 59) / 60 + "m";
+				graphics.pose().pushPose();
+				graphics.pose().translate(x + 1, y + 1, 0);
+				graphics.pose().scale(0.5f, 0.5f, 1);
+				graphics.drawString(font, mins, 0, 0, 0xFFB01226);
+				graphics.pose().popPose();
+			}
+		}
 		if (ability.awakening()) {
 			// An Awakening's slot wears the crown's gems
 			LegacyUi.diamond(graphics, x + SLOT / 2, y - 1, 2, color);

@@ -498,6 +498,7 @@ final class Harness {
 		mycelidMastery();
 		balance(y);
 		advancements();
+		bloodkin();
 		fungalDiet(y);
 		run(() -> server().execute(() -> player().kill()), 20);
 	}
@@ -954,9 +955,9 @@ final class Harness {
 					icons.add(data);
 				}
 			}
-			check("two race tabs: " + shown + " advancements, " + hidden + " hidden, " + technical + " old kept invisible, " + missing
-					+ " without a title, " + strays + " under another race", shown == 33 && hidden == 2 && technical == 8 && missing == 0 && strays == 0);
-			check("every advancement wears its own painted icon (" + icons.size() + ")", icons.size() == 33);
+			check("three race tabs: " + shown + " advancements, " + hidden + " hidden, " + technical + " old kept invisible, " + missing
+					+ " without a title, " + strays + " under another race", shown == 51 && hidden == 3 && technical == 8 && missing == 0 && strays == 0);
+			check("every advancement wears its own painted icon (" + icons.size() + ")", icons.size() == 51);
 			check("the Colony's path follows the saved state (" + done("myc_root") + done("myc_gift") + done("myc_first_awakening") + ")",
 					done("myc_root") && done("myc_gift") && done("myc_first_awakening") && !done("void_root"));
 			// An old world: the shared tab's records stay, and count again only where the state proves them
@@ -998,6 +999,274 @@ final class Harness {
 				&& done("void_mastery") && !done("myc_root") && !done("myc_epidemic")
 				&& euf.mageslegacy.race.Deeds.archived(player()).contains("mages_legacy:legacy/myc_epidemic")), 0);
 		tabShot("advancements_voidborn", "void_root");
+	}
+
+	private static net.minecraft.world.entity.monster.Vindicator[] prey = new net.minecraft.world.entity.monster.Vindicator[3];
+	private static net.minecraft.world.entity.animal.Wolf hound;
+
+	/** A Bloodkin's live numbers, read on the server. */
+	private static float blood() {
+		return RaceState.resource(player());
+	}
+
+	private static int slotCooldown(int slot) {
+		return euf.mageslegacy.voidborn.Voidborn.state(player()).cooldown[slot];
+	}
+
+	/** Night, Spores-free: the Bloodkin at level 30 on open ground, blood full, food low (no natural healing to blur counts). */
+	private static void bloodSetUp(String... talents) {
+		server().execute(() -> {
+			ServerPlayer player = player();
+			euf.mageslegacy.race.Talents.setNoCooldown(player, false);
+			player.setData(RaceState.TALENTS, new ArrayList<>(List.of(talents)));
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player).cooldown, 0);
+			RaceState.setResource(player, RaceState.MAX_RESOURCE);
+			player.getFoodData().setFoodLevel(10);
+			player.getFoodData().setSaturation(0);
+			player.setHealth(player.getMaxHealth());
+			RaceState.sync(player);
+		});
+	}
+
+	/**
+	 * The Bloodkin: chosen; blood that only drains; the Dash cutting three once each; the Harvest healing and drinking;
+	 * the Sacrifice that never kills; a Transfusion into a wolf; two Awakenings of three on Z and Alt; the Prince of the
+	 * Night's Bat Swarm (cost, length, walls, Long Flight) and its Last Breath (the edge, a killing blow, 30% and 50%,
+	 * once in 20 minutes, kept on the player), each apart from the other; the Feast and the Blood Storm together.
+	 */
+	private static void bloodkin() {
+		Minecraft mc = Minecraft.getInstance();
+		int[] y = new int[1];
+		double[] at = new double[4];
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			RaceState.set(player, Race.BLOODKIN);
+			Progression.setLevel(player, 30);
+			player.serverLevel().setDayTime(18000);
+			y[0] = -60;
+			player.teleportTo(server().overworld(), 300.5, y[0], 0.5, 0, 0);
+		}), 10);
+		run(() -> check("became a Bloodkin, its own tab open (" + done("blood_root") + ")", RaceState.is(player(), Race.BLOODKIN) && done("blood_root")
+				&& !done("void_root") && !done("myc_root")), 0);
+		// Blood never gathers by itself
+		run(() -> {
+			bloodSetUp();
+			server().execute(() -> RaceState.setResource(player(), 50));
+		}, 5);
+		run(() -> at[0] = blood(), 60);
+		run(() -> check("blood only drains (" + at[0] + " -> " + blood() + ")", blood() < at[0] && blood() > at[0] - 3), 0);
+		// The Dash through three vindicators in a row: each cut once
+		run(() -> {
+			bloodSetUp();
+			server().execute(() -> {
+				ServerPlayer player = player();
+				player.connection.teleport(300.5, y[0], 0.5, 0, 0);
+				for (int i = 0; i < 3; i++) {
+					prey[i] = EntityType.VINDICATOR.create(player.serverLevel());
+					prey[i].moveTo(300.5, y[0], 2.5 + i * 2, 180, 0);
+					prey[i].setNoAi(true);
+					prey[i].setPersistenceRequired();
+					player.serverLevel().addFreshEntity(prey[i]);
+				}
+			});
+			mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+		}, 10);
+		// Seen from the front: from behind, the camera would pass through the vindicators with the body
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT), 2);
+		run(() -> MagesLegacyClient.useAbility(0), 1);
+		film("blood_dash", 6, 2);
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 0);
+		run(() -> {
+			float[] hp = {prey[0].getHealth(), prey[1].getHealth(), prey[2].getHealth()};
+			boolean once = true;
+			for (float h : hp) {
+				once &= Math.abs(h - (prey[0].getMaxHealth() - 6)) < 0.01f;
+			}
+			check("the Dash cuts each of three exactly once (" + hp[0] + ", " + hp[1] + ", " + hp[2] + ")", once
+					&& euf.mageslegacy.race.Talents.progress(player(), euf.mageslegacy.bloodkin.Bloodkin.DASH_MULTI) == 1);
+			check("the Dash went on past them (z=" + String.format("%.1f", player().getZ()) + ")", player().getZ() > 8);
+		}, 0);
+		// The Harvest: 4 to each, 2 health from each, 5 blood from each
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			RaceState.setResource(player, 100);
+			player.setHealth(10);
+		}), 3);
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT), 2);
+		run(() -> MagesLegacyClient.useAbility(1), 1);
+		film("blood_harvest", 6, 3);
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 0);
+		run(() -> {
+			check("the Harvest draws 4 from each, heals 2 from each, drinks 5 from each (" + prey[0].getHealth() + ", hp " + player().getHealth() + ", blood "
+					+ blood() + ")", Math.abs(prey[0].getHealth() - (prey[0].getMaxHealth() - 10)) < 0.01f && Math.abs(player().getHealth() - 16) < 0.6f
+					&& blood() > 72 && blood() < 76 && euf.mageslegacy.race.Talents.progress(player(), euf.mageslegacy.bloodkin.Bloodkin.HARVEST_GROUP) == 1);
+			for (var v : prey) {
+				server().execute(v::discard);
+			}
+		}, 0);
+		// The Sacrifice: refused when it would kill; 4 health for 40 blood otherwise
+		run(Harness::bloodSetUp, 3);
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			player.connection.teleport(300.5, y[0], 0.5, 0, 0);
+			player.setHealth(4);
+			RaceState.setResource(player, 10);
+		}), 5);
+		run(() -> MagesLegacyClient.useAbility(3), 5);
+		run(() -> {
+			check("the Sacrifice never kills (" + player().getHealth() + ", " + blood() + ")", Math.abs(player().getHealth() - 4) < 0.01f && blood() < 11);
+			server().execute(() -> player().setHealth(20));
+		}, 3);
+		run(() -> MagesLegacyClient.useAbility(3), 5);
+		run(() -> check("the Sacrifice: 4 health for 40 blood (" + player().getHealth() + ", " + blood() + ")", Math.abs(player().getHealth() - 16) < 0.01f
+				&& blood() > 48 && blood() < 51 && euf.mageslegacy.race.Talents.progress(player(), euf.mageslegacy.bloodkin.Bloodkin.SACRIFICES) == 1), 0);
+		// A Transfusion into one's own wolf in sight
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player).cooldown, 0);
+			RaceState.setResource(player, 60);
+			hound = EntityType.WOLF.create(player.serverLevel());
+			hound.moveTo(300.5, y[0], 3.5, 180, 0);
+			hound.tame(player);
+			hound.setOrderedToSit(true);
+			player.serverLevel().addFreshEntity(hound);
+			hound.setHealth(10);
+			player.connection.teleport(300.5, y[0], 0.5, 0, 15);
+		}), 10);
+		run(() -> MagesLegacyClient.useAbility(3), 5);
+		run(() -> {
+			check("a Transfusion heals the wolf 6 for 25 blood and 2 health (" + hound.getHealth() + ", " + player().getHealth() + ", " + blood() + ")",
+					// (16, and the Regeneration it gives heals its first point at once: 17)
+					hound.getHealth() >= 16 && hound.getHealth() <= 17 && Math.abs(player().getHealth() - 14) < 0.01f && blood() < 36 && blood() > 33);
+			server().execute(hound::discard);
+		}, 0);
+		// Two Awakenings of three: the Prince on Z, the Feast on Alt, the Storm closed
+		run(() -> bloodSetUp("awakening_prince", "awakening_feast"), 5);
+		run(() -> {
+			var owned = euf.mageslegacy.race.Talents.owned(player());
+			check("the Prince on Z, the Feast on Alt, the Blood Storm closed", euf.mageslegacy.race.Awakenings.at(owned,
+					euf.mageslegacy.race.Awakenings.FIRST_SLOT).orElse(null) == euf.mageslegacy.race.Ability.NIGHT_PRINCE
+					&& euf.mageslegacy.race.Awakenings.at(owned, euf.mageslegacy.race.Awakenings.SECOND_SLOT).orElse(null) == euf.mageslegacy.race.Ability.FEAST
+					&& "mages_legacy.talent.state.third_closed".equals(euf.mageslegacy.race.Talents.awakeningRefusal(owned, 50,
+							euf.mageslegacy.race.Talent.AWAKENING_BLOOD_STORM, player().getData(RaceState.PROGRESS))));
+		}, 0);
+		// The Bat Swarm by hand: 30 blood, 3 s, its own 25 s, untouchable, stopped by a wall; the Last Breath untouched
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			player.connection.teleport(300.5, y[0], 0.5, 0, 0);
+			for (int x = -3; x <= 3; x++) {
+				for (int dy = 0; dy < 5; dy++) {
+					player.serverLevel().setBlockAndUpdate(new net.minecraft.core.BlockPos(300 + x, y[0] + dy, 12), Blocks.STONE.defaultBlockState());
+				}
+			}
+		}), 10);
+		run(() -> MagesLegacyClient.useAbility(2), 2);
+		run(() -> {
+			check("the Bat Swarm: 30 blood, its own 25 s, the Last Breath still ready (" + blood() + ", " + slotCooldown(2) + ", "
+					+ euf.mageslegacy.bloodkin.Bloodkin.rescueReady(player()) + ")", euf.mageslegacy.bloodkin.Bloodkin.swarming(player()) && blood() > 68
+					&& blood() < 71 && slotCooldown(2) > 480 && slotCooldown(2) <= 500 && euf.mageslegacy.bloodkin.Bloodkin.rescueReady(player()) == 0);
+			at[1] = player().getHealth();
+			server().execute(() -> player().hurt(player().damageSources().generic(), 5));
+		}, 0);
+		film("bat_swarm", 8, 4);
+		run(() -> check("nothing touches the swarm (" + at[1] + " -> " + player().getHealth() + "), still flying at 1.7 s", player().getHealth() >= at[1]
+				&& euf.mageslegacy.bloodkin.Bloodkin.swarming(player())), 0);
+		run(() -> {
+		}, 40);
+		run(() -> check("the swarm is over after 3 s, the body back, the wall not passed (z=" + String.format("%.1f", player().getZ()) + ")",
+				!euf.mageslegacy.bloodkin.Bloodkin.swarming(player()) && !player().isNoGravity() && player().getZ() < 12), 0);
+		// Long Flight: 5 s by hand
+		run(() -> {
+			bloodSetUp("awakening_prince", "awakening_feast", "prince_long");
+			server().execute(() -> player().connection.teleport(300.5, y[0], 0.5, 180, 0));
+		}, 5);
+		run(() -> MagesLegacyClient.useAbility(2), 90);
+		run(() -> check("Long Flight: still a swarm at 4.5 s", euf.mageslegacy.bloodkin.Bloodkin.swarming(player())), 25);
+		run(() -> check("...and over by 5.7 s", !euf.mageslegacy.bloodkin.Bloodkin.swarming(player())), 0);
+		// The Last Breath: a blow over the edge, from low health
+		run(() -> {
+			bloodSetUp("awakening_prince", "awakening_feast", "prince_long", "prince_shadow");
+			server().execute(() -> {
+				ServerPlayer player = player();
+				player.connection.teleport(300.5, y[0], -20.5, 0, 0);
+				player.setHealth(8);
+				player.invulnerableTime = 0;
+				player.hurt(player.damageSources().generic(), 12);
+			});
+		}, 2);
+		film("last_breath", 8, 3);
+		run(() -> {
+			ServerPlayer player = player();
+			long ready = euf.mageslegacy.bloodkin.Bloodkin.rescueReady(player) - player.level().getGameTime();
+			check("the Last Breath: a killing blow from 8 of 20 leaves 30% (" + player.getHealth() + "), 20 minutes (" + ready / 20 + " s), the swarm's own key "
+					+ "untouched (" + slotCooldown(2) + ")", player.isAlive() && Math.abs(player.getHealth() - 6) < 0.01f && ready > 23900 && ready <= 24000
+					&& slotCooldown(2) == 0);
+		}, 50);
+		run(() -> check("the Last Breath's swarm keeps its 3 s with Long Flight, then Shadow of Death's Resistance",
+				!euf.mageslegacy.bloodkin.Bloodkin.swarming(player()) && player().hasEffect(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE)), 0);
+		// Once in 20 minutes: over the edge again, nothing saves (a blow that doesn't kill)
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			player.removeAllEffects();
+			player.setHealth(10);
+			player.invulnerableTime = 0;
+			player.hurt(player.damageSources().generic(), 9);
+		}), 3);
+		run(() -> check("a second time within 20 minutes nothing saves (" + player().getHealth() + ")", Math.abs(player().getHealth() - 1) < 0.01f
+				&& !euf.mageslegacy.bloodkin.Bloodkin.swarming(player())), 0);
+		// The swarm by hand still works while the Last Breath waits
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			player.setHealth(20);
+			RaceState.setResource(player, 100);
+		}), 3);
+		run(() -> MagesLegacyClient.useAbility(2), 3);
+		run(() -> check("the Bat Swarm works while the Last Breath waits", euf.mageslegacy.bloodkin.Bloodkin.swarming(player())), 110);
+		// A killing blow from full health, the Second Heart: 50%
+		run(() -> {
+			bloodSetUp("awakening_prince", "awakening_feast", "prince_heart");
+			server().execute(() -> {
+				ServerPlayer player = player();
+				euf.mageslegacy.voidborn.Voidborn.state(player).princeReady = 0;
+				player.invulnerableTime = 0;
+				player.hurt(player.damageSources().generic(), 40);
+			});
+		}, 5);
+		run(() -> check("a killing blow from full health is caught too; with a Second Heart 50% (" + player().getHealth() + ")", player().isAlive()
+				&& Math.abs(player().getHealth() - 10) < 0.01f), 100);
+		run(() -> {
+			var tag = player().getData(RaceState.COOLDOWNS);
+			check("the Last Breath's wait is kept on the player (" + tag.getInt("prince") + ")", tag.getInt("prince") > 23000);
+		}, 0);
+		// The Feast and the Blood Storm together, a vindicator killed under both
+		run(() -> {
+			bloodSetUp("awakening_feast", "awakening_blood_storm");
+			server().execute(() -> {
+				ServerPlayer player = player();
+				player.connection.teleport(300.5, y[0], -20.5, 0, 0);
+				prey[0] = EntityType.VINDICATOR.create(player.serverLevel());
+				prey[0].moveTo(300.5, y[0], -18.5, 180, 0);
+				prey[0].setNoAi(true);
+				player.serverLevel().addFreshEntity(prey[0]);
+			});
+		}, 10);
+		run(() -> MagesLegacyClient.useAbility(2), 3);
+		run(() -> MagesLegacyClient.useAbility(4), 3);
+		film("blood_storm", 6, 4);
+		run(() -> {
+			check("the Feast and the Blood Storm at once, the storm drawing blood", euf.mageslegacy.bloodkin.Bloodkin.feasting(player())
+					&& euf.mageslegacy.bloodkin.Bloodkin.storming(player()) && prey[0].getHealth() < prey[0].getMaxHealth());
+			server().execute(() -> {
+				prey[0].setHealth(1);
+				prey[0].invulnerableTime = 0;
+				player().attack(prey[0]);
+			});
+		}, 5);
+		run(() -> check("a kill under both: the Scarlet Feast", done("blood_scarlet") && done("blood_swarm") && done("blood_last_breath")), 0);
+		tabShot("advancements_bloodkin", "blood_root");
+		run(() -> mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen()), 20);
+		shot("talents_bloodkin");
+		run(() -> mc.setScreen(null), 5);
 	}
 
 	/** Holds the use key down this long (a real right click held, as a player eats), then lets go. */
@@ -1266,8 +1535,11 @@ final class Harness {
 
 	/** A run of screenshots, every few ticks: the CI lays them out in a sheet, so the animation itself can be judged. */
 	private static void film(String name, int frames, int every) {
-		// No advancement toasts over the effect being filmed
-		run(() -> Minecraft.getInstance().getToasts().clear(), 0);
+		// No advancement toasts or chat over the effect being filmed
+		run(() -> {
+			Minecraft.getInstance().getToasts().clear();
+			Minecraft.getInstance().gui.getChat().clearMessages(false);
+		}, 0);
 		for (int i = 0; i < frames; i++) {
 			int frame = i;
 			run(() -> {

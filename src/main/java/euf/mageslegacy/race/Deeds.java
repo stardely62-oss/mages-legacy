@@ -46,7 +46,7 @@ public final class Deeds {
 
 	/** The prefix of a race's advancements, or null for a race without a tab yet. */
 	public static String prefix(Race race) {
-		return race == Race.VOIDBORN ? "void" : race == Race.MYCELID ? "myc" : null;
+		return race == Race.VOIDBORN ? "void" : race == Race.MYCELID ? "myc" : race == Race.BLOODKIN ? "blood" : null;
 	}
 
 	/** The stages of the shared path: each race has its own copy of them. */

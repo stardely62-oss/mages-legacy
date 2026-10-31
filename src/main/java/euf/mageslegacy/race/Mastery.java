@@ -37,7 +37,13 @@ public final class Mastery {
 		/** Neurospores infecting 5 different enemies with one cloud. */
 		SPORE_MIND(Race.MYCELID, "m_spores", 5, false),
 		/** Neurospores on 2 enemies, then Neurosymbiosis within 10 s while one of them is still infected near by. */
-		ONE_ORGANISM(Race.MYCELID, "m_organism", 5, false);
+		ONE_ORGANISM(Race.MYCELID, "m_organism", 5, false),
+		/** Blood Dashes cutting through 3 or more enemies each. */
+		DASH_CHAIN(Race.BLOODKIN, "m_dash_chain", 10, false),
+		/** Harvests drawing blood from 5 or more enemies at once. */
+		HARVEST_HORDE(Race.BLOODKIN, "m_harvest_horde", 5, false),
+		/** From Thirst (under 20 blood) back to 80 or more within 30 seconds. */
+		BLOOD_TIDE(Race.BLOODKIN, "m_blood_tide", 5, false);
 
 		public final Race race;
 		public final String tag;

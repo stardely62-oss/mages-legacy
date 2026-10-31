@@ -24,8 +24,9 @@ def tier(name, kind, requires):
     return 3 if name in tier3 else 2 if name in tier2 else 1
 
 branches = {"CORE": "Ядро и базовые способности", "RIFT": "Разлом пространства", "WORLDS": "Сквозь миры", "GRAVITY": "Гравитация",
-            "COLONY": "Колония", "SPORES": "Нейроспоры", "SYMBIOSIS": "Симбиоз", "CROSS": "Перекрёстные таланты"}
-races = {"VOIDBORN": "Пустотники", "MYCELID": "Мицелиды"}
+            "COLONY": "Колония", "SPORES": "Нейроспоры", "SYMBIOSIS": "Симбиоз", "NIGHT": "Ночь", "FANG": "Клык", "THIRST": "Жажда",
+            "CROSS": "Перекрёстные таланты"}
+races = {"VOIDBORN": "Пустотники", "MYCELID": "Мицелиды", "BLOODKIN": "Кровники"}
 kinds = {"CORE": "ядро", "BASIC": "базовая", "PASSIVE": "пассивный", "TRANSFORM": "преобразующий", "CROSS": "перекрёстный",
          "AWAKENING": "Пробуждение"}
 out = ["# Таланты рас", "",

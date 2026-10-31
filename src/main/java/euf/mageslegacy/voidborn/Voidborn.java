@@ -127,6 +127,8 @@ public final class Voidborn {
 		long shelterReady;
 		/** The Mycelid's Call of the Colony: when it can call again. */
 		public long recallReady;
+		/** The Bloodkin's Last Breath (the Prince of the Night's rescue): when it can save again. */
+		public long princeReady;
 		boolean shelterNow;
 
 		public void startCooldown(int slot, int ticks) {
@@ -1034,6 +1036,7 @@ public final class Voidborn {
 		tag.putIntArray("passage", charges);
 		tag.putInt("shelter", (int) Math.max(0, state.shelterReady - now));
 		tag.putInt("recall", (int) Math.max(0, state.recallReady - now));
+		tag.putInt("prince", (int) Math.max(0, state.princeReady - now));
 		player.setData(RaceState.COOLDOWNS, tag);
 	}
 
@@ -1059,6 +1062,7 @@ public final class Voidborn {
 		}
 		state.shelterReady = now + tag.getInt("shelter");
 		state.recallReady = now + tag.getInt("recall");
+		state.princeReady = now + tag.getInt("prince");
 		player.removeData(RaceState.COOLDOWNS);
 	}
 

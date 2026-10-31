@@ -37,7 +37,8 @@ public final class Abilities {
 		Voidborn.State state = Voidborn.state(player);
 		int cost = cost(player, ability);
 		// A singularity holds its heart in place: nothing else happens until it collapses
-		if (euf.mageslegacy.mycelid.MyceliumNetwork.travelling(player)) {
+		if (euf.mageslegacy.mycelid.MyceliumNetwork.travelling(player) || euf.mageslegacy.bloodkin.Bloodkin.swarming(player)
+				|| euf.mageslegacy.bloodkin.Bloodkin.dashing(player)) {
 			refuse(player, Component.translatable("mages_legacy.refuse.busy"));
 			return;
 		}
@@ -47,7 +48,8 @@ public final class Abilities {
 		}
 		// Leaving the Pocket and ending an arena are always free and never wait
 		boolean free = ability == Ability.POCKET && Pocket.isPocket(player.level()) || ability == Ability.RIFT_ARENA && Arena.endsNow(player)
-				|| ability == Ability.GREAT_BLOOM && euf.mageslegacy.mycelid.Awaken.bloomEndsNow(player);
+				|| ability == Ability.GREAT_BLOOM && euf.mageslegacy.mycelid.Awaken.bloomEndsNow(player)
+				|| ability == Ability.BLOOD_DASH && euf.mageslegacy.bloodkin.Bloodkin.secondDash(player);
 		// An arena holds whoever is on it until it ends
 		if (ability == Ability.POCKET && Arena.isArena(player.level())) {
 			refuse(player, Component.translatable("mages_legacy.refuse.arena_here"));
@@ -79,6 +81,12 @@ public final class Abilities {
 			refuse(player, Component.translatable("mages_legacy.refuse.resource." + race.get().id()));
 			return;
 		}
+		// A Bloodkin pays before the ability acts: blood it drinks while acting (the Harvest) must not be lost to a full
+		// vein and then paid out of what is left; refused, the price comes back
+		boolean paidFirst = !free && ability.race == Race.BLOODKIN;
+		if (paidFirst) {
+			RaceState.setResource(player, RaceState.resource(player) - cost);
+		}
 		Refusal refusal = switch (ability) {
 			case VOID_STEP -> Voidborn.step(player);
 			case GRAVITY -> Voidborn.gravity(player);
@@ -92,16 +100,29 @@ public final class Abilities {
 			case GREAT_BLOOM -> euf.mageslegacy.mycelid.Awaken.bloom(player);
 			case SPORE_STORM -> euf.mageslegacy.mycelid.Awaken.storm(player);
 			case MYCELIAL_REBIRTH -> euf.mageslegacy.mycelid.Awaken.rebirth(player);
+			case BLOOD_DASH -> euf.mageslegacy.bloodkin.Bloodkin.dash(player);
+			case HARVEST -> euf.mageslegacy.bloodkin.Bloodkin.harvest(player);
+			case SACRIFICE -> euf.mageslegacy.bloodkin.Bloodkin.sacrifice(player);
+			case FEAST -> euf.mageslegacy.bloodkin.Bloodkin.feast(player);
+			case BLOOD_STORM -> euf.mageslegacy.bloodkin.Bloodkin.storm(player);
+			case NIGHT_PRINCE -> euf.mageslegacy.bloodkin.Bloodkin.swarm(player);
 		};
 		if (refusal != null) {
+			if (paidFirst) {
+				RaceState.setResource(player, RaceState.resource(player) + cost);
+			}
 			refuse(player, Component.translatable(refusal.key()));
 			return;
 		}
 		if (!free) {
-			RaceState.setResource(player, RaceState.resource(player) - cost);
+			if (!paidFirst) {
+				RaceState.setResource(player, RaceState.resource(player) - cost);
+			}
 			// The Void Step's cooldown starts when the walk ends, the arena's when the arena does, the Rebirth's when a
 			// body starts growing
-			if (ability != Ability.VOID_STEP && ability != Ability.RIFT_ARENA && ability != Ability.GREAT_BLOOM && ability != Ability.MYCELIAL_REBIRTH) {
+			// (the Sacrifice and the Transfusion set their own: they share the key, not the wait)
+			if (ability != Ability.VOID_STEP && ability != Ability.RIFT_ARENA && ability != Ability.GREAT_BLOOM && ability != Ability.MYCELIAL_REBIRTH
+					&& ability != Ability.SACRIFICE) {
 				state.startCooldown(slot, cooldown(player, ability));
 			}
 		}
@@ -120,6 +141,15 @@ public final class Abilities {
 		}
 		if (ability == Ability.POCKET && Talents.has(player, Talent.POCKET_CHEAP)) {
 			return 10;
+		}
+		// The Bloodkin's night: a Night Rush costs half, a Dark Harvest 25 (at night or underground)
+		boolean dark = euf.mageslegacy.bloodkin.Bloodkin.isNight(player.level())
+				|| !player.level().canSeeSky(player.blockPosition().above());
+		if (ability == Ability.BLOOD_DASH && Talents.has(player, Talent.NIGHT_DASH) && euf.mageslegacy.bloodkin.Bloodkin.isNight(player.level())) {
+			return ability.cost / 2;
+		}
+		if (ability == Ability.HARVEST && Talents.has(player, Talent.NIGHT_HARVEST) && dark) {
+			return 25;
 		}
 		return ability.cost;
 	}

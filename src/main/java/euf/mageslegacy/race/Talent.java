@@ -139,7 +139,68 @@ public enum Talent {
 	HEAL_NODES(Race.MYCELID, Kind.CROSS, Branch.CROSS, 2.6f, -30, 2, 0, "kin_heal", "sym_pulse", "net_thrift"),
 	SPORE_TRAVEL(Race.MYCELID, Kind.CROSS, Branch.CROSS, 3.4f, -155, 3, 0, "swarm_trail", "net_recall", "spore_trail"),
 	SYM_SPORES(Race.MYCELID, Kind.CROSS, Branch.CROSS, 3.7f, 90, 3, 0, "swarm_potent", "spore_feeble", "sym_night"),
-	NODE_FOOD(Race.MYCELID, Kind.CROSS, Branch.CROSS, 3.4f, -30, 3, 0, "pack_fed", "diet_2", "net_sense");
+	NODE_FOOD(Race.MYCELID, Kind.CROSS, Branch.CROSS, 3.4f, -30, 3, 0, "pack_fed", "diet_2", "net_sense"),
+
+	// The Bloodkin: the Night (the Colony's places), the Fang (the Spores'), the Thirst (the Symbiosis'), slot for slot
+	SACRIFICE(Race.BLOODKIN, Kind.CORE, Branch.CORE, 0, 0, 0, 1, "sacrifice"),
+	BLOOD_DASH(Race.BLOODKIN, Kind.BASIC, Branch.FANG, 1, 150, 0, 3, "blood_dash", "sacrifice"),
+	HARVEST(Race.BLOODKIN, Kind.BASIC, Branch.THIRST, 1, 30, 0, 5, "harvest", "sacrifice"),
+	NIGHT_EYES(Race.BLOODKIN, Kind.PASSIVE, Branch.NIGHT, 1, -90, 1, 0, "night_eyes", "sacrifice"),
+	NIGHT_HUNTER(Race.BLOODKIN, Kind.PASSIVE, Branch.NIGHT, 2, -90, 1, 0, "night_hunter", "night_eyes"),
+	NIGHT_LORD(Race.BLOODKIN, Kind.PASSIVE, Branch.NIGHT, 3, -90, 3, 0, "night_lord", "night_hunter"),
+	NIGHT_SHADE(Race.BLOODKIN, Kind.PASSIVE, Branch.NIGHT, 2, -70, 1, 0, "night_shade", "night_eyes"),
+	NIGHT_SENSE(Race.BLOODKIN, Kind.TRANSFORM, Branch.NIGHT, 2, -110, 1, 0, "night_sense", "night_eyes"),
+	NIGHT_WIDE_SENSE(Race.BLOODKIN, Kind.PASSIVE, Branch.NIGHT, 3, -110, 2, 0, "night_wide_sense", "night_sense"),
+	NIGHT_CLOAK(Race.BLOODKIN, Kind.PASSIVE, Branch.NIGHT, 3, -70, 1, 0, "night_cloak", "night_shade"),
+	NIGHT_HUSH(Race.BLOODKIN, Kind.PASSIVE, Branch.NIGHT, 2, -130, 1, 0, "night_hush", "night_eyes"),
+	NIGHT_BLOOD(Race.BLOODKIN, Kind.PASSIVE, Branch.NIGHT, 2, -50, 1, 0, "night_blood", "night_eyes"),
+	NIGHT_AMBUSH(Race.BLOODKIN, Kind.PASSIVE, Branch.NIGHT, 3, -50, 2, 0, "night_ambush", "night_blood"),
+	NIGHT_JUMP(Race.BLOODKIN, Kind.TRANSFORM, Branch.NIGHT, 3, -130, 3, 0, "night_jump", "night_hush"),
+	NIGHT_TERROR(Race.BLOODKIN, Kind.TRANSFORM, Branch.NIGHT, 3.8f, -122, 3, 0, "night_terror", "night_jump", "night_wide_sense"),
+	NIGHT_FEED(Race.BLOODKIN, Kind.PASSIVE, Branch.NIGHT, 3.8f, -58, 2, 0, "night_feed", "night_ambush", "night_cloak"),
+	AWAKENING_PRINCE(Race.BLOODKIN, Kind.AWAKENING, Branch.NIGHT, 4.2f, -90, 5, 0, "awakening_prince", "night_lord", "night_wide_sense"),
+	PRINCE_LONG(Race.BLOODKIN, Kind.PASSIVE, Branch.NIGHT, 5.3f, -114, 2, 0, "prince_long", "awakening_prince"),
+	PRINCE_SWARM(Race.BLOODKIN, Kind.PASSIVE, Branch.NIGHT, 5.3f, -98, 2, 0, "prince_swarm", "awakening_prince"),
+	PRINCE_HEART(Race.BLOODKIN, Kind.PASSIVE, Branch.NIGHT, 5.3f, -82, 2, 0, "prince_heart", "awakening_prince"),
+	PRINCE_SHADOW(Race.BLOODKIN, Kind.TRANSFORM, Branch.NIGHT, 5.3f, -66, 2, 0, "prince_shadow", "awakening_prince"),
+	FANG_REACH(Race.BLOODKIN, Kind.PASSIVE, Branch.FANG, 2, 145, 1, 0, "fang_reach", "blood_dash"),
+	FANG_EXECUTE(Race.BLOODKIN, Kind.PASSIVE, Branch.FANG, 3, 150, 2, 0, "fang_execute", "fang_reach"),
+	FANG_DOUBLE(Race.BLOODKIN, Kind.TRANSFORM, Branch.FANG, 2.5f, 168, 2, 0, "fang_double", "blood_dash"),
+	FANG_BLEED(Race.BLOODKIN, Kind.PASSIVE, Branch.FANG, 2.5f, 125, 1, 0, "fang_bleed", "blood_dash"),
+	FANG_DEEP(Race.BLOODKIN, Kind.TRANSFORM, Branch.FANG, 3, 133, 2, 0, "fang_deep", "fang_reach", "fang_bleed"),
+	FANG_LEECH(Race.BLOODKIN, Kind.PASSIVE, Branch.FANG, 2, 108, 1, 0, "fang_leech", "blood_dash"),
+	FANG_TRAIL(Race.BLOODKIN, Kind.PASSIVE, Branch.FANG, 2, 198, 1, 0, "fang_trail", "blood_dash"),
+	FANG_BITE(Race.BLOODKIN, Kind.TRANSFORM, Branch.FANG, 3, 187, 2, 0, "fang_bite", "fang_trail"),
+	FANG_FRENZY(Race.BLOODKIN, Kind.PASSIVE, Branch.FANG, 3.2f, 108, 2, 0, "fang_frenzy", "fang_leech"),
+	FANG_OPEN(Race.BLOODKIN, Kind.PASSIVE, Branch.FANG, 3.8f, 178, 3, 0, "fang_open", "fang_bite", "fang_double"),
+	AWAKENING_FEAST(Race.BLOODKIN, Kind.AWAKENING, Branch.FANG, 4.2f, 150, 5, 0, "awakening_feast", "fang_execute", "fang_open"),
+	FEAST_LONG(Race.BLOODKIN, Kind.PASSIVE, Branch.FANG, 5.3f, 134, 2, 0, "feast_long", "awakening_feast"),
+	FEAST_DEEP(Race.BLOODKIN, Kind.PASSIVE, Branch.FANG, 5.3f, 150, 2, 0, "feast_deep", "awakening_feast"),
+	FEAST_SATED(Race.BLOODKIN, Kind.PASSIVE, Branch.FANG, 6.2f, 150, 3, 0, "feast_sated", "feast_deep"),
+	FEAST_SHARE(Race.BLOODKIN, Kind.TRANSFORM, Branch.FANG, 5.3f, 166, 2, 0, "feast_share", "awakening_feast"),
+	FEAST_FEAR(Race.BLOODKIN, Kind.PASSIVE, Branch.FANG, 5.3f, 118, 2, 0, "feast_fear", "awakening_feast"),
+	THIRST_SLOW(Race.BLOODKIN, Kind.PASSIVE, Branch.THIRST, 2, 15, 1, 0, "thirst_slow", "harvest"),
+	THIRST_DRAIN(Race.BLOODKIN, Kind.PASSIVE, Branch.THIRST, 2, 45, 1, 0, "thirst_drain", "harvest"),
+	THIRST_HARVEST(Race.BLOODKIN, Kind.TRANSFORM, Branch.THIRST, 3, 15, 2, 0, "thirst_harvest", "thirst_slow"),
+	THIRST_EDGE(Race.BLOODKIN, Kind.PASSIVE, Branch.THIRST, 3.3f, 34, 1, 0, "thirst_edge", "thirst_slow", "thirst_drain"),
+	THIRST_MARK(Race.BLOODKIN, Kind.TRANSFORM, Branch.THIRST, 3, 45, 2, 0, "thirst_mark", "thirst_drain"),
+	THIRST_SACRIFICE(Race.BLOODKIN, Kind.PASSIVE, Branch.THIRST, 2, -15, 1, 0, "thirst_sacrifice", "sacrifice"),
+	THIRST_HUNGER(Race.BLOODKIN, Kind.PASSIVE, Branch.THIRST, 2, 65, 1, 0, "thirst_hunger", "harvest"),
+	THIRST_VESSEL(Race.BLOODKIN, Kind.PASSIVE, Branch.THIRST, 3, -10, 1, 0, "thirst_vessel", "thirst_sacrifice"),
+	THIRST_RAGE(Race.BLOODKIN, Kind.TRANSFORM, Branch.THIRST, 3, 62, 2, 0, "thirst_rage", "thirst_hunger"),
+	THIRST_OFFERING(Race.BLOODKIN, Kind.TRANSFORM, Branch.THIRST, 3.8f, 2, 2, 0, "thirst_offering", "thirst_vessel", "thirst_harvest"),
+	THIRST_TRANSFUSE(Race.BLOODKIN, Kind.PASSIVE, Branch.THIRST, 3.8f, 58, 2, 0, "thirst_transfuse", "thirst_rage", "thirst_mark"),
+	AWAKENING_BLOOD_STORM(Race.BLOODKIN, Kind.AWAKENING, Branch.THIRST, 4.2f, 30, 5, 0, "awakening_blood_storm", "thirst_harvest", "thirst_mark"),
+	BSTORM_LONG(Race.BLOODKIN, Kind.PASSIVE, Branch.THIRST, 5.3f, 14, 2, 0, "bstorm_long", "awakening_blood_storm"),
+	BSTORM_DRAIN(Race.BLOODKIN, Kind.PASSIVE, Branch.THIRST, 5.3f, 30, 2, 0, "bstorm_drain", "awakening_blood_storm"),
+	BSTORM_PULL(Race.BLOODKIN, Kind.TRANSFORM, Branch.THIRST, 5.3f, 46, 2, 0, "bstorm_pull", "awakening_blood_storm"),
+	BSTORM_WIDE(Race.BLOODKIN, Kind.PASSIVE, Branch.THIRST, 5.3f, -2, 2, 0, "bstorm_wide", "awakening_blood_storm"),
+	NIGHT_DASH(Race.BLOODKIN, Kind.CROSS, Branch.CROSS, 2.6f, -150, 2, 0, "night_dash", "night_sense", "fang_double"),
+	FANG_HARVEST(Race.BLOODKIN, Kind.CROSS, Branch.CROSS, 2.6f, 90, 2, 0, "fang_harvest", "fang_bleed", "thirst_drain"),
+	NIGHT_HARVEST(Race.BLOODKIN, Kind.CROSS, Branch.CROSS, 2.6f, -30, 2, 0, "night_harvest", "thirst_slow", "night_shade"),
+	NIGHT_DIVE(Race.BLOODKIN, Kind.CROSS, Branch.CROSS, 3.4f, -155, 3, 0, "night_dive", "night_jump", "fang_bite"),
+	THIRST_FRENZY(Race.BLOODKIN, Kind.CROSS, Branch.CROSS, 3.7f, 90, 3, 0, "thirst_frenzy", "fang_frenzy", "thirst_rage"),
+	NIGHT_DRINK(Race.BLOODKIN, Kind.CROSS, Branch.CROSS, 3.4f, -30, 3, 0, "night_drink", "thirst_vessel", "night_ambush");
 
 	public enum Kind {
 		CORE, BASIC, PASSIVE, TRANSFORM, CROSS, AWAKENING;
@@ -150,7 +211,7 @@ public enum Talent {
 	}
 
 	public enum Branch {
-		CORE, RIFT, WORLDS, GRAVITY, COLONY, SPORES, SYMBIOSIS, CROSS
+		CORE, RIFT, WORLDS, GRAVITY, COLONY, SPORES, SYMBIOSIS, NIGHT, FANG, THIRST, CROSS
 	}
 
 	public static final int MAX_TIER = 4;
@@ -220,16 +281,20 @@ public enum Talent {
 		if (automatic()) {
 			return 1;
 		}
-		if (kind == Kind.AWAKENING || awakening() != null || this == WORLDS_CHARGE_3 || this == STORM_KEEP) {
+		if (kind == Kind.AWAKENING || awakening() != null || this == WORLDS_CHARGE_3 || this == STORM_KEEP || this == FEAST_SATED) {
 			return 4;
 		}
 		return switch (this) {
 			case POCKET_WIDE_3, POCKET_VAULT, STEP_FAR_2, GRAV_PULL, GRAV_ARROWS, POCKET_TWO_DOORS, POCKET_SHELTER, STEP_STONE,
 					GRAV_LINGER, GRAV_FEAST, STEP_HOMEWARD, STEP_RUPTURE, POCKET_HOLD,
-					NET_NODES_3, NET_TRAIN, SPORE_WIDE_2, SYM_UNITY, SYM_SHARE, NET_RECALL, NET_SHARED, SPORE_LINGER, DIET_3, SYM_AURA, SPORE_TRAVEL, SYM_SPORES, NODE_FOOD -> 3;
+					NET_NODES_3, NET_TRAIN, SPORE_WIDE_2, SYM_UNITY, SYM_SHARE, NET_RECALL, NET_SHARED, SPORE_LINGER, DIET_3, SYM_AURA, SPORE_TRAVEL, SYM_SPORES, NODE_FOOD,
+					NIGHT_LORD, NIGHT_WIDE_SENSE, FANG_EXECUTE, THIRST_HARVEST, THIRST_MARK, NIGHT_JUMP, NIGHT_TERROR, FANG_OPEN, THIRST_OFFERING, THIRST_TRANSFUSE,
+					NIGHT_DIVE, THIRST_FRENZY, NIGHT_DRINK -> 3;
 			case POCKET_CRADLE, STEP_ALLY, GRAV_FLIERS, STEP_DOOR, STEP_HEAVY, DOOR_RECOIL, POCKET_GARDEN, VOID_EYES, STEP_ECHO, STEP_AMBUSH,
 					GRAV_FUSE, GRAV_CHAIN,
-					NET_GROWTH, SPORE_SPREAD, SYM_ADAPT, SPORE_NODES, SPORE_FEED, HEAL_NODES, NET_SENSE, NET_GLOW, SPORE_TRAIL, SPORE_FEEBLE, DIET_2, SYM_NIGHT -> 2;
+					NET_GROWTH, SPORE_SPREAD, SYM_ADAPT, SPORE_NODES, SPORE_FEED, HEAL_NODES, NET_SENSE, NET_GLOW, SPORE_TRAIL, SPORE_FEEBLE, DIET_2, SYM_NIGHT,
+					NIGHT_CLOAK, FANG_DEEP, THIRST_EDGE, NIGHT_DASH, FANG_HARVEST, NIGHT_HARVEST, NIGHT_AMBUSH, NIGHT_FEED, FANG_BITE, FANG_FRENZY,
+					THIRST_VESSEL, THIRST_RAGE -> 2;
 			default -> 1;
 		};
 	}
