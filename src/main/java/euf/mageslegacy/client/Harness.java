@@ -1105,7 +1105,9 @@ final class Harness {
 				+ ", node " + player().level().getBlockState(node) + ")",
 				euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nutrients(player().getUUID()) == before[0] + 4 && held() == 2
 						&& player().getFoodData().getFoodLevel() == 10), 0);
+		// Crouching lowers the eyes: a flatter look still finds the node
 		run(() -> mc.options.keyShift.setDown(true), 6);
+		run(() -> server().execute(() -> player().connection.teleport(80.5, y[0], 78.5, 0, 30)), 8);
 		run(() -> net.minecraft.client.KeyMapping.click(mc.options.keyUse.getKey()), 6);
 		run(() -> {
 			mc.options.keyShift.setDown(false);
