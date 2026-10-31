@@ -956,11 +956,14 @@ final class Harness {
 			check("two race tabs: " + shown + " advancements, " + hidden + " hidden, " + technical + " old kept invisible, " + missing
 					+ " without a title, " + strays + " under another race", shown == 33 && hidden == 2 && technical == 8 && missing == 0 && strays == 0);
 			check("every advancement wears its own painted icon (" + icons.size() + ")", icons.size() == 33);
-			check("the Colony's path follows the saved state (root, gift, first awakening; no peak at 45)", done("myc_root") && done("myc_gift")
-					&& done("myc_first_awakening") && !done("myc_peak") && !done("void_root"));
+			check("the Colony's path follows the saved state (" + done("myc_root") + done("myc_gift") + done("myc_first_awakening") + ")",
+					done("myc_root") && done("myc_gift") && done("myc_first_awakening") && !done("void_root"));
 			// An old world: the shared tab's records stay, and count again only where the state proves them
 			String name = player().getGameProfile().getName();
 			server().execute(() -> {
+				// Peak was earned at level 50 earlier in the run: taken back, the old shared record alone must not return it at 45
+				server().getCommands().performPrefixedCommand(server().createCommandSourceStack(),
+						"advancement revoke " + name + " only mages_legacy:legacy/myc_peak");
 				for (String old : new String[] {"first_awakening", "peak"}) {
 					server().getCommands().performPrefixedCommand(server().createCommandSourceStack(),
 							"advancement grant " + name + " only mages_legacy:legacy/" + old);
@@ -969,8 +972,9 @@ final class Harness {
 			});
 		}, 5);
 		run(() -> {
-			check("an old world's shared records stay, Peak isn't copied without level 50", done("first_awakening") && done("peak")
-					&& done("myc_first_awakening") && !done("myc_peak"));
+			check("an old world's shared records stay, Peak isn't copied without level 50 (" + done("first_awakening") + done("peak")
+					+ done("myc_first_awakening") + done("myc_peak") + ")", done("first_awakening") && done("peak") && done("myc_first_awakening")
+					&& !done("myc_peak"));
 			String name = player().getGameProfile().getName();
 			server().execute(() -> server().getCommands().performPrefixedCommand(server().createCommandSourceStack(),
 					"advancement revoke " + name + " only mages_legacy:legacy/myc_epidemic"));
