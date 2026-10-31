@@ -1365,16 +1365,19 @@ final class Harness {
 			before[0] = euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nutrients(player().getUUID());
 		}, 0);
 		net.minecraft.core.BlockPos node = new net.minecraft.core.BlockPos(80, y[0], 80);
-		net.minecraft.world.phys.BlockHitResult onNode = new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(80.5, y[0] + 0.5, 79.99),
-				net.minecraft.core.Direction.NORTH, node, false);
-		run(() -> server().execute(() -> player().connection.teleport(80.5, y[0], 78.5, 0, 20)), 5);
-		run(() -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND, onNode), 5);
+		// Looking at the node's side from two blocks off, one press of the use key
+		run(() -> server().execute(() -> player().connection.teleport(80.5, y[0], 78.5, 0, 45)), 8);
+		run(() -> net.minecraft.client.KeyMapping.click(mc.options.keyUse.getKey()), 6);
 		run(() -> check("a click on the node feeds the colony a mushroom, not the Mycelid (" + before[0] + " -> "
-				+ euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nutrients(player().getUUID()) + ", left " + held() + ")",
+				+ euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nutrients(player().getUUID()) + ", left " + held() + ", aimed at "
+				+ (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult b ? mc.level.getBlockState(b.getBlockPos()) + "@" + b.getBlockPos() : "nothing")
+				+ ", node " + player().level().getBlockState(node) + ")",
 				euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nutrients(player().getUUID()) == before[0] + 4 && held() == 2
 						&& player().getFoodData().getFoodLevel() == 10), 0);
+		// Crouching lowers the eyes: a flatter look still finds the node
 		run(() -> mc.options.keyShift.setDown(true), 6);
-		run(() -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND, onNode), 5);
+		run(() -> server().execute(() -> player().connection.teleport(80.5, y[0], 78.5, 0, 30)), 8);
+		run(() -> net.minecraft.client.KeyMapping.click(mc.options.keyUse.getKey()), 6);
 		run(() -> {
 			mc.options.keyShift.setDown(false);
 			check("Shift: the whole stack to the colony (" + euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nutrients(player().getUUID()) + ", left "
