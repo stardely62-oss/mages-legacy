@@ -626,7 +626,10 @@ public final class Bloodkin {
 		event.setAmount(event.getAmount() * factor);
 	}
 
-	/** Ordinary food feeds a Bloodkin only a third. */
+	/**
+	 * Ordinary food feeds a Bloodkin only a third. Raw meat is the innate exception (Hunter's Flesh): it feeds in full
+	 * and 2 more (beef 5 instead of 3), its Hunger never takes ({@link euf.mageslegacy.race.Innate}); no blood from it.
+	 */
 	private static void onEat(LivingEntityUseItemEvent.Finish event) {
 		if (!(event.getEntity() instanceof ServerPlayer player) || !is(player)) {
 			return;
@@ -636,6 +639,10 @@ public final class Bloodkin {
 			return;
 		}
 		var data = player.getFoodData();
+		if (euf.mageslegacy.race.Innate.rawMeat(event.getItem())) {
+			data.eat(euf.mageslegacy.race.Innate.RAW_MEAT_BONUS, 0.3f);
+			return;
+		}
 		data.setFoodLevel(Math.max(0, data.getFoodLevel() - food.nutrition() * 2 / 3));
 		data.setSaturation(Math.min(data.getSaturationLevel(), data.getFoodLevel()) / 3);
 	}

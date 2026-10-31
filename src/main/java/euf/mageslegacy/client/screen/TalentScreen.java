@@ -181,7 +181,7 @@ public class TalentScreen extends Screen {
 	private static List<Talent.Branch> directions(Race race) {
 		List<Talent.Branch> list = new ArrayList<>();
 		for (Talent t : Talent.of(race)) {
-			if (t.branch != Talent.Branch.CORE && t.branch != Talent.Branch.CROSS && !list.contains(t.branch)) {
+			if (t.branch != Talent.Branch.CORE && t.branch != Talent.Branch.CROSS && t.branch != Talent.Branch.INNATE && !list.contains(t.branch)) {
 				list.add(t.branch);
 			}
 		}
@@ -245,6 +245,7 @@ public class TalentScreen extends Screen {
 		return switch (t.kind) {
 			case CORE -> 28;
 			case BASIC, AWAKENING -> 24;
+			case INNATE -> 20;
 			case TRANSFORM, CROSS -> 18;
 			default -> 15;
 		};
@@ -300,6 +301,11 @@ public class TalentScreen extends Screen {
 				line(graphics, x0, y0, x1, y1, 2, LegacyUi.alpha(0xFFF2E8FF, 0.8f * pulse));
 			}
 		}
+		// The innate node hangs off the core on a thread of its own, outside the paths: dotted, always lit, softly breathing
+		Talent innate = Talent.innateOf(race).orElse(null);
+		if (innate != null) {
+			innateThread(graphics, innate, color);
+		}
 		drawWaves(graphics, color);
 		Talent hovered = null;
 		for (Talent t : tree) {
@@ -314,6 +320,11 @@ public class TalentScreen extends Screen {
 		if (showGuide || showTraits) {
 			drawPage(graphics, race, color);
 			return;
+		}
+		if (harnessHover != null && harnessHover.race == race) {
+			hovered = harnessHover;
+			mouseX = nodeX(hovered) + nodeSize(hovered);
+			mouseY = nodeY(hovered);
 		}
 		if (hovered != null) {
 			graphics.renderComponentTooltip(font, tooltip(hovered), mouseX, mouseY);
@@ -522,6 +533,9 @@ public class TalentScreen extends Screen {
 		y = title(graphics, Component.translatable("mages_legacy.guide.points_title"), x, y, LegacyUi.GREEN, measure);
 		y = gems(graphics, Lines.of("mages_legacy.guide.points"), x, right, y, LegacyUi.GREEN, LegacyUi.PARCHMENT, measure);
 		y = divider(graphics, x, right, y, color, measure);
+		y = title(graphics, Component.translatable("mages_legacy.traits.innate"), x, y, color, measure);
+		y = gems(graphics, Lines.of("mages_legacy.guide.innate"), x, right, y, color, LegacyUi.PARCHMENT, measure);
+		y = divider(graphics, x, right, y, color, measure);
 		y = title(graphics, Component.translatable("mages_legacy.guide.tiers"), x, y, LegacyUi.GOLD, measure);
 		int open = openTiers();
 		for (int tier = 1; tier <= Talent.MAX_TIER; tier++) {
@@ -551,6 +565,23 @@ public class TalentScreen extends Screen {
 			LegacyUi.heading(graphics, Component.translatable("mages_legacy.traits.title").withStyle(ChatFormatting.BOLD), x0 + w / 2, y, LegacyUi.GOLD);
 		}
 		y += 20;
+		Talent innate = Talent.innateOf(race).orElse(null);
+		if (innate != null) {
+			y = title(graphics, Component.translatable("mages_legacy.traits.innate").append(" — ").append(Component.translatable(innate.key() + ".name")),
+					x, y, LegacyUi.mix(color, 0xFFFFFFFF, 0.25f), measure);
+			List<Component> lore = List.of(Component.translatable(innate.key() + ".lore").withStyle(ChatFormatting.ITALIC));
+			for (FormattedCharSequence row : font.split(lore.get(0), right - x)) {
+				if (!measure) {
+					graphics.drawString(font, row, x, y, LegacyUi.MUTED, false);
+				}
+				y += 10;
+			}
+			y += 3;
+			y = gems(graphics, Lines.of(innate.key() + ".effect"), x, right, y, color, LegacyUi.PARCHMENT, measure);
+			List<Component> note = List.of(Component.translatable("mages_legacy.talent.innate.note").withStyle(ChatFormatting.ITALIC));
+			y = gems(graphics, note, x, right, y, LegacyUi.GOLD, LegacyUi.GOLD, measure);
+			y = divider(graphics, x, right, y, color, measure);
+		}
 		y = title(graphics, Component.translatable("mages_legacy.screen.strengths"), x, y, LegacyUi.GREEN, measure);
 		y = gems(graphics, Lines.of(race.key() + ".perk"), x, right, y, LegacyUi.GREEN, 0xFFD6EBD0, measure);
 		y = divider(graphics, x, right, y, color, measure);
@@ -693,6 +724,167 @@ public class TalentScreen extends Screen {
 		}
 	}
 
+	// ---- The innate node ----------------------------------------------------------------------------------------
+
+	/** For the harness: where the innate node stands now (its centre), to click it as a player would. */
+	public int[] innateCenter() {
+		Race race = ClientRace.race();
+		Talent t = race == null ? null : Talent.innateOf(race).orElse(null);
+		return t == null ? null : new int[] {nodeX(t), nodeY(t)};
+	}
+
+	public boolean showingTraits() {
+		return showTraits;
+	}
+
+	/** For the harness: a node whose tooltip is drawn as if hovered (null: the mouse decides). */
+	public static Talent harnessHover;
+
+	/** An octagon of the given colour: an innate node's seal (its corners cut deeper than a talent's). */
+	private static void octagon(GuiGraphics graphics, int x, int y, int s, int color) {
+		int c = Math.max(2, s / 4);
+		for (int dy = 0; dy < s; dy++) {
+			int cut = Math.max(0, Math.max(c - dy, c - (s - 1 - dy)));
+			graphics.fill(x + cut, y + dy, x + s - cut, y + dy + 1, color);
+		}
+	}
+
+	/** The dotted thread from the core to the innate node, breathing with the race's colour. */
+	private void innateThread(GuiGraphics graphics, Talent innate, int color) {
+		int x0 = cx();
+		int y0 = cy();
+		int x1 = nodeX(innate);
+		int y1 = nodeY(innate);
+		double length = Math.hypot(x1 - x0, y1 - y0);
+		int dots = Math.max(2, (int) (length / 4));
+		float breath = 0.45f + 0.25f * (float) Math.sin(LegacyUi.time() * 1.6);
+		for (int i = 1; i < dots; i++) {
+			int x = (int) Math.round(x0 + (x1 - x0) * i / (double) dots);
+			int y = (int) Math.round(y0 + (y1 - y0) * i / (double) dots);
+			graphics.fill(x, y, x + 1, y + 1, LegacyUi.alpha(color, breath));
+		}
+	}
+
+	/** Where the "INNATE" caption goes under the node and how big its text is, or null when it would touch another node. */
+	private int[] innateCaption(Talent t) {
+		int s = nodeSize(t);
+		float scale = Math.max(0.5f, Math.min(0.75f, s / 26f));
+		String text = Component.translatable("mages_legacy.talent.innate.badge").getString();
+		int w = Math.round(font.width(text) * scale);
+		int h = Math.round(8 * scale);
+		int x = nodeX(t) - w / 2;
+		int y = nodeY(t) + s / 2 + 2;
+		int[] box = {x - 1, y - 1, x + w + 1, y + h + 1, Math.round(scale * 100)};
+		Race race = t.race;
+		for (Talent other : Talent.of(race)) {
+			if (other != t && intersects(box, rect(other))) {
+				return null;
+			}
+		}
+		return box;
+	}
+
+	private int[] rect(Talent t) {
+		int s = nodeSize(t);
+		return new int[] {nodeX(t) - s / 2, nodeY(t) - s / 2, nodeX(t) - s / 2 + s, nodeY(t) - s / 2 + s};
+	}
+
+	private static boolean intersects(int[] a, int[] b) {
+		return a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+	}
+
+	/**
+	 * The innate node: an octagonal seal, always open, glowing softly in the race's colour, with its own icon and
+	 * "INNATE" under it where there is room (the cost a talent would show). Nothing to buy. Returns whether hovered.
+	 */
+	private boolean drawInnate(GuiGraphics graphics, Talent t, int mouseX, int mouseY, int color) {
+		int s = nodeSize(t);
+		int x = nodeX(t) - s / 2;
+		int y = nodeY(t) - s / 2;
+		boolean hot = mouseX >= x && mouseX < x + s && mouseY >= y && mouseY < y + s;
+		float breath = 0.5f + 0.5f * (float) Math.sin(LegacyUi.time() * 1.6);
+		LegacyUi.glow(graphics, x + s / 2, y + s / 2, s + 4, color, 0.45f + 0.25f * breath);
+		int rim = hot ? LegacyUi.GOLD : LegacyUi.mix(color, 0xFFFFFFFF, 0.2f * breath);
+		octagon(graphics, x - 1, y - 1, s + 2, LegacyUi.alpha(rim, 0.35f));
+		octagon(graphics, x, y, s, rim);
+		octagon(graphics, x + 1, y + 1, s - 2, 0xF0120E16);
+		octagon(graphics, x + 2, y + 2, s - 4, LegacyUi.alpha(color, 0.18f + 0.1f * breath));
+		ResourceLocation icon = icon(t);
+		if (icon != null) {
+			LegacyUi.icon(graphics, icon, x + 3, y + 3, s - 6, true);
+		}
+		int[] caption = innateCaption(t);
+		if (caption != null) {
+			float scale = caption[4] / 100f;
+			graphics.pose().pushPose();
+			graphics.pose().translate(caption[0] + 1, caption[1] + 1, 0);
+			graphics.pose().scale(scale, scale, 1);
+			graphics.drawString(font, Component.translatable("mages_legacy.talent.innate.badge"), 0, 0, LegacyUi.mix(color, 0xFFFFFFFF, 0.45f), true);
+			graphics.pose().popPose();
+		}
+		return hot;
+	}
+
+	private List<Component> innateTooltip(Talent t) {
+		List<Component> lines = new ArrayList<>();
+		lines.add(Component.translatable(t.key() + ".name").withStyle(s -> s.withColor(t.race.color).withBold(true)));
+		lines.add(Component.translatable("mages_legacy.talent.innate.meta").withStyle(ChatFormatting.DARK_PURPLE));
+		wrapInto(lines, Component.translatable(t.key() + ".lore").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
+		lines.add(Component.empty());
+		for (Component effect : Lines.of(t.key() + ".effect")) {
+			wrapInto(lines, Component.literal("◆ ").append(effect).withStyle(ChatFormatting.WHITE));
+		}
+		lines.add(Component.empty());
+		wrapInto(lines, Component.translatable("mages_legacy.talent.innate.note").withStyle(ChatFormatting.GOLD));
+		lines.add(Component.translatable("mages_legacy.talent.innate.click").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
+		return lines;
+	}
+
+	/**
+	 * For the harness: what the innate node would collide with in a window of this size (GUI pixels) at this zoom: other
+	 * nodes, a talent link passing through it, the header or the ability bar. Empty when it stands clear.
+	 */
+	public static List<String> innateClashes(Race race, int w, int h, float zoom) {
+		TalentScreen screen = new TalentScreen();
+		screen.init(net.minecraft.client.Minecraft.getInstance(), w, h);
+		screen.zoom = zoom;
+		List<String> clashes = new ArrayList<>();
+		Talent innate = Talent.innateOf(race).orElse(null);
+		if (innate == null) {
+			clashes.add("no innate node");
+			return clashes;
+		}
+		int[] me = screen.rect(innate);
+		int[] grown = {me[0] - 2, me[1] - 2, me[2] + 2, me[3] + 2};
+		for (Talent t : Talent.of(race)) {
+			if (t != innate && intersects(grown, screen.rect(t))) {
+				clashes.add("node " + t.id());
+			}
+			for (Talent near : t.requires()) {
+				if (segmentHits(screen.nodeX(near), screen.nodeY(near), screen.nodeX(t), screen.nodeY(t), grown)) {
+					clashes.add("link " + near.id() + "-" + t.id());
+				}
+			}
+		}
+		int[] caption = screen.innateCaption(innate);
+		if (caption != null && (caption[1] < TOP || caption[3] > h - BOTTOM + 8)) {
+			clashes.add("caption off the web");
+		}
+		return clashes;
+	}
+
+	private static boolean segmentHits(int x0, int y0, int x1, int y1, int[] box) {
+		int steps = Math.max(1, (int) Math.hypot(x1 - x0, y1 - y0));
+		for (int i = 0; i <= steps; i++) {
+			double x = x0 + (x1 - x0) * i / (double) steps;
+			double y = y0 + (y1 - y0) * i / (double) steps;
+			if (x >= box[0] && x < box[2] && y >= box[1] && y < box[3]) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** A node's slim frame: a one-pixel rim with clipped corners round a dark body, no stone slab. */
 	private static void frame(GuiGraphics graphics, int x, int y, int s, int rim) {
 		graphics.fill(x + 1, y + 1, x + s - 1, y + s - 1, 0xE0120E16);
@@ -704,6 +896,9 @@ public class TalentScreen extends Screen {
 
 	/** Draws a node; returns whether the mouse is over it. */
 	private boolean drawNode(GuiGraphics graphics, Talent t, int mouseX, int mouseY, int color) {
+		if (t.innate()) {
+			return drawInnate(graphics, t, mouseX, mouseY, color);
+		}
 		int s = nodeSize(t);
 		int x = nodeX(t) - s / 2;
 		int y = nodeY(t) - s / 2;
@@ -752,6 +947,9 @@ public class TalentScreen extends Screen {
 	}
 
 	private List<Component> tooltip(Talent t) {
+		if (t.innate()) {
+			return innateTooltip(t);
+		}
 		List<Component> lines = new ArrayList<>();
 		lines.add(Component.translatable(t.key() + ".name").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
 		Component kind = Component.translatable(t.kind.key());
@@ -895,7 +1093,13 @@ public class TalentScreen extends Screen {
 				int x = nodeX(t) - s / 2;
 				int y = nodeY(t) - s / 2;
 				if (mouseX >= x && mouseX < x + s && mouseY >= y && mouseY < y + s) {
-					if (state(t) == State.AVAILABLE) {
+					if (t.innate()) {
+						// Nothing to buy: the click opens the traits book, the innate traits written out in full at its top
+						showGuide = false;
+						showTraits = true;
+						pageScroll = 0;
+						minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.AMETHYST_BLOCK_CHIME, 1.2f));
+					} else if (state(t) == State.AVAILABLE) {
 						learn(t);
 					} else {
 						minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_BASS.value(), 0.6f));
