@@ -613,17 +613,24 @@ final class Harness {
 		}, 5);
 	}
 
-	/** Into the Pocket and safely back out, from where the player stands now; then the count of worlds. */
+	/**
+	 * Into the Pocket and safely back out, from where the player stands now; then the count of worlds. Each step waits
+	 * for the server (a world generating for the first time can keep it a few seconds behind).
+	 */
 	private static void pocketFrom(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> world, int expect) {
+		then("standing in " + world.location().getPath(), () -> player().level().dimension() == world && player().onGround(), () -> {
+		}, 20);
 		run(() -> server().execute(() -> {
 			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player()).cooldown, 0);
 			RaceState.setResource(player(), RaceState.MAX_RESOURCE);
-		}), 2);
-		run(() -> MagesLegacyClient.useAbility(3), 40);
-		run(() -> check("into the Pocket from " + world.location().getPath(), euf.mageslegacy.voidborn.Pocket.isPocket(player().level())), 0);
-		run(() -> MagesLegacyClient.useAbility(3), 40);
-		run(() -> check("back in " + world.location().getPath() + ", " + expect + " world(s) of 2 (" + mastery(euf.mageslegacy.race.Mastery.Goal.POCKET_WORLDS) + ")",
-				player().level().dimension() == world && mastery(euf.mageslegacy.race.Mastery.Goal.POCKET_WORLDS) == expect), 0);
+		}), 5);
+		run(() -> MagesLegacyClient.useAbility(3), 5);
+		then("into the Pocket from " + world.location().getPath(), () -> euf.mageslegacy.voidborn.Pocket.isPocket(player().level()),
+				() -> check("into the Pocket from " + world.location().getPath(), true), 10);
+		run(() -> MagesLegacyClient.useAbility(3), 5);
+		then("back in " + world.location().getPath(), () -> player().level().dimension() == world, () -> check("back in "
+				+ world.location().getPath() + ", " + expect + " world(s) of 2 (" + mastery(euf.mageslegacy.race.Mastery.Goal.POCKET_WORLDS) + ")",
+				mastery(euf.mageslegacy.race.Mastery.Goal.POCKET_WORLDS) == expect), 10);
 	}
 
 	/** The Mycelid's trial: the testing mode counts nothing; five castings of Neurospores on five and with Neurosymbiosis after; three far threads. */
