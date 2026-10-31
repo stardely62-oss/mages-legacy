@@ -78,15 +78,20 @@ public final class Deeds {
 		boolean announce = rule.get();
 		rule.set(false, null);
 		try {
-			archive(player);
+			if (archive(player)) {
+				// Restored, not earned: saved and read back, so the client gets them in one full update, without a toast each
+				player.getAdvancements().save();
+				player.getAdvancements().reload(player.server.getAdvancements());
+			}
 			check(player);
 		} finally {
 			rule.set(announce, null);
 		}
 	}
 
-	/** Moves the advancements of other races into the archive and brings this race's back. */
-	private static void archive(ServerPlayer player) {
+	/** Moves the advancements of other races into the archive and brings this race's back; true if any came back. */
+	private static boolean archive(ServerPlayer player) {
+		boolean restored = false;
 		String mine = RaceState.get(player).map(Deeds::prefix).orElse(null);
 		CompoundTag archived = player.getData(RaceState.ARCHIVED).copy();
 		var advancements = player.getAdvancements();
@@ -104,6 +109,7 @@ public final class Deeds {
 					advancements.award(holder, criterion.getAsString());
 				}
 				archived.remove(id.toString());
+				restored = true;
 			} else if (!ours && progress.hasProgress()) {
 				ListTag met = new ListTag();
 				for (String criterion : progress.getCompletedCriteria()) {
@@ -116,6 +122,7 @@ public final class Deeds {
 			}
 		}
 		player.setData(RaceState.ARCHIVED, archived);
+		return restored;
 	}
 
 	/** What is in a player's archive (advancement ids), for the harness. */

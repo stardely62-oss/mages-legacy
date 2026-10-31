@@ -989,7 +989,10 @@ final class Harness {
 		run(() -> check("granted by the vanilla command", done("myc_epidemic")), 0);
 		tabShot("advancements_mycelid", "myc_root");
 		// Back to the Voidborn: the Void's history returns from the archive, the Colony's goes into it
-		run(() -> server().execute(() -> RaceState.set(player(), Race.VOIDBORN)), 20);
+		run(() -> server().execute(() -> {
+			Minecraft.getInstance().execute(() -> Minecraft.getInstance().getToasts().clear());
+			RaceState.set(player(), Race.VOIDBORN);
+		}), 20);
 		run(() -> check("Voidborn again: the Void's advancements back, the Colony's archived", done("void_root") && done("void_walls")
 				&& done("void_mastery") && !done("myc_root") && !done("myc_epidemic")
 				&& euf.mageslegacy.race.Deeds.archived(player()).contains("mages_legacy:legacy/myc_epidemic")), 0);
