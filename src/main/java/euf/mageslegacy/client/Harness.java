@@ -724,8 +724,6 @@ final class Harness {
 		run(() -> Minecraft.getInstance().setScreen(null), 3);
 	}
 
-	private static MinecraftServer server() {
-
 	/**
 	 * The Great Bloom and the Spore Storm at once in plain survival (no testing mode): the Bloom first, the storm once
 	 * 10 Spores have grown back in the shade. Then the Bloom's cooldown through a logout, a second call, the save on
