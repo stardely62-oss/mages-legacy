@@ -630,19 +630,19 @@ public final class BloodFx {
 			Vec3 c = body.getPosition(partial);
 			float env = Math.min(1, life / 6f) * Math.min(1, (ticks - life) / 10f);
 			float beat = (float) (Math.exp(-Math.pow((life % 20) / 2.0, 2)) + 0.7 * Math.exp(-Math.pow((life % 20 - 7) / 2.0, 2)));
-			int segs = 10;
+			int segs = 14;
 			for (int k = 0; k < 3; k++) {
 				// Each stream a comet of blood two thirds of the way round, turning its own way, its circle a little tilted
 				double dir = k == 1 ? -1 : 1;
 				double head = dir * life * (0.22 + 0.05 * k) + k * 2.1;
-				double radius = (k == 2 ? 0.55 : 0.75) * (1 + 0.08 * beat);
+				double radius = (k == 2 ? 0.8 : 1.0) * (1 + 0.08 * beat);
 				double height = 0.45 + k * 0.6;
 				Vec3[] pts = new Vec3[segs + 1];
 				for (int i = 0; i <= segs; i++) {
-					double a = head - dir * (1 - i / (double) segs) * Math.PI * 1.3;
+					double a = head - dir * (1 - i / (double) segs) * Math.PI * 1.6;
 					pts[i] = c.add(Math.cos(a) * radius, height + Math.sin(a + k) * 0.18, Math.sin(a) * radius);
 				}
-				path(draw, pts, 0.2f, env * (0.75f + 0.25f * beat), 0.35f + 0.4f * beat, false);
+				path(draw, pts, 0.36f, env * (0.8f + 0.2f * beat), 0.45f + 0.4f * beat, false);
 			}
 		}
 	}
