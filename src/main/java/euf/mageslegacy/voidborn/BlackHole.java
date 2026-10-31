@@ -173,6 +173,13 @@ public final class BlackHole {
 		}
 		// The recoil: 4 to the Voidborn, never below 1 health (outside blows still can kill)
 		// A Sated Abyss: fed by three or more, the collapse gives back part of the Void it took (the recoil stays)
+		if (crushed >= 3) {
+			euf.mageslegacy.race.Deeds.grant(player, "void_horizon");
+		}
+		// A Singularity in a Cage: on the Voidborn's own arena, the collapse taking two or more
+		if (crushed >= 2 && Arena.onOwnArena(player)) {
+			euf.mageslegacy.race.Deeds.grant(player, "void_cage");
+		}
 		if (crushed >= 3 && Talents.has(player, Talent.HOLE_SATED)) {
 			RaceState.setResource(player, RaceState.resource(player) + 20);
 		}

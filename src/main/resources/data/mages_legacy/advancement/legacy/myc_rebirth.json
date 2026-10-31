@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/myc_bloom",
+  "display": {
+    "icon": {
+      "id": "minecraft:mushroom_stem"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.myc_rebirth.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.myc_rebirth.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "myc_rebirth"
+      }
+    }
+  }
+}

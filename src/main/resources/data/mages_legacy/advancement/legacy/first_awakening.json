@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/cross",
+  "display": {
+    "icon": {
+      "id": "minecraft:end_crystal"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.first_awakening.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.first_awakening.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "first_awakening"
+      }
+    }
+  }
+}

@@ -212,6 +212,7 @@ public final class Pocket {
 			ServerPlayer player = going.get(i);
 			CompoundTag back = returnTag(player, owner.getUUID());
 			if (i == 0) {
+				euf.mageslegacy.race.Deeds.grant(player, "void_pocket");
 				// Two Doors: the place the owner came in from last time stays as a second way out
 				CompoundTag last = player.getData(RaceState.POCKET_LAST_ENTRY);
 				if (last.contains("dim")) {
@@ -318,6 +319,7 @@ public final class Pocket {
 		MinecraftServer server = player.server;
 		CompoundTag tag = player.getData(RaceState.POCKET_RETURN);
 		boolean host = tag.hasUUID("owner") && tag.getUUID("owner").equals(player.getUUID());
+		String entered = tag.getString("dim");
 		if (far && tag.contains("far")) {
 			tag = tag.getCompound("far");
 		}
@@ -344,6 +346,11 @@ public final class Pocket {
 		player.removeData(RaceState.POCKET_RETURN);
 		player.teleportTo(level, safe.x, safe.y, safe.z, yaw, pitch);
 		player.fallDistance = 0;
+		// The Pocket as a shelter: back safe in the ordinary world it was entered from (the mod's own worlds don't count)
+		ResourceLocation home = level.dimension().location();
+		if (host && player.isAlive() && home.toString().equals(entered) && !home.getNamespace().equals(euf.mageslegacy.MagesLegacy.MOD_ID)) {
+			euf.mageslegacy.race.Mastery.addDistinct(player, euf.mageslegacy.race.Mastery.Goal.POCKET_WORLDS, entered);
+		}
 		// The Door's Recoil: what waits outside is slowed as the Voidborn steps back into the world
 		if (host && Talents.has(player, Talent.DOOR_RECOIL)) {
 			for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(4, 2, 4),

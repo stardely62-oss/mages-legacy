@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/first_choice",
+  "display": {
+    "icon": {
+      "id": "minecraft:lodestone"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.cross.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.cross.desc"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "cross"
+      }
+    }
+  }
+}

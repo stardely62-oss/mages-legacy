@@ -63,7 +63,7 @@ public class TalentScreen extends Screen {
 
 	private static int[] progress() {
 		SyncPayload state = ClientRace.state();
-		return state == null || state.progress().length < 17 ? new int[17] : state.progress();
+		return state == null || state.progress().length < 21 ? new int[21] : state.progress();
 	}
 
 	private static int openTiers() {
@@ -88,6 +88,7 @@ public class TalentScreen extends Screen {
 		int[] p = progress();
 		net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
 		tag.putInt(Talents.SUPERLATE, p[3]);
+		tag.putLong(euf.mageslegacy.race.Mastery.SINCE, p[17]);
 		// The server says which first trials are met
 		tag.putBoolean("done_" + Talent.AWAKENING_RIFT.id(), p[7] > 0);
 		tag.putBoolean("done_" + Talent.AWAKENING_WORLDS.id(), p[8] > 0);
@@ -757,7 +758,12 @@ public class TalentScreen extends Screen {
 			wrapInto(lines, Component.translatable(t.key() + ".lore").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
 		}
 		wrapInto(lines, Component.translatable(t.key() + ".desc").withStyle(ChatFormatting.WHITE));
-		if (t.kind == Talent.Kind.AWAKENING) {
+		if (t.kind == Talent.Kind.AWAKENING && !owned(t) && euf.mageslegacy.race.Awakenings.owned(learnt()).size() == 1) {
+			// A second Awakening: the race's mastery trial, its three deeds and how far they are
+			lines.add(Component.empty());
+			masteryLines(lines);
+			wrapInto(lines, Component.translatable("mages_legacy.talent.two_of_three").withStyle(ChatFormatting.DARK_PURPLE));
+		} else if (t.kind == Talent.Kind.AWAKENING) {
 			lines.add(Component.empty());
 			if (net.minecraft.client.resources.language.I18n.exists(t.key() + ".trial")) {
 				wrapInto(lines, Component.translatable(t.key() + ".trial", trialProgress(t)).withStyle(ChatFormatting.LIGHT_PURPLE));
@@ -792,6 +798,29 @@ public class TalentScreen extends Screen {
 			wrapInto(lines, Component.translatable(why, arg).withStyle(owned(t) ? ChatFormatting.AQUA : ChatFormatting.RED));
 		}
 		return lines;
+	}
+
+	/** The mastery trial in a tooltip: its name, each deed with its count, what is left and whether it is passed. */
+	private void masteryLines(List<Component> lines) {
+		SyncPayload state = ClientRace.state();
+		Race race = state == null ? null : Race.byId(state.race()).orElse(null);
+		if (race == null) {
+			return;
+		}
+		int[] p = progress();
+		boolean passed = p[3] > 0;
+		lines.add(Component.translatable("mages_legacy.mastery.title." + race.id()).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+		List<euf.mageslegacy.race.Mastery.Goal> goals = euf.mageslegacy.race.Mastery.goals(race);
+		for (int i = 0; i < goals.size(); i++) {
+			var g = goals.get(i);
+			int n = passed ? g.need : Math.min(g.need, p[18 + i]);
+			boolean met = n >= g.need;
+			wrapInto(lines, Component.literal((met ? "✔ " : "• ")).append(Component.translatable(g.key())).append(" — " + n + "/" + g.need + ": ")
+					.append(Component.translatable(g.key() + ".desc")).withStyle(met ? ChatFormatting.GREEN : ChatFormatting.GRAY));
+		}
+		String status = passed ? "done" : p[17] > 0 ? "running" : "not_started";
+		lines.add(Component.translatable("mages_legacy.mastery.state." + status)
+				.withStyle(passed ? ChatFormatting.GREEN : p[17] > 0 ? ChatFormatting.LIGHT_PURPLE : ChatFormatting.GOLD));
 	}
 
 	/** What the Awakening's trial has counted so far, in its own units. */

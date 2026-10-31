@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/void_gravity",
+  "display": {
+    "icon": {
+      "id": "minecraft:echo_shard"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.void_horizon.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.void_horizon.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "void_horizon"
+      }
+    }
+  }
+}

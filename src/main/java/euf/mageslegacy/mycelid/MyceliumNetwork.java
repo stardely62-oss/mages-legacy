@@ -135,6 +135,8 @@ public final class MyceliumNetwork extends SavedData {
 	private final Map<UUID, Long> bodyReady = new HashMap<>();
 	private static final int BODY_COST = 40;
 	private static final int BODY_TICKS = 3 * 60 * 20;
+	/** Growers whose open nodes carried a player of another race while they were away (A Road for Others, given at login). */
+	private final Set<UUID> roads = new HashSet<>();
 	/** The talents of each grower as last seen online (a network works while its grower is away). */
 	private final Map<UUID, Set<String>> growerTalents = new HashMap<>();
 
@@ -303,7 +305,49 @@ public final class MyceliumNetwork extends SavedData {
 		player.displayClientMessage(Component.translatable(first ? "mages_legacy.message.mother_grown" : "mages_legacy.message.node_grown", name)
 				.withStyle(ChatFormatting.GREEN), true);
 		Progression.addXp(player, "network", 5, 30);
+		if (first) {
+			euf.mageslegacy.race.Deeds.grant(player, "myc_sprout");
+		}
 		RaceState.sync(player);
+	}
+
+	/**
+	 * What the network itself proves for a grower, looked at every 10 s while they are online and at login: their Mother
+	 * Mycelium, far threads grown (1000 blocks: Roots Without Bounds; 512 and grown since the mastery trial began: Deep
+	 * Roots, each pair once), and travellers of another race carried while they were away.
+	 */
+	public static void checkDeeds(ServerPlayer player) {
+		MyceliumNetwork net = get(player.server);
+		UUID me = player.getUUID();
+		long now = player.serverLevel().getGameTime();
+		long since = euf.mageslegacy.race.Mastery.since(player);
+		for (Node n : net.nodesOf(me)) {
+			if (n.mother) {
+				euf.mageslegacy.race.Deeds.grant(player, "myc_sprout");
+			}
+		}
+		for (Map.Entry<String, Long> e : net.links.entrySet()) {
+			if (e.getValue() > now) {
+				continue;
+			}
+			String[] ends = e.getKey().split("\\|");
+			Node a = net.nodes.get(ends[0]);
+			Node b = net.nodes.get(ends[1]);
+			if (a == null || b == null || !a.owner.equals(me) || a.dim != b.dim) {
+				continue;
+			}
+			double distance = Math.sqrt(a.pos.distSqr(b.pos));
+			if (distance >= 1000) {
+				euf.mageslegacy.race.Deeds.grant(player, "myc_roots");
+			}
+			if (distance >= 512 && since > 0 && e.getValue() >= since) {
+				euf.mageslegacy.race.Mastery.addDistinct(player, euf.mageslegacy.race.Mastery.Goal.DEEP_ROOTS, e.getKey());
+			}
+		}
+		if (net.roads.remove(me)) {
+			euf.mageslegacy.race.Deeds.grant(player, "myc_road");
+			net.setDirty();
+		}
 	}
 
 	/** Whether two nodes in one world join by themselves: one grower's within reach, or two growers' open ones with Shared Mycelium. */
@@ -846,6 +890,9 @@ public final class MyceliumNetwork extends SavedData {
 			for (ServerPlayer p : server.getPlayerList().getPlayers()) {
 				if (RaceState.is(p, Race.MYCELID)) {
 					net.remember(p);
+					if (server.getTickCount() % 200 == 0) {
+						checkDeeds(p);
+					}
 				}
 			}
 			net.pulse(server);
@@ -882,6 +929,14 @@ public final class MyceliumNetwork extends SavedData {
 		// Every journey teaches the grower's race; Gift of Travellers feeds them for others' journeys
 		ServerPlayer grower = player.server.getPlayerList().getPlayer(j.grower());
 		if (!j.grower().equals(player.getUUID())) {
+			// A Road for Others: a player of another race carried by the grower's open nodes
+			if (RaceState.get(player).filter(r -> r != Race.MYCELID).isPresent()) {
+				if (grower != null) {
+					euf.mageslegacy.race.Deeds.grant(grower, "myc_road");
+				} else if (roads.add(j.grower())) {
+					setDirty();
+				}
+			}
 			if (growerHas(j.grower(), Talent.NET_TOLL)) {
 				addNutrients(j.grower(), 2);
 			}
@@ -1147,6 +1202,44 @@ public final class MyceliumNetwork extends SavedData {
 		return out;
 	}
 
+	/**
+	 * For the harness: far threads of the player grown in the world's network, far out where no chunk is loaded (nodes
+	 * without blocks): 600 blocks first, looked at twice (one pair counts once), then 800 and 1200. Taken away after.
+	 */
+	public static List<String> harnessThreads(ServerPlayer player) {
+		List<String> out = new ArrayList<>();
+		MyceliumNetwork net = get(player.server);
+		UUID me = player.getUUID();
+		long now = player.serverLevel().getGameTime();
+		ResourceKey<Level> world = Level.OVERWORLD;
+		List<Node> made = new ArrayList<>();
+		int[] xs = {200_000, 200_600, 201_400, 202_600};
+		for (int x : xs) {
+			made.add(net.put(world, new BlockPos(x, 64, 0), me, false));
+		}
+		java.util.function.ToIntFunction<ServerPlayer> roots = p -> euf.mageslegacy.race.Mastery.count(p.getData(RaceState.PROGRESS),
+				euf.mageslegacy.race.Mastery.Goal.DEEP_ROOTS);
+		net.links.put(link(made.get(0).key, made.get(1).key), now);
+		checkDeeds(player);
+		checkDeeds(player);
+		int once = roots.applyAsInt(player);
+		net.links.put(link(made.get(1).key, made.get(2).key), now);
+		net.links.put(link(made.get(2).key, made.get(3).key), now + 1_000_000);
+		checkDeeds(player);
+		int unripe = roots.applyAsInt(player);
+		net.links.put(link(made.get(2).key, made.get(3).key), now);
+		checkDeeds(player);
+		int all = roots.applyAsInt(player);
+		out.add((once == 1 && unripe == 2 && all == 3 ? "PASS " : "FAIL ") + "far threads count once each, only grown (" + once + ", " + unripe + ", "
+				+ all + ")");
+		for (Node n : made) {
+			net.nodes.remove(n.key);
+			net.links.keySet().removeIf(l -> l.startsWith(n.key + "|") || l.endsWith("|" + n.key));
+		}
+		net.stale = true;
+		return out;
+	}
+
 	/** A node put straight into this network (no block): for {@link #selfCheck}. */
 	private Node put(ResourceKey<Level> dim, BlockPos pos, UUID owner, boolean mother) {
 		Node n = new Node(key(dim, pos), dim, pos, owner, "test", mother);
@@ -1192,6 +1285,9 @@ public final class MyceliumNetwork extends SavedData {
 			reserve.put(k.toString(), b);
 		});
 		tag.put("bodies", reserve);
+		ListTag road = new ListTag();
+		roads.forEach(id -> road.add(net.minecraft.nbt.StringTag.valueOf(id.toString())));
+		tag.put("roads", road);
 		return tag;
 	}
 
@@ -1228,6 +1324,9 @@ public final class MyceliumNetwork extends SavedData {
 		for (String k : reserve.getAllKeys()) {
 			net.bodies.put(UUID.fromString(k), reserve.getCompound(k).getString("node"));
 			net.bodyReady.put(UUID.fromString(k), reserve.getCompound(k).getLong("ready"));
+		}
+		for (Tag id : tag.getList("roads", Tag.TAG_STRING)) {
+			net.roads.add(UUID.fromString(id.getAsString()));
 		}
 		return net;
 	}

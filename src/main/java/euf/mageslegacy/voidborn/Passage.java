@@ -228,13 +228,19 @@ public final class Passage {
 			ServerPlayer owner = server.getPlayerList().getPlayer(gate.owner());
 			boolean caravan = owner != null && Talents.has(owner, Talent.WORLDS_TRAIN);
 			boolean cleanse = owner != null && Talents.has(owner, Talent.WORLDS_CLEANSE);
-			through(levelA, gate.a(), levelB, gate.bOut(), caravan, cleanse, now);
-			through(levelB, gate.b(), levelA, gate.aOut(), caravan, cleanse, now);
+			boolean carried = through(levelA, gate.a(), levelB, gate.bOut(), caravan, cleanse, now);
+			carried |= through(levelB, gate.b(), levelA, gate.aOut(), caravan, cleanse, now);
+			// Across Any Distance: a player went through the Voidborn's passage
+			if (carried && owner != null) {
+				euf.mageslegacy.race.Deeds.grant(owner, "void_passage");
+			}
 		}
 		RESTING.values().removeIf(t -> t < now);
 	}
 
-	private static void through(ServerLevel level, Vec3 rift, ServerLevel to, Vec3 out, boolean caravan, boolean cleanse, long now) {
+	/** Carries whoever stands in a rift to the other side; true if a player went through. */
+	private static boolean through(ServerLevel level, Vec3 rift, ServerLevel to, Vec3 out, boolean caravan, boolean cleanse, long now) {
+		boolean player = false;
 		for (Entity e : level.getEntities((Entity) null, new AABB(rift, rift).inflate(0.8, 2, 0.8), e -> e.isAlive() && !e.isPassenger())) {
 			if (RESTING.containsKey(e.getUUID()) || !mayPass(e, caravan)) {
 				continue;
@@ -257,12 +263,14 @@ public final class Passage {
 					carried.startRiding(moved, true);
 				}
 			}
-			if (moved instanceof ServerPlayer player) {
-				Fx.voidScreen(player, 10);
+			if (moved instanceof ServerPlayer traveller) {
+				Fx.voidScreen(traveller, 10);
+				player = true;
 			}
 			Fx.burst(to, out.add(0, 1, 0), 1f, 6, false);
 			to.playSound(null, out.x, out.y, out.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.6f, 0.8f);
 		}
+		return player;
 	}
 
 	/** Takes a body to that point of that world; returns it as it is there (a body crossing worlds is made anew). */

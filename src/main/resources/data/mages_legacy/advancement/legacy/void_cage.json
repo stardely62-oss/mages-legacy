@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/void_horizon",
+  "display": {
+    "icon": {
+      "id": "minecraft:respawn_anchor"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.void_cage.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.void_cage.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "void_cage"
+      }
+    }
+  }
+}

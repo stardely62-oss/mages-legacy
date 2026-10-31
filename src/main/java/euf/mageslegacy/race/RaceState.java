@@ -137,6 +137,7 @@ public final class RaceState {
 		player.setData(PROGRESS, new CompoundTag());
 		player.setData(PASSAGE_POINT, new CompoundTag());
 		Pocket.refresh(player);
+		Deeds.check(player);
 		sync(player);
 	}
 

@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/myc_sprout",
+  "display": {
+    "icon": {
+      "id": "minecraft:hanging_roots"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.myc_roots.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.myc_roots.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "myc_roots"
+      }
+    }
+  }
+}

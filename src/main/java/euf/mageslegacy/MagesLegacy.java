@@ -26,6 +26,7 @@ public class MagesLegacy {
 
 	public MagesLegacy(IEventBus modBus) {
 		RaceState.register(modBus);
+		euf.mageslegacy.race.Deeds.register(modBus);
 		euf.mageslegacy.item.OblivionScrollItem.register(modBus);
 		euf.mageslegacy.mycelid.MyceliumNodeBlock.register(modBus);
 		modBus.addListener(Network::register);

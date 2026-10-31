@@ -3,6 +3,8 @@ package euf.mageslegacy.mycelid;
 import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.race.Abilities;
+import euf.mageslegacy.race.Deeds;
+import euf.mageslegacy.race.Mastery;
 import euf.mageslegacy.race.Progression;
 import euf.mageslegacy.race.Race;
 import euf.mageslegacy.race.RaceState;
@@ -11,9 +13,11 @@ import euf.mageslegacy.race.Talents;
 import euf.mageslegacy.voidborn.Voidborn;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
@@ -71,6 +75,8 @@ public final class Mycelid {
 		final long until;
 		final boolean follow;
 		final int linger;
+		/** A cloud cast with R (not a trail's or a node's): the enemies it has infected itself, for the deeds. */
+		Combo cast;
 
 		Cloud(UUID owner, ResourceKey<Level> level, Vec3 at, double radius, long until, boolean follow, int linger) {
 			this.owner = owner;
@@ -107,6 +113,21 @@ public final class Mycelid {
 		}
 	}
 
+	/**
+	 * One casting of Neurospores as the deeds see it: the different enemies its cloud has infected, when the second
+	 * was (Neurosymbiosis within 10 s of it makes One Organism, once), and which counts it has given already.
+	 */
+	private static final class Combo {
+		final Set<UUID> infected = new HashSet<>();
+		long pairAt = -1;
+		boolean organism;
+		boolean four;
+		boolean five;
+	}
+
+	private static final int COMBO_TICKS = 10 * 20;
+	/** Each Mycelid's latest casting of Neurospores. */
+	private static final Map<UUID, Combo> COMBOS = new HashMap<>();
 	private static final List<Cloud> CLOUDS = new ArrayList<>();
 	private static final Map<UUID, Infection> INFECTED = new HashMap<>();
 	private static final Map<UUID, Bond> BONDS = new HashMap<>();
@@ -214,13 +235,53 @@ public final class Mycelid {
 		ServerLevel level = player.serverLevel();
 		int linger = Talents.has(player, Talent.SPORE_LINGER) ? 8 * 20 : 3 * 20;
 		boolean trail = Talents.has(player, Talent.SPORE_TRAIL);
-		CLOUDS.add(new Cloud(player.getUUID(), level.dimension(), player.position(), sporeRadius(player), level.getGameTime() + sporeTicks(player),
-				trail, linger));
+		Cloud cloud = new Cloud(player.getUUID(), level.dimension(), player.position(), sporeRadius(player), level.getGameTime() + sporeTicks(player),
+				trail, linger);
+		cloud.cast = new Combo();
+		COMBOS.put(player.getUUID(), cloud.cast);
+		CLOUDS.add(cloud);
 		Fx.sporeCloud(level, player.position(), trail ? player : null, (float) sporeRadius(player), sporeTicks(player));
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SPORE_BLOSSOM_PLACE, SoundSource.PLAYERS, 1.2f, 0.6f);
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PUFFER_FISH_BLOW_UP, SoundSource.PLAYERS, 0.8f, 0.5f);
 		burst(level, player.position(), sporeRadius(player));
 		return null;
+	}
+
+	/** A cast cloud has infected one more enemy: A Quiet Epidemic at 4, a step of the mastery trial at 5. */
+	private static void castInfected(ServerPlayer owner, Combo combo, long now) {
+		int n = combo.infected.size();
+		if (n >= 2 && combo.pairAt < 0) {
+			combo.pairAt = now;
+		}
+		if (n >= 4 && !combo.four) {
+			combo.four = true;
+			Deeds.grant(owner, "myc_epidemic");
+		}
+		if (n >= 5 && !combo.five) {
+			combo.five = true;
+			Mastery.add(owner, Mastery.Goal.SPORE_MIND);
+		}
+	}
+
+	/**
+	 * One Organism: Neurosymbiosis within 10 s after a casting of Neurospores infected two enemies, one of them still
+	 * infected by this Mycelid within 16 blocks. A casting counts once.
+	 */
+	private static void organism(ServerPlayer player, ServerLevel level) {
+		Combo combo = COMBOS.get(player.getUUID());
+		long now = level.getGameTime();
+		if (combo == null || combo.organism || combo.pairAt < 0 || now - combo.pairAt > COMBO_TICKS) {
+			return;
+		}
+		for (UUID id : combo.infected) {
+			Infection inf = INFECTED.get(id);
+			if (inf != null && inf.owner.equals(player.getUUID()) && inf.until >= now && level.getEntity(id) instanceof LivingEntity e && e.isAlive()
+					&& e.distanceTo(player) <= 16) {
+				combo.organism = true;
+				Mastery.add(player, Mastery.Goal.ONE_ORGANISM);
+				return;
+			}
+		}
 	}
 
 	/** A weak cloud of a Mycelid's spores somewhere (Spore Trail, Spore Nodes). */
@@ -265,11 +326,13 @@ public final class Mycelid {
 			Fx.bond(level, player, e, bondTicks(player), e == player ? (float) bondRadius(player) : 0);
 			if (e != player) {
 				others++;
+				Deeds.grant(player, "myc_one");
 			}
 		}
 		if (Talents.has(player, Talent.SYM_AURA)) {
 			AURAS.put(player.getUUID(), until);
 		}
+		organism(player, level);
 		if (others > 0) {
 			Talents.addProgress(player, SHARED, 1);
 			Progression.addXp(player, "symbiosis", others, 20);
@@ -357,6 +420,9 @@ public final class Mycelid {
 					e -> e.isAlive() && Voidborn.isEnemy(owner, e) && e.position().distanceTo(cloud.at) <= r + 0.5)) {
 				boolean fresh = !INFECTED.containsKey(e.getUUID());
 				infect(owner, e, level, cloud.linger);
+				if (cloud.cast != null && cloud.cast.infected.add(e.getUUID())) {
+					castInfected(owner, cloud.cast, level.getGameTime());
+				}
 				// Contagion: a newly infected creature passes the spores to those right beside it
 				if (fresh && Talents.has(owner, Talent.SPORE_SPREAD)) {
 					for (LivingEntity near : level.getEntitiesOfClass(LivingEntity.class, e.getBoundingBox().inflate(3),
@@ -494,6 +560,7 @@ public final class Mycelid {
 		BONDS.remove(player.getUUID());
 		unbond(player);
 		AURAS.remove(player.getUUID());
+		COMBOS.remove(player.getUUID());
 		CLOUDS.removeIf(c -> c.owner.equals(player.getUUID()));
 	}
 }

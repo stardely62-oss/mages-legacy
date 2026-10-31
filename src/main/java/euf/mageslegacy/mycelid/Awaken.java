@@ -70,13 +70,16 @@ public final class Awaken {
 	private record Bloom(Vec3 at, long until) {
 	}
 
-	private record Storm(long until, double radius) {
+	/** A storm: until when, how wide, and the different enemies it has caught (Breath of the Colony at 6). */
+	private record Storm(long until, double radius, Set<UUID> caught) {
 	}
 
 	private static final Map<UUID, Bloom> BLOOMS = new HashMap<>();
 	private static final Map<UUID, Storm> STORMS = new HashMap<>();
 	private static final Map<UUID, Long> EXHAUSTED = new HashMap<>();
 	private static final Map<UUID, Long> LAST_AWAKENING = new HashMap<>();
+	/** Since when the Bloom and the storm have both been alive. */
+	private static final Map<UUID, Long> BOTH = new HashMap<>();
 
 	private Awaken() {
 	}
@@ -221,6 +224,10 @@ public final class Awaken {
 		float heal = Talents.has(player, Talent.BLOOM_HEAL) ? 2 : 1;
 		for (LivingEntity ally : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(radius), e -> e != player && e.isAlive()
 				&& e.distanceTo(player) <= radius && Allies.ally(player, e))) {
+			// The Great Bloom (the advancement): healing someone who was hurt
+			if (ally.getHealth() < ally.getMaxHealth()) {
+				euf.mageslegacy.race.Deeds.grant(player, "myc_bloom");
+			}
 			ally.heal(heal);
 			level.sendParticles(HEAL_DUST, ally.getX(), ally.getY() + ally.getBbHeight() + 0.3, ally.getZ(), 4, 0.3, 0.2, 0.3, 0);
 		}
@@ -236,7 +243,7 @@ public final class Awaken {
 		ServerLevel level = player.serverLevel();
 		int ticks = Talents.has(player, Talent.STORM_LONG) ? STORM_LONG : STORM_TICKS;
 		double radius = Talents.has(player, Talent.STORM_WIDE) ? STORM_WIDE : STORM_RADIUS;
-		STORMS.put(player.getUUID(), new Storm(level.getGameTime() + ticks, radius));
+		STORMS.put(player.getUUID(), new Storm(level.getGameTime() + ticks, radius, new java.util.HashSet<>()));
 		Fx.storm(level, player, (float) radius, ticks);
 		// Every stored spore goes (a Spore Reserve keeps a quarter)
 		RaceState.setResource(player, Talents.has(player, Talent.STORM_KEEP) ? spores / 4 : 0);
@@ -276,6 +283,9 @@ public final class Awaken {
 			if (Voidborn.isEnemy(player, e)) {
 				boolean boss = e.getType().is(Tags.EntityTypes.BOSSES);
 				Mycelid.infect(player, e, level, 3 * 20);
+				if (storm.caught().add(e.getUUID()) && storm.caught().size() == 6) {
+					euf.mageslegacy.race.Deeds.grant(player, "myc_breath");
+				}
 				e.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 30, boss ? 0 : 1, false, true), player);
 				if (!boss) {
 					e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 30, 1, false, true), player);
@@ -343,6 +353,7 @@ public final class Awaken {
 		to.playSound(null, at.x, at.y, at.z, SoundEvents.FUNGUS_PLACE, SoundSource.PLAYERS, 1.2f, 0.6f);
 		exhaust(player, Talents.has(player, Talent.REBIRTH_SOFT) ? EXHAUST_REBIRTH / 2 : EXHAUST_REBIRTH);
 		player.displayClientMessage(Component.translatable("mages_legacy.message.reborn").withStyle(ChatFormatting.GREEN), false);
+		euf.mageslegacy.race.Deeds.grant(player, "myc_rebirth");
 		RaceState.sync(player);
 	}
 
@@ -359,6 +370,16 @@ public final class Awaken {
 		Storm storm = STORMS.get(player.getUUID());
 		if (storm != null) {
 			tickStorm(player, storm);
+		}
+		// A Perfect Symbiosis: the Bloom and the storm both alive for a whole second
+		if (blooming(player) && storming(player)) {
+			long now = player.level().getGameTime();
+			long since = BOTH.computeIfAbsent(player.getUUID(), id -> now);
+			if (now - since >= 20) {
+				euf.mageslegacy.race.Deeds.grant(player, "myc_perfect");
+			}
+		} else {
+			BOTH.remove(player.getUUID());
 		}
 		if (player.tickCount % 200 == 0) {
 			long now = player.level().getGameTime();

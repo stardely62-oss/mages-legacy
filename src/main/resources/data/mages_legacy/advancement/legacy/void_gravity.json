@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/void_walls",
+  "display": {
+    "icon": {
+      "id": "minecraft:anvil"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.void_gravity.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.void_gravity.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "void_gravity"
+      }
+    }
+  }
+}

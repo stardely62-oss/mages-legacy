@@ -52,8 +52,12 @@ public final class Progression {
 		if (level >= MAX_LEVEL) {
 			xp = 0;
 		}
+		boolean grew = level != RaceState.level(player);
 		player.setData(RaceState.LEVEL, level);
 		player.setData(RaceState.XP, xp);
+		if (grew) {
+			Deeds.check(player);
+		}
 	}
 
 	/** Experience from one source, no more than {@code cap} of it per 10 minutes of world time. */
@@ -82,6 +86,7 @@ public final class Progression {
 		for (int l = old + 1; l <= level; l++) {
 			levelUp(player, l);
 		}
+		Deeds.check(player);
 		RaceState.sync(player);
 	}
 

@@ -120,6 +120,9 @@ public final class Voidborn {
 		double lingerReach;
 		/** Weight Feeds: how much longer the field has grown this time. */
 		int feast;
+		/** The enemies this casting of Heavier Gravity has held so far, and whether 4 of them were counted yet. */
+		final Set<UUID> pressed = new java.util.HashSet<>();
+		boolean pressedCounted;
 		/** Saving Rift: when it can save again, and whether it is about to. */
 		long shelterReady;
 		/** The Mycelid's Call of the Colony: when it can call again. */
@@ -140,6 +143,8 @@ public final class Voidborn {
 		final boolean companion;
 		/** A walk back along an Echo: free, and it doesn't start the cooldown again. */
 		boolean echo;
+		/** A hostile creature was within 12 blocks as the walk began (the mastery trial counts such walks). */
+		boolean contested;
 		/** Rupture: who has already been torn by this walk. */
 		final Set<UUID> struck = new java.util.HashSet<>();
 		int tick;
@@ -308,6 +313,8 @@ public final class Voidborn {
 		int ticks = stepTicks(player);
 		boolean door = Talents.has(player, Talent.STEP_DOOR);
 		begin(player, from, to, ticks, false);
+		state.step.contested = !level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(12),
+				e -> e.isAlive() && isEnemy(player, e) && e.distanceTo(player) <= 12).isEmpty();
 		// The body sinks into the void where it stood: darkness folding in, motes drawn after it
 		sinkFx(level, from);
 		// Open Door: the way stays open, so the rifts are there for allies to see
@@ -534,6 +541,10 @@ public final class Voidborn {
 			if (!level.noCollision(player, player.getBoundingBox().move(step.from.subtract(at)).expandTowards(step.to.subtract(step.from)).deflate(0.2))) {
 				Progression.addXp(player, Progression.STEP, 1, 20);
 				Talents.addProgress(player, Talents.STEP_THROUGH, 1);
+				euf.mageslegacy.race.Deeds.grant(player, "void_walls");
+				if (step.contested) {
+					euf.mageslegacy.race.Mastery.add(player, euf.mageslegacy.race.Mastery.Goal.STEP_THROUGH);
+				}
 				if (level.dimension() == Level.NETHER) {
 					Talents.addProgress(player, Talents.STEP_THROUGH_NETHER, 1);
 				}
@@ -666,6 +677,8 @@ public final class Voidborn {
 		state.gravity = GRAVITY_TICKS;
 		state.feast = 0;
 		state.linger = null;
+		state.pressed.clear();
+		state.pressedCounted = false;
 		ServerLevel level = player.serverLevel();
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.8f, 0.5f);
 		float reach = (float) gravityReach(player);
@@ -768,6 +781,7 @@ public final class Voidborn {
 			PRESSED_UNTIL.put(target.getUUID(), until);
 			target.hurt(player.damageSources().indirectMagic(player, player), 1);
 			Fx.press(player.serverLevel(), target);
+			pressedOne(player, target);
 			// The weight drives it into the ground: dust of whatever it stands on bursts out from under it
 			ServerLevel level = player.serverLevel();
 			BlockPos under = BlockPos.containing(target.getX(), target.getY() - 0.2, target.getZ());
@@ -808,6 +822,16 @@ public final class Voidborn {
 		// A circle, as the field is drawn on the ground
 		return player.level().getEntitiesOfClass(LivingEntity.class, gravityArea(player), e -> e != player && e.isAlive() && isEnemy(player, e)
 				&& Math.hypot(e.getX() - player.getX(), e.getZ() - player.getZ()) <= reach + e.getBbWidth() / 2);
+	}
+
+	/** One casting holding 4 different enemies: the Weight of Being, and a step of the mastery trial. */
+	private static void pressedOne(ServerPlayer player, LivingEntity target) {
+		State state = state(player);
+		if (state.gravity > 0 && state.pressed.add(target.getUUID()) && state.pressed.size() >= 4 && !state.pressedCounted) {
+			state.pressedCounted = true;
+			euf.mageslegacy.race.Deeds.grant(player, "void_gravity");
+			euf.mageslegacy.race.Mastery.add(player, euf.mageslegacy.race.Mastery.Goal.GRAVITY_FOUR);
+		}
 	}
 
 	/** Monsters, and anything that has set its mind on this player; never players, pets or armour stands. */

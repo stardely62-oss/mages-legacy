@@ -14,7 +14,7 @@ import net.minecraft.sounds.SoundSource;
  * Who has learnt what. Race levels give talent points (one per level after the first); the core and the basic
  * abilities come free at their level; every other node costs points, needs one of its neighbours towards the core,
  * and the outer rings need race level 10. Awakenings open from race level 30 once their trial is met; the second
- * Awakening needs the superlate trial and none of the three can be woken in this build yet.
+ * Awakening needs race level 45 and the race's mastery trial ({@link Mastery}); the third never opens.
  */
 public final class Talents {
 	/**
@@ -47,7 +47,7 @@ public final class Talents {
 	public static final int STORM_KILLS = 40;
 	public static final int REBIRTH_SHARED = 15;
 	public static final int REBIRTH_NODES = 2;
-	/** Set once the superlate trial (the Void's Trial) is passed. */
+	/** Set once the mastery trial is passed (or the arena trial of earlier builds was: those players keep it). */
 	public static final String SUPERLATE = "superlate";
 	private Talents() {
 	}
@@ -110,7 +110,8 @@ public final class Talents {
 
 	/**
 	 * The two-of-three rule (shared with the client's screen): the first Awakening needs its trial, the second race
-	 * level 45 and the superlate trial, a third never opens.
+	 * level 45 and the mastery trial (a click starts it, then it runs until its three deeds are done), a third never
+	 * opens.
 	 */
 	public static String awakeningRefusal(List<String> owned, int level, Talent talent, CompoundTag progress) {
 		int awakened = Awakenings.owned(owned).size();
@@ -123,7 +124,10 @@ public final class Talents {
 		if (level < Awakenings.SUPERLATE_LEVEL) {
 			return "mages_legacy.talent.state.superlate_level";
 		}
-		return progress.getInt(SUPERLATE) > 0 ? null : "mages_legacy.talent.state.superlate_trial";
+		if (Mastery.passed(progress)) {
+			return null;
+		}
+		return Mastery.started(progress) ? "mages_legacy.talent.state.mastery_running" : "mages_legacy.talent.state.superlate_trial";
 	}
 
 	/** Whether this Awakening's trial is met (the client passes the flag the server worked out as "done_<id>"). */
@@ -160,11 +164,9 @@ public final class Talents {
 			return;
 		}
 		String why = refusal(player, talent);
-		// Clicking the second Awakening before its trial starts the trial
+		// Clicking the second Awakening before its trial starts the mastery trial: no journey anywhere, three deeds to do
 		if ("mages_legacy.talent.state.superlate_trial".equals(why)) {
-			if (!euf.mageslegacy.voidborn.Arena.startTrial(player)) {
-				Abilities.refuse(player, Component.translatable("mages_legacy.refuse.arena_here"));
-			}
+			Mastery.start(player);
 			return;
 		}
 		if (why != null) {
@@ -178,6 +180,7 @@ public final class Talents {
 		player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.PLAYERS, 0.8f, 0.8f);
 		player.displayClientMessage(Component.translatable("mages_legacy.message.learnt", Component.translatable(talent.key() + ".name"))
 				.withStyle(ChatFormatting.LIGHT_PURPLE), true);
+		Deeds.check(player);
 		RaceState.sync(player);
 	}
 

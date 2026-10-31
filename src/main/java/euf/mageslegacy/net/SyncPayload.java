@@ -55,6 +55,13 @@ public record SyncPayload(String race, int level, int xp, int xpNext, float reso
 	private static int[] trialProgress(ServerPlayer player) {
 		var tag = player.getData(euf.mageslegacy.race.RaceState.PROGRESS);
 		var owned = Talents.owned(player);
+		// 17 the mastery trial begun, 18..20 its three deeds for the player's race
+		var goals = RaceState.get(player).map(euf.mageslegacy.race.Mastery::goals).orElse(java.util.List.of());
+		int[] mastery = new int[4];
+		mastery[0] = euf.mageslegacy.race.Mastery.started(tag) ? 1 : 0;
+		for (int i = 0; i < Math.min(3, goals.size()); i++) {
+			mastery[i + 1] = euf.mageslegacy.race.Mastery.count(tag, goals.get(i));
+		}
 		return new int[] {tag.getInt(Talents.POCKET_NIGHTS), tag.getInt(Talents.STEP_THROUGH), tag.getInt(Talents.GRAVITY_KILLS),
 				tag.getInt(Talents.SUPERLATE), Progression.openTiers(player), tag.getInt(Talents.STEP_THROUGH_NETHER), tag.getInt(Talents.GRAVITY_FLIERS),
 				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_RIFT, owned, tag) ? 1 : 0,
@@ -65,7 +72,7 @@ public record SyncPayload(String race, int level, int xp, int xpNext, float reso
 				tag.getInt(euf.mageslegacy.mycelid.Mycelid.INFECTED_KILLS), tag.getInt(euf.mageslegacy.mycelid.Mycelid.SHARED),
 				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_BLOOM, owned, tag) ? 1 : 0,
 				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_STORM, owned, tag) ? 1 : 0,
-				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_REBIRTH, owned, tag) ? 1 : 0};
+				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_REBIRTH, owned, tag) ? 1 : 0, mastery[0], mastery[1], mastery[2], mastery[3]};
 	}
 
 	private void write(FriendlyByteBuf buf) {

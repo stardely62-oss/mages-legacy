@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/mastery",
+  "display": {
+    "icon": {
+      "id": "minecraft:dragon_breath"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.double.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.double.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "double"
+      }
+    }
+  }
+}

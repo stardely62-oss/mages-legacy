@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/void_pocket",
+  "display": {
+    "icon": {
+      "id": "minecraft:purpur_block"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.void_pocket_big.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.void_pocket_big.desc"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "void_pocket_big"
+      }
+    }
+  }
+}
