@@ -662,7 +662,7 @@ public final class Bloodkin {
 		s.dash = new Dash(path, new HashSet<>(), free, !player.onGround() && Talents.has(player, Talent.NIGHT_DIVE));
 		s.dashStep = 0;
 		ServerLevel level = player.serverLevel();
-		Fx.bloodTrail(level, path.get(0), path.get(path.size() - 1), 16);
+		Fx.bloodTrail(level, player, path.get(0), path.get(path.size() - 1), DASH_TICKS);
 		Fx.fov(player, 0.2f, 12);
 		Fx.shake(player, 0.8f, 5);
 		level.playSound(null, player.blockPosition(), SoundEvents.PHANTOM_FLAP, SoundSource.PLAYERS, 1, 0.6f);
@@ -718,6 +718,7 @@ public final class Bloodkin {
 			e.invulnerableTime = 0;
 			e.hurt(level.damageSources().playerAttack(player), damage);
 			Fx.blood(level, e.position().add(0, e.getBbHeight() * 0.6, 0), 0.6f, 12);
+			Fx.bloodSlash(level, e.position().add(0, e.getBbHeight() * 0.6, 0), player.getYRot());
 			Fx.shake(player, 2, 6);
 			if (bloodful(e) && Talents.has(player, Talent.FANG_BLEED)) {
 				bleed(e, player);
@@ -792,7 +793,7 @@ public final class Bloodkin {
 			Progression.addXp(player, "blood_harvest", 2, 30);
 			drawn++;
 		}
-		Fx.bloodRing(level, player.position(), (float) radius, 14);
+		Fx.bloodRing(level, player.position(), (float) radius, 40);
 		level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.5f, 0.8f);
 		if (drawn > 0) {
 			Fx.shake(player, 1, 10);
@@ -878,6 +879,7 @@ public final class Bloodkin {
 		ServerLevel level = player.serverLevel();
 		Fx.thread(level, player, friend, 18);
 		Fx.blood(level, friend.position().add(0, friend.getBbHeight() * 0.6, 0), 0.6f, 10);
+		Fx.bloodRing(level, friend.position(), 1.6f, 24);
 		level.playSound(null, friend.blockPosition(), SoundEvents.GENERIC_DRINK, SoundSource.PLAYERS, 1, 1.2f);
 		level.playSound(null, friend.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1, 1.2f);
 		Progression.addXp(player, "blood_transfuse", 3, 15);

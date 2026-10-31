@@ -1014,6 +1014,34 @@ final class Harness {
 	}
 
 	/** Night, Spores-free: the Bloodkin at level 30 on open ground, blood full, food low (no natural healing to blur counts). */
+	/**
+	 * Films from a still point instead of the player's eyes: a client-only stand there, looking at a point, becomes
+	 * the camera (the player is drawn, the HUD and the hand are hidden). watchSelf() gives the view back.
+	 */
+	private static void watch(Vec3 at, Vec3 target) {
+		Minecraft mc = Minecraft.getInstance();
+		var stand = EntityType.ARMOR_STAND.create(mc.level);
+		if (stand == null) {
+			return;
+		}
+		Vec3 eye = at.add(0, -stand.getEyeHeight(), 0);
+		Vec3 d = target.subtract(at);
+		float yaw = (float) (Math.toDegrees(Math.atan2(d.z, d.x)) - 90);
+		float pitch = (float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)));
+		stand.moveTo(eye.x, eye.y, eye.z, yaw, pitch);
+		stand.setYHeadRot(yaw);
+		stand.setInvisible(true);
+		mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+		mc.options.hideGui = true;
+		mc.setCameraEntity(stand);
+	}
+
+	private static void watchSelf() {
+		Minecraft mc = Minecraft.getInstance();
+		mc.options.hideGui = false;
+		mc.setCameraEntity(mc.player);
+	}
+
 	private static void bloodSetUp(String... talents) {
 		server().execute(() -> {
 			ServerPlayer player = player();
@@ -1071,11 +1099,14 @@ final class Harness {
 			});
 			mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
 		}, 10);
-		// Seen from the front: from behind, the camera would pass through the vindicators with the body
-		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT), 2);
+		// Seen from the side, from a still point: the wake stretched along the way, the cuts, the stains
+		run(() -> watch(new Vec3(308.5, y[0] + 3.5, 5.5), new Vec3(300.5, y[0] + 0.8, 5.5)), 2);
 		run(() -> MagesLegacyClient.useAbility(0), 1);
-		film("blood_dash", 6, 2);
-		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 0);
+		film("blood_dash", 8, 2);
+		run(() -> {
+			watchSelf();
+			mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+		}, 0);
 		run(() -> {
 			float[] hp = {prey[0].getHealth(), prey[1].getHealth(), prey[2].getHealth()};
 			boolean once = true;
@@ -1092,10 +1123,14 @@ final class Harness {
 			RaceState.setResource(player, 100);
 			player.setHealth(10);
 		}), 3);
-		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT), 2);
+		// From high up to one side: the whole circle, the threads from each vindicator
+		run(() -> watch(player().position().add(9, 9, -6), player().position().add(0, 0, -2)), 2);
 		run(() -> MagesLegacyClient.useAbility(1), 1);
-		film("blood_harvest", 6, 3);
-		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 0);
+		film("blood_harvest", 8, 3);
+		run(() -> {
+			watchSelf();
+			mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+		}, 0);
 		run(() -> {
 			check("the Harvest draws 4 from each, heals 2 from each, drinks 5 from each (" + prey[0].getHealth() + ", hp " + player().getHealth() + ", blood "
 					+ blood() + ")", Math.abs(prey[0].getHealth() - (prey[0].getMaxHealth() - 10)) < 0.01f && Math.abs(player().getHealth() - 16) < 0.6f
@@ -1117,7 +1152,10 @@ final class Harness {
 			check("the Sacrifice never kills (" + player().getHealth() + ", " + blood() + ")", Math.abs(player().getHealth() - 4) < 0.01f && blood() < 11);
 			server().execute(() -> player().setHealth(20));
 		}, 3);
-		run(() -> MagesLegacyClient.useAbility(3), 5);
+		run(() -> watch(new Vec3(303.5, y[0] + 2.4, 3.5), new Vec3(300.5, y[0] + 1.1, 0.5)), 2);
+		run(() -> MagesLegacyClient.useAbility(3), 1);
+		film("blood_sacrifice", 8, 4);
+		run(Harness::watchSelf, 0);
 		run(() -> check("the Sacrifice: 4 health for 40 blood (" + player().getHealth() + ", " + blood() + ")", Math.abs(player().getHealth() - 16) < 0.01f
 				&& blood() > 48 && blood() < 51 && euf.mageslegacy.race.Talents.progress(player(), euf.mageslegacy.bloodkin.Bloodkin.SACRIFICES) == 1), 0);
 		// A Transfusion into one's own wolf in sight
@@ -1133,7 +1171,10 @@ final class Harness {
 			hound.setHealth(10);
 			player.connection.teleport(300.5, y[0], 0.5, 0, 15);
 		}), 10);
-		run(() -> MagesLegacyClient.useAbility(3), 5);
+		run(() -> watch(new Vec3(305, y[0] + 2.6, 2), new Vec3(300.5, y[0] + 0.8, 2)), 0);
+		run(() -> MagesLegacyClient.useAbility(3), 1);
+		film("blood_transfusion", 5, 3);
+		run(Harness::watchSelf, 0);
 		run(() -> {
 			check("a Transfusion heals the wolf 6 for 25 blood and 2 health (" + hound.getHealth() + ", " + player().getHealth() + ", " + blood() + ")",
 					// (16, and the Regeneration it gives heals its first point at once: 17)

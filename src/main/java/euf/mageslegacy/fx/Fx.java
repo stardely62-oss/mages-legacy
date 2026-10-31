@@ -66,7 +66,7 @@ public final class Fx {
 	public static final int BLOOD = 23;
 	/** A thread of blood drawn from one creature (entity) to another (b: its id), drops running along it. */
 	public static final int THREAD = 24;
-	/** The Blood Dash's trail from one point to another: a streak of dark mist and drops. */
+	/** The Blood Dash's wake behind its body (entity) from where it began (from) to where it ends (to): a: its ticks. */
 	public static final int BLOOD_TRAIL = 25;
 	/** The Harvest's circle closing in on its Bloodkin: a: radius. */
 	public static final int BLOOD_RING = 26;
@@ -80,6 +80,8 @@ public final class Fx {
 	public static final int BLOOD_VORTEX = 30;
 	/** The Prince of the Night: a body scattered into bats (ticks), or gathered back from them (0); b: 1 for the Last Breath. */
 	public static final int BAT_SWARM = 31;
+	/** A creature cut by the Blood Dash: a crescent cut across it at a point, a: the dash's yaw (degrees). */
+	public static final int BLOOD_SLASH = 32;
 
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
@@ -164,8 +166,12 @@ public final class Fx {
 		send(level, from.position(), new FxPayload(THREAD, from.getId(), from.position(), to.position(), ticks, 0, to.getId()));
 	}
 
-	public static void bloodTrail(ServerLevel level, Vec3 from, Vec3 to, int ticks) {
-		send(level, from, new FxPayload(BLOOD_TRAIL, -1, from, to, ticks, 0, 0));
+	public static void bloodTrail(ServerLevel level, Entity body, Vec3 from, Vec3 to, int dashTicks) {
+		send(level, from, new FxPayload(BLOOD_TRAIL, body.getId(), from, to, dashTicks, 0, 0));
+	}
+
+	public static void bloodSlash(ServerLevel level, Vec3 at, float yaw) {
+		send(level, at, new FxPayload(BLOOD_SLASH, -1, at, at, 10, yaw, 0));
 	}
 
 	public static void bloodRing(ServerLevel level, Vec3 at, float radius, int ticks) {
@@ -173,7 +179,7 @@ public final class Fx {
 	}
 
 	public static void sacrifice(ServerLevel level, Entity body) {
-		send(level, body.position(), new FxPayload(SACRIFICE, body.getId(), body.position(), body.position(), 24, 0, 0));
+		send(level, body.position(), new FxPayload(SACRIFICE, body.getId(), body.position(), body.position(), 30, 0, 0));
 	}
 
 	public static void bloodScreen(ServerPlayer player, int ticks) {
