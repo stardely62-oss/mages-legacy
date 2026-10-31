@@ -174,8 +174,8 @@ public final class ScreenFx {
 			float life = f[1] + delta;
 			float a = Math.min(1, life / 2f) * Math.min(1, (f[0] - life) / 8f);
 			if (a > 0) {
-				graphics.fill(0, 0, w, h, argb(0x3A0008, 0.18f * a));
-				edges(graphics, w, h, 0x8E0E1E, 0.7f * a, 3);
+				graphics.fill(0, 0, w, h, argb(0x3A0008, 0.08f * a));
+				edges(graphics, w, h, 0x8E0E1E, 0.45f * a, 5);
 			}
 		}
 		if (VOIDS.isEmpty()) {

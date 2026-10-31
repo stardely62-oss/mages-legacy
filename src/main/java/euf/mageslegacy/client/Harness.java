@@ -1070,8 +1070,11 @@ final class Harness {
 			});
 			mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
 		}, 10);
+		// Seen from the front: from behind, the camera would pass through the vindicators with the body
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT), 2);
 		run(() -> MagesLegacyClient.useAbility(0), 1);
 		film("blood_dash", 6, 2);
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 0);
 		run(() -> {
 			float[] hp = {prey[0].getHealth(), prey[1].getHealth(), prey[2].getHealth()};
 			boolean once = true;
@@ -1397,8 +1400,11 @@ final class Harness {
 
 	/** A run of screenshots, every few ticks: the CI lays them out in a sheet, so the animation itself can be judged. */
 	private static void film(String name, int frames, int every) {
-		// No advancement toasts over the effect being filmed
-		run(() -> Minecraft.getInstance().getToasts().clear(), 0);
+		// No advancement toasts or chat over the effect being filmed
+		run(() -> {
+			Minecraft.getInstance().getToasts().clear();
+			Minecraft.getInstance().gui.getChat().clearMessages(false);
+		}, 0);
 		for (int i = 0; i < frames; i++) {
 			int frame = i;
 			run(() -> {
