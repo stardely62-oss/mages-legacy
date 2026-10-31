@@ -42,7 +42,6 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.Tags;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.MobEffectEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
@@ -141,7 +140,6 @@ public final class Mycelid {
 		NeoForge.EVENT_BUS.addListener(Mycelid::onTick);
 		NeoForge.EVENT_BUS.addListener(Mycelid::onServerTick);
 		NeoForge.EVENT_BUS.addListener(Mycelid::onIncomingDamage);
-		NeoForge.EVENT_BUS.addListener(Mycelid::onEat);
 		NeoForge.EVENT_BUS.addListener(Mycelid::onDeath);
 		NeoForge.EVENT_BUS.addListener(Mycelid::onEffect);
 	}
@@ -199,25 +197,6 @@ public final class Mycelid {
 				}
 			}
 		}
-	}
-
-	/** The fungal diet (three talents): more from fungal food, then Spores, then food for the network. */
-	private static void onEat(LivingEntityUseItemEvent.Finish event) {
-		if (!(event.getEntity() instanceof ServerPlayer player) || !RaceState.is(player, Race.MYCELID)
-				|| !event.getItem().is(MyceliumNetwork.FUNGAL_FOOD)) {
-			return;
-		}
-		if (Talents.has(player, Talent.DIET_1)) {
-			player.getFoodData().eat(3, 0.6f);
-		}
-		if (Talents.has(player, Talent.DIET_2)) {
-			RaceState.setResource(player, RaceState.resource(player) + 15);
-		}
-		if (Talents.has(player, Talent.DIET_3)) {
-			MyceliumNetwork.get(player.server).addNutrients(player.getUUID(), 8);
-		}
-		player.serverLevel().sendParticles(ParticleTypes.HAPPY_VILLAGER, player.getX(), player.getY() + 1.2, player.getZ(), 8, 0.3, 0.3, 0.3, 0);
-		RaceState.sync(player);
 	}
 
 	// ---- Neurospores ------------------------------------------------------------------------------------------

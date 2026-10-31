@@ -48,6 +48,9 @@ public class MagesLegacyClient {
 		modBus.addListener(MagesLegacyClient::onRegisterKeys);
 		modBus.addListener(MagesLegacyClient::onRegisterLayers);
 		NeoForge.EVENT_BUS.addListener(MagesLegacyClient::onTick);
+		// Raw mushrooms are food for the local player only while they are a Mycelid
+		euf.mageslegacy.mycelid.FungalDiet.clientMycelid = p -> p == Minecraft.getInstance().player
+				&& ClientRace.race() == euf.mageslegacy.race.Race.MYCELID;
 		euf.mageslegacy.client.fx.VoidRender.register();
 		ClientStep.register();
 		NeoForge.EVENT_BUS.addListener(MagesLegacyClient::onInteract);

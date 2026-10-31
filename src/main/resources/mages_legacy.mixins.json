@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "euf.mageslegacy.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ItemMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

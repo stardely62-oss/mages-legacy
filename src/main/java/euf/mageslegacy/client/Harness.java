@@ -498,6 +498,7 @@ final class Harness {
 		mycelidMastery();
 		balance(y);
 		advancements();
+		fungalDiet(y);
 		run(() -> server().execute(() -> player().kill()), 20);
 	}
 
@@ -997,6 +998,135 @@ final class Harness {
 				&& done("void_mastery") && !done("myc_root") && !done("myc_epidemic")
 				&& euf.mageslegacy.race.Deeds.archived(player()).contains("mages_legacy:legacy/myc_epidemic")), 0);
 		tabShot("advancements_voidborn", "void_root");
+	}
+
+	/** Holds the use key down this long (a real right click held, as a player eats), then lets go. */
+	private static void holdUse(int ticks) {
+		run(() -> Minecraft.getInstance().options.keyUse.setDown(true), ticks);
+		run(() -> Minecraft.getInstance().options.keyUse.setDown(false), 3);
+	}
+
+	/** A stack in the main hand, food at 10 with no saturation, the eyes on the open sky. */
+	private static void meal(net.minecraft.world.item.Item item, int count, int[] y) {
+		server().execute(() -> {
+			ServerPlayer player = player();
+			player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new net.minecraft.world.item.ItemStack(item, count));
+			player.getFoodData().setFoodLevel(10);
+			player.getFoodData().setSaturation(0);
+			player.connection.teleport(80.5, y[0], 80.5, 0, -90);
+		});
+	}
+
+	private static int held() {
+		return player().getMainHandItem().getCount();
+	}
+
+	/**
+	 * Raw mushrooms: a level 1 Mycelid eats all four (5 food, 3 saturation, one gone), the diet's talents once each meal
+	 * (Living Recovery once in 30 s), no nutrients from eating; still placed on podzol and fed to a node (Shift: the
+	 * stack); a Voidborn and a player with no race can't eat them; the first Mother Mycelium tells how to feed the colony,
+	 * once; the race choice can't be left with Esc.
+	 */
+	private static void fungalDiet(int[] y) {
+		Minecraft mc = Minecraft.getInstance();
+		int[] before = new int[2];
+		// The first Mother of a new Mycelid: the old nodes gone, a new one grown, the lesson given once
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			RaceState.set(player, Race.MYCELID);
+			for (int x : new int[] {40, 60}) {
+				player.serverLevel().removeBlock(new net.minecraft.core.BlockPos(x, y[0], 40), false);
+			}
+			player.connection.teleport(80.5, y[0], 80.5, 0, 0);
+		}), 10);
+		run(() -> {
+			boolean fresh = !player().getData(RaceState.PROGRESS).getBoolean(euf.mageslegacy.mycelid.MyceliumNetwork.TUTORIAL);
+			server().execute(() -> euf.mageslegacy.mycelid.MyceliumNetwork.grow(player()));
+			check("a new Mycelid hasn't had the lesson yet", fresh);
+		}, 10);
+		run(() -> {
+			check("the first Mother Mycelium gives the lesson, kept on the player", player().getData(RaceState.PROGRESS)
+					.getBoolean(euf.mageslegacy.mycelid.MyceliumNetwork.TUTORIAL));
+			before[1] = euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nutrients(player().getUUID());
+		}, 0);
+		// All four, at level 1, no talents
+		for (var item : new net.minecraft.world.item.Item[] {net.minecraft.world.item.Items.RED_MUSHROOM, net.minecraft.world.item.Items.BROWN_MUSHROOM,
+				net.minecraft.world.item.Items.CRIMSON_FUNGUS, net.minecraft.world.item.Items.WARPED_FUNGUS}) {
+			run(() -> meal(item, 4, y), 5);
+			holdUse(45);
+			run(() -> {
+				var food = player().getFoodData();
+				check("a level 1 Mycelid eats " + item + ": food " + food.getFoodLevel() + ", saturation " + food.getSaturationLevel() + ", left " + held(),
+						food.getFoodLevel() == 15 && Math.abs(food.getSaturationLevel() - 3) < 0.01f && held() == 3);
+			}, 0);
+		}
+		run(() -> check("eating gives the colony no nutrients (" + before[1] + " -> " + euf.mageslegacy.mycelid.MyceliumNetwork.get(server())
+				.nutrients(player().getUUID()) + ")", euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nutrients(player().getUUID()) == before[1]), 0);
+		// The diet: +3 food, +15 Spores, 4 health once in 30 s
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			player.setData(RaceState.TALENTS, new ArrayList<>(List.of("diet_1", "diet_2", "diet_3")));
+			RaceState.setResource(player, 50);
+			player.setHealth(10);
+		}), 3);
+		run(() -> meal(net.minecraft.world.item.Items.RED_MUSHROOM, 4, y), 5);
+		holdUse(45);
+		run(() -> {
+			check("with the diet: food " + player().getFoodData().getFoodLevel() + " (+5 +3), Spores " + RaceState.resource(player()) + " (+15), health "
+					+ player().getHealth() + " (+4)", player().getFoodData().getFoodLevel() == 18 && RaceState.resource(player()) > 64
+					&& RaceState.resource(player()) < 66 && Math.abs(player().getHealth() - 14) < 0.01f);
+			server().execute(() -> player().setHealth(10));
+		}, 3);
+		run(() -> meal(net.minecraft.world.item.Items.BROWN_MUSHROOM, 4, y), 5);
+		holdUse(45);
+		run(() -> check("Living Recovery waits 30 s (health " + player().getHealth() + ")", Math.abs(player().getHealth() - 10) < 0.01f
+				&& player().getFoodData().getFoodLevel() == 18), 0);
+		// Still placed, still fed to a node
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			player.serverLevel().setBlockAndUpdate(new net.minecraft.core.BlockPos(80, y[0] - 1, 83), Blocks.PODZOL.defaultBlockState());
+			player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BROWN_MUSHROOM, 4));
+			player.getFoodData().setFoodLevel(10);
+		}), 5);
+		run(() -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND, new net.minecraft.world.phys.BlockHitResult(
+				new net.minecraft.world.phys.Vec3(80.5, y[0], 83.5), net.minecraft.core.Direction.UP, new net.minecraft.core.BlockPos(80, y[0] - 1, 83), false)), 5);
+		run(() -> {
+			check("a Mycelid still places a mushroom on podzol", player().level().getBlockState(new net.minecraft.core.BlockPos(80, y[0], 83))
+					.is(Blocks.BROWN_MUSHROOM) && held() == 3 && player().getFoodData().getFoodLevel() == 10);
+			before[0] = euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nutrients(player().getUUID());
+		}, 0);
+		net.minecraft.core.BlockPos node = new net.minecraft.core.BlockPos(80, y[0], 80);
+		net.minecraft.world.phys.BlockHitResult onNode = new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(80.5, y[0] + 0.5, 79.99),
+				net.minecraft.core.Direction.NORTH, node, false);
+		run(() -> server().execute(() -> player().connection.teleport(80.5, y[0], 78.5, 0, 20)), 5);
+		run(() -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND, onNode), 5);
+		run(() -> check("a click on the node feeds the colony a mushroom, not the Mycelid (" + before[0] + " -> "
+				+ euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nutrients(player().getUUID()) + ", left " + held() + ")",
+				euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nutrients(player().getUUID()) == before[0] + 4 && held() == 2
+						&& player().getFoodData().getFoodLevel() == 10), 0);
+		run(() -> mc.options.keyShift.setDown(true), 6);
+		run(() -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND, onNode), 5);
+		run(() -> {
+			mc.options.keyShift.setDown(false);
+			check("Shift: the whole stack to the colony (" + euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nutrients(player().getUUID()) + ", left "
+					+ held() + ")", euf.mageslegacy.mycelid.MyceliumNetwork.get(server()).nutrients(player().getUUID()) == before[0] + 12 && held() == 0);
+		}, 3);
+		// Only a Mycelid: a Voidborn and a player with no race keep their mushrooms
+		for (Race race : new Race[] {Race.VOIDBORN, null}) {
+			run(() -> server().execute(() -> RaceState.set(player(), race)), 5);
+			run(() -> meal(net.minecraft.world.item.Items.RED_MUSHROOM, 4, y), 5);
+			holdUse(45);
+			run(() -> check((race == null ? "no race" : "a Voidborn") + " can't eat a raw mushroom (food " + player().getFoodData().getFoodLevel() + ", left "
+					+ held() + ")", player().getFoodData().getFoodLevel() == 10 && held() == 4 && !player().isUsingItem()), 0);
+		}
+		// With no race, Esc doesn't leave the choice
+		run(() -> mc.setScreen(new euf.mageslegacy.client.screen.RaceSelectScreen()), 5);
+		run(() -> mc.screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE, 0, 0), 3);
+		run(() -> {
+			check("Esc doesn't leave the race choice", mc.screen instanceof euf.mageslegacy.client.screen.RaceSelectScreen);
+			mc.setScreen(null);
+			server().execute(() -> RaceState.set(player(), Race.MYCELID));
+		}, 5);
 	}
 
 	/** One race's tab, as a player opens it. */

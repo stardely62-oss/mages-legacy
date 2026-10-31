@@ -12,6 +12,10 @@ displayURL = "https://github.com/stardely62-oss/mages-legacy"
 logoFile = "assets/mages_legacy/icon.png"
 description = '''The nameless mage split people into races. Pick yours on first join.'''
 
+# Raw mushrooms eaten by a Mycelid: the eating animation and length (see ItemMixin)
+[[mixins]]
+config = "mages_legacy.mixins.json"
+
 [[dependencies.mages_legacy]]
 modId = "neoforge"
 type = "required"
