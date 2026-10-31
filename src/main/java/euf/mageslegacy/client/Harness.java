@@ -1555,6 +1555,8 @@ final class Harness {
 				boolean notBought = !euf.mageslegacy.race.Talents.owned(player).contains(t.id());
 				euf.mageslegacy.race.Talents.reset(player);
 				said[1] = notBought && euf.mageslegacy.race.Talents.has(player, t) ? "1" : "0";
+				// Back to a plain level 12 (the reset keeps the Awakenings 'all' gave)
+				player.setData(RaceState.TALENTS, List.of());
 				Progression.setLevel(player, 12);
 				RaceState.sync(player);
 			}), 5);
@@ -1565,6 +1567,7 @@ final class Harness {
 			}, 0);
 			// The tree, the node's tooltip as hovered, then a click on it opens the traits book
 			run(() -> {
+				mc.getToasts().clear();
 				euf.mageslegacy.client.screen.TalentScreen.harnessHover = t;
 				mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen());
 			}, 20);
@@ -1599,6 +1602,7 @@ final class Harness {
 		int[] scale = new int[1];
 		run(() -> {
 			scale[0] = mc.options.guiScale().get();
+			mc.getToasts().clear();
 			mc.options.guiScale().set(1);
 			mc.resizeDisplay();
 			mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen());
@@ -1624,8 +1628,18 @@ final class Harness {
 			boolean voidborn = race == Race.VOIDBORN;
 			run(() -> {
 				fresh(race, 120.5, y[0], 120.5, 0, pitch);
-				server().execute(() -> player().serverLevel().setBlockAndUpdate(lever, Blocks.LEVER.defaultBlockState()
-						.setValue(net.minecraft.world.level.block.LeverBlock.FACE, net.minecraft.world.level.block.state.properties.AttachFace.FLOOR)));
+				server().execute(() -> {
+					ServerLevel level = player().serverLevel();
+					// A clear floor of stone from the feet to the lever, nothing in the air between
+					for (int z = 119; z <= 126; z++) {
+						level.setBlockAndUpdate(new net.minecraft.core.BlockPos(120, y[0] - 1, z), Blocks.STONE.defaultBlockState());
+						for (int dy = 0; dy < 3; dy++) {
+							level.setBlockAndUpdate(new net.minecraft.core.BlockPos(120, y[0] + dy, z), Blocks.AIR.defaultBlockState());
+						}
+					}
+					level.setBlockAndUpdate(lever, Blocks.LEVER.defaultBlockState()
+							.setValue(net.minecraft.world.level.block.LeverBlock.FACE, net.minecraft.world.level.block.state.properties.AttachFace.FLOOR));
+				});
 			}, 10);
 			run(() -> {
 				ServerPlayer player = player();
@@ -1636,12 +1650,16 @@ final class Harness {
 						+ "/" + mc.player.entityInteractionRange(), near(server, want) && near(client, want) && near(player.entityInteractionRange(), 3)
 						&& near(mc.player.entityInteractionRange(), 3));
 			}, 0);
+			shot("innate_reach_" + race.id());
 			run(() -> net.minecraft.client.KeyMapping.click(mc.options.keyUse.getKey()), 6);
 			run(() -> {
-				boolean on = player().level().getBlockState(lever).getValue(net.minecraft.world.level.block.LeverBlock.POWERED);
+				var state = player().level().getBlockState(lever);
+				boolean on = state.hasProperty(net.minecraft.world.level.block.LeverBlock.POWERED)
+						&& state.getValue(net.minecraft.world.level.block.LeverBlock.POWERED);
 				check(race.id() + (voidborn ? " pulls" : " can't reach") + " a lever 5.2 blocks off (aimed at "
 						+ (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult b && mc.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.MISS
-								? b.getBlockPos().toShortString() : "nothing") + ", powered " + on + ")", on == voidborn);
+								? b.getBlockPos().toShortString() : "nothing") + ", " + state + ", eyes " + mc.player.getEyePosition() + " pitch " + mc.player.getXRot()
+						+ ")", on == voidborn);
 			}, 0);
 		}
 		run(() -> fresh(Race.VOIDBORN, 120.5, y[0], 120.5, 0, 0), 10);

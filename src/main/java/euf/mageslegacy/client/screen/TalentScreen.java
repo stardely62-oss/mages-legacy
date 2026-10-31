@@ -772,16 +772,25 @@ public class TalentScreen extends Screen {
 		String text = Component.translatable("mages_legacy.talent.innate.badge").getString();
 		int w = Math.round(font.width(text) * scale);
 		int h = Math.round(8 * scale);
-		int x = nodeX(t) - w / 2;
-		int y = nodeY(t) + s / 2 + 2;
-		int[] box = {x - 1, y - 1, x + w + 1, y + h + 1, Math.round(scale * 100)};
-		Race race = t.race;
-		for (Talent other : Talent.of(race)) {
-			if (other != t && intersects(box, rect(other))) {
-				return null;
+		// Under the node if there is room, else over it, else to its left (the open side, away from the core), else right
+		int cxn = nodeX(t);
+		int cyn = nodeY(t);
+		int[][] spots = {{cxn - w / 2, cyn + s / 2 + 2}, {cxn - w / 2, cyn - s / 2 - 2 - h}, {cxn - s / 2 - 3 - w, cyn - h / 2},
+				{cxn + s / 2 + 3, cyn - h / 2}};
+		for (int[] at : spots) {
+			int[] box = {at[0] - 1, at[1] - 1, at[0] + w + 1, at[1] + h + 1, Math.round(scale * 100)};
+			boolean free = true;
+			for (Talent other : Talent.of(t.race)) {
+				if (other != t && intersects(box, rect(other))) {
+					free = false;
+					break;
+				}
+			}
+			if (free) {
+				return box;
 			}
 		}
-		return box;
+		return null;
 	}
 
 	private int[] rect(Talent t) {
