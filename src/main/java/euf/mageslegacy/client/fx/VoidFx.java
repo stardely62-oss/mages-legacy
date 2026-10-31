@@ -78,7 +78,9 @@ public final class VoidFx {
 						VoidRender.add(new MycelidFx.Bond(caster, follow, payload.a(), payload.ticks()));
 					}
 				}
-				case Fx.VOID_SCREEN, Fx.SHAKE, Fx.FOV, Fx.MUFFLE, Fx.THIRD_PERSON -> ScreenFx.play(payload);
+				case Fx.VOID_SCREEN, Fx.SHAKE, Fx.FOV, Fx.MUFFLE, Fx.THIRD_PERSON, Fx.BLOOD_SCREEN -> ScreenFx.play(payload);
+				case Fx.BLOOD, Fx.THREAD, Fx.BLOOD_TRAIL, Fx.BLOOD_RING, Fx.SACRIFICE, Fx.BLOOD_AURA, Fx.BLOOD_VORTEX, Fx.BAT_SWARM ->
+						BloodFx.play(payload, follow, level);
 				default -> {
 				}
 			}

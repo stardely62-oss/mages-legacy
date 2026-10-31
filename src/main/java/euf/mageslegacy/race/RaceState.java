@@ -136,6 +136,7 @@ public final class RaceState {
 		Pocket.leaveIfInside(player);
 		Voidborn.reset(player);
 		euf.mageslegacy.mycelid.Mycelid.reset(player);
+		euf.mageslegacy.bloodkin.Bloodkin.reset(player);
 		player.setData(RACE, race == null ? "" : race.id());
 		player.setData(LEVEL, 1);
 		player.setData(XP, 0);

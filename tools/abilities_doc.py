@@ -11,8 +11,9 @@ lang = json.loads((root / "src/main/resources/assets/mages_legacy/lang/ru_ru.jso
 awakening_level = int(re.search(r'AWAKENING_LEVEL = (\d+);', talent_src).group(1))
 keys = re.search(r'KEY_NAMES = \{(.*?)\};', src).group(1).replace('"', "").split(", ")
 awakening_of = {"RIFT_ARENA": "awakening_rift", "PASSAGE": "awakening_worlds", "BLACK_HOLE": "awakening_hole",
-                "GREAT_BLOOM": "awakening_bloom", "SPORE_STORM": "awakening_storm", "MYCELIAL_REBIRTH": "awakening_rebirth"}
-races = {"VOIDBORN": ("Пустотники", "Пустота"), "MYCELID": ("Мицелиды", "Споры")}
+                "GREAT_BLOOM": "awakening_bloom", "SPORE_STORM": "awakening_storm", "MYCELIAL_REBIRTH": "awakening_rebirth",
+                "FEAST": "awakening_feast", "BLOOD_STORM": "awakening_blood_storm", "NIGHT_PRINCE": "awakening_prince"}
+races = {"VOIDBORN": ("Пустотники", "Пустота"), "MYCELID": ("Мицелиды", "Споры"), "BLOODKIN": ("Кровники", "Кровь")}
 
 def seconds(expr):
     ticks = eval(expr, {}, {})

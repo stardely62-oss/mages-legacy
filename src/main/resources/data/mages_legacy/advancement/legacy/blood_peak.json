@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/blood_first_awakening",
+  "display": {
+    "icon": {
+      "id": "minecraft:nether_star"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.blood_peak.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.blood_peak.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "blood_peak"
+      }
+    }
+  }
+}

@@ -165,6 +165,12 @@ public final class Talents {
 			case AWAKENING_STORM -> p.getInt(euf.mageslegacy.mycelid.Mycelid.INFECTED_KILLS) >= STORM_KILLS;
 			case AWAKENING_REBIRTH -> p.getInt(euf.mageslegacy.mycelid.Mycelid.SHARED) >= REBIRTH_SHARED
 					&& p.getInt(euf.mageslegacy.mycelid.Mycelid.NODES) >= REBIRTH_NODES;
+			// The Bloodkin's: Blood Dashes through two or more; Harvests drawing from three or more; health won back by
+			// vampirism and Sacrifices made
+			case AWAKENING_FEAST -> p.getInt(euf.mageslegacy.bloodkin.Bloodkin.DASH_MULTI) >= euf.mageslegacy.bloodkin.Bloodkin.FEAST_TRIAL;
+			case AWAKENING_BLOOD_STORM -> p.getInt(euf.mageslegacy.bloodkin.Bloodkin.HARVEST_GROUP) >= euf.mageslegacy.bloodkin.Bloodkin.STORM_TRIAL;
+			case AWAKENING_PRINCE -> p.getInt(euf.mageslegacy.bloodkin.Bloodkin.VAMP_HEAL) >= euf.mageslegacy.bloodkin.Bloodkin.PRINCE_HEAL
+					&& p.getInt(euf.mageslegacy.bloodkin.Bloodkin.SACRIFICES) >= euf.mageslegacy.bloodkin.Bloodkin.PRINCE_SACRIFICES;
 			default -> false;
 		};
 	}

@@ -24,7 +24,16 @@ public enum Ability {
 	GREAT_BLOOM(Race.MYCELID, -1, Talent.AWAKENING_LEVEL, 60, 5 * 60 * 20),
 	SPORE_STORM(Race.MYCELID, -1, Talent.AWAKENING_LEVEL, 50, 5 * 60 * 20),
 	// The Rebirth's key grows a reserve body; its own 20-minute cooldown starts when a body wakes
-	MYCELIAL_REBIRTH(Race.MYCELID, -1, Talent.AWAKENING_LEVEL, 0, 2 * 20);
+	MYCELIAL_REBIRTH(Race.MYCELID, -1, Talent.AWAKENING_LEVEL, 0, 2 * 20),
+
+	// The Bloodkin: the Blood Dash on R, the Harvest on V, the Sacrifice (or a Transfusion, looking at a friend) on H
+	BLOOD_DASH(Race.BLOODKIN, 0, 3, 20, 6 * 20),
+	HARVEST(Race.BLOODKIN, 1, 5, 40, 20 * 20),
+	SACRIFICE(Race.BLOODKIN, 3, 1, 0, 20 * 20),
+	FEAST(Race.BLOODKIN, -1, Talent.AWAKENING_LEVEL, 30, 5 * 60 * 20),
+	BLOOD_STORM(Race.BLOODKIN, -1, Talent.AWAKENING_LEVEL, 50, 5 * 60 * 20),
+	// The Prince of the Night's own key: the Bat Swarm (its rescue at the edge of death has its own 20-minute wait)
+	NIGHT_PRINCE(Race.BLOODKIN, -1, Talent.AWAKENING_LEVEL, 30, 25 * 20);
 
 	public static final int SLOTS = 5;
 	/** Key names as they stand by default, for the HUD and the choice screen. */

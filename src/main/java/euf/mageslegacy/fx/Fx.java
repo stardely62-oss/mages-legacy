@@ -62,6 +62,24 @@ public final class Fx {
 	public static final int BODY = 21;
 	/** Mycelial Rebirth: a body coming apart into spores (b: 1) or a reserve body gathering and standing up (b: 0). */
 	public static final int WAKE = 22;
+	/** The Bloodkin's: drops of blood thrown out at a point (a: spread, b: how many). */
+	public static final int BLOOD = 23;
+	/** A thread of blood drawn from one creature (entity) to another (b: its id), drops running along it. */
+	public static final int THREAD = 24;
+	/** The Blood Dash's trail from one point to another: a streak of dark mist and drops. */
+	public static final int BLOOD_TRAIL = 25;
+	/** The Harvest's circle closing in on its Bloodkin: a: radius. */
+	public static final int BLOOD_RING = 26;
+	/** The Sacrifice: blood wrung out of a body winding up round it and drunk back in (follows it). */
+	public static final int SACRIFICE = 27;
+	/** The player's own view edged in red for a while. */
+	public static final int BLOOD_SCREEN = 28;
+	/** The Feast: embers of blood rising off a body all its length (follows it). */
+	public static final int BLOOD_AURA = 29;
+	/** The Blood Storm's whirl round its Bloodkin (follows it): a: radius. */
+	public static final int BLOOD_VORTEX = 30;
+	/** The Prince of the Night: a body scattered into bats (ticks), or gathered back from them (0); b: 1 for the Last Breath. */
+	public static final int BAT_SWARM = 31;
 
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
@@ -136,6 +154,43 @@ public final class Fx {
 
 	public static void wake(ServerLevel level, Vec3 at, boolean out) {
 		send(level, at, new FxPayload(WAKE, -1, at, at, 20, 0, out ? 1 : 0));
+	}
+
+	public static void blood(ServerLevel level, Vec3 at, float spread, int count) {
+		send(level, at, new FxPayload(BLOOD, -1, at, at, 20, spread, count));
+	}
+
+	public static void thread(ServerLevel level, Entity from, Entity to, int ticks) {
+		send(level, from.position(), new FxPayload(THREAD, from.getId(), from.position(), to.position(), ticks, 0, to.getId()));
+	}
+
+	public static void bloodTrail(ServerLevel level, Vec3 from, Vec3 to, int ticks) {
+		send(level, from, new FxPayload(BLOOD_TRAIL, -1, from, to, ticks, 0, 0));
+	}
+
+	public static void bloodRing(ServerLevel level, Vec3 at, float radius, int ticks) {
+		send(level, at, new FxPayload(BLOOD_RING, -1, at, at, ticks, radius, 0));
+	}
+
+	public static void sacrifice(ServerLevel level, Entity body) {
+		send(level, body.position(), new FxPayload(SACRIFICE, body.getId(), body.position(), body.position(), 24, 0, 0));
+	}
+
+	public static void bloodScreen(ServerPlayer player, int ticks) {
+		PacketDistributor.sendToPlayer(player, new FxPayload(BLOOD_SCREEN, player.getId(), player.position(), player.position(), ticks, 0, 0));
+	}
+
+	public static void bloodAura(ServerLevel level, Entity body, int ticks) {
+		send(level, body.position(), new FxPayload(BLOOD_AURA, body.getId(), body.position(), body.position(), ticks, 0, 0));
+	}
+
+	public static void bloodVortex(ServerLevel level, Entity heart, float radius, int ticks) {
+		send(level, heart.position(), new FxPayload(BLOOD_VORTEX, heart.getId(), heart.position(), heart.position(), ticks, radius, 0));
+	}
+
+	/** A body scattered into bats for this long, or (0) gathered back; the Last Breath's comes with a flash. */
+	public static void batSwarm(ServerLevel level, Entity body, int ticks, boolean rescue) {
+		send(level, body.position(), new FxPayload(BAT_SWARM, body.getId(), body.position(), body.position(), ticks, 0, rescue ? 1 : 0));
 	}
 
 	public static void storm(ServerLevel level, Entity heart, float radius, int ticks) {

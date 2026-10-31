@@ -72,7 +72,14 @@ public record SyncPayload(String race, int level, int xp, int xpNext, float reso
 				tag.getInt(euf.mageslegacy.mycelid.Mycelid.INFECTED_KILLS), tag.getInt(euf.mageslegacy.mycelid.Mycelid.SHARED),
 				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_BLOOM, owned, tag) ? 1 : 0,
 				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_STORM, owned, tag) ? 1 : 0,
-				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_REBIRTH, owned, tag) ? 1 : 0, mastery[0], mastery[1], mastery[2], mastery[3]};
+				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_REBIRTH, owned, tag) ? 1 : 0, mastery[0], mastery[1], mastery[2], mastery[3],
+				// 21 seconds until the Last Breath can save again; 22..25 the Bloodkin's trial counts; 26..28 their first trials met
+				(int) Math.max(0, (euf.mageslegacy.bloodkin.Bloodkin.rescueReady(player) - player.level().getGameTime() + 19) / 20),
+				tag.getInt(euf.mageslegacy.bloodkin.Bloodkin.DASH_MULTI), tag.getInt(euf.mageslegacy.bloodkin.Bloodkin.HARVEST_GROUP),
+				tag.getInt(euf.mageslegacy.bloodkin.Bloodkin.VAMP_HEAL), tag.getInt(euf.mageslegacy.bloodkin.Bloodkin.SACRIFICES),
+				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_FEAST, owned, tag) ? 1 : 0,
+				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_BLOOD_STORM, owned, tag) ? 1 : 0,
+				Talents.trialDone(euf.mageslegacy.race.Talent.AWAKENING_PRINCE, owned, tag) ? 1 : 0};
 	}
 
 	private void write(FriendlyByteBuf buf) {

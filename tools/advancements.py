@@ -14,7 +14,7 @@ root = pathlib.Path(__file__).resolve().parent.parent
 out = root / "src/main/resources/data/mages_legacy/advancement/legacy"
 ru = json.loads((root / "src/main/resources/assets/mages_legacy/lang/ru_ru.json").read_text())
 
-RACES = {"void": "Пустотник", "myc": "Мицелид"}
+RACES = {"void": "Пустотник", "myc": "Мицелид", "blood": "Кровник"}
 # The shared path, made once for each race: name, parent, vanilla icon (fallback), frame, announce to chat
 PATH = [
     ("root", None, "minecraft:amethyst_cluster", "task", False),
@@ -46,6 +46,17 @@ OWN = [
     ("myc_bloom", "myc_one", "minecraft:spore_blossom", "goal", False, False),
     ("myc_rebirth", "myc_bloom", "minecraft:mushroom_stem", "challenge", False, True),
     ("myc_perfect", "myc_bloom", "minecraft:shroomlight", "challenge", True, True),
+
+    ("blood_first_bite", "blood_root", "minecraft:redstone", "task", False, False),
+    ("blood_thirst", "blood_first_bite", "minecraft:glass_bottle", "task", False, False),
+    ("blood_dash_three", "blood_root", "minecraft:iron_sword", "task", False, False),
+    ("blood_harvest_five", "blood_dash_three", "minecraft:crimson_roots", "goal", False, False),
+    ("blood_transfusion", "blood_first_bite", "minecraft:potion", "goal", False, False),
+    ("blood_feast", "blood_harvest_five", "minecraft:rabbit_stew", "goal", False, False),
+    ("blood_storm", "blood_harvest_five", "minecraft:redstone_block", "goal", False, False),
+    ("blood_swarm", "blood_root", "minecraft:bat_spawn_egg", "task", False, False),
+    ("blood_last_breath", "blood_swarm", "minecraft:totem_of_undying", "challenge", False, True),
+    ("blood_scarlet", "blood_storm", "minecraft:nether_star", "challenge", True, True),
 ]
 TABLE = []
 for race in RACES:
@@ -61,7 +72,10 @@ ICONS = ["root", "gift", "first_choice", "cross", "first_awakening", "mastery", 
          "void_pocket", "void_pocket_big", "void_walls", "void_gravity", "void_arena", "void_passage", "void_horizon", "void_cage",
          "myc_sprout", "myc_roots", "myc_road", "myc_epidemic", "myc_breath", "myc_one", "myc_bloom", "myc_rebirth", "myc_perfect",
          "void_root", "void_gift", "void_first_choice", "void_cross", "void_first_awakening", "void_mastery", "void_double", "void_peak",
-         "myc_root", "myc_gift", "myc_first_choice", "myc_cross", "myc_first_awakening", "myc_mastery", "myc_double", "myc_peak"]
+         "myc_root", "myc_gift", "myc_first_choice", "myc_cross", "myc_first_awakening", "myc_mastery", "myc_double", "myc_peak",
+         "blood_root", "blood_gift", "blood_first_choice", "blood_cross", "blood_first_awakening", "blood_mastery", "blood_double", "blood_peak",
+         "blood_first_bite", "blood_thirst", "blood_dash_three", "blood_harvest_five", "blood_transfusion", "blood_feast", "blood_storm", "blood_swarm",
+         "blood_last_breath", "blood_scarlet"]
 assets = root / "src/main/resources/assets/mages_legacy"
 painted = assets / "textures/item/legacy"
 models = assets / "models/item"
@@ -110,7 +124,7 @@ for aid in OLD:
 
 frames = {"task": "обычное", "goal": "цель", "challenge": "испытание"}
 lines = ["# Достижения Mage's Legacy", "",
-         "У каждой расы своя вкладка в стандартном меню достижений (L): «Путь Пустоты» у Пустотников, «Сердце Колонии» у Мицелидов.",
+         "У каждой расы своя вкладка в стандартном меню достижений (L): «Путь Пустоты» у Пустотников, «Сердце Колонии» у Мицелидов, «Кровавый завет» у Кровников.",
          "Вкладка открывается выбором расы; общий путь развития у каждой расы свой, чужих достижений во вкладке нет.",
          "Все выдаёт сервер за подтверждённое действие (критерий `mages_legacy:deed`); сохраняются и отзываются штатно (`/advancement`).",
          "В тестовом режиме `nocooldown` не выдаётся ничего. Наград, кроме записи и уведомления, нет. В чат сервера пишутся только крупные (★).", "",
