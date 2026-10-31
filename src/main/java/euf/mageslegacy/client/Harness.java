@@ -1267,6 +1267,8 @@ final class Harness {
 		run(() -> mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen()), 20);
 		shot("talents_bloodkin");
 		run(() -> mc.setScreen(null), 5);
+	}
+
 	/** Holds the use key down this long (a real right click held, as a player eats), then lets go. */
 	private static void holdUse(int ticks) {
 		run(() -> Minecraft.getInstance().options.keyUse.setDown(true), ticks);
