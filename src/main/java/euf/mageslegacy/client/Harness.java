@@ -1140,8 +1140,10 @@ final class Harness {
 					hound.getHealth() >= 16 && hound.getHealth() <= 17 && Math.abs(player().getHealth() - 14) < 0.01f && blood() < 36 && blood() > 33);
 			server().execute(hound::discard);
 		}, 0);
-		// Two Awakenings of three: the Prince on Z, the Feast on Alt, the Storm closed
-		run(() -> bloodSetUp("awakening_prince", "awakening_feast"), 5);
+		// Two Awakenings of three: the Prince on Z, the Feast on Alt, the Storm closed (set by the test command)
+		run(Harness::bloodSetUp, 3);
+		run(() -> server().execute(() -> server().getCommands().performPrefixedCommand(server().createCommandSourceStack(),
+				"mages_legacy awaken " + player().getGameProfile().getName() + " prince feast")), 5);
 		run(() -> {
 			var owned = euf.mageslegacy.race.Talents.owned(player());
 			check("the Prince on Z, the Feast on Alt, the Blood Storm closed", euf.mageslegacy.race.Awakenings.at(owned,
@@ -1160,8 +1162,11 @@ final class Harness {
 				}
 			}
 		}), 10);
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON), 3);
 		run(() -> MagesLegacyClient.useAbility(2), 2);
 		run(() -> {
+			check("the Bat Swarm turns the view to third person (" + mc.options.getCameraType() + ")",
+					mc.options.getCameraType() == net.minecraft.client.CameraType.THIRD_PERSON_BACK);
 			check("the Bat Swarm: 30 blood, its own 25 s, the Last Breath still ready (" + blood() + ", " + slotCooldown(2) + ", "
 					+ euf.mageslegacy.bloodkin.Bloodkin.rescueReady(player()) + ")", euf.mageslegacy.bloodkin.Bloodkin.swarming(player()) && blood() > 68
 					&& blood() < 71 && slotCooldown(2) > 480 && slotCooldown(2) <= 500 && euf.mageslegacy.bloodkin.Bloodkin.rescueReady(player()) == 0);
@@ -1173,8 +1178,12 @@ final class Harness {
 				&& euf.mageslegacy.bloodkin.Bloodkin.swarming(player())), 0);
 		run(() -> {
 		}, 40);
-		run(() -> check("the swarm is over after 3 s, the body back, the wall not passed (z=" + String.format("%.1f", player().getZ()) + ")",
-				!euf.mageslegacy.bloodkin.Bloodkin.swarming(player()) && !player().isNoGravity() && player().getZ() < 12), 0);
+		run(() -> {
+			check("the swarm is over after 3 s, the body back, the wall not passed (z=" + String.format("%.1f", player().getZ()) + ")",
+					!euf.mageslegacy.bloodkin.Bloodkin.swarming(player()) && !player().isNoGravity() && player().getZ() < 12);
+			check("the view is back in the eyes (" + mc.options.getCameraType() + ")", mc.options.getCameraType() == net.minecraft.client.CameraType.FIRST_PERSON);
+			mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+		}, 0);
 		// Long Flight: 5 s by hand
 		run(() -> {
 			bloodSetUp("awakening_prince", "awakening_feast", "prince_long");

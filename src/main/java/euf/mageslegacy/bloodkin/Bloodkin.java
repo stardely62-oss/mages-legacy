@@ -1041,6 +1041,8 @@ public final class Bloodkin {
 		ServerLevel level = player.serverLevel();
 		Fx.hide(level, player, ticks + 2);
 		Fx.batSwarm(level, player, ticks, rescue);
+		// The view steps out behind the swarm, so the whole cloud of bats is seen; it comes back with the body
+		Fx.thirdPerson(player, ticks + 10);
 		Fx.fov(player, 0.16f, ticks);
 		level.playSound(null, player.blockPosition(), SoundEvents.BAT_TAKEOFF, SoundSource.PLAYERS, 1.4f, 0.7f);
 		level.playSound(null, player.blockPosition(), SoundEvents.PHANTOM_FLAP, SoundSource.PLAYERS, 1, 0.5f);
@@ -1080,6 +1082,7 @@ public final class Bloodkin {
 		}
 		Swarm swarm = s.swarm;
 		s.swarm = null;
+		Fx.thirdPerson(player, 0);
 		player.setNoGravity(false);
 		player.removeEffect(MobEffects.INVISIBILITY);
 		player.fallDistance = 0;
