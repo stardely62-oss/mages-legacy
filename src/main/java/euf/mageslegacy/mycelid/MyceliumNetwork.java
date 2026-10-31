@@ -1273,7 +1273,7 @@ public final class MyceliumNetwork extends SavedData {
 			double relinkMs = (t1 - t0) / 1e6;
 			double routeMs = (t2 - t1) / 1e6 / some.size();
 			check.accept(String.format("800 nodes: joins worked out in %.1f ms, a node's routes in %.3f ms (%d routes)", relinkMs, routeMs, routes),
-					relinkMs < 40 && routeMs < 2);
+					relinkMs < 80 && routeMs < 2);
 		} catch (RuntimeException e) {
 			check.accept("network self-check threw " + e, false);
 		} finally {

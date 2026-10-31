@@ -1130,7 +1130,8 @@ final class Harness {
 		run(() -> MagesLegacyClient.useAbility(3), 5);
 		run(() -> {
 			check("a Transfusion heals the wolf 6 for 25 blood and 2 health (" + hound.getHealth() + ", " + player().getHealth() + ", " + blood() + ")",
-					Math.abs(hound.getHealth() - 16) < 0.01f && Math.abs(player().getHealth() - 14) < 0.01f && blood() < 36 && blood() > 33);
+					// (16, and the Regeneration it gives heals its first point at once: 17)
+					hound.getHealth() >= 16 && hound.getHealth() <= 17 && Math.abs(player().getHealth() - 14) < 0.01f && blood() < 36 && blood() > 33);
 			server().execute(hound::discard);
 		}, 0);
 		// Two Awakenings of three: the Prince on Z, the Feast on Alt, the Storm closed

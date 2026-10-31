@@ -205,9 +205,12 @@ public final class Bloodkin {
 
 	// ---- Who has blood, who is prey -----------------------------------------------------------------------------
 
-	/** Whether a creature has blood at all: not the undead, golems, slimes, blazes, vexes, shulkers or armour stands. */
+	/**
+	 * Whether a creature has blood at all: not the undead, golems, slimes, blazes, vexes, shulkers or armour stands.
+	 * (Alive or not: a creature just killed still had blood.)
+	 */
 	public static boolean bloodful(Entity e) {
-		return e instanceof LivingEntity living && living.isAlive() && !e.getType().is(EntityTypeTags.UNDEAD) && !(e instanceof AbstractGolem)
+		return e instanceof LivingEntity && !e.getType().is(EntityTypeTags.UNDEAD) && !(e instanceof AbstractGolem)
 				&& !(e instanceof ArmorStand) && !(e instanceof Slime) && !(e instanceof Blaze) && !(e instanceof Vex) && !(e instanceof Shulker);
 	}
 
