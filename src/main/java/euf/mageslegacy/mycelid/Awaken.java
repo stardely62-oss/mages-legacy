@@ -63,6 +63,10 @@ public final class Awaken {
 	private static final int EXHAUST_BLOOM = 10 * 20;
 	private static final int EXHAUST_STORM = 15 * 20;
 	private static final int EXHAUST_REBIRTH = 30 * 20;
+	/** Gentle Awakening: after a rebirth nothing slows the new body for this long. */
+	private static final int SOFT_STEADY = 5 * 20;
+	/** Blinding Storm: a blinded creature can't settle on a target for this long. */
+	private static final int DAZE_TICKS = 20;
 	private static final int CLOSE_TOGETHER = 60 * 20;
 	public static final int REBIRTH_COOLDOWN = 20 * 60 * 20;
 	private static final DustParticleOptions HEAL_DUST = new DustParticleOptions(new Vector3f(0.55f, 1f, 0.75f), 1.3f);
@@ -80,6 +84,9 @@ public final class Awaken {
 	private static final Map<UUID, Long> LAST_AWAKENING = new HashMap<>();
 	/** Since when the Bloom and the storm have both been alive. */
 	private static final Map<UUID, Long> BOTH = new HashMap<>();
+	/** Who can't be slowed until when (Gentle Awakening), and which creatures are dazed until when (Blinding Storm). */
+	private static final Map<UUID, Long> STEADY = new HashMap<>();
+	private static final Map<UUID, Long> DAZED = new HashMap<>();
 
 	private Awaken() {
 	}
@@ -92,6 +99,36 @@ public final class Awaken {
 		// Before the cooldowns are saved on the player (Voidborn's own logout listener)
 		NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, Awaken::onLogout);
 		NeoForge.EVENT_BUS.addListener(Awaken::onChangeWorld);
+		NeoForge.EVENT_BUS.addListener(Awaken::onEffect);
+		NeoForge.EVENT_BUS.addListener(Awaken::onTarget);
+	}
+
+	/** Gentle Awakening: no slowing takes hold of a freshly woken body. */
+	private static void onEffect(net.neoforged.neoforge.event.entity.living.MobEffectEvent.Applicable event) {
+		if (event.getEffectInstance() != null && event.getEffectInstance().getEffect().value() == MobEffects.MOVEMENT_SLOWDOWN.value()
+				&& until(STEADY, event.getEntity())) {
+			event.setResult(net.neoforged.neoforge.event.entity.living.MobEffectEvent.Applicable.Result.DO_NOT_APPLY);
+		}
+	}
+
+	/** Blinding Storm: a dazed creature can't choose a target until it comes round. */
+	private static void onTarget(net.neoforged.neoforge.event.entity.living.LivingChangeTargetEvent event) {
+		if (event.getNewAboutToBeSetTarget() != null && until(DAZED, event.getEntity())) {
+			event.setCanceled(true);
+		}
+	}
+
+	private static boolean until(Map<UUID, Long> map, LivingEntity e) {
+		Long until = map.get(e.getUUID());
+		return until != null && until >= e.level().getGameTime();
+	}
+
+	private static void mark(Map<UUID, Long> map, LivingEntity e, int ticks) {
+		long now = e.level().getGameTime();
+		map.put(e.getUUID(), now + ticks);
+		if (map.size() > 256) {
+			map.values().removeIf(t -> t < now);
+		}
 	}
 
 	/**
@@ -219,9 +256,10 @@ public final class Awaken {
 			return;
 		}
 		double radius = bloomRadius(player, bloom.at());
-		// A point of health a second (Rich Spores: two). Healed directly: Regeneration renewed every second heals at the
-		// same pace whatever its level, so Regeneration II gave nothing more
-		float heal = Talents.has(player, Talent.BLOOM_HEAL) ? 2 : 1;
+		// Allies heal 2 health a second (Rich Spores: 3), the mushroom itself 1. Healed directly, once a second: Regeneration
+		// renewed every second heals at one pace whatever its level
+		float heal = Talents.has(player, Talent.BLOOM_HEAL) ? 3 : 2;
+		player.heal(1);
 		for (LivingEntity ally : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(radius), e -> e != player && e.isAlive()
 				&& e.distanceTo(player) <= radius && Allies.ally(player, e))) {
 			// The Great Bloom (the advancement): healing someone who was hurt
@@ -295,19 +333,32 @@ public final class Awaken {
 					}
 					if (blind) {
 						e.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 25, 0, false, true), player);
+						// Blindness alone means little to a mob: it loses its target, turns about and can't pick a new one for a second
+						if (e instanceof Mob mob) {
+							mob.setTarget(null);
+							mob.getNavigation().stop();
+							mob.setYRot(mob.getYRot() + 90 + e.getRandom().nextFloat() * 180);
+							mob.setYHeadRot(mob.getYRot());
+							mark(DAZED, mob, DAZE_TICKS);
+						}
 					}
 				}
 			} else if (Allies.ally(player, e)) {
 				e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 30, 0, true, true));
-				e.addEffect(new MobEffectInstance(MobEffects.DIG_SPEED, 30, 0, true, true));
+				e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 30, 0, true, true));
 				e.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
 				if (guard) {
 					e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 30, 0, true, true));
 				}
 			}
 		}
-		// The storm's own heart is quickened too
+		// The storm's own heart is quickened and strengthened too (and guarded with Shoulder to Shoulder)
 		player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 30, 0, true, true));
+		player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 30, 0, true, true));
+		player.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
+		if (guard) {
+			player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 30, 0, true, true));
+		}
 	}
 
 	// ---- Mycelial Rebirth -------------------------------------------------------------------------------------
@@ -351,7 +402,13 @@ public final class Awaken {
 		Fx.wake(to, at, false);
 		to.playSound(null, at.x, at.y, at.z, SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 0.8f, 0.6f);
 		to.playSound(null, at.x, at.y, at.z, SoundEvents.FUNGUS_PLACE, SoundSource.PLAYERS, 1.2f, 0.6f);
-		exhaust(player, Talents.has(player, Talent.REBIRTH_SOFT) ? EXHAUST_REBIRTH / 2 : EXHAUST_REBIRTH);
+		// Gentle Awakening: no exhaustion of the rebirth's own at all (another Awakening's stays), and 5 s unslowed
+		if (Talents.has(player, Talent.REBIRTH_SOFT)) {
+			player.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
+			mark(STEADY, player, SOFT_STEADY);
+		} else {
+			exhaust(player, EXHAUST_REBIRTH);
+		}
 		player.displayClientMessage(Component.translatable("mages_legacy.message.reborn").withStyle(ChatFormatting.GREEN), false);
 		euf.mageslegacy.race.Deeds.grant(player, "myc_rebirth");
 		RaceState.sync(player);

@@ -78,6 +78,28 @@ public final class Talents {
 		return Talent.pointsAt(RaceState.level(player)) - spent(owned(player));
 	}
 
+	/**
+	 * Whether a talent's neighbours towards the core allow it: one of them is enough, but the Mycelid's cross talents
+	 * join two directions and need both (talents learnt before this rule are kept).
+	 */
+	public static boolean linked(Talent talent, java.util.function.Predicate<Talent> has) {
+		if (talent.requires().isEmpty()) {
+			return true;
+		}
+		boolean all = needsAll(talent);
+		for (Talent near : talent.requires()) {
+			if (has.test(near) != all) {
+				return !all;
+			}
+		}
+		return all;
+	}
+
+	/** The cross talents that need every listed neighbour (the Mycelid's; the Voidborn's keep one-of). */
+	public static boolean needsAll(Talent talent) {
+		return talent.kind == Talent.Kind.CROSS && talent.race == Race.MYCELID;
+	}
+
 	/** Why a talent can't be learnt now, or null if it can. */
 	public static String refusal(ServerPlayer player, Talent talent) {
 		if (!RaceState.is(player, talent.race) || talent.automatic()) {
@@ -89,11 +111,7 @@ public final class Talents {
 		if (talent.tier() > Progression.openTiers(player)) {
 			return "mages_legacy.talent.state.tier_" + talent.tier();
 		}
-		boolean linked = talent.requires().isEmpty();
-		for (Talent near : talent.requires()) {
-			linked |= has(player, near);
-		}
-		if (!linked) {
+		if (!linked(talent, near -> has(player, near))) {
 			return "mages_legacy.talent.state.needs";
 		}
 		if (talent.kind == Talent.Kind.AWAKENING) {

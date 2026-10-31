@@ -107,11 +107,7 @@ public class TalentScreen extends Screen {
 		if (t.tier() > openTiers()) {
 			return "mages_legacy.talent.state.tier_" + t.tier();
 		}
-		boolean linked = t.requires().isEmpty();
-		for (Talent near : t.requires()) {
-			linked |= owned(near);
-		}
-		if (!linked) {
+		if (!Talents.linked(t, TalentScreen::owned)) {
 			return "mages_legacy.talent.state.needs";
 		}
 		if (t.kind == Talent.Kind.AWAKENING) {
@@ -847,7 +843,7 @@ public class TalentScreen extends Screen {
 		for (Talent near : t.requires()) {
 			names.add(Component.translatable(near.key() + ".name").getString());
 		}
-		return String.join(" / ", names);
+		return String.join(Talents.needsAll(t) ? " + " : " / ", names);
 	}
 
 	private void wrapInto(List<Component> lines, Component text) {

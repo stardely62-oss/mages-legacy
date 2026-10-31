@@ -94,6 +94,10 @@ public final class MyceliumNetwork extends SavedData {
 	/** Fungal Larders: a point of food every 6 s, and never past 16 of 20 (enough to sprint, not to heal by itself). */
 	private static final int FOOD_EVERY = 6 * 20;
 	private static final int FOOD_CAP = 16;
+	/** Glowing Paths: up to 4 food an arrival, never past 16, once a minute for each player (kept on the player). */
+	private static final int GLOW_FOOD = 4;
+	private static final int GLOW_EVERY = 60 * 20;
+	private static final String GLOW_FED = "glow_fed_at";
 	/** Food for the network; a datapack can add to it. */
 	public static final TagKey<net.minecraft.world.item.Item> FUNGAL_FOOD = TagKey.create(Registries.ITEM, MagesLegacy.id("fungal_food"));
 
@@ -478,19 +482,7 @@ public final class MyceliumNetwork extends SavedData {
 	/** Grows a reserve body at the own node the Mycelid stands by; with one already, says how it is. */
 	public static Abilities.Refusal growBody(ServerPlayer player) {
 		MyceliumNetwork net = get(player.server);
-		long now = player.serverLevel().getGameTime();
-		String had = net.bodies.get(player.getUUID());
-		if (had != null && net.nodes.containsKey(had)) {
-			long left = net.bodyReady.getOrDefault(player.getUUID(), 0L) - now;
-			player.displayClientMessage(left > 0 ? Component.translatable("mages_legacy.message.body_growing", net.nodes.get(had).name, left / 20 + 1)
-					: Component.translatable("mages_legacy.message.body_ready", net.nodes.get(had).name), true);
-			return null;
-		}
-		// The Rebirth's 20 minutes run from the moment a body starts growing
-		int slot = euf.mageslegacy.race.Awakenings.slotOf(Talents.owned(player), euf.mageslegacy.race.Ability.MYCELIAL_REBIRTH);
-		int[] cooldown = Voidborn.state(player).cooldown;
-		if (slot >= 0 && cooldown[slot] > 0) {
-			Abilities.refuse(player, Component.translatable("mages_legacy.refuse.body_cooldown", (cooldown[slot] + 20 * 60 - 1) / (20 * 60)));
+		if (net.tellBody(player)) {
 			return null;
 		}
 		Node at = null;
@@ -502,22 +494,76 @@ public final class MyceliumNetwork extends SavedData {
 		if (at == null) {
 			return new Abilities.Refusal("mages_legacy.refuse.body_node");
 		}
-		int cost = Talents.has(player, Talent.REBIRTH_CHEAP) ? BODY_COST / 2 : BODY_COST;
-		if (net.nutrients(player.getUUID()) < cost) {
+		return net.startBody(player, at);
+	}
+
+	/**
+	 * Humble Body: a reserve body started at any own node chosen in the colony's view, wherever the Mycelid is. The
+	 * server checks the node is really theirs; nobody is moved and no far chunk is loaded for it.
+	 */
+	private static void growBodyAt(ServerPlayer player, String key) {
+		MyceliumNetwork net = get(player.server);
+		Node at = net.nodes.get(key);
+		String why = null;
+		if (!Talents.has(player, Talent.REBIRTH_CHEAP)) {
+			why = "mages_legacy.refuse.body_remote";
+		} else if (at == null || !at.owner.equals(player.getUUID())) {
+			why = "mages_legacy.refuse.not_your_node";
+		}
+		if (why != null) {
+			Abilities.refuse(player, Component.translatable(why));
+			return;
+		}
+		if (net.tellBody(player)) {
+			return;
+		}
+		Abilities.Refusal refusal = net.startBody(player, at);
+		if (refusal != null) {
+			Abilities.refuse(player, Component.translatable(refusal.key()));
+		}
+	}
+
+	/** With a body already growing or grown, says how it is (true); one body at a time. */
+	private boolean tellBody(ServerPlayer player) {
+		String had = bodies.get(player.getUUID());
+		if (had == null || !nodes.containsKey(had)) {
+			return false;
+		}
+		long left = bodyReady.getOrDefault(player.getUUID(), 0L) - player.serverLevel().getGameTime();
+		player.displayClientMessage(left > 0 ? Component.translatable("mages_legacy.message.body_growing", nodes.get(had).name, left / 20 + 1)
+				: Component.translatable("mages_legacy.message.body_ready", nodes.get(had).name), true);
+		return true;
+	}
+
+	/** Starts a body at one's own node: its cost, its time, the Rebirth's cooldown from now. */
+	private Abilities.Refusal startBody(ServerPlayer player, Node at) {
+		long now = player.serverLevel().getGameTime();
+		// The Rebirth's 20 minutes run from the moment a body starts growing
+		int slot = euf.mageslegacy.race.Awakenings.slotOf(Talents.owned(player), euf.mageslegacy.race.Ability.MYCELIAL_REBIRTH);
+		int[] cooldown = Voidborn.state(player).cooldown;
+		if (slot >= 0 && cooldown[slot] > 0) {
+			Abilities.refuse(player, Component.translatable("mages_legacy.refuse.body_cooldown", (cooldown[slot] + 20 * 60 - 1) / (20 * 60)));
+			return null;
+		}
+		if (nutrients(player.getUUID()) < BODY_COST) {
 			return new Abilities.Refusal("mages_legacy.refuse.nutrients");
 		}
 		int ticks = Talents.has(player, Talent.REBIRTH_FAST) ? BODY_TICKS / 2 : BODY_TICKS;
-		net.addNutrients(player.getUUID(), -cost);
-		net.bodies.put(player.getUUID(), at.key);
-		net.bodyReady.put(player.getUUID(), now + ticks);
-		net.setDirty();
+		addNutrients(player.getUUID(), -BODY_COST);
+		bodies.put(player.getUUID(), at.key);
+		bodyReady.put(player.getUUID(), now + ticks);
+		setDirty();
 		if (slot >= 0) {
 			Voidborn.state(player).startCooldown(slot, Awaken.REBIRTH_COOLDOWN);
 		}
-		ServerLevel level = player.serverLevel();
-		Fx.body(level, bodySpot(level, at.pos), Vec3.atBottomCenterOf(at.pos), ticks, ticks);
-		level.playSound(null, at.pos, SoundEvents.ROOTED_DIRT_PLACE, SoundSource.BLOCKS, 1f, 0.6f);
+		// Seen where it grows only if that place is loaded now (later the 5-second showing finds it)
+		ServerLevel level = player.server.getLevel(at.dim);
+		if (level != null && level.isLoaded(at.pos)) {
+			Fx.body(level, bodySpot(level, at.pos), Vec3.atBottomCenterOf(at.pos), ticks, ticks);
+			level.playSound(null, at.pos, SoundEvents.ROOTED_DIRT_PLACE, SoundSource.BLOCKS, 1f, 0.6f);
+		}
 		player.displayClientMessage(Component.translatable("mages_legacy.message.body_started", at.name, ticks / 20).withStyle(ChatFormatting.GREEN), true);
+		RaceState.sync(player);
 		return null;
 	}
 
@@ -574,6 +620,16 @@ public final class MyceliumNetwork extends SavedData {
 		return new Waking(level, at);
 	}
 
+	/** For the harness: nutrients for the player's colony. */
+	public static void harnessNutrients(ServerPlayer player, int amount) {
+		get(player.server).addNutrients(player.getUUID(), amount);
+	}
+
+	/** For the harness: the node the player's reserve body grows at, or null. */
+	public static String bodyAt(ServerPlayer player) {
+		return get(player.server).bodies.get(player.getUUID());
+	}
+
 	/** For the harness: the reserve body is grown at once. */
 	public static void ripenBody(ServerPlayer player) {
 		MyceliumNetwork net = get(player.server);
@@ -607,6 +663,9 @@ public final class MyceliumNetwork extends SavedData {
 		tag.putInt("nodes", nodesOf(player.getUUID()).size());
 		tag.putInt("max", mycelid ? maxNodes(player) : 0);
 		tag.putInt("nodeCost", nodesOf(player.getUUID()).isEmpty() ? 0 : mycelid ? nodeCost(player) : NODE_COST);
+		// Humble Body: the colony's view can start the reserve body at any own node
+		tag.putBoolean("remoteBody", mycelid && Talents.has(player, Talent.REBIRTH_CHEAP));
+		tag.putInt("bodyCost", BODY_COST);
 		if (here != null) {
 			tag.putString("here", here.key);
 			tag.putString("name", here.name);
@@ -680,6 +739,10 @@ public final class MyceliumNetwork extends SavedData {
 		Node na = net.nodes.get(a);
 		switch (action) {
 			case "grow" -> grow(player);
+			case "body" -> {
+				growBodyAt(player, a);
+				PacketDistributor.sendToPlayer(player, new NetworkViewPayload(net.view(player, null)));
+			}
 			case "travel" -> net.travel(player, na, net.nodes.get(b));
 			case "link" -> {
 				if (na != null) {
@@ -704,7 +767,7 @@ public final class MyceliumNetwork extends SavedData {
 			}
 		}
 		// The screen shows the result
-		if (na != null && !"travel".equals(action) && player.level().dimension() == na.dim) {
+		if (na != null && !"travel".equals(action) && !"body".equals(action) && player.level().dimension() == na.dim) {
 			openNode(player, player.serverLevel(), na.pos);
 		} else if ("grow".equals(action)) {
 			PacketDistributor.sendToPlayer(player, new NetworkViewPayload(net.view(player, null)));
@@ -947,9 +1010,9 @@ public final class MyceliumNetwork extends SavedData {
 		if (grower != null) {
 			Talents.addProgress(grower, Mycelid.JOURNEYS, 1);
 		}
-		// Glowing Paths: the network feeds whoever it carries
+		// Glowing Paths: the network feeds whoever it carries (the journey itself is never limited, only the free meal)
 		if (growerHas(j.grower(), Talent.NET_GLOW)) {
-			player.getFoodData().eat(4, 0.4f);
+			glowFeed(player);
 		}
 		// Spore Trail: a Mycelid who travels comes out in a cloud of neurospores
 		if (Talents.has(player, Talent.SPORE_TRAVEL)) {
@@ -958,10 +1021,26 @@ public final class MyceliumNetwork extends SavedData {
 		RaceState.sync(player);
 	}
 
+	/** Glowing Paths' meal: once a minute a player, up to 16 food, whichever nodes carried them (public for the harness). */
+	public static void glowFeed(ServerPlayer player) {
+		CompoundTag progress = player.getData(RaceState.PROGRESS);
+		long now = player.serverLevel().getGameTime();
+		long last = progress.getLong(GLOW_FED);
+		int food = player.getFoodData().getFoodLevel();
+		if (last > 0 && now - last < GLOW_EVERY && now >= last || food >= FOOD_CAP) {
+			return;
+		}
+		player.getFoodData().eat(Math.min(GLOW_FOOD, FOOD_CAP - food), 0.4f);
+		CompoundTag tag = progress.copy();
+		tag.putLong(GLOW_FED, now);
+		player.setData(RaceState.PROGRESS, tag);
+	}
+
 	/** Every two seconds the nodes of growers who are online act on what is around them (their talents). */
 	private void pulse(MinecraftServer server) {
 		boolean feeding = server.getTickCount() % FOOD_EVERY == 0;
 		Set<UUID> fed = new HashSet<>();
+		Set<UUID> healed = new HashSet<>();
 		for (Node n : nodes.values()) {
 			ServerLevel level = server.getLevel(n.dim);
 			if (level == null || !level.isLoaded(n.pos)) {
@@ -989,10 +1068,12 @@ public final class MyceliumNetwork extends SavedData {
 			boolean food = feeding && Talents.has(grower, Talent.NODE_FOOD);
 			if (heal || food) {
 				for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, new AABB(c, c).inflate(8),
-						p -> p.isAlive() && !p.isSpectator() && Allies.ally(grower, p))) {
-					// Healing Nodes: Regeneration I, renewed every pulse (a point of health every 2 s), while no blow lands
-					if (heal && !Voidborn.hurtRecently(p, HEAL_CALM)) {
-						p.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 50, 0, true, true));
+						p -> p.isAlive() && !p.isSpectator() && p.distanceToSqr(c) <= 64 && Allies.ally(grower, p))) {
+					// Healing Nodes: a point of health every 2 s (Regeneration I's pace), healed directly: so it stops the moment a
+					// blow lands (5 s), no Regeneration from a potion is touched, and many nodes near heal no faster than one
+					if (heal && !Voidborn.hurtRecently(p, HEAL_CALM) && p.getHealth() < p.getMaxHealth() && healed.add(p.getUUID())) {
+						p.heal(1);
+						level.sendParticles(ParticleTypes.HAPPY_VILLAGER, p.getX(), p.getY() + 1.2, p.getZ(), 2, 0.25, 0.3, 0.25, 0);
 					}
 					// Fungal Larders: once per round however many nodes are near
 					if (food && p.distanceToSqr(c) <= 36 && p.getFoodData().getFoodLevel() < FOOD_CAP && fed.add(p.getUUID())) {

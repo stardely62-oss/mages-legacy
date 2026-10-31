@@ -492,8 +492,184 @@ final class Harness {
 			server().execute(() -> euf.mageslegacy.race.Talents.setNoCooldown(player, false));
 		}, 5);
 		mycelidMastery();
+		balance(y);
 		advancements();
 		run(() -> server().execute(() -> player().kill()), 20);
+	}
+
+	/** Talents, the testing mode off, cooldowns clear, Spores full, food low (no natural healing to blur the counts). */
+	private static void fresh(String... talents) {
+		server().execute(() -> {
+			ServerPlayer player = player();
+			euf.mageslegacy.race.Talents.setNoCooldown(player, false);
+			player.setData(RaceState.TALENTS, new ArrayList<>(List.of(talents)));
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player).cooldown, 0);
+			euf.mageslegacy.mycelid.Awaken.reset(player);
+			RaceState.setResource(player, RaceState.MAX_RESOURCE);
+			player.getFoodData().setFoodLevel(10);
+			player.getFoodData().setSaturation(0);
+		});
+	}
+
+	private static net.minecraft.world.entity.animal.Wolf patient;
+
+	/**
+	 * The Mycelid's balance patch at work: the Bloom's healing (allies 2, Rich Spores 3, itself 1), the storm's Strength,
+	 * Spores under the sun, the symbiosis' reflex and shared recovery, Healing Nodes resting after a blow, Glowing Paths'
+	 * meal, cross talents needing both sides, Humble Body from afar and Gentle Awakening.
+	 */
+	private static void balance(int[] y) {
+		float[] at = new float[4];
+		// A wounded tamed wolf beside the Mycelid
+		run(() -> {
+			fresh("awakening_bloom", "awakening_storm");
+			server().execute(() -> {
+				ServerPlayer player = player();
+				player.connection.teleport(40.5, y[0], 43.5, 0, 0);
+				patient = EntityType.WOLF.create(player.serverLevel());
+				patient.moveTo(42.5, y[0], 43.5, 0, 0);
+				patient.tame(player);
+				patient.setOrderedToSit(true);
+				player.serverLevel().addFreshEntity(patient);
+			});
+		}, 10);
+		for (boolean rich : new boolean[] {false, true}) {
+			run(() -> {
+				if (rich) {
+					fresh("awakening_bloom", "awakening_storm", "bloom_heal");
+				}
+				server().execute(() -> {
+					patient.setHealth(2);
+					player().setHealth(4);
+				});
+			}, 5);
+			run(() -> MagesLegacyClient.useAbility(2), 1);
+			run(() -> {
+				at[0] = patient.getHealth();
+				at[1] = player().getHealth();
+			}, 60);
+			run(() -> {
+				float ally = patient.getHealth() - at[0];
+				float self = player().getHealth() - at[1];
+				check("the Bloom heals allies " + (rich ? 3 : 2) + " a second, itself 1 (3 s: +" + ally + ", +" + self + ")",
+						ally >= (rich ? 7 : 5) && ally <= (rich ? 10 : 7) && self >= 2 && self <= 4 && patient.getHealth() <= patient.getMaxHealth());
+			}, 0);
+			run(() -> MagesLegacyClient.useAbility(2), 10);
+		}
+		// The storm: Speed and Strength for the Mycelid and its pet, no Haste; Shoulder to Shoulder adds Resistance
+		run(() -> fresh("awakening_bloom", "awakening_storm", "storm_ally"), 5);
+		run(() -> MagesLegacyClient.useAbility(4), 15);
+		run(() -> {
+			ServerPlayer player = player();
+			check("the storm gives Speed I and Strength I, not Haste (" + player.hasEffect(net.minecraft.world.effect.MobEffects.DAMAGE_BOOST) + ")",
+					player.hasEffect(net.minecraft.world.effect.MobEffects.DAMAGE_BOOST) && player.hasEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED)
+							&& player.hasEffect(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE)
+							&& patient.hasEffect(net.minecraft.world.effect.MobEffects.DAMAGE_BOOST)
+							&& !patient.hasEffect(net.minecraft.world.effect.MobEffects.DIG_SPEED));
+		}, 0);
+		// Spores under the day sun: half a second, a whole one with a Dense Shell
+		for (boolean shell : new boolean[] {false, true}) {
+			run(() -> {
+				fresh(shell ? new String[] {"awakening_bloom", "sym_env"} : new String[] {"awakening_bloom"});
+				server().execute(() -> RaceState.setResource(player(), 10));
+			}, 5);
+			run(() -> at[2] = RaceState.resource(player()), 100);
+			run(() -> {
+				float got = RaceState.resource(player()) - at[2];
+				boolean sun = euf.mageslegacy.mycelid.Mycelid.inSunlight(player());
+				check("under the sun " + (shell ? "with a Dense Shell " : "") + "5 s give " + got + " Spores", sun && (shell ? got > 4.4 && got < 5.6
+						: got > 2.2 && got < 2.8));
+			}, 0);
+		}
+		// Neurosymbiosis: the first blow 30% softer, 6 health back when the bond ends
+		run(() -> {
+			fresh("sym_reflex", "sym_share");
+			server().execute(() -> player().setHealth(20));
+		}, 5);
+		run(() -> MagesLegacyClient.useAbility(1), 5);
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			player.invulnerableTime = 0;
+			player.hurt(player.damageSources().generic(), 10);
+		}), 3);
+		run(() -> at[3] = player().getHealth(), 0);
+		run(() -> check("Protective Reflex: 10 damage becomes 7 (" + (20 - at[3]) + ")", Math.abs(20 - at[3] - 7) < 0.01), 180);
+		run(() -> check("Shared Recovery: 6 health once the bond ends (" + at[3] + " -> " + player().getHealth() + ")",
+				Math.abs(player().getHealth() - at[3] - 6) < 0.01), 0);
+		// Healing Nodes: by the Mother Mycelium, mending a point every 2 s, and resting 5 s after a blow
+		run(() -> {
+			fresh("heal_nodes");
+			server().execute(() -> {
+				player().connection.teleport(41.5, y[0], 41.5, 0, 0);
+				player().setHealth(10);
+			});
+		}, 5);
+		run(() -> at[0] = player().getHealth(), 90);
+		run(() -> {
+			check("Healing Nodes mend (" + at[0] + " -> " + player().getHealth() + ")", player().getHealth() - at[0] >= 1 && player().getHealth() - at[0] <= 3);
+			server().execute(() -> {
+				player().invulnerableTime = 0;
+				player().hurt(player().damageSources().generic(), 1);
+			});
+		}, 3);
+		run(() -> at[0] = player().getHealth(), 80);
+		run(() -> check("...but not within 5 s of a blow (" + at[0] + " -> " + player().getHealth() + ")", player().getHealth() <= at[0]), 0);
+		// Glowing Paths: up to 4, never past 16, once a minute
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			player.getFoodData().setFoodLevel(10);
+			euf.mageslegacy.mycelid.MyceliumNetwork.glowFeed(player);
+			int first = player.getFoodData().getFoodLevel();
+			euf.mageslegacy.mycelid.MyceliumNetwork.glowFeed(player);
+			int again = player.getFoodData().getFoodLevel();
+			var tag = player.getData(RaceState.PROGRESS).copy();
+			tag.remove("glow_fed_at");
+			player.setData(RaceState.PROGRESS, tag);
+			player.getFoodData().setFoodLevel(15);
+			euf.mageslegacy.mycelid.MyceliumNetwork.glowFeed(player);
+			int capped = player.getFoodData().getFoodLevel();
+			check("Glowing Paths: 10 -> " + first + ", again within a minute " + again + ", from 15 up to " + capped, first == 14 && again == 14
+					&& capped == 16);
+		}), 3);
+		// Cross talents: the Mycelid's need both sides, the Voidborn's keep one
+		run(() -> {
+			var spores = euf.mageslegacy.race.Talent.SPORE_NODES;
+			var reach = euf.mageslegacy.race.Talent.NET_REACH;
+			var quick = euf.mageslegacy.race.Talent.SPORE_QUICK;
+			check("a Mycelid cross talent needs both neighbours, the Voidborn's one", !euf.mageslegacy.race.Talents.linked(spores, t -> t == reach)
+					&& euf.mageslegacy.race.Talents.linked(spores, t -> t == reach || t == quick)
+					&& euf.mageslegacy.race.Talents.linked(euf.mageslegacy.race.Talent.STEP_DOOR, t -> t == euf.mageslegacy.race.Talent.STEP_QUICK));
+		}, 0);
+		// Humble Body: from 50 blocks away, the body starts at the Mother Mycelium; a node not one's own is refused
+		run(() -> {
+			fresh("awakening_rebirth", "rebirth_cheap", "rebirth_soft");
+			server().execute(() -> {
+				ServerPlayer player = player();
+				euf.mageslegacy.mycelid.MyceliumNetwork.harnessNutrients(player, 200);
+				player.connection.teleport(90.5, y[0], 90.5, 0, 0);
+				euf.mageslegacy.mycelid.MyceliumNetwork.act(player, "body", "minecraft:overworld@1,2,3", "");
+			});
+		}, 5);
+		run(() -> server().execute(() -> euf.mageslegacy.mycelid.MyceliumNetwork.act(player(), "body",
+				euf.mageslegacy.mycelid.MyceliumNetwork.key(net.minecraft.world.level.Level.OVERWORLD, new net.minecraft.core.BlockPos(40, y[0], 40)), "")), 5);
+		run(() -> {
+			String body = euf.mageslegacy.mycelid.MyceliumNetwork.bodyAt(player());
+			check("Humble Body: grown from afar at one's own node (" + body + ")", body != null && body.endsWith("@40," + y[0] + ",40")
+					&& player().distanceToSqr(90.5, y[0], 90.5) < 4);
+			server().execute(() -> {
+				euf.mageslegacy.mycelid.MyceliumNetwork.ripenBody(player());
+				player().hurt(player().damageSources().fellOutOfWorld(), 1000);
+			});
+		}, 10);
+		run(() -> server().execute(() -> player().addEffect(new net.minecraft.world.effect.MobEffectInstance(
+				net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 100, 1))), 3);
+		run(() -> {
+			ServerPlayer player = player();
+			check("Gentle Awakening: reborn with no exhaustion of the rebirth and unslowed (" + euf.mageslegacy.mycelid.Awaken.exhausted(player) + ")",
+					player.isAlive() && Math.abs(player.getX() - 40.5) < 3 && !euf.mageslegacy.mycelid.Awaken.exhausted(player)
+							&& !player.hasEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN));
+			patient.discard();
+		}, 0);
 	}
 
 	/** A second Awakening's node clicked at level 45: the trial starts here, nobody is taken anywhere. */

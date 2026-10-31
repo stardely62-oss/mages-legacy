@@ -158,12 +158,12 @@ public final class Mycelid {
 		if (!(event.getEntity() instanceof ServerPlayer player) || !RaceState.is(player, Race.MYCELID)) {
 			return;
 		}
-		// Spores gather by themselves, not under the open sun (half as fast with a Dense Shell); faster at night or
-		// underground with Night Growth
+		// Spores gather by themselves: half as fast under the open sun (at the full pace with a Dense Shell); faster at
+		// night or underground with Night Growth
 		float regen = REGEN;
 		boolean sun = inSunlight(player);
 		if (sun) {
-			regen = Talents.has(player, Talent.SYM_ENV) ? regen / 2 : 0;
+			regen = Talents.has(player, Talent.SYM_ENV) ? regen : regen / 2;
 		} else if (Talents.has(player, Talent.SYM_NIGHT) && (!player.level().isDay() || !player.level().canSeeSky(player.blockPosition().above()))) {
 			regen *= 1.5f;
 		}
@@ -186,7 +186,7 @@ public final class Mycelid {
 			ServerPlayer caster = target.level().getServer().getPlayerList().getPlayer(bond.caster);
 			if (caster != null && Talents.has(caster, Talent.SYM_REFLEX)) {
 				bond.reflexUsed = true;
-				event.setAmount(event.getAmount() * 0.6f);
+				event.setAmount(event.getAmount() * 0.7f);
 			}
 		}
 		// Symbiotic Spores: the blows of those sharing it infect
@@ -343,7 +343,11 @@ public final class Mycelid {
 	}
 
 	private static void bond(ServerPlayer caster, LivingEntity e, long until) {
-		BONDS.put(e.getUUID(), new Bond(caster.getUUID(), until));
+		// A bond renewed while it still holds keeps its Protective Reflex spent: one softened blow per bond, not per recast
+		Bond had = BONDS.get(e.getUUID());
+		Bond bond = new Bond(caster.getUUID(), until);
+		bond.reflexUsed = had != null && had.caster.equals(caster.getUUID()) && had.reflexUsed && had.until >= e.level().getGameTime();
+		BONDS.put(e.getUUID(), bond);
 		double speed = Talents.has(caster, Talent.SYM_PULSE) ? 0.30 : 0.20;
 		modify(e.getAttribute(Attributes.MOVEMENT_SPEED), SPEED, speed);
 		modify(e.getAttribute(Attributes.ATTACK_SPEED), ATTACK, 0.15);
@@ -501,7 +505,7 @@ public final class Mycelid {
 				// Shared Recovery: the bond ends with a little health back
 				ServerPlayer caster = server.getPlayerList().getPlayer(entry.getValue().caster);
 				if (e.isAlive() && caster != null && Talents.has(caster, Talent.SYM_SHARE)) {
-					e.heal(4);
+					e.heal(6);
 				}
 				it.remove();
 			}

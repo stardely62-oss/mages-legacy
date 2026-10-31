@@ -42,6 +42,11 @@ public class MyceliumScreen extends Screen {
 		return LegacyUi.argb(Race.MYCELID.color);
 	}
 
+	/** Humble Body: in the colony's view a click on an own node starts the reserve body there (when there is none). */
+	private boolean bodyPick() {
+		return !atNode() && view.getBoolean("remoteBody") && !view.contains("body");
+	}
+
 	private int panelW() {
 		return Math.min(220, (width - 40) / 2);
 	}
@@ -97,6 +102,8 @@ public class MyceliumScreen extends Screen {
 						? Component.translatable("mages_legacy.network.body_growing", view.getString("body"), view.getInt("bodySecs"))
 						: Component.translatable("mages_legacy.network.body_ready", view.getString("body"));
 				graphics.drawString(font, body, 10, 22, LegacyUi.GOLD);
+			} else if (bodyPick()) {
+				graphics.drawString(font, Component.translatable("mages_legacy.network.body_pick", view.getInt("bodyCost")), 10, 22, LegacyUi.GOLD);
 			}
 		}
 		if (atNode()) {
@@ -151,7 +158,7 @@ public class MyceliumScreen extends Screen {
 			CompoundTag d = own.get(scrollOwn + i);
 			int y = y0 + 13 + i * ROW;
 			String state = d.getString("state");
-			boolean linkable = atNode() && "none".equals(state);
+			boolean linkable = atNode() && "none".equals(state) || bodyPick();
 			boolean hot = linkable && mouseX >= x0 && mouseX < x0 + w && mouseY >= y && mouseY < y + ROW - 2;
 			LegacyUi.button(graphics, x0, y, w, ROW - 2, linkable, hot, false, green());
 			String name = (d.getBoolean("mother") ? "❀ " : "") + d.getString("name");
@@ -184,7 +191,21 @@ public class MyceliumScreen extends Screen {
 		if (super.mouseClicked(mouseX, mouseY, button)) {
 			return true;
 		}
-		if (button != 0 || !atNode()) {
+		if (button != 0) {
+			return false;
+		}
+		// Humble Body: an own node in the colony's list
+		if (bodyPick()) {
+			int x0 = width / 2 - 150;
+			List<CompoundTag> own = list("own");
+			int j = (int) Math.floor((mouseY - 59) / ROW);
+			if (mouseX >= x0 && mouseX < x0 + 300 && mouseY >= 59 && j >= 0 && scrollOwn + j < own.size()) {
+				send("body", own.get(scrollOwn + j).getString("key"), "");
+				return true;
+			}
+			return false;
+		}
+		if (!atNode()) {
 			return false;
 		}
 		// A destination: set out
