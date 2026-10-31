@@ -103,13 +103,13 @@ public final class BloodFx {
 	/** The Dash's way: a wake of mist along it and drops shaken off. */
 	private static void trail(Vec3 from, Vec3 to) {
 		Vec3 along = to.subtract(from);
-		int n = (int) Math.max(4, along.length() * 3);
+		// A dense wake, body-high, that lingers a second and a half: mist thickest along the middle, drops flung off it
+		int n = (int) Math.max(8, along.length() * 7);
+		Vec3 dir = along.lengthSqr() > 1.0E-6 ? along.normalize() : Vec3.ZERO;
 		for (int i = 0; i <= n; i++) {
-			Vec3 p = from.add(along.scale(i / (double) n)).add(r(-0.25, 0.25), r(0.3, 1.5), r(-0.25, 0.25));
-			add(mist(p, along.normalize().scale(0.02), (int) r(18, 34), r(0.3, 0.55)));
-			if (i % 2 == 0) {
-				add(drop(p, new Vec3(r(-0.05, 0.05), r(0.02, 0.1), r(-0.05, 0.05)), (int) r(14, 24), r(0.07, 0.13)));
-			}
+			Vec3 p = from.add(along.scale(i / (double) n)).add(r(-0.2, 0.2), r(0.2, 1.7), r(-0.2, 0.2));
+			add(mist(p, dir.scale(0.03), (int) r(24, 40), r(0.45, 0.8)));
+			add(drop(p, dir.scale(r(0.05, 0.15)).add(r(-0.06, 0.06), r(0.03, 0.12), r(-0.06, 0.06)), (int) r(16, 28), r(0.09, 0.16)));
 		}
 	}
 
@@ -243,7 +243,7 @@ public final class BloodFx {
 				return false;
 			}
 			Vec3 c = heart.position();
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < 10; i++) {
 				double a = r(0, Math.PI * 2);
 				double d = r(1.5, radius);
 				VoidRender.Particle p = i % 3 == 0 ? mist(c.add(Math.cos(a) * d, r(0.2, 1.4), Math.sin(a) * d), Vec3.ZERO, 26, r(0.4, 0.7))

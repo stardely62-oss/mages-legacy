@@ -1091,8 +1091,10 @@ final class Harness {
 			RaceState.setResource(player, 100);
 			player.setHealth(10);
 		}), 3);
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT), 2);
 		run(() -> MagesLegacyClient.useAbility(1), 1);
 		film("blood_harvest", 6, 3);
+		run(() -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK), 0);
 		run(() -> {
 			check("the Harvest draws 4 from each, heals 2 from each, drinks 5 from each (" + prey[0].getHealth() + ", hp " + player().getHealth() + ", blood "
 					+ blood() + ")", Math.abs(prey[0].getHealth() - (prey[0].getMaxHealth() - 10)) < 0.01f && Math.abs(player().getHealth() - 16) < 0.6f
