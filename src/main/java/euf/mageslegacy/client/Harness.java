@@ -1625,7 +1625,8 @@ final class Harness {
 		}, 5);
 
 		// ---- Voidborn: Spatial Grasp and Kinship with the End ----
-		net.minecraft.core.BlockPos chest = new net.minecraft.core.BlockPos(120, y[0], 125);
+		// The ground's height is only known once the scenario runs: the chest's place is worked out then, never now
+		java.util.function.Supplier<net.minecraft.core.BlockPos> chestAt = () -> new net.minecraft.core.BlockPos(120, y[0], 125);
 		// From the eyes 4.7 blocks to the chest's front: past vanilla's 4.5, inside the Voidborn's 5.5
 		float pitch = (float) Math.toDegrees(Math.atan2(1.12, 4.5625));
 		for (Race race : new Race[] {Race.VOIDBORN, Race.MYCELID}) {
@@ -1641,7 +1642,7 @@ final class Harness {
 							level.setBlockAndUpdate(new net.minecraft.core.BlockPos(120, y[0] + dy, z), Blocks.AIR.defaultBlockState());
 						}
 					}
-					level.setBlockAndUpdate(chest, Blocks.CHEST.defaultBlockState());
+					level.setBlockAndUpdate(chestAt.get(), Blocks.CHEST.defaultBlockState());
 				});
 			}, 20);
 			run(() -> {
@@ -1660,15 +1661,12 @@ final class Harness {
 						&& player().containerMenu != player().inventoryMenu;
 				check(race.id() + (voidborn ? " opens" : " can't reach") + " a chest 4.7 blocks off (aimed at "
 						+ (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult b && mc.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.MISS
-								? b.getBlockPos().toShortString() : "nothing") + ", client sees " + mc.level.getBlockState(chest) + ", eyes "
-						+ mc.player.getEyePosition() + " pitch " + mc.player.getXRot() + ", screen " + mc.screen + ", camera " + mc.getCameraEntity()
-						+ ", own pick " + describe(mc.player.pick(5.5, 1, false)) + ", same level " + (mc.player.level() == mc.level) + ", the player's level sees "
-						+ mc.player.level().getBlockState(chest) + ", shape " + mc.level.getBlockState(chest).getShape(mc.level, chest) + ")", open == voidborn);
+								? b.getBlockPos().toShortString() : "nothing") + ", own pick " + describe(mc.player.pick(5.5, 1, false)) + ")", open == voidborn);
 				mc.setScreen(null);
 			}, 5);
 			// The server alone: a use on the chest's front face, 4.7 blocks from the eyes (as a client with the reach sends it)
 			run(() -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND, new net.minecraft.world.phys.BlockHitResult(
-					new Vec3(120.5, y[0] + 0.5, 125.0625), net.minecraft.core.Direction.NORTH, chest, false)), 8);
+					new Vec3(120.5, y[0] + 0.5, 125.0625), net.minecraft.core.Direction.NORTH, chestAt.get(), false)), 8);
 			run(() -> {
 				boolean open = player().containerMenu != player().inventoryMenu;
 				check(race.id() + ": the server " + (voidborn ? "lets" : "refuses") + " a chest opened 4.7 blocks off", open == voidborn);
