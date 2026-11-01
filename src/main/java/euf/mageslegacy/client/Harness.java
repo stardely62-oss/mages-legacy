@@ -1664,12 +1664,17 @@ final class Harness {
 								? b.getBlockPos().toShortString() : "nothing") + ", own pick " + describe(mc.player.pick(5.5, 1, false)) + ")", open == voidborn);
 				mc.setScreen(null);
 			}, 5);
-			// The server alone: a use on the chest's front face, 4.7 blocks from the eyes (as a client with the reach sends it)
+			// The server alone: a use on the chest's front face, 4.7 blocks from the eyes (as a client with the reach sends it).
+			// Only for the Voidborn: vanilla's server allows everyone a block more than the reach for lag, so a raw packet
+			// from 4.7 passes for anyone; what keeps the others out is their own aim, checked above.
+			if (!voidborn) {
+				continue;
+			}
 			run(() -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND, new net.minecraft.world.phys.BlockHitResult(
 					new Vec3(120.5, y[0] + 0.5, 125.0625), net.minecraft.core.Direction.NORTH, chestAt.get(), false)), 8);
 			run(() -> {
 				boolean open = player().containerMenu != player().inventoryMenu;
-				check(race.id() + ": the server " + (voidborn ? "lets" : "refuses") + " a chest opened 4.7 blocks off", open == voidborn);
+				check("voidborn: the server lets a chest opened 4.7 blocks off", open);
 				mc.setScreen(null);
 			}, 5);
 		}
