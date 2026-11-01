@@ -790,7 +790,11 @@ public class TalentScreen extends Screen {
 				return box;
 			}
 		}
-		return null;
+		// No room around: a small ribbon across the seal's lower rim, which only ever covers the node itself
+		float small = 0.5f;
+		int rw = Math.round(font.width(text) * small);
+		int rh = Math.round(8 * small);
+		return new int[] {cxn - rw / 2 - 1, cyn + s / 2 - rh / 2 - 2, cxn - rw / 2 + rw + 1, cyn + s / 2 + rh / 2, 50, 1};
 	}
 
 	private int[] rect(Talent t) {
@@ -825,6 +829,11 @@ public class TalentScreen extends Screen {
 		int[] caption = innateCaption(t);
 		if (caption != null) {
 			float scale = caption[4] / 100f;
+			if (caption.length > 5) {
+				// The ribbon: a dark plate edged in the race's colour under the word
+				graphics.fill(caption[0] - 1, caption[1], caption[2] + 1, caption[3] + 1, LegacyUi.alpha(color, 0.9f));
+				graphics.fill(caption[0], caption[1] + 1, caption[2], caption[3], 0xF0120E16);
+			}
 			graphics.pose().pushPose();
 			graphics.pose().translate(caption[0] + 1, caption[1] + 1, 0);
 			graphics.pose().scale(scale, scale, 1);
@@ -876,7 +885,7 @@ public class TalentScreen extends Screen {
 			}
 		}
 		int[] caption = screen.innateCaption(innate);
-		if (caption != null && (caption[1] < TOP || caption[3] > h - BOTTOM + 8)) {
+		if (caption != null && caption.length == 5 && (caption[1] < TOP || caption[3] > h - BOTTOM + 8)) {
 			clashes.add("caption off the web");
 		}
 		return clashes;

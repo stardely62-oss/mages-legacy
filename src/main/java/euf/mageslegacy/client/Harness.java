@@ -1572,6 +1572,12 @@ final class Harness {
 			// The tree, the node's tooltip as hovered, then a click on it opens the traits book
 			run(() -> {
 				mc.getToasts().clear();
+				// The mouse off in a corner: the tree as it stands, no tooltip
+				org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().getWindow(), 2, 2);
+				mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen());
+			}, 20);
+			shot("innate_" + t.race.id() + "_tree");
+			run(() -> {
 				euf.mageslegacy.client.screen.TalentScreen.harnessHover = t;
 				mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen());
 			}, 20);
