@@ -1508,6 +1508,10 @@ final class Harness {
 		});
 	}
 
+	private static String describe(net.minecraft.world.phys.HitResult hit) {
+		return hit.getType() + "@" + hit.getLocation();
+	}
+
 	private static boolean near(double a, double b) {
 		return Math.abs(a - b) < 0.01;
 	}
@@ -1657,7 +1661,8 @@ final class Harness {
 				check(race.id() + (voidborn ? " opens" : " can't reach") + " a chest 4.7 blocks off (aimed at "
 						+ (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult b && mc.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.MISS
 								? b.getBlockPos().toShortString() : "nothing") + ", client sees " + mc.level.getBlockState(chest) + ", eyes "
-						+ mc.player.getEyePosition() + " pitch " + mc.player.getXRot() + ", screen " + mc.screen + ")", open == voidborn);
+						+ mc.player.getEyePosition() + " pitch " + mc.player.getXRot() + ", screen " + mc.screen + ", camera " + mc.getCameraEntity()
+						+ ", own pick " + describe(mc.player.pick(5.5, 1, false)) + ")", open == voidborn);
 				mc.setScreen(null);
 			}, 5);
 		}
