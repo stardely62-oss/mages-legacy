@@ -1515,7 +1515,7 @@ final class Harness {
 	/**
 	 * The innate traits: one node a race, free and open from level 1, never learnt, kept through a reset, no points
 	 * spent; the node drawn (and clicked) in each tree, clear of the rest at many window sizes and zooms; the Voidborn's
-	 * reach (a real click on a lever 5 blocks off, which a Mycelid can't reach; attacks unchanged; gone again on a new
+	 * reach (a real click on a chest 4.7 blocks off, which a Mycelid can't reach; attacks unchanged; gone again on a new
 	 * race; one modifier, never saved), their own pearl hurting half, a fall the same; the Bloodkin's sense of the
 	 * wounded (the nearest bleeding creature with blood, not the undead, not a whole one, no glow) and raw meat.
 	 */
@@ -1621,26 +1621,25 @@ final class Harness {
 		}, 5);
 
 		// ---- Voidborn: Spatial Grasp and Kinship with the End ----
-		net.minecraft.core.BlockPos lever = new net.minecraft.core.BlockPos(120, y[0], 125);
-		// From the eyes 5.2 blocks to the lever on the floor ahead: past vanilla's 4.5, inside 5.5
-		float pitch = (float) Math.toDegrees(Math.atan2(1.42, 5.0));
+		net.minecraft.core.BlockPos chest = new net.minecraft.core.BlockPos(120, y[0], 125);
+		// From the eyes 4.7 blocks to the chest's front: past vanilla's 4.5, inside the Voidborn's 5.5
+		float pitch = (float) Math.toDegrees(Math.atan2(1.12, 4.5625));
 		for (Race race : new Race[] {Race.VOIDBORN, Race.MYCELID}) {
 			boolean voidborn = race == Race.VOIDBORN;
 			run(() -> {
 				fresh(race, 120.5, y[0], 120.5, 0, pitch);
 				server().execute(() -> {
 					ServerLevel level = player().serverLevel();
-					// A clear floor of stone from the feet to the lever, nothing in the air between
+					// A clear floor of stone from the feet to the chest, nothing in the air between
 					for (int z = 119; z <= 126; z++) {
 						level.setBlockAndUpdate(new net.minecraft.core.BlockPos(120, y[0] - 1, z), Blocks.STONE.defaultBlockState());
 						for (int dy = 0; dy < 3; dy++) {
 							level.setBlockAndUpdate(new net.minecraft.core.BlockPos(120, y[0] + dy, z), Blocks.AIR.defaultBlockState());
 						}
 					}
-					level.setBlockAndUpdate(lever, Blocks.LEVER.defaultBlockState()
-							.setValue(net.minecraft.world.level.block.LeverBlock.FACE, net.minecraft.world.level.block.state.properties.AttachFace.FLOOR));
+					level.setBlockAndUpdate(chest, Blocks.CHEST.defaultBlockState());
 				});
-			}, 10);
+			}, 20);
 			run(() -> {
 				ServerPlayer player = player();
 				double server = player.blockInteractionRange();
@@ -1651,16 +1650,16 @@ final class Harness {
 						&& near(mc.player.entityInteractionRange(), 3));
 			}, 0);
 			shot("innate_reach_" + race.id());
-			run(() -> net.minecraft.client.KeyMapping.click(mc.options.keyUse.getKey()), 6);
+			run(() -> net.minecraft.client.KeyMapping.click(mc.options.keyUse.getKey()), 8);
 			run(() -> {
-				var state = player().level().getBlockState(lever);
-				boolean on = state.hasProperty(net.minecraft.world.level.block.LeverBlock.POWERED)
-						&& state.getValue(net.minecraft.world.level.block.LeverBlock.POWERED);
-				check(race.id() + (voidborn ? " pulls" : " can't reach") + " a lever 5.2 blocks off (aimed at "
+				boolean open = mc.screen instanceof net.minecraft.client.gui.screens.inventory.ContainerScreen
+						&& player().containerMenu != player().inventoryMenu;
+				check(race.id() + (voidborn ? " opens" : " can't reach") + " a chest 4.7 blocks off (aimed at "
 						+ (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult b && mc.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.MISS
-								? b.getBlockPos().toShortString() : "nothing") + ", " + state + ", eyes " + mc.player.getEyePosition() + " pitch " + mc.player.getXRot()
-						+ ")", on == voidborn);
-			}, 0);
+								? b.getBlockPos().toShortString() : "nothing") + ", client sees " + mc.level.getBlockState(chest) + ", eyes "
+						+ mc.player.getEyePosition() + " pitch " + mc.player.getXRot() + ", screen " + mc.screen + ")", open == voidborn);
+				mc.setScreen(null);
+			}, 5);
 		}
 		run(() -> fresh(Race.VOIDBORN, 120.5, y[0], 120.5, 0, 0), 10);
 		String[] reachSaid = new String[2];
