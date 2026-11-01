@@ -500,6 +500,7 @@ final class Harness {
 		advancements();
 		bloodkin();
 		fungalDiet(y);
+		innate(y);
 		run(() -> server().execute(() -> player().kill()), 20);
 	}
 
@@ -1491,6 +1492,333 @@ final class Harness {
 			mc.setScreen(null);
 			server().execute(() -> RaceState.set(player(), Race.MYCELID));
 		}, 5);
+	}
+
+	/** A race from the start, level 1, at a spot with the eyes this way, food at 10, full health. */
+	private static void fresh(Race race, double x, int y, double z, float yaw, float pitch) {
+		server().execute(() -> {
+			ServerPlayer player = player();
+			RaceState.set(player, race);
+			player.connection.teleport(x, y, z, yaw, pitch);
+			player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);
+			player.setHealth(player.getMaxHealth());
+			player.getFoodData().setFoodLevel(10);
+			player.getFoodData().setSaturation(0);
+			player.removeAllEffects();
+		});
+	}
+
+	private static String describe(net.minecraft.world.phys.HitResult hit) {
+		return hit.getType() + "@" + hit.getLocation();
+	}
+
+	private static boolean near(double a, double b) {
+		return Math.abs(a - b) < 0.01;
+	}
+
+	/**
+	 * The innate traits: one node a race, free and open from level 1, never learnt, kept through a reset, no points
+	 * spent; the node drawn (and clicked) in each tree, clear of the rest at many window sizes and zooms; the Voidborn's
+	 * reach (a real click on a chest 4.7 blocks off, which a Mycelid can't reach; attacks unchanged; gone again on a new
+	 * race; one modifier, never saved), their own pearl hurting half, a fall the same; the Bloodkin's sense of the
+	 * wounded (the nearest bleeding creature with blood, not the undead, not a whole one, no glow) and raw meat.
+	 */
+	private static void innate(int[] y) {
+		Minecraft mc = Minecraft.getInstance();
+		euf.mageslegacy.race.Talent[] innates = {euf.mageslegacy.race.Talent.INNATE_VOID, euf.mageslegacy.race.Talent.INNATE_FUNGAL,
+				euf.mageslegacy.race.Talent.INNATE_PREDATOR};
+		run(() -> {
+			for (Race race : Race.values()) {
+				if (!race.playable) {
+					continue;
+				}
+				var t = euf.mageslegacy.race.Talent.innateOf(race).orElse(null);
+				check(race.id() + ": one innate node, cost 0, open by itself, no neighbours, outside the 59 (" + (t == null ? "none" : t.id()) + ", "
+						+ euf.mageslegacy.race.Talent.tree(race).size() + ")", t != null && t.cost() == 0 && t.automatic() && t.requires().isEmpty()
+						&& t.levelNeeded() == 1 && euf.mageslegacy.race.Talent.tree(race).size() == 59 && euf.mageslegacy.race.Talent.of(race).size() == 60);
+			}
+		}, 0);
+		for (euf.mageslegacy.race.Talent t : innates) {
+			run(() -> fresh(t.race, 120.5, y[0], 120.5, 0, 0), 10);
+			String[] said = new String[2];
+			run(() -> server().execute(() -> {
+				ServerPlayer player = player();
+				int free = euf.mageslegacy.race.Talents.freePoints(player);
+				euf.mageslegacy.race.Talents.learn(player, t.id());
+				boolean others = true;
+				for (euf.mageslegacy.race.Talent o : innates) {
+					others &= o == t || !euf.mageslegacy.race.Talents.has(player, o);
+				}
+				boolean ok = euf.mageslegacy.race.Talents.has(player, t) && others && euf.mageslegacy.race.Talents.owned(player).isEmpty()
+						&& free == euf.mageslegacy.race.Talent.pointsAt(1) && euf.mageslegacy.race.Talents.freePoints(player) == free
+						&& "mages_legacy.talent.state.automatic".equals(euf.mageslegacy.race.Talents.refusal(player, t))
+						&& euf.mageslegacy.race.Talents.spent(List.of(t.id())) == 0;
+				said[0] = (ok ? "1" : "0") + free + "/" + euf.mageslegacy.race.Talent.pointsAt(1) + ", " + euf.mageslegacy.race.Talents.owned(player);
+				// Everything learnt, then a reset: the innate node is neither bought nor taken
+				euf.mageslegacy.race.Talents.learnAll(player, "", "");
+				boolean notBought = !euf.mageslegacy.race.Talents.owned(player).contains(t.id());
+				euf.mageslegacy.race.Talents.reset(player);
+				said[1] = notBought && euf.mageslegacy.race.Talents.has(player, t) ? "1" : "0";
+				// Back to a plain level 12 (the reset keeps the Awakenings 'all' gave)
+				player.setData(RaceState.TALENTS, List.of());
+				Progression.setLevel(player, 12);
+				RaceState.sync(player);
+			}), 5);
+			run(() -> {
+				check(t.id() + ": owned at level 1 by its race only, never in the learnt list, no points (" + said[0].substring(1) + ")",
+						said[0].startsWith("1"));
+				check(t.id() + ": not bought by 'all', kept through a reset", "1".equals(said[1]));
+			}, 0);
+			// The tree, the node's tooltip as hovered, then a click on it opens the traits book
+			run(() -> {
+				mc.getToasts().clear();
+				// The mouse off in a corner: the tree as it stands, no tooltip
+				org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().getWindow(), 2, 2);
+				mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen());
+			}, 20);
+			shot("innate_" + t.race.id() + "_tree");
+			run(() -> {
+				euf.mageslegacy.client.screen.TalentScreen.harnessHover = t;
+				mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen());
+			}, 20);
+			shot("innate_" + t.race.id());
+			run(() -> {
+				euf.mageslegacy.client.screen.TalentScreen.harnessHover = null;
+				var screen = (euf.mageslegacy.client.screen.TalentScreen) mc.screen;
+				int[] at = screen.innateCenter();
+				screen.mouseClicked(at[0], at[1], 0);
+				check(t.id() + ": a click on the node opens the traits book", screen.showingTraits());
+			}, 10);
+			shot("innate_" + t.race.id() + "_book");
+			// Clear of every other node and link, at the smallest window and up, from zoomed out to in
+			run(() -> {
+				List<String> bad = new ArrayList<>();
+				int[][] sizes = {{427, 240}, {480, 270}, {640, 360}, {683, 384}, {960, 540}, {1280, 720}, {1920, 1080}};
+				for (int[] size : sizes) {
+					for (float zoom : new float[] {1, 1.5f, 2}) {
+						for (String clash : euf.mageslegacy.client.screen.TalentScreen.innateClashes(t.race, size[0], size[1], zoom)) {
+							bad.add(size[0] + "x" + size[1] + "@" + zoom + ": " + clash);
+						}
+					}
+				}
+				for (String clash : euf.mageslegacy.client.screen.TalentScreen.innateClashes(t.race, 960, 540, 0.6f)) {
+					bad.add("960x540@0.6: " + clash);
+				}
+				check(t.id() + ": the node stands clear at every size and zoom " + bad, bad.isEmpty());
+				mc.setScreen(null);
+			}, 3);
+		}
+		// The Bloodkin's tree at other GUI scales (a smaller and a larger screen)
+		int[] scale = new int[1];
+		run(() -> {
+			scale[0] = mc.options.guiScale().get();
+			mc.getToasts().clear();
+			mc.options.guiScale().set(1);
+			mc.resizeDisplay();
+			mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen());
+		}, 15);
+		shot("innate_scale1");
+		run(() -> {
+			mc.options.guiScale().set(4);
+			mc.resizeDisplay();
+			mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen());
+		}, 15);
+		shot("innate_scale4");
+		run(() -> {
+			mc.options.guiScale().set(scale[0]);
+			mc.resizeDisplay();
+			mc.setScreen(null);
+		}, 5);
+
+		// ---- Voidborn: Spatial Grasp and Kinship with the End ----
+		// The ground's height is only known once the scenario runs: the chest's place is worked out then, never now
+		java.util.function.Supplier<net.minecraft.core.BlockPos> chestAt = () -> new net.minecraft.core.BlockPos(120, y[0], 125);
+		// From the eyes 4.7 blocks to the chest's front: past vanilla's 4.5, inside the Voidborn's 5.5
+		float pitch = (float) Math.toDegrees(Math.atan2(1.12, 4.5625));
+		for (Race race : new Race[] {Race.VOIDBORN, Race.MYCELID}) {
+			boolean voidborn = race == Race.VOIDBORN;
+			run(() -> {
+				fresh(race, 120.5, y[0], 120.5, 0, pitch);
+				server().execute(() -> {
+					ServerLevel level = player().serverLevel();
+					// A clear floor of stone from the feet to the chest, nothing in the air between
+					for (int z = 119; z <= 126; z++) {
+						level.setBlockAndUpdate(new net.minecraft.core.BlockPos(120, y[0] - 1, z), Blocks.STONE.defaultBlockState());
+						for (int dy = 0; dy < 3; dy++) {
+							level.setBlockAndUpdate(new net.minecraft.core.BlockPos(120, y[0] + dy, z), Blocks.AIR.defaultBlockState());
+						}
+					}
+					level.setBlockAndUpdate(chestAt.get(), Blocks.CHEST.defaultBlockState());
+				});
+			}, 20);
+			run(() -> {
+				ServerPlayer player = player();
+				double server = player.blockInteractionRange();
+				double client = mc.player.blockInteractionRange();
+				double want = voidborn ? 5.5 : 4.5;
+				check(race.id() + ": block reach " + server + " on the server, " + client + " on the client; attack reach " + player.entityInteractionRange()
+						+ "/" + mc.player.entityInteractionRange(), near(server, want) && near(client, want) && near(player.entityInteractionRange(), 3)
+						&& near(mc.player.entityInteractionRange(), 3));
+			}, 0);
+			shot("innate_reach_" + race.id());
+			run(() -> net.minecraft.client.KeyMapping.click(mc.options.keyUse.getKey()), 8);
+			run(() -> {
+				boolean open = mc.screen instanceof net.minecraft.client.gui.screens.inventory.ContainerScreen
+						&& player().containerMenu != player().inventoryMenu;
+				check(race.id() + (voidborn ? " opens" : " can't reach") + " a chest 4.7 blocks off (aimed at "
+						+ (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult b && mc.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.MISS
+								? b.getBlockPos().toShortString() : "nothing") + ", own pick " + describe(mc.player.pick(5.5, 1, false)) + ")", open == voidborn);
+				mc.setScreen(null);
+			}, 5);
+			// The server alone: a use on the chest's front face, 4.7 blocks from the eyes (as a client with the reach sends it).
+			// Only for the Voidborn: vanilla's server allows everyone a block more than the reach for lag, so a raw packet
+			// from 4.7 passes for anyone; what keeps the others out is their own aim, checked above.
+			if (!voidborn) {
+				continue;
+			}
+			run(() -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND, new net.minecraft.world.phys.BlockHitResult(
+					new Vec3(120.5, y[0] + 0.5, 125.0625), net.minecraft.core.Direction.NORTH, chestAt.get(), false)), 8);
+			run(() -> {
+				boolean open = player().containerMenu != player().inventoryMenu;
+				check("voidborn: the server lets a chest opened 4.7 blocks off", open);
+				mc.setScreen(null);
+			}, 5);
+		}
+		run(() -> fresh(Race.VOIDBORN, 120.5, y[0], 120.5, 0, 0), 10);
+		String[] reachSaid = new String[2];
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			for (int i = 0; i < 3; i++) {
+				euf.mageslegacy.race.Innate.refresh(player);
+			}
+			var reach = player.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.BLOCK_INTERACTION_RANGE);
+			long mods = reach.getModifiers().stream().filter(m -> m.id().equals(euf.mageslegacy.race.Innate.VOID_REACH)).count();
+			boolean saved = player.getAttributes().save().toString().contains("innate_void_reach");
+			reachSaid[0] = (mods == 1 && !saved && near(player.blockInteractionRange(), 5.5) ? "1" : "0") + mods + ", saved " + saved + ", "
+					+ player.blockInteractionRange();
+			RaceState.set(player, Race.BLOODKIN);
+			reachSaid[1] = (near(player.blockInteractionRange(), 4.5) ? "1" : "0") + player.blockInteractionRange();
+			RaceState.set(player, Race.VOIDBORN);
+		}), 10);
+		run(() -> {
+			check("the reach is one modifier however often it is put on, and never saved, so a login can't double it (" + reachSaid[0].substring(1) + ")",
+					reachSaid[0].startsWith("1"));
+			check("a new race takes the reach off at once (" + reachSaid[1].substring(1) + ")", reachSaid[1].startsWith("1"));
+		}, 0);
+		run(() -> check("...and the client sees it back on (" + mc.player.blockInteractionRange() + ")", near(mc.player.blockInteractionRange(), 5.5)), 0);
+		// The own pearl: 5 for anyone else, 2.5 for a Voidborn; a fall the same for both
+		float[] fell = new float[2];
+		for (Race race : new Race[] {Race.VOIDBORN, Race.MYCELID}) {
+			boolean voidborn = race == Race.VOIDBORN;
+			run(() -> fresh(race, 120.5, y[0], 120.5, 0, 0), 10);
+			run(() -> server().execute(() -> {
+				ServerPlayer player = player();
+				var pearl = new net.minecraft.world.entity.projectile.ThrownEnderpearl(player.serverLevel(), player);
+				pearl.setPos(120.5, y[0] + 2, 116.5);
+				pearl.setDeltaMovement(0, -1, 0);
+				player.serverLevel().addFreshEntity(pearl);
+			}), 20);
+			run(() -> {
+				ServerPlayer player = player();
+				check(race.id() + ": the own ender pearl hurts " + (20 - player.getHealth()) + " (z=" + String.format("%.1f", player.getZ()) + ")",
+						near(20 - player.getHealth(), voidborn ? 2.5 : 5) && player.getZ() < 118);
+			}, 0);
+			run(() -> fresh(race, 124.5, y[0] + 8, 116.5, 0, 0), 50);
+			run(() -> fell[voidborn ? 0 : 1] = 20 - player().getHealth(), 0);
+		}
+		run(() -> check("a fall hurts a Voidborn as much as anyone (" + fell[0] + ", " + fell[1] + ")", fell[0] > 0 && fell[0] == fell[1]), 0);
+
+		// ---- Bloodkin: the Call of the Wounded ----
+		net.minecraft.world.entity.LivingEntity[] mobs = new net.minecraft.world.entity.LivingEntity[3];
+		run(() -> {
+			// Facing west: the cow (south) is on the left, so its pulse beats at the screen's left edge
+			fresh(Race.BLOODKIN, 150.5, y[0], 150.5, 90, 0);
+			server().execute(() -> {
+				ServerLevel level = player().serverLevel();
+				net.minecraft.world.entity.EntityType<?>[] types = {EntityType.COW, EntityType.HUSK, EntityType.PIG};
+				double[][] at = {{150.5, 157.5}, {146.5, 151.5}, {154.5, 150.5}};
+				for (int i = 0; i < 3; i++) {
+					var mob = (net.minecraft.world.entity.Mob) types[i].create(level);
+					mob.moveTo(at[i][0], y[0], at[i][1], 0, 0);
+					mob.setNoAi(true);
+					level.addFreshEntity(mob);
+					mobs[i] = mob;
+				}
+				mobs[0].setHealth(3);
+				mobs[1].setHealth(4);
+			});
+		}, 30);
+		run(() -> {
+			var felt = BloodInstinct.target();
+			check("the Bloodkin feels the wounded cow, not the wounded husk or the whole pig (" + (felt == null ? "nothing" : felt.getType().toShortString())
+					+ ")", felt != null && felt.getUUID().equals(mobs[0].getUUID()));
+			check("...with no glow: the sense is no Blood Sense", felt != null && !mobs[0].hasEffect(net.minecraft.world.effect.MobEffects.GLOWING)
+					&& !felt.isCurrentlyGlowing() && !euf.mageslegacy.race.Talents.has(player(), euf.mageslegacy.race.Talent.NIGHT_SENSE));
+		}, 0);
+		film("innate_blood_sense", 8, 4);
+		run(() -> {
+			server().execute(() -> {
+				mobs[0].discard();
+				mobs[2].setHealth(3);
+			});
+		}, 25);
+		run(() -> {
+			var felt = BloodInstinct.target();
+			check("the cow gone, the pig wounded: now the pig (" + (felt == null ? "nothing" : felt.getType().toShortString()) + ")",
+					felt != null && felt.getUUID().equals(mobs[2].getUUID()));
+			server().execute(() -> mobs[2].discard());
+		}, 25);
+		run(() -> {
+			check("only the undead left: nothing felt", BloodInstinct.target() == null);
+			server().execute(() -> mobs[1].discard());
+			fresh(Race.MYCELID, 150.5, y[0], 150.5, 0, 0);
+		}, 15);
+		run(() -> check("another race feels nothing", BloodInstinct.target() == null), 0);
+
+		// ---- Bloodkin: Hunter's Flesh ----
+		Object[][] meals = {{Race.BLOODKIN, net.minecraft.world.item.Items.BEEF, 15}, {Race.BLOODKIN, net.minecraft.world.item.Items.MUTTON, 14},
+				{Race.BLOODKIN, net.minecraft.world.item.Items.COOKED_BEEF, 13}, {Race.MYCELID, net.minecraft.world.item.Items.BEEF, 13},
+				{Race.VOIDBORN, net.minecraft.world.item.Items.BEEF, 13}};
+		float[] blood = new float[1];
+		for (Object[] m : meals) {
+			Race race = (Race) m[0];
+			var item = (net.minecraft.world.item.Item) m[1];
+			int want = (Integer) m[2];
+			run(() -> fresh(race, 80.5, y[0], 80.5, 0, -90), 5);
+			run(() -> {
+				meal(item, 4, y);
+				blood[0] = RaceState.resource(player());
+			}, 5);
+			holdUse(45);
+			run(() -> check(race.id() + " eats " + item + ": food " + player().getFoodData().getFoodLevel() + " (want " + want + "), blood "
+					+ blood[0] + " -> " + RaceState.resource(player()), player().getFoodData().getFoodLevel() == want
+					&& (race != Race.BLOODKIN || RaceState.resource(player()) <= blood[0])), 0);
+		}
+		// Raw chicken: Hunger is refused while a Bloodkin eats it (vanilla's 30% put on by force), and two eaten bring none
+		run(() -> fresh(Race.BLOODKIN, 80.5, y[0], 80.5, 0, -90), 5);
+		run(() -> meal(net.minecraft.world.item.Items.CHICKEN, 8, y), 5);
+		boolean[] chicken = new boolean[2];
+		run(() -> mc.options.keyUse.setDown(true), 12);
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			chicken[0] = player.isUsingItem() && player.getUseItem().is(net.minecraft.world.item.Items.CHICKEN);
+			player.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.HUNGER, 600));
+			chicken[1] = player.hasEffect(net.minecraft.world.effect.MobEffects.HUNGER);
+		}), 40);
+		run(() -> {
+			mc.options.keyUse.setDown(false);
+			check("mid-meal of raw chicken a Bloodkin takes no Hunger (eating " + chicken[0] + ", hunger " + chicken[1] + ")", chicken[0] && !chicken[1]);
+		}, 3);
+		holdUse(45);
+		run(() -> {
+			ServerPlayer player = player();
+			check("two raw chickens: food " + player.getFoodData().getFoodLevel() + " (10 +4 +4), no Hunger", player.getFoodData().getFoodLevel() == 18
+					&& !player.hasEffect(net.minecraft.world.effect.MobEffects.HUNGER));
+			// Outside a meal Hunger still takes
+			server().execute(() -> player().addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.HUNGER, 100)));
+		}, 3);
+		run(() -> check("Hunger from anything else still takes", player().hasEffect(net.minecraft.world.effect.MobEffects.HUNGER)), 0);
+		run(() -> fresh(Race.MYCELID, 80.5, y[0], 80.5, 0, 0), 5);
 	}
 
 	/** One race's tab, as a player opens it. */

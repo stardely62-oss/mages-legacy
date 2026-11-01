@@ -14,7 +14,7 @@ ids = {name.lower() for name, *_ in rows}
 awakening_children = {}
 
 def tier(name, kind, requires):
-    if kind in ("CORE", "BASIC"):
+    if kind in ("CORE", "BASIC", "INNATE"):
         return None
     if kind == "AWAKENING" or name in ("WORLDS_CHARGE_3", "STORM_KEEP"):
         return 4
@@ -25,18 +25,21 @@ def tier(name, kind, requires):
 
 branches = {"CORE": "Ядро и базовые способности", "RIFT": "Разлом пространства", "WORLDS": "Сквозь миры", "GRAVITY": "Гравитация",
             "COLONY": "Колония", "SPORES": "Нейроспоры", "SYMBIOSIS": "Симбиоз", "NIGHT": "Ночь", "FANG": "Клык", "THIRST": "Жажда",
-            "CROSS": "Перекрёстные таланты"}
+            "CROSS": "Перекрёстные таланты", "INNATE": "Врождённые черты (не изучаются)"}
 races = {"VOIDBORN": "Пустотники", "MYCELID": "Мицелиды", "BLOODKIN": "Кровники"}
 kinds = {"CORE": "ядро", "BASIC": "базовая", "PASSIVE": "пассивный", "TRANSFORM": "преобразующий", "CROSS": "перекрёстный",
-         "AWAKENING": "Пробуждение"}
+         "AWAKENING": "Пробуждение", "INNATE": "врождённая черта"}
 out = ["# Таланты рас", "",
        "Сгенерировано из `race/Talent.java` и `ru_ru.json` скриптом `tools/talents_doc.py` — не править руками.", "",
        "Ярусы открываются уровнем расы: I — сразу, II — с 10, III — с 20, IV (Пробуждения и их таланты) — с 30. "
-       "Цена: ярус I — 1 очко, II — 2, III и IV — 3, Пробуждение — 5. Очков к 50 уровню — 60, всё дерево взять нельзя.", ""]
+       "Цена: ярус I — 1 очко, II — 2, III и IV — 3, Пробуждение — 5. Очков к 50 уровню — 60, всё дерево взять нельзя.", "",
+       "**Врождённые черты** (узел сбоку от ядра) не нужно изучать: они действуют с момента выбора расы, стоят 0 очков, "
+       "не входят в 59 узлов дерева и не сбрасываются.", ""]
 count = 0
 for race_id, race_title in races.items():
   race_rows = [r for r in rows if r[1] == race_id]
-  out += [f"# {race_title} — {len(race_rows)} узлов", ""]
+  bought = [r for r in race_rows if r[2] != "INNATE"]
+  out += [f"# {race_title} — {len(bought)} узлов дерева и врождённый узел", ""]
   for branch, title in branches.items():
     items = [r for r in race_rows if r[3] == branch]
     if not items:
@@ -54,7 +57,11 @@ for race_id, race_title in races.items():
             desc += f" *{lore}*"
         # A cross talent needs both of its neighbours, any other one of them
         needs = (" **и** " if kind == "CROSS" else " или ").join(lang.get(f"mages_legacy.talent.{r}.name", r) for r in requires) or "—"
-        if t is None:
+        if kind == "INNATE":
+            tier_s, cost_s = "врождено", "0"
+            effects = [lang[f"{key}.effect.{i}"] for i in range(1, 10) if f"{key}.effect.{i}" in lang]
+            desc = " ".join(effects) + (f" *{lore}*" if lore else "")
+        elif t is None:
             tier_s, cost_s = f"сама на {auto} ур.", "0"
         else:
             tier_s = ["I", "II", "III", "IV"][t - 1]
@@ -62,7 +69,7 @@ for race_id, race_title in races.items():
         out.append(f"| **{title_}** | {kinds[kind]} | {tier_s} | {cost_s} | {needs} | {desc.replace('|', '/')} |")
         count += 1
     out.append("")
-out.insert(4, f"Всего узлов: **{count}**.")
+out.insert(4, f"Всего узлов: **{count}** (по 59 в дереве каждой расы и по одному врождённому).")
 out.insert(5, "")
 (root / "docs/TALENTS.md").write_text("\n".join(out) + "\n")
 print(f"docs/TALENTS.md: {count} talents")

@@ -80,6 +80,8 @@ public class MagesLegacyClient {
 
 	private static void onRegisterLayers(RegisterGuiLayersEvent event) {
 		event.registerAbove(VanillaGuiLayers.HOTBAR, MagesLegacy.id("race_hud"), RaceHud::render);
+		// The Bloodkin's innate sense of the wounded: a pulse at the screen's edge, under the HUD
+		event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS, MagesLegacy.id("blood_instinct"), BloodInstinct::render);
 		event.registerAboveAll(MagesLegacy.id("void_screen"), ScreenFx::render);
 	}
 
@@ -122,6 +124,7 @@ public class MagesLegacyClient {
 		ClientRace.tick();
 		ScreenFx.tick();
 		ClientStep.tick();
+		BloodInstinct.tick();
 		// The loading screen closes itself when the terrain arrives, so the legend waits for it instead of being closed with it
 		if (choicePending && client.player != null && !(client.screen instanceof ReceivingLevelScreen) && client.getOverlay() == null) {
 			choicePending = false;

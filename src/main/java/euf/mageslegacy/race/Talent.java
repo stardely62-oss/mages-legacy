@@ -200,10 +200,19 @@ public enum Talent {
 	NIGHT_HARVEST(Race.BLOODKIN, Kind.CROSS, Branch.CROSS, 2.6f, -30, 2, 0, "night_harvest", "thirst_slow", "night_shade"),
 	NIGHT_DIVE(Race.BLOODKIN, Kind.CROSS, Branch.CROSS, 3.4f, -155, 3, 0, "night_dive", "night_jump", "fang_bite"),
 	THIRST_FRENZY(Race.BLOODKIN, Kind.CROSS, Branch.CROSS, 3.7f, 90, 3, 0, "thirst_frenzy", "fang_frenzy", "thirst_rage"),
-	NIGHT_DRINK(Race.BLOODKIN, Kind.CROSS, Branch.CROSS, 3.4f, -30, 3, 0, "night_drink", "thirst_vessel", "night_ambush");
+	NIGHT_DRINK(Race.BLOODKIN, Kind.CROSS, Branch.CROSS, 3.4f, -30, 3, 0, "night_drink", "thirst_vessel", "night_ambush"),
+
+	// The innate traits: one node a race, beside the core (up-left, in the gap between the first and second
+	// directions, clear of the first ring and its links), never bought, never learnt, owned from the first level for as long as the race is. Not one of the 59.
+	INNATE_VOID(Race.VOIDBORN, Kind.INNATE, Branch.INNATE, 1.25f, -150, 0, 1, "innate_void"),
+	INNATE_FUNGAL(Race.MYCELID, Kind.INNATE, Branch.INNATE, 1.25f, -150, 0, 1, "innate_fungal"),
+	INNATE_PREDATOR(Race.BLOODKIN, Kind.INNATE, Branch.INNATE, 1.25f, -150, 0, 1, "innate_predator");
+
 
 	public enum Kind {
-		CORE, BASIC, PASSIVE, TRANSFORM, CROSS, AWAKENING;
+		CORE, BASIC, PASSIVE, TRANSFORM, CROSS, AWAKENING,
+		/** A race's innate traits: what it already is by nature. Free, open from level 1, outside the paths. */
+		INNATE;
 
 		public String key() {
 			return "mages_legacy.talent.kind." + name().toLowerCase(Locale.ROOT);
@@ -211,7 +220,7 @@ public enum Talent {
 	}
 
 	public enum Branch {
-		CORE, RIFT, WORLDS, GRAVITY, COLONY, SPORES, SYMBIOSIS, NIGHT, FANG, THIRST, CROSS
+		CORE, RIFT, WORLDS, GRAVITY, COLONY, SPORES, SYMBIOSIS, NIGHT, FANG, THIRST, CROSS, INNATE
 	}
 
 	public static final int MAX_TIER = 4;
@@ -252,8 +261,30 @@ public enum Talent {
 		return "mages_legacy.talent." + id();
 	}
 
+	/** Free and owned by itself at its level: the core, the basic abilities and the innate traits. */
 	public boolean automatic() {
-		return kind == Kind.CORE || kind == Kind.BASIC;
+		return kind == Kind.CORE || kind == Kind.BASIC || kind == Kind.INNATE;
+	}
+
+	public boolean innate() {
+		return kind == Kind.INNATE;
+	}
+
+	/** A race's innate node (every playable race has one). */
+	public static Optional<Talent> innateOf(Race race) {
+		for (Talent t : values()) {
+			if (t.race == race && t.innate()) {
+				return Optional.of(t);
+			}
+		}
+		return Optional.empty();
+	}
+
+	/** A race's tree as it is bought: every node but the innate one (the 59). */
+	public static List<Talent> tree(Race race) {
+		List<Talent> list = of(race);
+		list.removeIf(Talent::innate);
+		return list;
 	}
 
 	public List<Talent> requires() {

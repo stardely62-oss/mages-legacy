@@ -144,6 +144,8 @@ public final class RaceState {
 		player.setData(TALENTS, List.of());
 		player.setData(PROGRESS, new CompoundTag());
 		player.setData(PASSAGE_POINT, new CompoundTag());
+		// The old race's innate traits off, the new one's on, at once (never doubled: one id per bonus)
+		Innate.refresh(player);
 		Pocket.refresh(player);
 		Deeds.refresh(player);
 		sync(player);

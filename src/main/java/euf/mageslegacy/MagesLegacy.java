@@ -44,6 +44,10 @@ public class MagesLegacy {
 		euf.mageslegacy.mycelid.Allies.register();
 		euf.mageslegacy.bloodkin.Bloodkin.register();
 		euf.mageslegacy.mycelid.FungalDiet.register();
+		euf.mageslegacy.race.Innate.register();
+		if (Boolean.getBoolean("mages_legacy.server_smoke")) {
+			ServerSmoke.register();
+		}
 	}
 
 	public static ResourceLocation id(String path) {
