@@ -1662,7 +1662,16 @@ final class Harness {
 						+ (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult b && mc.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.MISS
 								? b.getBlockPos().toShortString() : "nothing") + ", client sees " + mc.level.getBlockState(chest) + ", eyes "
 						+ mc.player.getEyePosition() + " pitch " + mc.player.getXRot() + ", screen " + mc.screen + ", camera " + mc.getCameraEntity()
-						+ ", own pick " + describe(mc.player.pick(5.5, 1, false)) + ")", open == voidborn);
+						+ ", own pick " + describe(mc.player.pick(5.5, 1, false)) + ", same level " + (mc.player.level() == mc.level) + ", the player's level sees "
+						+ mc.player.level().getBlockState(chest) + ", shape " + mc.level.getBlockState(chest).getShape(mc.level, chest) + ")", open == voidborn);
+				mc.setScreen(null);
+			}, 5);
+			// The server alone: a use on the chest's front face, 4.7 blocks from the eyes (as a client with the reach sends it)
+			run(() -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND, new net.minecraft.world.phys.BlockHitResult(
+					new Vec3(120.5, y[0] + 0.5, 125.0625), net.minecraft.core.Direction.NORTH, chest, false)), 8);
+			run(() -> {
+				boolean open = player().containerMenu != player().inventoryMenu;
+				check(race.id() + ": the server " + (voidborn ? "lets" : "refuses") + " a chest opened 4.7 blocks off", open == voidborn);
 				mc.setScreen(null);
 			}, 5);
 		}
