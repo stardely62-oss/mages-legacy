@@ -2706,9 +2706,16 @@ final class Harness {
 			p.connection.teleport(MX, y[0], 0.5, 0, 6);
 			mercMobs[0] = mercMob(EntityType.VINDICATOR, MX, y[0], 5.5, true);
 		}), 10);
-		run(() -> MagesLegacyClient.useAbility(0), 12);
+		// Only once the server has the target in place and the player turned to it (a lagging server takes its time)
+		then("the mastery target stands", () -> mercMobs[0] != null && mercMobs[0].isAlive() && Math.abs(player().getXRot() - 6) < 0.5f
+				&& Math.abs(player().getZ() - 0.5) < 0.1, () -> MagesLegacyClient.useAbility(0), 2);
+		then("the brand lands", () -> euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 1, () -> {
+		}, 10);
 		run(() -> server().execute(() -> player().attack(mercMobs[0])), 20);
-		run(() -> MagesLegacyClient.useAbility(1), 16);
+		run(() -> MagesLegacyClient.useAbility(1), 2);
+		then("the burst counted", () -> euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 0
+				&& euf.mageslegacy.race.Mastery.count(player().getData(RaceState.PROGRESS), euf.mageslegacy.race.Mastery.Goal.HOOK_BLASTS) > 0, () -> {
+		}, 2);
 		run(() -> {
 			var tag = player().getData(RaceState.PROGRESS);
 			check("the mastery trial counts a Brand burst and a Harpoon combo (" + euf.mageslegacy.race.Mastery.count(tag,
