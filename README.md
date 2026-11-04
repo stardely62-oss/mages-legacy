@@ -6,7 +6,7 @@
 >
 > **Development stopped (2026-11-04).** The project is no longer developed or supported. The code is open — fork it if you like.
 
-![Выбор расы](https://github.com/stardely62-oss/mages-legacy/releases/download/neo-dev/choose_voidborn.png)
+![Выбор расы](https://github.com/stardely62-oss/mages-legacy/releases/download/final/choose_voidborn.png)
 
 Мод для **NeoForge 1.21.1** от euf. Эффекты строятся на [Veil](https://modrinth.com/mod/veil) (шейдеры, свечение, постобработка) и [GeckoLib](https://modrinth.com/mod/geckolib) (анимированные 3D-модели).
 
