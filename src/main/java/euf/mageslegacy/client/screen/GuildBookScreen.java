@@ -415,8 +415,15 @@ public class GuildBookScreen extends Screen {
 			g.drawString(font, sold, cx - font.width(sold) / 2, iy + 8, 0xFFE07060, true);
 		}
 		if (ware.getBoolean("deal")) {
-			g.fill(ix + size - 8, iy - 4, ix + size + 6, iy + 4, 0xFFA4321F);
-			small(g, "-30%", ix + size - 7, iy - 2, 0xFFFFE0C0);
+			// A red tag in the ware's own corner, over its model, sized to its text
+			String deal = "−30%";
+			int dw = (int) Math.ceil(font.width(deal) * 0.75f) + 4;
+			int dx = Math.min(ix + size + 1, cx + cellW / 2 - 1) - dw;
+			g.pose().pushPose();
+			g.pose().translate(0, 0, 250);
+			g.fill(dx, iy - 3, dx + dw, iy + 5, 0xFFA4321F);
+			small(g, deal, dx + 2, iy - 1, 0xFFFFE0C0);
+			g.pose().popPose();
 		}
 		// The tag, hanging under the shelf: a gem of the rarity, the price
 		int tagX = cx - 12;
@@ -552,7 +559,16 @@ public class GuildBookScreen extends Screen {
 		int px = bx + bw + w * 4 / 100;
 		int py = topY - ph * 70 / 100;
 		pictureW(g, POUCH, px, py, pw);
-		g.drawString(font, tokens, px + pw + 2, py + ph / 2 - 3, 0xFFFFD27A, true);
+		// The balance on a dark plate beside it, a coin before the number
+		int tw = font.width(tokens);
+		int plateX = px + pw + 1;
+		int plateY = py + ph / 2 - 6;
+		g.fill(plateX, plateY, plateX + tw + 15, plateY + 12, 0xC0140C08);
+		LegacyUi.outline(g, plateX, plateY, plateX + tw + 15, plateY + 12, 0xFF8A6A2A);
+		coin(g, plateX + 2, plateY + 2);
+		g.drawString(font, tokens, plateX + 12, plateY + 2, 0xFFFFD27A, true);
+		hots.add(new Hot(px, plateY - 2, plateX + tw + 15, plateY + 14, () -> {
+		}, List.of(Component.translatable("mages_legacy.merc.shop.tokens", tokens).withStyle(ChatFormatting.GOLD)), null));
 	}
 
 	/** Under the floorboards' edge: when the stock turns over, the odds of each rarity at this level, bought luck. */
@@ -661,7 +677,7 @@ public class GuildBookScreen extends Screen {
 		int listBottom = bottom - 20;
 		boolean handFull = list("active").size() >= view.getInt("hand");
 		int y = top - scroll[0];
-		int cardH = 56;
+		int cardH = 62;
 		g.enableScissor(x, top, x + w, listBottom);
 		if (offers.isEmpty()) {
 			g.drawWordWrap(font, Component.translatable("mages_legacy.merc.book.empty_board"), x + 10, top + 4, w - 20, alpha(INK_SOFT, fade));

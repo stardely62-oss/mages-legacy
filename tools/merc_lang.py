@@ -35,13 +35,15 @@ k("race.mercenary.weak.4", "Последний выкуп стоит 30 жето
 
 # ---- the abilities ----
 k("ability.hunter_brand.desc",
-  "R: медно-золотой снаряд летит на 20 блоков (сквозь стены — нет) и бьёт первого врага на 4 урона. Над врагом появляется печать из трёх частей — "
-  "Клеймо на 10 секунд. Каждый ваш удар по нему (оружием, своей стрелой или Гарпуном) зажигает одну часть (удар, пока снаряд ещё летит, тоже считается) — ровно три удара. "
-  "Третий удар взрывает Клеймо: ещё 6 урона (по игроку не больше 4), во все стороны летят монеты, а вы получаете 2 поглощения на 4 секунды. "
+  "R: медно-золотой снаряд летит на 20 блоков (сквозь стены — нет) и бьёт первого врага на 4 урона. Над врагом появляется пустое кольцо из трёх частей — "
+  "Клеймо на 10 секунд. Каждый ваш удар по нему (оружием, своей стрелой или Гарпуном) закрашивает одну часть (удар, пока снаряд ещё летит, тоже считается); сам снаряд ударом не считается. "
+  "С талантом «Сложный процент» частей четыре. "
+  "Удар, закрывший последнюю часть, взрывает Клеймо: ещё 6 урона (по игроку не больше 4), во все стороны летят монеты, а вы получаете 2 поглощения на 4 секунды. "
   "Урон самой печати, взрыва, клинков и знамени частей не зажигает. Союзников и питомцев не метит. Перезарядка 8 секунд.",
-  "R: a copper-and-gold bolt flies 20 blocks (never through walls) and hits the first foe for 4. A three-part seal appears over it — the Brand, "
-  "for 10 seconds. Each of your blows on it (a weapon, your own arrow or the Harpoon) lights one part (a blow while the bolt is still flying counts too) — exactly three blows. "
-  "The third blow bursts the Brand: 6 more damage (4 at most to a player), coins flying every way, and 2 absorption for you for 4 seconds. "
+  "R: a copper-and-gold bolt flies 20 blocks (never through walls) and hits the first foe for 4. An empty three-part ring appears over it — the Brand, "
+  "for 10 seconds. Each of your blows on it (a weapon, your own arrow or the Harpoon) fills one part (a blow while the bolt is still flying counts too); the bolt itself is no blow. "
+  "With Compound Interest it has four parts. "
+  "The blow that fills the last part bursts the Brand: 6 more damage (4 at most to a player), coins flying every way, and 2 absorption for you for 4 seconds. "
   "Damage of the seal itself, its burst, blades and the banner lights nothing. Never brands allies or pets. Cooldown 8 seconds.")
 k("ability.guild_harpoon.desc",
   "V: гарпун на золотой цепи летит на 26 блоков. Попал в лёгкое существо — 2 урона, и его подтягивает к вам. В тяжёлое, босса, неподвижное "
@@ -148,9 +150,9 @@ T = {
         "You deal 20% more damage to the quarry of your hunts instead of the innate 10%. It works for all your blows — weapons and "
         "projectiles — and stacks with the Mercenary's other bonuses."),
     "con_regular": (
-        "Вы постоянный клиент: на полках Лавки на 2 товара больше, а скидка дня (−30%) действует сразу на два товара вместо одного. "
+        "На полках Лавки на 2 товара больше, а скидка дня (−30%) действует сразу на два товара вместо одного. "
         "Больше шансов увидеть редкую вещь в каждом обновлении.",
-        "You are a regular: two more wares on the Shop's shelves, and the deal of the day (−30%) is on two wares instead of one. More "
+        "Two more wares on the Shop's shelves, and the deal of the day (−30%) is on two wares instead of one. More "
         "chances to see a rare item in every turnover."),
     "con_partners": (
         "Убийства, совершённые союзниками и вашими питомцами (например, волками) в 24 блоках от вас, засчитываются в ваши "
@@ -171,14 +173,14 @@ T = {
         "When you take a job to reach a land (a biome or a place), the book shows at once the distance and the direction to the nearest "
         "such place. No map hunting — just head that way."),
     "con_connections": (
-        "Связи в гильдии: первое обновление доски заказов за игровой день бесплатно, а все следующие стоят вдвое дешевле. Можно смело "
+        "Первое обновление доски заказов за игровой день бесплатно, а все следующие стоят вдвое дешевле. Можно смело "
         "перебирать предложения, пока не попадётся удобный заказ.",
-        "Connections in the guild: the first fresh board of a game day is free, and every one after it costs half. Feel free to reroll "
+        "The first fresh board of a game day is free, and every one after it costs half. Feel free to reroll "
         "the offers until a handy job turns up."),
     "con_streak": (
-        "Серия заказов: если вы сдаёте заказ не позже чем через 20 минут после прошлого, он платит больше — +10% за каждый заказ в "
+        "Если вы сдаёте заказ не позже чем через 20 минут после прошлого, он платит больше — +10% за каждый заказ в "
         "серии, до +30%. Пропустили 20 минут — серия начинается заново.",
-        "A streak of jobs: hand one in within 20 minutes of the last and it pays more — +10% for each job in the streak, up to +30%. "
+        "Hand one in within 20 minutes of the last and it pays more — +10% for each job in the streak, up to +30%. "
         "Let 20 minutes pass and the streak starts over."),
     "awakening_ransom": (
         "Пробуждение «Выкуп» (с 30 уровня, после испытания). Долг жизни: 10 секунд 40% урона по вам не наносится сразу, а "
@@ -190,14 +192,14 @@ T = {
         "pay it down. Paid off — +2 health and a golden wave; too slow — half of what is left strikes at once. Shift signs it for an ally. "
         "The Last Ransom: a killing blow is undone for 30 tokens (once in 20 minutes)."),
     "ransom_write_off": (
-        "Списание: если Долг жизни кончается непогашенным, сначала четверть остатка прощается, и только потом половина оставшегося "
+        "Если Долг жизни кончается непогашенным, сначала четверть остатка прощается, и только потом половина оставшегося "
         "бьёт по подопечному. Например, при Долге 8 расплата будет 3 вместо 4. Страховка на случай, когда бой затянулся.",
-        "A write-off: when a Life Debt ends unpaid, a quarter of what is left is forgiven first, and only then half the rest strikes the "
+        "When a Life Debt ends unpaid, a quarter of what is left is forgiven first, and only then half the rest strikes the "
         "ward. A Debt of 8, say, costs 3 instead of 4. Insurance for when a fight drags on."),
     "ransom_guarantor": (
-        "Поручитель: если вы подписали Долг жизни на союзника, каждый ваш удар по врагам гасит его Долг на 30% нанесённого урона "
+        "Если вы подписали Долг жизни на союзника, каждый ваш удар по врагам гасит его Долг на 30% нанесённого урона "
         "вместо 20%. Вы прикрываете товарища и быстрее снимаете с него долг.",
-        "A guarantor: with a Life Debt signed for an ally, each of your blows on foes pays their Debt down by 30% of the damage dealt "
+        "With a Life Debt signed for an ally, each of your blows on foes pays their Debt down by 30% of the damage dealt "
         "instead of 20%. You cover your comrade and clear their debt faster."),
     "ransom_gold": (
         "Золотая волна от погашенного Долга бьёт врагов в 4 блоках на 6 урона вместо 4. Погасив Долг посреди толпы, вы заметно "
@@ -205,54 +207,54 @@ T = {
         "The golden wave of a paid-off Debt hits foes within 4 blocks for 6 instead of 4. Pay off a Debt in the middle of a crowd and "
         "everyone around takes a real wound."),
     "ransom_second": (
-        "Второй шанс: после Последнего выкупа вы 3 секунды под Сопротивлением I (−20% урона). Этого хватает, чтобы отскочить или "
+        "После Последнего выкупа вы 3 секунды под Сопротивлением I (−20% урона). Этого хватает, чтобы отскочить или "
         "выпить зелье, а не умереть от следующего же удара.",
-        "A second chance: after the Last Ransom you have Resistance I (−20% damage) for 3 seconds. Enough to back off or drink a potion "
+        "After the Last Ransom you have Resistance I (−20% damage) for 3 seconds. Enough to back off or drink a potion "
         "instead of dying to the very next blow."),
     "brand_far": (
         "Монета Клейма летит на 28 блоков вместо 20. Можно пометить лучника или убегающую цель издалека и добить её уже вблизи.",
         "The Brand's coin flies 28 blocks instead of 20. Mark an archer or a fleeing foe from afar and finish it up close."),
     "brand_collect": (
-        "Сбор долга: если взрыв Клейма добил цель, перезарядка Клейма сразу сбрасывается — можно тут же пометить следующего врага. "
+        "Если взрыв Клейма добил цель, перезарядка Клейма сразу сбрасывается — можно тут же пометить следующего врага. "
         "В толпе слабых мобов позволяет взрывать печати одну за другой.",
-        "Debt collected: if a Brand's burst kills its bearer, the Brand's cooldown resets at once — brand the next foe straight away. "
+        "If a Brand's burst kills its bearer, the Brand's cooldown resets at once — brand the next foe straight away. "
         "In a crowd of weak mobs it lets you burst seal after seal."),
     "brand_compound": (
-        "Сложный процент: печать из четырёх частей вместо трёх. Взрывается на четвёртом ударе, зато наносит 10 урона вместо 6 (по "
+        "Печать из четырёх частей вместо трёх (над врагом кольцо делится на четверти). Взрывается на четвёртом ударе, зато наносит 10 урона вместо 6 (по "
         "игроку всё так же не больше 4). Выгодно против крепких врагов и боссов.",
-        "Compound interest: a four-part seal instead of three. It bursts on the fourth blow, but for 10 instead of 6 (still 4 at most to "
+        "A four-part seal instead of three (the ring over the foe is cut in quarters). It bursts on the fourth blow, but for 10 instead of 6 (still 4 at most to "
         "a player). Worth it against tough foes and bosses."),
     "brand_linger": (
         "Клеймо держится 15 секунд вместо 10. Хватает времени на три удара даже медленным оружием, луком или если цель убегает.",
         "The Brand holds 15 seconds instead of 10. Time enough for three blows even with a slow weapon, a bow or a foe that runs."),
     "brand_spread": (
-        "Перекличка: взрыв перекидывает новое Клеймо (с одной уже зажжённой частью) на ближайшего врага в 6 блоках. До его взрыва "
+        "Взрыв перекидывает новое Клеймо (с одной уже зажжённой частью) на ближайшего врага в 6 блоках. До его взрыва "
         "остаётся два удара. Перекинутое Клеймо дальше уже не перекидывается.",
-        "Passed on: a burst passes a new Brand (one part already lit) to the nearest foe within 6 blocks — two blows from bursting. A "
+        "A burst passes a new Brand (one part already lit) to the nearest foe within 6 blocks — two blows from bursting. A "
         "passed Brand passes no further."),
     "brand_pledge": (
-        "Залог: взрыв Клейма даёт 4 поглощения вместо 2 (всего от взрывов не больше 6) на 4 секунды. Чем чаще взрываете — тем "
+        "Взрыв Клейма даёт 4 поглощения вместо 2 (всего от взрывов не больше 6) на 4 секунды. Чем чаще взрываете — тем "
         "крепче держитесь в ближнем бою.",
-        "A pledge: a Brand's burst gives 4 absorption instead of 2 (6 at most from bursts) for 4 seconds. The more you burst, the "
+        "A Brand's burst gives 4 absorption instead of 2 (6 at most from bursts) for 4 seconds. The more you burst, the "
         "better you hold in close combat."),
     "brand_swap": (
-        "Переуступка: если вы ставите Клеймо на нового врага, пока прошлое ещё держится, уже зажжённые части переходят на новую "
+        "Если вы ставите Клеймо на нового врага, пока прошлое ещё держится, уже зажжённые части переходят на новую "
         "печать (кроме последней — сразу она не взорвётся). Переключаясь на опасную цель, вы не теряете прогресс.",
-        "Reassignment: brand a new foe while your last Brand still holds and the parts already lit move to the new seal (all but the "
+        "Brand a new foe while your last Brand still holds and the parts already lit move to the new seal (all but the "
         "last — it won't burst at once). Switching to a dangerous foe loses nothing."),
     "brand_pierce": (
-        "Пробивающий бросок: монета Клейма проходит сквозь первую цель и метит ещё и вторую позади неё. Оба Клейма независимы — "
+        "Монета Клейма проходит сквозь первую цель и метит ещё и вторую позади неё. Оба Клейма независимы — "
         "взрывайте их по очереди.",
-        "A piercing throw: the Brand's coin passes through its first mark and brands a second foe behind it as well. Both Brands are "
+        "The Brand's coin passes through its first mark and brands a second foe behind it as well. Both Brands are "
         "separate — burst them in turn."),
     "brand_finisher": (
-        "Добивание: взрыв Клейма по цели, у которой осталось меньше 30% здоровья, наносит в полтора раза больше (9 вместо 6). "
+        "Взрыв Клейма по цели, у которой осталось меньше 30% здоровья, наносит в полтора раза больше (9 вместо 6). "
         "Ставьте Клеймо на раненого врага, чтобы закончить бой.",
-        "The finisher: a burst on a foe under 30% health deals half again as much (9 instead of 6). Brand a wounded foe to end the fight."),
+        "A burst on a foe under 30% health deals half again as much (9 instead of 6). Brand a wounded foe to end the fight."),
     "brand_chain": (
-        "Цепная реакция: взрыв Клейма задевает и врагов в 3 блоках вокруг цели — каждый получает половину урона взрыва. Хорош против "
+        "Взрыв Клейма задевает и врагов в 3 блоках вокруг цели — каждый получает половину урона взрыва. Хорош против "
         "групп, особенно вместе со Сложным процентом.",
-        "A chain reaction: a Brand's burst also strikes foes within 3 blocks of its bearer — half the burst's damage each. Good against "
+        "A Brand's burst also strikes foes within 3 blocks of its bearer — half the burst's damage each. Good against "
         "groups, above all with Compound Interest."),
     "awakening_verdict": (
         "Пробуждение «Приговор» (с 30 уровня, после испытания). Враг в 20 блоках осуждён на 15 секунд: его сковывают цепи, а над ним "
@@ -268,24 +270,24 @@ T = {
         "The Verdict lasts 20 seconds instead of 15. Time enough for all six blows and the execution even against a slippery foe or when "
         "other foes pull you away."),
     "verdict_boss": (
-        "Суд над сильными: мечи Приговора и исполнение бьют боссов (Иссушитель, Эндер-дракон) на 50% сильнее — 4,5 за меч "
+        "Мечи Приговора и исполнение бьют боссов (Иссушитель, Эндер-дракон) на 50% сильнее — 4,5 за меч "
         "и 12 за исполнение.",
-        "Judging the mighty: the Verdict's swords and execution hit bosses (the Wither, the Ender Dragon) 50% harder — "
+        "The Verdict's swords and execution hit bosses (the Wither, the Ender Dragon) 50% harder — "
         "4.5 a sword and 12 for the execution."),
     "verdict_blades": (
-        "Больше клинков: за один Приговор в цель может вонзиться до 7 мечей вместо 5. Мечи продолжают прилетать каждые два удара и "
+        "За один Приговор в цель может вонзиться до 7 мечей вместо 5. Мечи продолжают прилетать каждые два удара и "
         "после исполнения, пока Приговор не кончится.",
-        "More blades: up to 7 swords may be driven in during one Verdict instead of 5. Swords keep coming every two blows even after the "
+        "Up to 7 swords may be driven in during one Verdict instead of 5. Swords keep coming every two blows even after the "
         "execution, until the Verdict ends."),
     "verdict_refund": (
-        "Награда за голову: если осуждённый погиб от вашей руки, перезарядка Приговора сокращается на 40 секунд (раз за Приговор). "
+        "Если осуждённый погиб от вашей руки, перезарядка Приговора сокращается на 40 секунд (раз за Приговор). "
         "Быстро казнили — скоро снова судите.",
-        "A bounty paid: if the condemned dies by your hand, the Verdict's cooldown is 40 seconds shorter (once a Verdict). Execute fast "
+        "If the condemned dies by your hand, the Verdict's cooldown is 40 seconds shorter (once a Verdict). Execute fast "
         "and you judge again soon."),
     "verdict_triumph": (
-        "Триумф: после исполнения вы получаете Силу I и Скорость I на 6 секунд. Используйте их, чтобы добить осуждённого или сразу "
+        "После исполнения вы получаете Силу I и Скорость I на 6 секунд. Используйте их, чтобы добить осуждённого или сразу "
         "переключиться на следующего врага.",
-        "Triumph: after the execution you get Strength I and Speed I for 6 seconds. Use them to finish the condemned or turn straight to "
+        "After the execution you get Strength I and Speed I for 6 seconds. Use them to finish the condemned or turn straight to "
         "the next foe."),
     "harp_quick": (
         "Перезарядка Гарпуна 7 секунд вместо 10. Чаще подтягиваете врагов и чаще перемещаетесь сами — особенно полезно в пещерах "
@@ -296,48 +298,48 @@ T = {
         "Гарпун летит на 34 блока вместо 26. Можно зацепить врага или уступ, до которых раньше было не дотянуться.",
         "The Harpoon reaches 34 blocks instead of 26. Catch a foe or a ledge that was out of reach before."),
     "harp_double": (
-        "Двойной бросок: после броска у вас есть 3 секунды на второй бросок без перезарядки (один раз). Например, подтянуть врага, "
+        "После броска у вас есть 3 секунды на второй бросок без перезарядки (один раз). Например, подтянуть врага, "
         "а затем самому прыгнуть к стене.",
-        "A double throw: after a throw you have 3 seconds for a second one without the cooldown (once). Pull a foe in, say, then leap "
+        "After a throw you have 3 seconds for a second one without the cooldown (once). Pull a foe in, say, then leap "
         "to a wall yourself."),
     "harp_stun": (
-        "Оглушающий гарпун: попадание бьёт на 4 вместо 2, а притянутое существо 1,5 секунды почти не может двигаться (Медлительность "
+        "Попадание бьёт на 4 вместо 2, а притянутое существо 1,5 секунды почти не может двигаться (Медлительность "
         "III). Время на два-три удара по Клейму, пока цель не опомнилась.",
-        "A stunning harpoon: a hit deals 4 instead of 2, and a creature dragged in can hardly move for 1.5 seconds (Slowness III). Time "
+        "A hit deals 4 instead of 2, and a creature dragged in can hardly move for 1.5 seconds (Slowness III). Time "
         "for two or three blows on its Brand before it recovers."),
     "harp_precise": (
-        "Точный удар: первый удар оружием в течение 3 секунд после попадания Гарпуном наносит на 40% больше. Подтянули — и сразу "
+        "Первый удар оружием в течение 3 секунд после попадания Гарпуном наносит на 40% больше. Подтянули — и сразу "
         "сильный удар.",
-        "A precise blow: the first weapon blow within 3 seconds of a Harpoon hit deals 40% more. Pull it in — and strike hard at once."),
+        "The first weapon blow within 3 seconds of a Harpoon hit deals 40% more. Pull it in — and strike hard at once."),
     "craft_cuirass": (
-        "Кираса гильдии: у вас всегда +2 брони и +1 к твёрдости брони, в любом снаряжении. Твёрдость особенно помогает против "
+        "У вас всегда +2 брони и +1 к твёрдости брони, в любом снаряжении. Твёрдость особенно помогает против "
         "сильных одиночных ударов.",
-        "The guild's cuirass: always +2 armour and +1 armour toughness, whatever you wear. Toughness helps above all against heavy "
+        "Always +2 armour and +1 armour toughness, whatever you wear. Toughness helps above all against heavy "
         "single blows."),
     "craft_bow": (
-        "Стрелковая выучка: ваши стрелы, трезубцы и другие снаряды наносят на 15% больше. Стрела тоже зажигает часть Клейма, так что "
+        "Ваши стрелы, трезубцы и другие снаряды наносят на 15% больше. Стрела тоже зажигает часть Клейма, так что "
         "печать можно взорвать издалека.",
-        "Archer's training: your arrows, tridents and other projectiles deal 15% more. An arrow lights a part of a Brand too, so a seal "
+        "Your arrows, tridents and other projectiles deal 15% more. An arrow lights a part of a Brand too, so a seal "
         "can be burst from afar."),
     "craft_second_wind": (
-        "Второе дыхание: когда здоровье падает ниже 30%, вы получаете Скорость II и Регенерацию I на 4 секунды. Не чаще раза в "
+        "Когда здоровье падает ниже 30%, вы получаете Скорость II и Регенерацию I на 4 секунды. Не чаще раза в "
         "минуту. Шанс выйти из боя или переломить его.",
-        "Second wind: when your health drops under 30%, you get Speed II and Regeneration I for 4 seconds. Once a minute at most. A "
+        "When your health drops under 30%, you get Speed II and Regeneration I for 4 seconds. Once a minute at most. A "
         "chance to leave the fight or turn it."),
     "craft_blade": (
-        "Клинок наёмника: удары оружием ближнего боя наносят на 12% больше. Работает с любым оружием и складывается с бонусом по "
+        "Удары оружием ближнего боя наносят на 12% больше. Работает с любым оружием и складывается с бонусом по "
         "целям заказов.",
-        "The sellsword's blade: melee weapon blows deal 12% more. Works with any weapon and stacks with the bonus on the quarry of "
+        "Melee weapon blows deal 12% more. Works with any weapon and stacks with the bonus on the quarry of "
         "your hunts."),
     "craft_lifeline": (
-        "Спасательный трос: Гарпуном можно зацепить союзника — вас подтягивает к нему, и вы оба получаете 4 поглощения на 6 секунд. "
+        "Гарпуном можно зацепить союзника — вас подтягивает к нему, и вы оба получаете 4 поглощения на 6 секунд. "
         "Быстро прийти на помощь или выбраться из окружения к своим.",
-        "A lifeline: the Harpoon can catch an ally — you are drawn to them and you both get 4 absorption for 6 seconds. Rush to help, or "
+        "The Harpoon can catch an ally — you are drawn to them and you both get 4 absorption for 6 seconds. Rush to help, or "
         "break out of a ring of foes to your own."),
     "craft_shoulder": (
-        "Плечом к плечу: когда ваше Клеймо взрывается, союзники в 8 блоках получают Сопротивление I на 3 секунды. Каждый взрыв "
+        "Когда ваше Клеймо взрывается, союзники в 8 блоках получают Сопротивление I на 3 секунды. Каждый взрыв "
         "немного прикрывает всю команду.",
-        "Shoulder to shoulder: when your Brand bursts, allies within 8 blocks get Resistance I for 3 seconds. Each burst shields the "
+        "When your Brand bursts, allies within 8 blocks get Resistance I for 3 seconds. Each burst shields the "
         "whole team a little."),
     "awakening_legend": (
         "Пробуждение «Легенда гильдии» (с 30 уровня, после испытания). Знамя падает с неба и встаёт там, где вы стоите, на 15 секунд; "
@@ -352,8 +354,8 @@ T = {
         "Круг знамени радиусом 13 блоков вместо 10. Удобнее держать в нём всю команду и доставать клинками врагов-стрелков.",
         "The banner's circle reaches 13 blocks instead of 10. Easier to keep the whole team inside and to reach archers with its blades."),
     "legend_ward": (
-        "Стена щитов: под знаменем вы и союзники получаете на 15% меньше урона вместо 10%. Хорошо держать оборону у знамени.",
-        "A shield wall: under the banner you and your allies take 15% less damage instead of 10%. Good for holding your ground by it."),
+        "Под знаменем вы и союзники получаете на 15% меньше урона вместо 10%. Хорошо держать оборону у знамени.",
+        "Under the banner you and your allies take 15% less damage instead of 10%. Good for holding your ground by it."),
     "legend_blades": (
         "Клинки знамени бьют до 4 врагов за раз вместо 3. Против толпы знамя наносит заметно больше урона.",
         "The banner's blades strike up to 4 foes at a time instead of 3. Against a crowd it deals noticeably more."),
@@ -402,6 +404,27 @@ k("talent.awakening_verdict.trial", "Испытание: взорвать Кле
   "Trial: burst a Brand on %2$s hostile creatures (so far: %1$s) and finish %4$s hunts (so far: %3$s). Opens from race level 30.")
 k("mastery.goal.six_contracts.desc", "Выполнить 6 заказов, среди них охоту, доставку и путешествие (край или разведку)",
   "Finish 6 jobs, a hunt, a delivery and a journey (a land or a scouting) among them")
+
+# ---- one word for a job everywhere: «заказ» (the old «контракт» lines, owned here now) ----
+k("xp.mercenary.1", "Выполнить заказ I яруса", "Finish a tier I job")
+k("xp.mercenary.2", "Выполнить заказ II яруса", "Finish a tier II job")
+k("xp.mercenary.3", "Выполнить заказ III яруса", "Finish a tier III job")
+k("xp.mercenary.4", "Выполнить заказ IV яруса (элитный — ×2,5)", "Finish a tier IV job (elite ×2.5)")
+k("talent.branch.contracts", "Заказы", "Jobs")
+k("talent.cross_contract_kill.name", "Казнь по заказу", "Execution by Order")
+k("talent.innate_profit.desc", "Врождённо: +10% урона по целям ваших охотничьих заказов; ближайшая такая цель в 12 блоках слышна тихим звоном.",
+  "Innate: +10% damage to the quarry of your hunts; the nearest such quarry within 12 blocks can be heard as a faint chime.")
+k("talent.innate_profit.effect.1", "Заказ на голову: по существам, на которых у вас взят охотничий заказ, вы бьёте на 10% сильнее. Талант «Метка заказа» поднимает это до 20% — не до 30%.",
+  "A price on its head: you hit creatures your hunts are after 10% harder. The talent Marked for the Job raises it to 20%, not 30%.")
+k("advancement.merc_first_contract.desc", "Выполнить заказ из Лавки мага", "Finish a job from the Mage's Shop")
+k("advancement.merc_elite.desc", "Выполнить элитный заказ", "Finish an elite job")
+k("advancement.merc_veteran.desc", "Выполнить 25 заказов", "Finish 25 jobs")
+k("merc.no_slot", "Уже взято заказов: %s — сначала выполните или откажитесь от одного", "You already hold %s jobs: finish or give one up first")
+k("merc.book.tab.contracts", "Заказы", "Jobs")
+k("merc.book.empty_hand", "Вы не взяли ни одного заказа. Возьмите заказ с доски слева — способности работают и без него.",
+  "You hold no job. Take one from the board on the left — the abilities work without one too.")
+k("merc.book.abandon", "Отказаться от заказа", "Give up the job")
+k("merc.shop.tokens", "Жетоны гильдии: %s", "Guild tokens: %s")
 
 # ---- the shop ----
 k("merc.shop.name", "Лавка мага", "The Mage's Shop")
@@ -467,10 +490,10 @@ k("merc.kind.deliver.tip", "Принесите предметы и сдайте 
   "Bring the items and hand them over in the book — they are taken from your inventory. Part by part is fine.")
 k("merc.kind.explore.tip", "Войдите в этот край. Если вы уже в нём, выйдите и вернитесь: засчитывается только вход.",
   "Enter this land. If you are already in it, leave and come back: only entering counts.")
-k("merc.kind.scout.tip", "Дойдите до отметки в Верхнем мире. Вблизи над ней встаёт золотой столб света; направление — в книге и над панелью способностей.",
-  "Reach the mark in the Overworld. Near it a golden pillar of light rises; the way is in the book and over the ability bar.")
-k("merc.kind.bounty.tip", "Именной враг со свитой ждёт у отметки (вблизи — красно-золотой столб света). Он крепче обычного: больше здоровья, сильнее бьёт, носит броню. Убейте его сами или с союзниками.",
-  "A named foe and its retinue wait at the mark (near it, a red-gold pillar of light). It is tougher than usual: more health, harder blows, armour. Bring it down yourself or with allies.")
+k("merc.kind.scout.tip", "Дойдите до отметки в Верхнем мире. Вблизи над ней поднимается столб золотой пыли и висит печать гильдии; направление — в книге и над панелью способностей.",
+  "Reach the mark in the Overworld. Near it a column of gold dust rises under the guild's seal; the way is in the book and over the ability bar.")
+k("merc.kind.bounty.tip", "Именной враг со свитой ждёт у отметки (вблизи — столб красно-золотой пыли). Он крепче обычного: больше здоровья, сильнее бьёт, носит броню. Убейте его сами или с союзниками.",
+  "A named foe and its retinue wait at the mark (near it, a column of red-gold dust). It is tougher than usual: more health, harder blows, armour. Bring it down yourself or with allies.")
 for r, ru, en, ru_t, en_t in [("night", "Только ночью", "Only at night", "Засчитываются только убийства в Верхнем мире ночью. Награда +30%.",
                                "Only kills in the Overworld at night count. +30% pay."),
                               ("bow", "Только стрелами", "Only with arrows", "Засчитываются только убийства стрелой, трезубцем или другим снарядом. Награда +30%.",

@@ -607,11 +607,13 @@ public final class MercFx {
 			float half = (0.3f + Math.min(0.2f, body.getBbWidth() * 0.15f)) * open;
 			Vec3 at = top(body, partial);
 			double spin = life * 0.03;
-			// Empty at first: only a faint ghost of the ring shows where its parts will go; each blow fills one part in
-			// solid polished gold, turning to the eye
-			billboard(draw, SEAL, at, half, spin, 0.3f, 0.22f * fade, 0);
+			// Empty at first: a faint ghost of the ring, cut into exactly as many parts as blows it needs (three; four
+			// with Compound Interest); each blow fills one part in solid polished gold, turning to the eye
 			String part = max == 4 ? SEAL_QUARTER : SEAL_PART;
 			double step = Math.PI * 2 / max;
+			for (int k = Math.min(charges, max); k < max; k++) {
+				billboard(draw, part, at, half, spin + k * step, 0.3f, 0.3f * fade, 0);
+			}
 			Vec3[] f = facing();
 			for (int k = 0; k < Math.min(charges, max); k++) {
 				float pop = k == charges - 1 ? Math.max(0, 1 - (life - popAt) / 6f) : 0;
@@ -1675,8 +1677,8 @@ public final class MercFx {
 				Vec3 hinge = at.add(right.scale(side * w / 2));
 				Vec3 along = right.scale(-side * Math.cos(angle)).add(forward.scale(Math.sin(angle)));
 				Vec3 centre = hinge.add(along.scale(w / 4)).add(0, 1.05, 0);
-				// Seen from the Mercenary: the left leaf's picture as it is (its hinge on the left), the right one mirrored
-				Vec3 halfU = side < 0 ? along.scale(w / 4) : along.scale(-w / 4);
+				// u runs from each hinge towards the middle: the left leaf's picture as it is, the right one mirrored
+				Vec3 halfU = along.scale(w / 4);
 				draw.solid(DOOR, centre, halfU, new Vec3(0, -1.05, 0), 0.07, 1, fade, 0);
 			}
 		}

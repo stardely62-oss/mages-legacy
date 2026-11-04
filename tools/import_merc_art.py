@@ -68,8 +68,10 @@ def main(folder):
         print("fx", name)
         if name == "seal":
             # Thirds start just past the top notch; quarters for a seal of four
-            wedge(img, 0, 120).save(FX / "merc_seal_part.png")
-            wedge(img, 0, 90).save(FX / "merc_seal_quarter.png")
+            # The parts with gaps at their ends (see tools/seal_parts.py)
+            import seal_parts
+            seal_parts.wedge(img.convert("RGBA"), 0, 120).save(FX / "merc_seal_part.png")
+            seal_parts.wedge(img.convert("RGBA"), 0, 90).save(FX / "merc_seal_quarter.png")
         if name == "coin":
             img.save(FX / "merc_coin_face.png")
         if name == "door":
