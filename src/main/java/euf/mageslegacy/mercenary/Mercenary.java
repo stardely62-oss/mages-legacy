@@ -1050,6 +1050,9 @@ public final class Mercenary {
 	private static void verdictBlow(ServerPlayer player, Verdict v, LivingEntity target) {
 		v.hits++;
 		ServerLevel level = player.serverLevel();
+		if (!v.executed) {
+			Fx.verdictHit(level, target, v.hits, VERDICT_EXECUTE_AFTER);
+		}
 		float boss = boss(target) && Talents.has(player, Talent.VERDICT_BOSS) ? 1.5f : 1;
 		int max = Talents.has(player, Talent.VERDICT_BLADES) ? VERDICT_BLADES_MORE : VERDICT_BLADES;
 		if (v.hits % 2 == 0 && v.blades < max) {
@@ -1125,6 +1128,11 @@ public final class Mercenary {
 		}
 		d.owed = Math.max(0, d.owed - amount);
 		if (d.owed > 0.0001f || !d.everOwed) {
+			ServerLevel at = server.getLevel(d.level);
+			Entity ward = at == null ? null : at.getEntity(d.ward);
+			if (ward != null) {
+				Fx.debtOwed(at, ward, (int) (d.until - now(server)), d.owed);
+			}
 			return;
 		}
 		ServerPlayer owner = server.getPlayerList().getPlayer(d.owner);
@@ -1498,6 +1506,9 @@ public final class Mercenary {
 				d.everOwed = true;
 				amount -= defer;
 				event.setNewDamage(amount);
+				if (victim.level() instanceof ServerLevel level) {
+					Fx.debtOwed(level, victim, (int) (d.until - now(level.getServer())), d.owed);
+				}
 			}
 		}
 		if (victim instanceof ServerPlayer player && is(player) && Talents.has(player, Talent.CRAFT_SECOND_WIND)) {

@@ -10,6 +10,9 @@ level-type=minecraft\:flat
 spawn-protection=0
 PROPS
 cp run/logs/latest.log run/client-latest.log 2>/dev/null || true
+# Sodium, Iris and Iris Veil Compat are client-only renderers: a dedicated server never carries them
+mkdir -p run/client-only
+mv run/mods/sodium-*.jar run/mods/iris-*.jar run/mods/irisveil-*.jar run/client-only/ 2>/dev/null || true
 timeout 600 ./gradlew runServer -PserverSmoke=true --stacktrace < /dev/null
 echo "runServer exited with $?"
 cp run/logs/latest.log run/server-latest.log 2>/dev/null || true

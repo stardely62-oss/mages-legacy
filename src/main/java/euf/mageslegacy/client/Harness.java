@@ -2621,8 +2621,9 @@ final class Harness {
 			// The sixth blow: filmed from the blow on (the great sword forms, falls, stands and crumbles)
 			int n = i;
 			run(() -> server().execute(() -> player().attack(mercMobs[0])), n == 5 ? 1 : 20);
-			if (i == 1) {
-				film("merc_verdict_circle", 3, 3);
+			if (i == 3) {
+				// Two swords lodged, the executioner's sword grown by four blows
+				film("merc_verdict_lodged", 4, 3);
 			}
 			if (i == 5) {
 				film("merc_verdict", 12, 3);
@@ -2662,6 +2663,12 @@ final class Harness {
 			run(() -> check("Life Debt: a blow of " + hits[n] + " puts 40% off, 12 at most (health " + player().getHealth() + ", owed "
 					+ euf.mageslegacy.mercenary.Mercenary.debtOwed(player()) + ")", Math.abs(player().getHealth() - health[n]) < 0.05f
 					&& Math.abs(euf.mageslegacy.mercenary.Mercenary.debtOwed(player()) - owed[n]) < 0.05f), 0);
+			if (i == 2) {
+				// Five coins hang on the chain (10 owed)
+				run(() -> watch(new Vec3(MX + 2.2, y[0] + 2, 2.2), new Vec3(MX, y[0] + 1.1, 0.5)), 2);
+				film("merc_debt_coins", 3, 3);
+				run(Harness::watchSelf, 0);
+			}
 		}
 		run(() -> server().execute(() -> player().setHealth(20)), 3);
 		then("the Debt comes due", () -> euf.mageslegacy.mercenary.Mercenary.debtOwed(player()) == 0, () -> {

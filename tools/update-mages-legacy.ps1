@@ -1,4 +1,5 @@
-﻿# Ставит/обновляет мод Mage's Legacy (NeoForge 1.21.1) и движок эффектов (Veil, GeckoLib) в папку mods TLauncher.
+﻿# Ставит/обновляет мод Mage's Legacy (NeoForge 1.21.1) и всё, что нужно для тестов: движок эффектов (Veil, GeckoLib)
+# и рендер с шейдерами (Sodium, Iris, Iris Veil Compat) — тех же версий, что проверяет сборка, — в папку mods TLauncher.
 # Запуск: двойной клик по update-mages-legacy.bat (лежит рядом).
 #   -Stable           взять последний стабильный релиз (v*), а не свежую dev-сборку
 #   -VersionName "…"  имя версии NeoForge в TLauncher (по умолчанию ищется сама)
@@ -15,8 +16,32 @@ $ProgressPreference = 'SilentlyContinue'
 
 $Repo = 'stardely62-oss/mages-legacy'
 $Headers = @{ 'User-Agent' = 'mages-legacy-updater' }
-# NeoForge не старше этой версии нужен KilaGraph (библиотеке Photon)
+# Самому моду нужен NeoForge 21.1.217+, Iris Veil Compat — 21.1.228+
 $MinNeoForge = [version]'21.1.217'
+$IrisVeilNeoForge = [version]'21.1.228'
+
+# Моды для тестов: ровно те версии, с которыми мод проверяется в сборке (Iris 1.8.14-beta.1 работает только с Sodium 0.8.13).
+# Имя, префиксы старых копий для удаления, файл, ссылка Modrinth, SHA-512
+$Pinned = @(
+    @{ Title = 'Veil'; Prefixes = @('veil-neoforge-'); File = 'veil-neoforge-1.21.1-4.5.2.jar'
+       Url = 'https://cdn.modrinth.com/data/3KUWeVhG/versions/IpGnlNgK/veil-neoforge-1.21.1-4.5.2.jar'
+       Sha = '046de1b45b94431c4faba4dd16b559491a433644a1ea1aa7e1edf2a5c37bde85d192bbf362297d4a4a04b8ab24ba9b6f9ec72a84f8de3affdb87bc72d52aa8c1' },
+    @{ Title = 'GeckoLib'; Prefixes = @('geckolib-neoforge-'); File = 'geckolib-neoforge-1.21.1-4.9.3.jar'
+       Url = 'https://cdn.modrinth.com/data/8BmcQJ2H/versions/Grwn5rUB/geckolib-neoforge-1.21.1-4.9.3.jar'
+       Sha = '8dfa5f8c57224a5e34e5098367ea9819ca6dc9c11357cd3062c16da3455c8bd1a483098af7383debc4b9ce8e4d7ab3fdc799b415644eb829da83eb72a7335dfd' },
+    @{ Title = 'Sodium'; Prefixes = @('sodium-neoforge-'); File = 'sodium-neoforge-0.8.13+mc1.21.1.jar'
+       Url = 'https://cdn.modrinth.com/data/AANobbMI/versions/uMOpc5uV/sodium-neoforge-0.8.13%2Bmc1.21.1.jar'
+       Sha = '4f537696af95411e9daf15795fb5fcbc49913d488a96fa912fa8f1d7db408710995e8a1461190f3cd0f8217bf9e35e9539176592428ed587ca2d7aa84450a390' },
+    @{ Title = 'Iris'; Prefixes = @('iris-neoforge-'); File = 'iris-neoforge-1.8.14-beta.1+mc1.21.1.jar'
+       Url = 'https://cdn.modrinth.com/data/YL57xq9U/versions/KduFYu4t/iris-neoforge-1.8.14-beta.1%2Bmc1.21.1.jar'
+       Sha = '33fddb430e16222902eac75b8b3d57c381b0f3cc729f3b56c4628df12ca108f23a0b11e2feb167923d6d14d1fc7e8ee1a977ec421b19d1951bdca74c4092b9c5' },
+    @{ Title = 'Iris Veil Compat'; Prefixes = @('irisveil-', 'iris-veil-'); File = 'irisveil-0.4.0.jar'; NeedsNeo = $IrisVeilNeoForge
+       Url = 'https://cdn.modrinth.com/data/owQyCHo4/versions/hWItkPzn/irisveil-0.4.0.jar'
+       Sha = '3ed3ed0234ea42a4c591c5bd651aca4feb7e2641ed0b48b5c2bd2536383c99a18f77917d425d32e007bfda3eb1b2e84c26a354ae83713708e71392c6085410bb' }
+)
+# Несовместимы с Veil/Sodium: удаляются
+$Conflicting = @('embeddium-*.jar', 'rubidium-*.jar', 'oculus-*.jar', 'celeritas-*.jar', 'photon-neoforge-*.jar', 'ldlib2-neoforge-*.jar',
+    'kilagraph-neoforge-*.jar', 'journeymap-*.jar', 'ender-obelisks-*.jar')
 
 function Say($text, $color = 'Gray') { Write-Host $text -ForegroundColor $color }
 
@@ -32,24 +57,35 @@ function NeoForgeOf($dir) {
     return $null
 }
 
-# Свежий основной файл мода с Modrinth для NeoForge 1.21.1; старые копии (по префиксу имени) удаляются
-function InstallFromModrinth($project, $title, $prefix) {
-    $query = 'game_versions=' + [uri]::EscapeDataString('["1.21.1"]') + '&loaders=' + [uri]::EscapeDataString('["neoforge"]')
-    $versions = @(Invoke-RestMethod "https://api.modrinth.com/v2/project/$project/version?$query" -Headers $Headers)
-    if ($versions.Count -eq 0) { throw "$title для NeoForge 1.21.1 не найден на Modrinth." }
-    $v = $versions[0]
-    $file = $v.files | Where-Object { $_.primary } | Select-Object -First 1
-    if (-not $file) { $file = $v.files[0] }
-    if (Test-Path -LiteralPath (Join-Path $mods $file.filename)) {
-        Say "$title уже последней версии."
-        return
+function RemoveOld($prefixes, $keep) {
+    foreach ($prefix in $prefixes) {
+        Get-ChildItem -LiteralPath $mods -Filter "$prefix*.jar" | Where-Object { $_.Name -ne $keep } |
+            ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force; Say "  удалён старый $($_.Name)" }
     }
-    $tmp = Join-Path $env:TEMP $file.filename
-    Invoke-WebRequest $file.url -OutFile $tmp -Headers $Headers -UseBasicParsing
-    Get-ChildItem -LiteralPath $mods -Filter "$prefix*.jar" | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
-    [IO.File]::Copy($tmp, (Join-Path $mods $file.filename), $true)
+}
+
+# Ставит мод ровно этой версии (проверяя SHA-512); другие его версии удаляются
+function InstallPinned($m) {
+    $target = Join-Path $mods $m.File
+    if (Test-Path -LiteralPath $target) {
+        $have = (Get-FileHash -LiteralPath $target -Algorithm SHA512).Hash.ToLower()
+        if ($have -eq $m.Sha) {
+            RemoveOld $m.Prefixes $m.File
+            Say "$($m.Title) уже стоит: $($m.File)"
+            return
+        }
+    }
+    $tmp = Join-Path $env:TEMP $m.File
+    Invoke-WebRequest $m.Url -OutFile $tmp -Headers $Headers -UseBasicParsing
+    $got = (Get-FileHash -LiteralPath $tmp -Algorithm SHA512).Hash.ToLower()
+    if ($got -ne $m.Sha) {
         Remove-Item -LiteralPath $tmp -Force
-    Say "$title установлен: $($file.filename)" Green
+        throw "$($m.Title): скачанный файл не совпал по SHA-512 (повреждён загрузкой?). Запусти ещё раз."
+    }
+    RemoveOld $m.Prefixes $m.File
+    [IO.File]::Copy($tmp, $target, $true)
+    Remove-Item -LiteralPath $tmp -Force
+    Say "$($m.Title) установлен: $($m.File)" Green
 }
 
 try {
@@ -90,11 +126,18 @@ try {
         Say "Похоже, Minecraft запущен. Закрой игру, иначе старые файлы не удалятся." Yellow
     }
 
-    # 3. Движок эффектов с Modrinth: Veil и GeckoLib (Photon и его библиотеки больше не нужны)
-    InstallFromModrinth 'veil' 'Veil' 'veil-neoforge-'
-    InstallFromModrinth 'geckolib' 'GeckoLib' 'geckolib-neoforge-'
-    foreach ($old in @('photon-neoforge-*.jar', 'ldlib2-neoforge-*.jar', 'kilagraph-neoforge-*.jar')) {
-        Get-ChildItem -LiteralPath $mods -Filter $old | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
+    # 3. Всё для тестов с Modrinth: Veil, GeckoLib, Sodium, Iris, Iris Veil Compat; несовместимое убирается
+    foreach ($old in $Conflicting) {
+        Get-ChildItem -LiteralPath $mods -Filter $old | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force; Say "  удалён $($_.Name)" }
+    }
+    $skipped = @()
+    foreach ($m in $Pinned) {
+        if ($m.NeedsNeo -and $neo -lt $m.NeedsNeo) {
+            RemoveOld $m.Prefixes ''
+            $skipped += "$($m.Title) (нужен NeoForge $($m.NeedsNeo)+)"
+            continue
+        }
+        InstallPinned $m
     }
 
     # 4. Сам мод из GitHub Releases
@@ -114,11 +157,14 @@ try {
         Say "Установлен $($asset.name) ($($release.name))" Green
     }
 
-    # Ender Obelisks и JourneyMap больше не входят в сборку
-    Get-ChildItem -LiteralPath $mods -Filter 'journeymap-*.jar' | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
-    Get-ChildItem -LiteralPath $mods -Filter 'ender-obelisks-*.jar' | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
-
     Say ""
+    if ($skipped.Count -gt 0) {
+        Say "Не поставлено: $($skipped -join ', ')." Yellow
+        Say "Поставь в TLauncher NeoForge 1.21.1 версии $IrisVeilNeoForge или новее, запусти её один раз и запусти этот скрипт снова." Yellow
+        Say "Без Iris Veil Compat шейдеры Iris и эффекты мода (Veil) могут конфликтовать: играй без шейдер-пака." Yellow
+    }
+    Say "Шейдеры: в игре Настройки -> Настройки графики -> Шейдеры (Iris). Папка shaderpacks — рядом с mods." DarkGray
+
     Say "Готово! Запускай в TLauncher версию '$VersionName'." Cyan
 }
 catch {
