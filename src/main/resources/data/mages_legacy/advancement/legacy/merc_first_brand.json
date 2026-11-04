@@ -1,0 +1,29 @@
+{
+  "parent": "mages_legacy:legacy/merc_root",
+  "display": {
+    "icon": {
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 72
+      }
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.merc_first_brand.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.merc_first_brand.desc"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "merc_first_brand"
+      }
+    }
+  }
+}

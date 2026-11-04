@@ -1,0 +1,29 @@
+{
+  "parent": "mages_legacy:legacy/merc_first_contract",
+  "display": {
+    "icon": {
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 70
+      }
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.merc_elite.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.merc_elite.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "merc_elite"
+      }
+    }
+  }
+}

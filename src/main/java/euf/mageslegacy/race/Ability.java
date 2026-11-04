@@ -33,7 +33,16 @@ public enum Ability {
 	FEAST(Race.BLOODKIN, -1, Talent.AWAKENING_LEVEL, 30, 5 * 60 * 20),
 	BLOOD_STORM(Race.BLOODKIN, -1, Talent.AWAKENING_LEVEL, 50, 5 * 60 * 20),
 	// The Prince of the Night's own key: the Bat Swarm (its rescue at the edge of death has its own 20-minute wait)
-	NIGHT_PRINCE(Race.BLOODKIN, -1, Talent.AWAKENING_LEVEL, 30, 25 * 20);
+	NIGHT_PRINCE(Race.BLOODKIN, -1, Talent.AWAKENING_LEVEL, 30, 25 * 20),
+
+	// The Mercenaries: no mana, only cooldowns. Hunter's Brand on R, the Guild Harpoon on V, the Mage's Shop on H
+	HUNTER_BRAND(Race.MERCENARY, 0, 3, 0, 8 * 20),
+	GUILD_HARPOON(Race.MERCENARY, 1, 5, 0, 10 * 20),
+	MAGES_SHOP(Race.MERCENARY, 3, 1, 0, 10),
+	GUILD_VERDICT(Race.MERCENARY, -1, Talent.AWAKENING_LEVEL, 0, 120 * 20),
+	// The Ransom's key signs a Life Debt; its Last Ransom saves by itself (its own 20-minute wait, in the account)
+	LIFE_DEBT(Race.MERCENARY, -1, Talent.AWAKENING_LEVEL, 0, 60 * 20),
+	GUILD_LEGEND(Race.MERCENARY, -1, Talent.AWAKENING_LEVEL, 0, 120 * 20);
 
 	public static final int SLOTS = 5;
 	/** Key names as they stand by default, for the HUD and the choice screen. */

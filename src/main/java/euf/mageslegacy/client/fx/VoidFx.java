@@ -82,6 +82,9 @@ public final class VoidFx {
 				case Fx.BLOOD, Fx.THREAD, Fx.BLOOD_TRAIL, Fx.BLOOD_RING, Fx.SACRIFICE, Fx.BLOOD_AURA, Fx.BLOOD_VORTEX, Fx.BAT_SWARM,
 						Fx.BLOOD_SLASH ->
 						BloodFx.play(payload, follow, level);
+				case Fx.BRAND_BOLT, Fx.BRAND_SEAL, Fx.BRAND_BLAST, Fx.HOOK, Fx.VERDICT_SEAL, Fx.VERDICT_BLADE, Fx.VERDICT_EXECUTE, Fx.DEBT_SEAL,
+						Fx.DEBT_WAVE, Fx.DEBT_DUE, Fx.RANSOM, Fx.BANNER, Fx.BANNER_BLADE, Fx.DOOR, Fx.PROFIT_PING, Fx.CONTRACT_DONE ->
+						MercFx.play(payload, follow, level);
 				default -> {
 				}
 			}

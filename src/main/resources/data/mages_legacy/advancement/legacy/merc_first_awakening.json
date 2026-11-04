@@ -1,0 +1,29 @@
+{
+  "parent": "mages_legacy:legacy/merc_cross",
+  "display": {
+    "icon": {
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 64
+      }
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.merc_first_awakening.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.merc_first_awakening.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "merc_first_awakening"
+      }
+    }
+  }
+}

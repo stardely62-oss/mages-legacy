@@ -60,7 +60,7 @@ public class MagesLegacyClient {
 		NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RenderGuiLayerEvent.Pre event) -> {
 			var screen = Minecraft.getInstance().screen;
 			if (screen instanceof TalentScreen || screen instanceof euf.mageslegacy.client.screen.PassageScreen
-					|| screen instanceof euf.mageslegacy.client.screen.MyceliumScreen) {
+					|| screen instanceof euf.mageslegacy.client.screen.MyceliumScreen || screen instanceof euf.mageslegacy.client.screen.GuildBookScreen) {
 				event.setCanceled(true);
 			}
 		});
@@ -94,6 +94,16 @@ public class MagesLegacyClient {
 		Minecraft.getInstance().setScreen(new euf.mageslegacy.client.screen.MyceliumScreen(view));
 	}
 
+	/** The Mage's Shop's book: opened with what the server shows, or brought up to date if it is open. */
+	public static void openGuildBook(net.minecraft.nbt.CompoundTag view) {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.screen instanceof euf.mageslegacy.client.screen.GuildBookScreen book) {
+			book.update(view);
+		} else if (view.getBoolean("open")) {
+			mc.setScreen(new euf.mageslegacy.client.screen.GuildBookScreen(view));
+		}
+	}
+
 	/** Through Worlds may be opened: whom to? */
 	public static void openPassage() {
 		Minecraft.getInstance().setScreen(new euf.mageslegacy.client.screen.PassageScreen());
@@ -125,6 +135,7 @@ public class MagesLegacyClient {
 		ScreenFx.tick();
 		ClientStep.tick();
 		BloodInstinct.tick();
+		euf.mageslegacy.client.fx.MercFx.tick();
 		// The loading screen closes itself when the terrain arrives, so the legend waits for it instead of being closed with it
 		if (choicePending && client.player != null && !(client.screen instanceof ReceivingLevelScreen) && client.getOverlay() == null) {
 			choicePending = false;

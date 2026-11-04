@@ -43,7 +43,13 @@ public final class Mastery {
 		/** Harvests drawing blood from 5 or more enemies at once. */
 		HARVEST_HORDE(Race.BLOODKIN, "m_harvest_horde", 5, false),
 		/** From Thirst (under 20 blood) back to 80 or more within 30 seconds. */
-		BLOOD_TIDE(Race.BLOODKIN, "m_blood_tide", 5, false);
+		BLOOD_TIDE(Race.BLOODKIN, "m_blood_tide", 5, false),
+		/** Hunter's Brands blown up on hostile creatures. */
+		BRAND_BLASTS(Race.MERCENARY, "m_brand_blasts", 15, false),
+		/** Brands whose third charge the Guild Harpoon struck. */
+		HOOK_BLASTS(Race.MERCENARY, "m_hook_blasts", 10, false),
+		/** Six contracts done, among them a hunt, a delivery and an exploration (each one listed by its kind). */
+		SIX_CONTRACTS(Race.MERCENARY, "m_six_contracts", 6, true);
 
 		public final Race race;
 		public final String tag;
@@ -85,6 +91,16 @@ public final class Mastery {
 	}
 
 	public static int count(CompoundTag progress, Goal goal) {
+		if (goal == Goal.SIX_CONTRACTS) {
+			// Six in all, but every kind missing keeps one place open for it
+			ListTag list = progress.getList(goal.tag, Tag.TAG_STRING);
+			java.util.Set<String> kinds = new java.util.HashSet<>();
+			for (Tag t : list) {
+				String s = t.getAsString();
+				kinds.add(s.substring(s.indexOf(':') + 1));
+			}
+			return Math.max(0, Math.min(list.size(), goal.need - (3 - kinds.size())));
+		}
 		return Math.min(goal.need, goal.distinct ? progress.getList(goal.tag, Tag.TAG_STRING).size() : progress.getInt(goal.tag));
 	}
 

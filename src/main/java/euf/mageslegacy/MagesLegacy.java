@@ -43,6 +43,7 @@ public class MagesLegacy {
 		euf.mageslegacy.mycelid.Awaken.register();
 		euf.mageslegacy.mycelid.Allies.register();
 		euf.mageslegacy.bloodkin.Bloodkin.register();
+		euf.mageslegacy.mercenary.Mercenary.register();
 		euf.mageslegacy.mycelid.FungalDiet.register();
 		euf.mageslegacy.race.Innate.register();
 		if (Boolean.getBoolean("mages_legacy.server_smoke")) {

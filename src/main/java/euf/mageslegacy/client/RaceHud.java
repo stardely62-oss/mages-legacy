@@ -63,7 +63,99 @@ public final class RaceHud {
 		graphics.fill(x0, barY, x0 + total, barY + 2, 0xFF1A1220);
 		graphics.fill(x0, barY, x0 + Math.round(total * fill), barY + 2, color);
 		String amount = String.valueOf((int) state.resource());
-		graphics.drawString(font, amount, x0 + total + 4, barY - 3, color);
+		if (race == Race.MERCENARY) {
+			// No mana: the bar is the pinned contract; the number is the tokens, with a coin
+			amount = String.valueOf(state.merc().length > 0 ? state.merc()[0] : 0);
+			graphics.drawString(font, amount, x0 + total + 4, barY - 3, 0xFFE2B04A);
+			mercenary(graphics, font, state, abilities, keys, x0, y0, total);
+		} else {
+			graphics.drawString(font, amount, x0 + total + 4, barY - 3, color);
+		}
+	}
+
+	/**
+	 * The Mercenary's extras: the brand's charges over R, the Verdict's blows, the Life Debt (owed, seconds, what its end
+	 * would cost) and the banner's time over their slots, the Last Ransom's readiness, the pinned contract above the row,
+	 * and a Nose for Profit's glint at the screen's edge.
+	 */
+	private static void mercenary(GuiGraphics graphics, Font font, SyncPayload state, List<Ability> abilities, List<Integer> keys, int x0, int y0, int total) {
+		int[] m = state.merc();
+		if (m.length < euf.mageslegacy.mercenary.Mercenary.HUD_SIZE) {
+			return;
+		}
+		for (int i = 0; i < abilities.size(); i++) {
+			Ability a = abilities.get(i);
+			int x = x0 + i * (SLOT + 3);
+			if (a == Ability.HUNTER_BRAND && m[1] > 0) {
+				for (int k = 0; k < m[2]; k++) {
+					int gx = x + 4 + k * 5;
+					LegacyUi.diamond(graphics, gx, y0 - 3, 2, k < m[1] ? 0xFFFFD27A : 0xFF4A3420);
+				}
+			}
+			if (a == Ability.GUILD_VERDICT && m[8] > 0) {
+				small(graphics, font, m[7] + "/6", x + 1, y0 - 6, 0xFFFFD27A);
+			}
+			if (a == Ability.GUILD_LEGEND && m[9] > 0) {
+				small(graphics, font, (m[9] + 19) / 20 + "s", x + 1, y0 - 6, 0xFFFFD27A);
+			}
+			if (a == Ability.LIFE_DEBT) {
+				boolean ready = m[10] <= 0 && m[0] >= euf.mageslegacy.mercenary.Mercenary.RANSOM_TOKENS;
+				LegacyUi.diamond(graphics, x + 4, y0 + SLOT - 4, 2, ready ? 0xFFFFD27A : 0xFF4A3420);
+				if (m[10] > 0) {
+					small(graphics, font, (m[10] + 59) / 60 + "m", x + 1, y0 + 1, 0xFFC8823C);
+				}
+				if (m[5] > 0) {
+					// The Debt running: owed and what its end would cost, warned in red
+					String line = String.format("%.1f", m[4] / 10f) + " · " + (m[5] + 19) / 20 + "s";
+					String due = "-" + String.format("%.1f", m[6] / 10f);
+					small(graphics, font, line, x - 2, y0 - 12, 0xFFFFD27A);
+					small(graphics, font, due, x - 2, y0 - 6, 0xFFFF6A50);
+				}
+			}
+		}
+		// The pinned contract, small, above the row
+		String note = state.note();
+		if (note != null && !note.isEmpty()) {
+			String[] p = note.split("\\|");
+			if (p.length == 4) {
+				net.minecraft.nbt.CompoundTag c = new net.minecraft.nbt.CompoundTag();
+				c.putString("kind", p[0]);
+				c.putString("target", p[1]);
+				c.putInt("amount", Integer.parseInt(p[3]));
+				String what = euf.mageslegacy.client.screen.GuildBookScreen.describe(c).getString();
+				String text = "explore".equals(p[0]) ? what : what.replaceAll(" ×\\d+$", "") + " " + p[2] + "/" + p[3];
+				graphics.pose().pushPose();
+				graphics.pose().translate(x0, y0 - 20, 0);
+				graphics.pose().scale(0.75f, 0.75f, 1);
+				graphics.drawString(font, text, 0, 0, 0xFFE2B04A);
+				graphics.pose().popPose();
+			}
+		}
+		// A Nose for Profit: a golden glint at the edge, on the quarry's side
+		var ping = euf.mageslegacy.client.fx.MercFx.pingAt;
+		int left = euf.mageslegacy.client.fx.MercFx.pingLeft;
+		Minecraft mc = Minecraft.getInstance();
+		if (ping != null && left > 0 && mc.player != null) {
+			net.minecraft.world.phys.Vec3 d = ping.subtract(mc.player.getEyePosition());
+			double yaw = Math.toDegrees(Math.atan2(-d.x, d.z));
+			double rel = net.minecraft.util.Mth.wrapDegrees(yaw - mc.player.getYRot());
+			int w = graphics.guiWidth();
+			int h = graphics.guiHeight();
+			double ang = Math.toRadians(rel);
+			int cx = w / 2 + (int) (Math.sin(ang) * (w / 2 - 14));
+			int cy = h / 2 - (int) (Math.cos(ang) * (h / 2 - 14));
+			float a = Math.min(1, left / 10f);
+			LegacyUi.glow(graphics, cx, cy, 12, 0xFFE2B04A, a);
+			LegacyUi.diamond(graphics, cx, cy, 3, LegacyUi.alpha(0xFFFFE8A0, a));
+		}
+	}
+
+	private static void small(GuiGraphics graphics, Font font, String text, int x, int y, int color) {
+		graphics.pose().pushPose();
+		graphics.pose().translate(x, y, 0);
+		graphics.pose().scale(0.5f, 0.5f, 1);
+		graphics.drawString(font, text, 0, 0, color);
+		graphics.pose().popPose();
 	}
 
 	private static void slot(GuiGraphics graphics, Font font, Ability ability, int key, SyncPayload state, int x, int y, int color) {

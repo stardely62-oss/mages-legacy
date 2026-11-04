@@ -501,6 +501,7 @@ final class Harness {
 		bloodkin();
 		fungalDiet(y);
 		innate(y);
+		mercenary();
 		run(() -> server().execute(() -> player().kill()), 20);
 	}
 
@@ -956,9 +957,9 @@ final class Harness {
 					icons.add(data);
 				}
 			}
-			check("three race tabs: " + shown + " advancements, " + hidden + " hidden, " + technical + " old kept invisible, " + missing
-					+ " without a title, " + strays + " under another race", shown == 51 && hidden == 3 && technical == 8 && missing == 0 && strays == 0);
-			check("every advancement wears its own painted icon (" + icons.size() + ")", icons.size() == 51);
+			check("four race tabs: " + shown + " advancements, " + hidden + " hidden, " + technical + " old kept invisible, " + missing
+					+ " without a title, " + strays + " under another race", shown == 70 && hidden == 3 && technical == 8 && missing == 0 && strays == 0);
+			check("every advancement wears its own painted icon (" + icons.size() + ")", icons.size() == 70);
 			check("the Colony's path follows the saved state (" + done("myc_root") + done("myc_gift") + done("myc_first_awakening") + ")",
 					done("myc_root") && done("myc_gift") && done("myc_first_awakening") && !done("void_root"));
 			// An old world: the shared tab's records stay, and count again only where the state proves them
@@ -1526,7 +1527,7 @@ final class Harness {
 	private static void innate(int[] y) {
 		Minecraft mc = Minecraft.getInstance();
 		euf.mageslegacy.race.Talent[] innates = {euf.mageslegacy.race.Talent.INNATE_VOID, euf.mageslegacy.race.Talent.INNATE_FUNGAL,
-				euf.mageslegacy.race.Talent.INNATE_PREDATOR};
+				euf.mageslegacy.race.Talent.INNATE_PREDATOR, euf.mageslegacy.race.Talent.INNATE_PROFIT};
 		run(() -> {
 			for (Race race : Race.values()) {
 				if (!race.playable) {
@@ -1922,6 +1923,829 @@ final class Harness {
 	}
 
 	/** Level 5 for every ability, full Void, noon, and a stone wall 4 blocks south of the player, who faces it. */
+	// ---- The Mercenaries ----------------------------------------------------------------------------------------------
+
+	private static net.minecraft.world.entity.LivingEntity[] mercMobs = new net.minecraft.world.entity.LivingEntity[8];
+	private static final double MX = 500.5;
+
+	/** A creature at (x, ground, z), facing south; still (no AI) unless asked. */
+	private static net.minecraft.world.entity.LivingEntity mercMob(EntityType<? extends net.minecraft.world.entity.Mob> type, double x, int y, double z,
+			boolean still) {
+		ServerPlayer player = player();
+		var e = type.create(player.serverLevel());
+		e.moveTo(x, y, z, 180, 0);
+		e.setNoAi(still);
+		e.setPersistenceRequired();
+		player.serverLevel().addFreshEntity(e);
+		return e;
+	}
+
+	/** A step: the scenario's creatures taken away. */
+	private static void mercClear() {
+		run(() -> server().execute(() -> {
+			for (int i = 0; i < mercMobs.length; i++) {
+				if (mercMobs[i] != null) {
+					mercMobs[i].discard();
+					mercMobs[i] = null;
+				}
+			}
+		}), 2);
+	}
+
+	/** A step: back to a clean Mercenary at a level and talents, full health, no cooldowns, no effects, nothing in hand. */
+	private static void mercSetUp(int level, String... talents) {
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			euf.mageslegacy.race.Talents.setNoCooldown(player, false);
+			Progression.setLevel(player, level);
+			player.setData(RaceState.TALENTS, new ArrayList<>(List.of(talents)));
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(player).cooldown, 0);
+			player.removeAllEffects();
+			player.setHealth(player.getMaxHealth());
+			player.setAbsorptionAmount(0);
+			// Food low: no natural healing to blur the counts
+			player.getFoodData().setFoodLevel(10);
+			player.getFoodData().setSaturation(0);
+			player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);
+			player.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, net.minecraft.world.item.ItemStack.EMPTY);
+			RaceState.sync(player);
+		}), 3);
+	}
+
+	private static void mercAt(double x, int y, double z, float yaw, float pitch) {
+		server().execute(() -> player().connection.teleport(x, y, z, yaw, pitch));
+	}
+
+	private static euf.mageslegacy.mercenary.Account account() {
+		return euf.mageslegacy.mercenary.Account.of(player());
+	}
+
+	/** The race experience in all (every level's worth plus what is towards the next). */
+	private static long totalXp() {
+		long sum = player().getData(RaceState.XP);
+		for (int l = 1; l < RaceState.level(player()); l++) {
+			sum += Progression.xpForNext(l);
+		}
+		return sum;
+	}
+
+	/**
+	 * The Mercenaries: chosen; the tree; Hunter's Brand (4 at once, 10 s, three charges, one burst of 6 and its shield,
+	 * a charge no more than once in 8 ticks, 4 at most on a player); the Guild Harpoon (a pig dragged in, the Mercenary
+	 * drawn to an iron golem and to a wither, flown to a wall, never through one); Brand + blow + Harpoon; the book and
+	 * its contracts (three offers, two in hand, a delivery taking real items once, a fresh offer after it, the pay of
+	 * every tier and of elite jobs, an exploration that doesn't count where it was taken, the rotation, the recent ones
+	 * kept off), the Shop (bought, refused, faked, the daily limit), what is saved; the Verdict, the Life Debt (40% put
+	 * off, 12 at most, paid down by blows, the rest come due, on an ally), the Last Ransom (30 tokens, 20 minutes, the
+	 * totem first), the Guild Legend (strength, ward, blades on the branded first, kills lengthen it to a limit); the
+	 * mastery trial; a new race taking it all away.
+	 */
+	private static void mercenary() {
+		Minecraft mc = Minecraft.getInstance();
+		int[] y = {-60};
+		float[] f = new float[8];
+		run(() -> server().execute(() -> {
+			ServerPlayer player = player();
+			RaceState.set(player, Race.MERCENARY);
+			player.serverLevel().setDayTime(6000);
+			player.teleportTo(server().overworld(), MX, y[0], 0.5, 0, 0);
+		}), 10);
+		run(() -> check("became a Mercenary, its own tab open (" + done("merc_root") + ")", RaceState.is(player(), Race.MERCENARY) && done("merc_root")
+				&& !done("blood_root")), 0);
+		run(() -> {
+			int missing = 0;
+			for (var t : euf.mageslegacy.race.Talent.of(Race.MERCENARY)) {
+				if (!net.minecraft.client.resources.language.I18n.exists(t.key() + ".name") || !net.minecraft.client.resources.language.I18n.exists(t.key() + ".desc")) {
+					missing++;
+				}
+			}
+			var tree = euf.mageslegacy.race.Talent.tree(Race.MERCENARY);
+			long cross = tree.stream().filter(t -> t.kind == euf.mageslegacy.race.Talent.Kind.CROSS).count();
+			long awakenings = tree.stream().filter(t -> t.kind == euf.mageslegacy.race.Talent.Kind.AWAKENING).count();
+			check("the Mercenary tree: 59 nodes (" + tree.size() + "), 6 cross, 3 Awakenings, one innate, every node named (" + missing + " missing)",
+					tree.size() == 59 && cross == 6 && awakenings == 3 && missing == 0
+							&& euf.mageslegacy.race.Talent.innateOf(Race.MERCENARY).orElse(null) == euf.mageslegacy.race.Talent.INNATE_PROFIT);
+			check("no mana: every Mercenary ability costs nothing", euf.mageslegacy.race.Ability.of(Race.MERCENARY).stream().allMatch(a -> a.cost == 0));
+		}, 0);
+		crossTalents(Race.MERCENARY);
+
+		// ---- Hunter's Brand ----
+		mercSetUp(5);
+		run(() -> {
+			mercAt(MX, y[0], 0.5, 0, 8);
+			server().execute(() -> mercMobs[0] = mercMob(EntityType.VINDICATOR, MX, y[0], 6.5, true));
+		}, 10);
+		run(() -> {
+			f[0] = mercMobs[0].getHealth();
+			check("the Brand works with no contract in hand (" + account().active.size() + ")", account().active.isEmpty());
+			MagesLegacyClient.useAbility(0);
+		}, 12);
+		run(() -> {
+			ServerPlayer p = player();
+			check("the Brand's bolt: 4 at once and a first charge (" + mercMobs[0].getHealth() + ", "
+					+ euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], p) + ")", Math.abs(f[0] - mercMobs[0].getHealth() - 4) < 0.01f
+					&& euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], p) == 1);
+			check("the brand holds 10 seconds (" + euf.mageslegacy.mercenary.Mercenary.brandLeft(mercMobs[0], p) + " ticks left)",
+					euf.mageslegacy.mercenary.Mercenary.brandLeft(mercMobs[0], p) > 180 && euf.mageslegacy.mercenary.Mercenary.brandLeft(mercMobs[0], p) <= 200);
+			check("the Brand's cooldown is 8 s (" + euf.mageslegacy.voidborn.Voidborn.state(p).cooldown[0] + ")",
+					euf.mageslegacy.voidborn.Voidborn.state(p).cooldown[0] > 140 && euf.mageslegacy.voidborn.Voidborn.state(p).cooldown[0] <= 160);
+			// Two charges asked in the same tick: one counts
+			server().execute(() -> {
+				euf.mageslegacy.mercenary.Mercenary.chargeNow(p, mercMobs[0]);
+				euf.mageslegacy.mercenary.Mercenary.chargeNow(p, mercMobs[0]);
+			});
+		}, 3);
+		run(() -> check("two charges in one tick count once (" + euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) + ")",
+				euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 2), 12);
+		run(() -> {
+			f[0] = mercMobs[0].getHealth();
+			server().execute(() -> player().attack(mercMobs[0]));
+		}, 4);
+		run(() -> {
+			// The blow itself is a bare fist's 1
+			float burst = f[0] - mercMobs[0].getHealth() - 1;
+			check("the third charge bursts it: 6 more, once, the brand gone (" + burst + ", " + euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0],
+					player()) + ")", Math.abs(burst - 6) < 0.01f && euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 0);
+			check("the burst's shield: 2 absorption (" + player().getAbsorptionAmount() + ")", Math.abs(player().getAbsorptionAmount() - 2) < 0.01f);
+			check("a burst on a hostile creature counts for the Verdict's trial", euf.mageslegacy.race.Talents.progress(player(),
+					euf.mageslegacy.mercenary.Mercenary.T_BLASTS) == 1);
+			f[2] = mercMobs[0].getHealth();
+			server().execute(() -> player().attack(mercMobs[0]));
+		}, 14);
+		run(() -> check("a blow after the burst is only a blow (" + (f[2] - mercMobs[0].getHealth()) + ")", f[2] - mercMobs[0].getHealth() < 1.5f
+				&& euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 0), 0);
+		run(() -> {
+		}, 80);
+		run(() -> check("the shield is gone after 4 seconds (" + player().getAbsorptionAmount() + ")", player().getAbsorptionAmount() < 0.01f), 0);
+		// The brand runs out by itself
+		run(() -> server().execute(() -> euf.mageslegacy.mercenary.Mercenary.brandNow(player(), mercMobs[0])), 100);
+		run(() -> check("the brand still holds after 5 seconds", euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 1), 110);
+		run(() -> check("the brand fades after 10 seconds (" + euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) + ")",
+				euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 0), 10);
+		// Seen from the side: the bolt, the seal lighting part by part, the burst
+		mercSetUp(5);
+		run(() -> {
+			mercAt(MX, y[0], 0.5, 0, 8);
+			watch(new Vec3(MX + 4.5, y[0] + 2.2, 3.5), new Vec3(MX, y[0] + 1.5, 4.5));
+		}, 3);
+		run(() -> MagesLegacyClient.useAbility(0), 1);
+		film("merc_brand", 6, 2);
+		run(() -> server().execute(() -> player().attack(mercMobs[0])), 10);
+		shot("merc_brand_seal");
+		run(() -> server().execute(() -> player().attack(mercMobs[0])), 1);
+		film("merc_blast", 6, 2);
+		run(Harness::watchSelf, 0);
+		// A player under the brand: the burst no more than 4 (worked out for a stand-in player; a creature gets the full 6)
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			var fake = net.neoforged.neoforge.common.util.FakePlayerFactory.get(p.serverLevel(),
+					new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "merc_target"));
+			var husk = EntityType.HUSK.create(p.serverLevel());
+			float onPlayer = euf.mageslegacy.mercenary.Mercenary.burstFor(p, fake);
+			float onHusk = euf.mageslegacy.mercenary.Mercenary.burstFor(p, husk);
+			Minecraft.getInstance().execute(() -> check("a burst on a player is 4 at most, on a creature 6 (" + onPlayer + ", " + onHusk + ")",
+					onPlayer == 4 && onHusk == 6));
+		}), 3);
+		mercClear();
+
+		// ---- Guild Harpoon ----
+		mercSetUp(5);
+		run(() -> {
+			mercAt(MX, y[0], 0.5, 0, 6);
+			server().execute(() -> {
+				mercMobs[0] = mercMob(EntityType.PIG, MX, y[0], 9.5, false);
+				mercMobs[0].addEffect(new net.minecraft.world.effect.MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 200, 9));
+			});
+		}, 10);
+		run(() -> {
+			f[0] = mercMobs[0].getHealth();
+			watch(new Vec3(MX + 6, y[0] + 3, 4.5), new Vec3(MX, y[0] + 1, 5));
+			MagesLegacyClient.useAbility(1);
+		}, 1);
+		film("merc_harpoon_pull", 8, 2);
+		run(Harness::watchSelf, 0);
+		run(() -> check("the Harpoon drags a pig in and hurts it 2 (" + String.format("%.1f", mercMobs[0].distanceTo(player())) + " blocks, "
+				+ (f[0] - mercMobs[0].getHealth()) + ")", mercMobs[0].distanceTo(player()) < 3.6 && Math.abs(f[0] - mercMobs[0].getHealth() - 2) < 0.01f
+				&& Math.abs(player().getZ() - 0.5) < 0.5), 15);
+		mercClear();
+		// Heavy: an iron golem; then a boss: a wither (both still): the Mercenary is drawn to them
+		Object[][] heavy = {{EntityType.IRON_GOLEM, "an iron golem"}, {EntityType.WITHER, "a wither (a boss)"}};
+		for (Object[] h : heavy) {
+			mercSetUp(5);
+			run(() -> {
+				mercAt(MX, y[0], 0.5, 0, 0);
+				@SuppressWarnings("unchecked")
+				EntityType<? extends net.minecraft.world.entity.Mob> type = (EntityType<? extends net.minecraft.world.entity.Mob>) h[0];
+				server().execute(() -> mercMobs[0] = mercMob(type, MX, y[0], 12.5, true));
+			}, 10);
+			run(() -> {
+				f[0] = mercMobs[0].getHealth();
+				MagesLegacyClient.useAbility(1);
+			}, 40);
+			run(() -> {
+				check("the Harpoon draws the Mercenary to " + h[1] + " (z " + String.format("%.1f", player().getZ()) + ", hit " + (f[0] - mercMobs[0].getHealth())
+						+ ")", player().getZ() > 8 && Math.abs(mercMobs[0].getZ() - 12.5) < 0.1 && Math.abs(f[0] - mercMobs[0].getHealth() - 2) < 0.01f
+						&& player().level().noCollision(player()));
+				check("no fall damage from the pull (" + player().getHealth() + ")", player().getHealth() >= player().getMaxHealth() - 0.01f);
+			}, 0);
+			mercClear();
+		}
+		// A block: a wall 12 blocks off; never through it
+		mercSetUp(5);
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			for (int x = -1; x <= 1; x++) {
+				for (int dy = 0; dy < 4; dy++) {
+					p.serverLevel().setBlockAndUpdate(new BlockPos((int) Math.floor(MX) + x, y[0] + dy, 12), Blocks.STONE.defaultBlockState());
+				}
+			}
+			p.connection.teleport(MX, y[0], 0.5, 0, -5);
+			mercMobs[0] = mercMob(EntityType.VINDICATOR, MX, y[0], 15.5, true);
+		}), 10);
+		run(() -> {
+			f[0] = mercMobs[0].getHealth();
+			watch(new Vec3(MX + 7, y[0] + 4, 5.5), new Vec3(MX, y[0] + 1.5, 7));
+			MagesLegacyClient.useAbility(1);
+		}, 1);
+		film("merc_harpoon_wall", 8, 3);
+		run(Harness::watchSelf, 0);
+		run(() -> check("the Harpoon flies the Mercenary to a wall, not into it, not through it (z " + String.format("%.2f", player().getZ()) + ")",
+				player().getZ() > 8 && player().getZ() < 12 && player().level().noCollision(player()) && mercMobs[0].getHealth() == f[0]), 10);
+		run(() -> server().execute(() -> {
+			for (int x = -1; x <= 1; x++) {
+				for (int dy = 0; dy < 4; dy++) {
+					player().serverLevel().setBlockAndUpdate(new BlockPos((int) Math.floor(MX) + x, y[0] + dy, 12), Blocks.AIR.defaultBlockState());
+				}
+			}
+		}), 2);
+		mercClear();
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			p.connection.teleport(MX, y[0], 0.5, 0, 0);
+			p.setXRot(0);
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(p).cooldown, 0);
+		}), 5);
+		run(() -> MagesLegacyClient.useAbility(1), 5);
+		run(() -> check("nothing to bite in reach: refused, nothing spent (" + euf.mageslegacy.voidborn.Voidborn.state(player()).cooldown[1] + ")",
+				euf.mageslegacy.voidborn.Voidborn.state(player()).cooldown[1] == 0 && !euf.mageslegacy.mercenary.Mercenary.hooking(player())), 0);
+		// Brand, a blow, the Harpoon: the third charge, the burst, the combo's deed
+		mercSetUp(5);
+		run(() -> {
+			mercAt(MX, y[0], 0.5, 0, 6);
+			server().execute(() -> mercMobs[0] = mercMob(EntityType.VINDICATOR, MX, y[0], 5.5, true));
+		}, 10);
+		run(() -> MagesLegacyClient.useAbility(0), 12);
+		run(() -> server().execute(() -> player().attack(mercMobs[0])), 20);
+		run(() -> {
+			f[0] = mercMobs[0].getHealth();
+			MagesLegacyClient.useAbility(1);
+		}, 14);
+		run(() -> check("Brand, a blow, the Harpoon: the third charge bursts it (" + (f[0] - mercMobs[0].getHealth()) + ", combo "
+				+ done("merc_combo") + ")", Math.abs(f[0] - mercMobs[0].getHealth() - 8) < 0.01f && done("merc_combo")
+				&& euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 0), 10);
+		mercClear();
+
+		// ---- The Mage's Shop: the book, the board, the hand ----
+		mercSetUp(1);
+		run(() -> {
+			mercAt(MX, y[0], 0.5, 0, 0);
+			mc.getToasts().clear();
+			watch(new Vec3(MX + 3, y[0] + 1.8, -2.5), new Vec3(MX, y[0] + 1.2, 2.5));
+			server().execute(() -> euf.mageslegacy.fx.Fx.door(player().serverLevel(), new Vec3(MX, y[0], 2.6), 0, 40));
+		}, 1);
+		film("merc_door", 4, 3);
+		run(() -> {
+			watchSelf();
+			MagesLegacyClient.useAbility(3);
+		}, 1);
+		then("the book opens", () -> mc.screen instanceof euf.mageslegacy.client.screen.GuildBookScreen, () -> {
+			var book = (euf.mageslegacy.client.screen.GuildBookScreen) mc.screen;
+			check("H opens the guild's book with three offers (" + book.view().getList("offers", 10).size() + ")",
+					book.view().getList("offers", 10).size() == 3);
+		}, 10);
+		shot("merc_book_contracts");
+		run(() -> {
+			var a = account();
+			int first = a.offers.get(0).id;
+			int second = a.offers.get(1).id;
+			int third = a.offers.get(2).id;
+			server().execute(() -> {
+				euf.mageslegacy.mercenary.Mercenary.act(player(), 1, first, "");
+				euf.mageslegacy.mercenary.Mercenary.act(player(), 1, second, "");
+				euf.mageslegacy.mercenary.Mercenary.act(player(), 1, third, "");
+			});
+		}, 10);
+		run(() -> {
+			var a = account();
+			check("two contracts in hand, the third refused (" + a.active.size() + " in hand, " + a.offers.size() + " on the board)",
+					a.active.size() == 2 && a.offers.size() == 1);
+		}, 0);
+		shot("merc_book_hand");
+		run(() -> ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(1), 10);
+		shot("merc_book_shop");
+		// The book at the smallest and the largest GUI scale
+		int[] bookScale = new int[1];
+		for (int gui : new int[] {1, 4}) {
+			run(() -> {
+				if (bookScale[0] == 0) {
+					bookScale[0] = mc.options.guiScale().get();
+				}
+				mc.options.guiScale().set(gui);
+				mc.resizeDisplay();
+			}, 10);
+			shot("merc_book_scale" + gui);
+		}
+		run(() -> {
+			mc.options.guiScale().set(bookScale[0]);
+			mc.resizeDisplay();
+			((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(0);
+		}, 5);
+		shot("merc_book_scale_back");
+		run(() -> mc.setScreen(null), 5);
+		// A delivery: real items taken once, the pay, a fresh offer at once
+		long[] xp = new long[2];
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			var a = euf.mageslegacy.mercenary.Account.of(p);
+			a.active.clear();
+			a.offers.clear();
+			a.active.add(new euf.mageslegacy.mercenary.Contract(a.nextId++, euf.mageslegacy.mercenary.Contract.Kind.DELIVER, "minecraft:iron_ingot", 4, 1,
+					false, euf.mageslegacy.mercenary.Contracts.XP[0], euf.mageslegacy.mercenary.Contracts.TOKENS[0]));
+			a.tokens = 0;
+			euf.mageslegacy.mercenary.Mercenary.save(p, a);
+			p.getInventory().clearContent();
+			p.getInventory().add(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_INGOT, 6));
+		}), 3);
+		run(() -> {
+			xp[0] = totalXp();
+			int id = account().active.get(0).id;
+			server().execute(() -> {
+				euf.mageslegacy.mercenary.Mercenary.act(player(), 3, id, "");
+				euf.mageslegacy.mercenary.Mercenary.act(player(), 3, id, "");
+			});
+		}, 5);
+		run(() -> {
+			var a = account();
+			int left = player().getInventory().countItem(net.minecraft.world.item.Items.IRON_INGOT);
+			check("a delivery takes exactly 4 ingots once (" + left + " left), pays 10 tokens and 120 experience once (" + a.tokens + ", +"
+					+ (totalXp() - xp[0]) + ")", left == 2 && a.tokens == 10 && totalXp() - xp[0] == 120 && a.active.isEmpty());
+			check("a job done puts a fresh offer on the board at once (" + a.offers.size() + ")", a.offers.size() == 3);
+			check("the deeds and the trials count it", done("merc_first_contract") && euf.mageslegacy.race.Talents.progress(player(),
+					euf.mageslegacy.mercenary.Mercenary.T_CONTRACTS) == 1);
+		}, 0);
+		// The pay of every tier, and an elite job's
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			var a = euf.mageslegacy.mercenary.Account.of(p);
+			StringBuilder said = new StringBuilder();
+			boolean ok = true;
+			int[][] want = {{120, 10}, {240, 16}, {400, 24}, {620, 34}};
+			for (int t = 1; t <= 4; t++) {
+				var c = new euf.mageslegacy.mercenary.Contract(0, euf.mageslegacy.mercenary.Contract.Kind.HUNT, "minecraft:zombie", 10, t, false,
+						euf.mageslegacy.mercenary.Contracts.XP[t - 1], euf.mageslegacy.mercenary.Contracts.TOKENS[t - 1]);
+				int[] pay = euf.mageslegacy.mercenary.Contracts.pay(p, a, c, false);
+				said.append(pay[0]).append('/').append(pay[1]).append(' ');
+				ok &= pay[0] == want[t - 1][0] && pay[1] == want[t - 1][1];
+			}
+			// Elite Orders on: boards until an elite job turns up
+			p.setData(RaceState.TALENTS, new ArrayList<>(List.of("con_board", "con_hands", "con_elite")));
+			Progression.setLevel(p, 30);
+			euf.mageslegacy.mercenary.Contract elite = null;
+			for (int i = 0; i < 200 && elite == null; i++) {
+				a.offers.clear();
+				euf.mageslegacy.mercenary.Contracts.fill(p, a);
+				elite = a.offers.stream().filter(c -> c.elite).findFirst().orElse(null);
+			}
+			if (elite != null) {
+				euf.mageslegacy.mercenary.Contract e = elite;
+				var template = euf.mageslegacy.mercenary.Contracts.TEMPLATES.stream().filter(t -> t.target().equals(e.target) && t.tier() == e.tier
+						&& t.kind() == e.kind).findFirst().orElse(null);
+				ok &= template != null && e.amount == template.amount() * 2 && e.xp == Math.round(euf.mageslegacy.mercenary.Contracts.XP[e.tier - 1] * 2.5f)
+						&& e.tokens == Math.round(euf.mageslegacy.mercenary.Contracts.TOKENS[e.tier - 1] * 2.5f) && e.kind != euf.mageslegacy.mercenary.Contract.Kind.EXPLORE
+						&& a.offers.stream().filter(c -> c.elite).count() == 1;
+				said.append("elite ").append(e.target).append(" x").append(e.amount).append(' ').append(e.xp).append('/').append(e.tokens);
+			} else {
+				ok = false;
+			}
+			boolean first = ok;
+			String text = said.toString();
+			Minecraft.getInstance().execute(() -> check("the pay: tier I-IV 120/10, 240/16, 400/24, 620/34; elite twice the work, 2.5x the pay (" + text + ")",
+					first));
+		}), 5);
+		// Every board has the highest open tier and tier I, and two kinds of work at least; a recent job stays off
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			var a = euf.mageslegacy.mercenary.Account.of(p);
+			a.recent.clear();
+			a.recent.add("minecraft:zombie");
+			boolean ok = true;
+			for (int i = 0; i < 60; i++) {
+				a.offers.clear();
+				a.active.clear();
+				euf.mageslegacy.mercenary.Contracts.fill(p, a);
+				ok &= a.offers.size() == 4 && a.offers.stream().anyMatch(c -> c.tier == 4) && a.offers.stream().anyMatch(c -> c.tier == 1)
+						&& a.offers.stream().map(c -> c.kind).distinct().count() >= 2 && a.offers.stream().noneMatch(c -> c.target.equals("minecraft:zombie"));
+			}
+			boolean all = ok;
+			Minecraft.getInstance().execute(() -> check("every board: the top tier and tier I, two kinds of work, never a recent job", all));
+		}), 5);
+		// An exploration taken where it leads doesn't count; it counts once left and entered again
+		String[] land = new String[1];
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			ServerLevel end = server().getLevel(net.minecraft.world.level.Level.END);
+			BlockPos pad = new BlockPos(2000, 100, 2000);
+			for (int dx = -2; dx <= 2; dx++) {
+				for (int dz = -2; dz <= 2; dz++) {
+					end.setBlockAndUpdate(pad.offset(dx, -1, dz), Blocks.OBSIDIAN.defaultBlockState());
+				}
+			}
+			land[0] = end.getBiome(pad).unwrapKey().map(k -> k.location().toString()).orElse("minecraft:the_end");
+			p.teleportTo(end, 2000.5, 100, 2000.5, 0, 0);
+		}), 20);
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			var a = euf.mageslegacy.mercenary.Account.of(p);
+			a.active.clear();
+			a.offers.clear();
+			var c = new euf.mageslegacy.mercenary.Contract(a.nextId++, euf.mageslegacy.mercenary.Contract.Kind.EXPLORE, land[0], 1, 1, false, 120, 10);
+			a.offers.add(c);
+			euf.mageslegacy.mercenary.Mercenary.save(p, a);
+			euf.mageslegacy.mercenary.Mercenary.act(p, 1, c.id, "");
+		}), 60);
+		run(() -> check("an exploration taken inside its land doesn't count (" + land[0] + ", " + account().active.size() + " in hand)",
+				account().active.size() == 1 && !account().active.get(0).done()), 0);
+		run(() -> server().execute(() -> player().teleportTo(server().overworld(), MX, y[0], 0.5, 0, 0)), 50);
+		run(() -> server().execute(() -> player().teleportTo(server().getLevel(net.minecraft.world.level.Level.END), 2000.5, 100, 2000.5, 0, 0)), 50);
+		run(() -> check("left and entered again: the exploration done (" + account().completedKinds[2] + ")", account().active.isEmpty()
+				&& account().completedKinds[2] == 1), 0);
+		run(() -> server().execute(() -> player().teleportTo(server().overworld(), MX, y[0], 0.5, 0, 0)), 30);
+		// The rotation: a new day, a new board and new goods
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			var a = euf.mageslegacy.mercenary.Account.of(p);
+			a.day = euf.mageslegacy.mercenary.Contracts.today(p) - 1;
+			a.offers.clear();
+			a.stock.clear();
+			euf.mageslegacy.mercenary.Mercenary.save(p, a);
+		}), 30);
+		run(() -> {
+			var a = account();
+			check("a new day: a fresh board and stock (" + a.offers.size() + " offers, " + a.stock.size() + " goods, day " + a.day + ")",
+					a.offers.size() == 4 && a.stock.size() >= 7 && a.day == euf.mageslegacy.mercenary.Contracts.today(player()));
+		}, 0);
+		// The Shop: bought, refused for want of tokens, faked, the daily limit
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			p.setData(RaceState.TALENTS, new ArrayList<>());
+			Progression.setLevel(p, 1);
+			var a = euf.mageslegacy.mercenary.Account.of(p);
+			a.tokens = 100;
+			a.bought.clear();
+			a.stock.clear();
+			a.stock.add("arrows");
+			a.deals.clear();
+			euf.mageslegacy.mercenary.Mercenary.save(p, a);
+			p.getInventory().clearContent();
+			p.removeAllEffects();
+			euf.mageslegacy.mercenary.Mercenary.act(p, 5, 0, "hire_strength");
+			euf.mageslegacy.mercenary.Mercenary.act(p, 5, 0, "arrows");
+			// Not in today's stock, a tier not open, a ware that doesn't exist: all refused
+			euf.mageslegacy.mercenary.Mercenary.act(p, 5, 0, "totem");
+			euf.mageslegacy.mercenary.Mercenary.act(p, 5, 0, "netherite_scrap");
+			euf.mageslegacy.mercenary.Mercenary.act(p, 5, 0, "free_gold");
+		}), 5);
+		run(() -> {
+			var a = account();
+			boolean strength = player().hasEffect(MobEffects.DAMAGE_BOOST);
+			int arrows = player().getInventory().countItem(net.minecraft.world.item.Items.ARROW);
+			check("bought: Hired Strength and arrows; the fakes refused (" + a.tokens + " tokens, strength " + strength + ", " + arrows + " arrows, totem "
+					+ player().getInventory().countItem(net.minecraft.world.item.Items.TOTEM_OF_UNDYING) + ")", a.tokens == 87 && strength && arrows == 32
+					&& player().getInventory().countItem(net.minecraft.world.item.Items.TOTEM_OF_UNDYING) == 0
+					&& player().getInventory().countItem(net.minecraft.world.item.Items.NETHERITE_SCRAP) == 0);
+			check("tokens spent count for the Ransom's trial (" + euf.mageslegacy.race.Talents.progress(player(), euf.mageslegacy.mercenary.Mercenary.T_SPENT)
+					+ ")", euf.mageslegacy.race.Talents.progress(player(), euf.mageslegacy.mercenary.Mercenary.T_SPENT) == 13);
+			server().execute(() -> {
+				for (int i = 0; i < 5; i++) {
+					euf.mageslegacy.mercenary.Mercenary.act(player(), 5, 0, "learning");
+				}
+			});
+		}, 5);
+		run(() -> {
+			var a = account();
+			check("the Mage's Learning: 3 a day, dearer each time (" + a.bought.get("learning") + " bought, " + a.tokens + " tokens left)",
+					a.bought.getOrDefault("learning", 0) == 3 && a.tokens == 87 - 12 - 18 - 24);
+			server().execute(() -> {
+				var b = euf.mageslegacy.mercenary.Account.of(player());
+				b.tokens = 5;
+				euf.mageslegacy.mercenary.Mercenary.save(player(), b);
+				euf.mageslegacy.mercenary.Mercenary.act(player(), 5, 0, "hire_guard");
+			});
+		}, 5);
+		run(() -> check("too few tokens: refused, nothing taken (" + account().tokens + ")", account().tokens == 5
+				&& !player().hasEffect(MobEffects.DAMAGE_RESISTANCE)), 0);
+		// What is kept: the account in the player's saved data
+		run(() -> {
+			var saved = player().saveWithoutId(new net.minecraft.nbt.CompoundTag());
+			String dump = saved.toString();
+			check("the account is saved with the player (tokens, contracts, the Ransom's wait)", dump.contains("mages_legacy:mercenary")
+					&& dump.contains("tokens") && dump.contains("ransomReady"));
+		}, 0);
+
+		// ---- The Guild's Verdict ----
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			euf.mageslegacy.race.Talents.learnAll(p, "verdict", "ransom");
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(p).cooldown, 0);
+			p.setData(RaceState.TALENTS, new ArrayList<>(List.of("awakening_verdict", "awakening_ransom")));
+			p.connection.teleport(MX, y[0], 0.5, 0, 0);
+			p.setHealth(20);
+			p.removeAllEffects();
+			p.getFoodData().setFoodLevel(10);
+			p.getFoodData().setSaturation(0);
+			RaceState.sync(p);
+		}), 10);
+		run(() -> {
+			var owned = euf.mageslegacy.race.Talents.owned(player());
+			check("two Awakenings: the Verdict on Z, the Ransom on Alt, the Legend closed", euf.mageslegacy.race.Awakenings.at(owned, 2).orElse(null)
+					== euf.mageslegacy.race.Ability.GUILD_VERDICT && euf.mageslegacy.race.Awakenings.at(owned, 4).orElse(null) == euf.mageslegacy.race.Ability.LIFE_DEBT
+					&& "mages_legacy.talent.state.third_closed".equals(euf.mageslegacy.race.Talents.awakeningRefusal(owned, 50,
+					euf.mageslegacy.race.Talent.AWAKENING_LEGEND, player().getData(RaceState.PROGRESS))));
+			server().execute(() -> mercMobs[0] = mercMob(EntityType.IRON_GOLEM, MX, y[0], 3.5, true));
+		}, 10);
+		run(() -> {
+			f[0] = mercMobs[0].getHealth();
+			watch(new Vec3(MX + 4.5, y[0] + 2.5, 0.5), new Vec3(MX, y[0] + 1.6, 3.5));
+			MagesLegacyClient.useAbility(2);
+		}, 12);
+		run(() -> check("the Verdict on the golem in sight (" + euf.mageslegacy.mercenary.Mercenary.condemned(player()) + ")",
+				mercMobs[0].getUUID().equals(euf.mageslegacy.mercenary.Mercenary.condemned(player()))), 0);
+		for (int i = 0; i < 12; i++) {
+			run(() -> server().execute(() -> player().attack(mercMobs[0])), 20);
+			if (i == 5) {
+				film("merc_verdict", 6, 2);
+			}
+		}
+		run(() -> {
+			float lost = f[0] - mercMobs[0].getHealth();
+			// 12 blows of 1, 5 blades of 3, one execution of 8
+			check("the Verdict: a blade every second blow, 5 at most, one execution of 8 (" + lost + " lost)", Math.abs(lost - 35) < 0.05f);
+			check("the Verdict's cooldown is 2 minutes", euf.mageslegacy.voidborn.Voidborn.state(player()).cooldown[2] > 2000);
+			check("the execution's deed", done("merc_execution"));
+		}, 0);
+		run(Harness::watchSelf, 0);
+		mercClear();
+
+		// ---- The Ransom: the Life Debt ----
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			p.setHealth(20);
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(p).cooldown, 0);
+		}), 3);
+		run(() -> {
+			watch(new Vec3(MX + 3, y[0] + 2.2, 3), new Vec3(MX, y[0] + 1, 0.5));
+			MagesLegacyClient.useAbility(4);
+		}, 4);
+		film("merc_debt", 4, 3);
+		run(Harness::watchSelf, 0);
+		float[] hits = {10, 10, 5, 5, 1};
+		float[] health = {14, 8, 5, 2, 1};
+		float[] owed = {4, 8, 10, 12, 12};
+		for (int i = 0; i < hits.length; i++) {
+			int n = i;
+			run(() -> server().execute(() -> {
+				player().invulnerableTime = 0;
+				player().hurt(player().damageSources().generic(), hits[n]);
+			}), 2);
+			run(() -> check("Life Debt: a blow of " + hits[n] + " puts 40% off, 12 at most (health " + player().getHealth() + ", owed "
+					+ euf.mageslegacy.mercenary.Mercenary.debtOwed(player()) + ")", Math.abs(player().getHealth() - health[n]) < 0.05f
+					&& Math.abs(euf.mageslegacy.mercenary.Mercenary.debtOwed(player()) - owed[n]) < 0.05f), 0);
+		}
+		run(() -> server().execute(() -> player().setHealth(20)), 3);
+		then("the Debt comes due", () -> euf.mageslegacy.mercenary.Mercenary.debtOwed(player()) == 0, () -> {
+		}, 3);
+		run(() -> check("unpaid at its end: half of the 12 strikes (" + player().getHealth() + ")", Math.abs(player().getHealth() - 14) < 0.05f), 0);
+		// Paid down by blows: 20%, 30% on a branded foe; paid off: +2 and the wave
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(p).cooldown, 0);
+			p.setHealth(20);
+			p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STONE_SWORD));
+			mercMobs[0] = mercMob(EntityType.IRON_GOLEM, MX, y[0], 2.5, true);
+			mercMobs[1] = mercMob(EntityType.HUSK, MX + 2, y[0], 1.5, true);
+		}), 10);
+		run(() -> MagesLegacyClient.useAbility(4), 3);
+		run(() -> server().execute(() -> {
+			player().invulnerableTime = 0;
+			player().hurt(player().damageSources().generic(), 10);
+		}), 3);
+		run(() -> {
+			f[0] = mercMobs[0].getHealth();
+			f[1] = euf.mageslegacy.mercenary.Mercenary.debtOwed(player());
+			server().execute(() -> player().attack(mercMobs[0]));
+		}, 25);
+		run(() -> {
+			float dealt = f[0] - mercMobs[0].getHealth();
+			float paid = f[1] - euf.mageslegacy.mercenary.Mercenary.debtOwed(player());
+			check("a blow pays the Debt down by 20% of its damage (" + dealt + " dealt, " + paid + " paid)", dealt > 0 && Math.abs(paid - dealt * 0.2f) < 0.05f);
+			f[0] = mercMobs[0].getHealth();
+			f[1] = euf.mageslegacy.mercenary.Mercenary.debtOwed(player());
+			f[2] = player().getHealth();
+			f[3] = mercMobs[1].getHealth();
+			server().execute(() -> {
+				euf.mageslegacy.mercenary.Mercenary.brandNow(player(), mercMobs[0]);
+			});
+		}, 25);
+		run(() -> {
+			f[0] = mercMobs[0].getHealth();
+			server().execute(() -> player().attack(mercMobs[0]));
+		}, 25);
+		run(() -> {
+			float dealt = f[0] - mercMobs[0].getHealth();
+			float owedNow = euf.mageslegacy.mercenary.Mercenary.debtOwed(player());
+			boolean paidOff = owedNow == 0 && done("merc_debt_paid");
+			check("on a branded foe 30% (" + dealt + " dealt, owed " + f[1] + " -> " + owedNow + ")", paidOff ? f[1] <= dealt * 0.3f + 0.05f
+					: Math.abs(f[1] - owedNow - dealt * 0.3f) < 0.05f);
+			if (!paidOff) {
+				// Pay off the rest
+				server().execute(() -> player().attack(mercMobs[0]));
+			}
+		}, 25);
+		run(() -> check("paid off in time: +2 health, the wave strikes a husk near (" + (player().getHealth() - f[2]) + ", husk " + (f[3]
+				- mercMobs[1].getHealth()) + ")", euf.mageslegacy.mercenary.Mercenary.debtOwed(player()) == 0 && done("merc_debt_paid")
+				&& f[3] - mercMobs[1].getHealth() >= 3.99f), 0);
+		mercClear();
+		// On an ally: one's own wolf, looked at with Shift
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(p).cooldown, 0);
+			var wolf = EntityType.WOLF.create(p.serverLevel());
+			wolf.moveTo(MX, y[0], 3.5, 180, 0);
+			wolf.tame(p);
+			wolf.setOrderedToSit(true);
+			p.serverLevel().addFreshEntity(wolf);
+			mercMobs[2] = wolf;
+			p.connection.teleport(MX, y[0], 0.5, 0, 20);
+		}), 10);
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			p.setShiftKeyDown(true);
+			var why = euf.mageslegacy.mercenary.Mercenary.lifeDebt(p);
+			p.setShiftKeyDown(false);
+			mercMobs[2].setHealth(mercMobs[2].getMaxHealth());
+			mercMobs[2].invulnerableTime = 0;
+			mercMobs[2].hurt(p.damageSources().generic(), 5);
+			Minecraft.getInstance().execute(() -> check("Shift on an ally signs the Debt for it (" + (why == null ? "ok" : why.key()) + ", owed "
+					+ euf.mageslegacy.mercenary.Mercenary.debtOn(mercMobs[2]) + ")", why == null
+					&& Math.abs(euf.mageslegacy.mercenary.Mercenary.debtOn(mercMobs[2]) - 2) < 0.05f));
+		}), 3);
+		run(() -> f[0] = mercMobs[2].getHealth(), 0);
+		then("the ally's Debt comes due", () -> euf.mageslegacy.mercenary.Mercenary.debtOn(mercMobs[2]) == 0, () -> check(
+				"the ally pays its own Debt at the end (" + (f[0] - mercMobs[2].getHealth()) + ")", Math.abs(f[0] - mercMobs[2].getHealth() - 1) < 0.05f), 3);
+		mercClear();
+		// The Last Ransom: 30 tokens, 40%, 20 minutes, kept; the totem first
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			var a = euf.mageslegacy.mercenary.Account.of(p);
+			a.tokens = 40;
+			a.ransomReady = 0;
+			euf.mageslegacy.mercenary.Mercenary.save(p, a);
+			p.setHealth(20);
+			p.invulnerableTime = 0;
+			p.hurt(p.damageSources().generic(), 100);
+		}), 5);
+		run(() -> {
+			var a = account();
+			long left = a.ransomReady - server().overworld().getGameTime();
+			check("the Last Ransom: alive at 40% for exactly 30 tokens, 20 minutes' wait kept in the account (" + player().getHealth() + ", " + a.tokens
+					+ ", " + left + ")", player().isAlive() && Math.abs(player().getHealth() - 8) < 0.05f && a.tokens == 10 && left > 23900 && left <= 24000
+					&& done("merc_ransom"));
+			server().execute(() -> {
+				ServerPlayer p = player();
+				var b = euf.mageslegacy.mercenary.Account.of(p);
+				b.tokens = 40;
+				b.ransomReady = 0;
+				euf.mageslegacy.mercenary.Mercenary.save(p, b);
+				p.setHealth(20);
+				p.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.TOTEM_OF_UNDYING));
+				p.invulnerableTime = 0;
+				p.hurt(p.damageSources().generic(), 100);
+			});
+		}, 5);
+		run(() -> check("a totem in hand saves first: the tokens kept (" + account().tokens + ", totem " + player().getOffhandItem() + ")",
+				player().isAlive() && account().tokens == 40 && player().getOffhandItem().isEmpty()), 10);
+
+		// ---- The Guild Legend ----
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			p.removeAllEffects();
+			p.setHealth(20);
+			p.setData(RaceState.TALENTS, new ArrayList<>(List.of("awakening_legend", "awakening_verdict")));
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(p).cooldown, 0);
+			p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);
+			p.connection.teleport(MX, y[0], 0.5, 0, 0);
+			mercMobs[0] = mercMob(EntityType.IRON_GOLEM, MX, y[0], 2.5, true);
+			for (int i = 0; i < 4; i++) {
+				mercMobs[1 + i] = mercMob(EntityType.HUSK, MX - 4 + i * 2.5, y[0], 6.5 + (i == 3 ? 2 : 0), true);
+			}
+			RaceState.sync(p);
+		}), 10);
+		run(() -> {
+			watch(new Vec3(MX + 9, y[0] + 6, -6), new Vec3(MX, y[0] + 1.5, 3));
+			MagesLegacyClient.useAbility(2);
+		}, 2);
+		film("merc_legend", 8, 4);
+		run(() -> server().execute(() -> {
+			// The farthest husk branded: it must be among the banner's three
+			euf.mageslegacy.mercenary.Mercenary.brandNow(player(), mercMobs[4]);
+			for (int i = 1; i <= 4; i++) {
+				mercMobs[i].setHealth(mercMobs[i].getMaxHealth());
+			}
+		}), 41);
+		run(() -> {
+			int struck = 0;
+			for (int i = 1; i <= 4; i++) {
+				struck += mercMobs[i].getHealth() < mercMobs[i].getMaxHealth() ? 1 : 0;
+			}
+			check("the banner's blades: 3 foes a wave, the branded one among them (" + struck + ", branded " + mercMobs[4].getHealth() + ")", struck == 3
+					&& mercMobs[4].getHealth() < mercMobs[4].getMaxHealth() - 2);
+			f[0] = mercMobs[0].getHealth();
+			server().execute(() -> player().attack(mercMobs[0]));
+		}, 3);
+		run(() -> {
+			float dealt = f[0] - mercMobs[0].getHealth();
+			check("under the banner +15% (" + dealt + ")", Math.abs(dealt - 1.15f) < 0.02f);
+			f[1] = player().getHealth();
+			server().execute(() -> {
+				player().invulnerableTime = 0;
+				player().hurt(player().damageSources().generic(), 10);
+			});
+		}, 3);
+		run(() -> {
+			check("under the banner 10% less taken (" + (f[1] - player().getHealth()) + ")", Math.abs(f[1] - player().getHealth() - 9) < 0.05f);
+			server().execute(() -> {
+				for (int i = 1; i <= 4; i++) {
+					mercMobs[i].setHealth(1);
+					mercMobs[i].invulnerableTime = 0;
+					mercMobs[i].hurt(player().damageSources().playerAttack(player()), 5);
+				}
+			});
+		}, 3);
+		run(() -> check("kills under the banner lengthen it, 6 seconds at most (" + euf.mageslegacy.mercenary.Mercenary.bannerExtended(player()) + ")",
+				euf.mageslegacy.mercenary.Mercenary.bannerExtended(player()) == 120), 3);
+		run(Harness::watchSelf, 0);
+		mercClear();
+
+		// ---- The mastery trial ----
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			Progression.setLevel(p, 45);
+			p.setData(RaceState.TALENTS, new ArrayList<>(List.of("awakening_verdict")));
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(p).cooldown, 0);
+			euf.mageslegacy.race.Mastery.start(p);
+			p.connection.teleport(MX, y[0], 0.5, 0, 6);
+			mercMobs[0] = mercMob(EntityType.VINDICATOR, MX, y[0], 5.5, true);
+		}), 10);
+		run(() -> MagesLegacyClient.useAbility(0), 12);
+		run(() -> server().execute(() -> player().attack(mercMobs[0])), 20);
+		run(() -> MagesLegacyClient.useAbility(1), 16);
+		run(() -> {
+			var tag = player().getData(RaceState.PROGRESS);
+			check("the mastery trial counts a Brand burst and a Harpoon combo (" + euf.mageslegacy.race.Mastery.count(tag,
+					euf.mageslegacy.race.Mastery.Goal.BRAND_BLASTS) + ", " + euf.mageslegacy.race.Mastery.count(tag, euf.mageslegacy.race.Mastery.Goal.HOOK_BLASTS)
+					+ ")", euf.mageslegacy.race.Mastery.count(tag, euf.mageslegacy.race.Mastery.Goal.BRAND_BLASTS) == 1
+					&& euf.mageslegacy.race.Mastery.count(tag, euf.mageslegacy.race.Mastery.Goal.HOOK_BLASTS) == 1);
+		}, 0);
+		mercClear();
+		run(() -> {
+			mc.getToasts().clear();
+			mc.setScreen(new euf.mageslegacy.client.screen.TalentScreen());
+		}, 20);
+		shot("talents_mercenary");
+		run(() -> mc.setScreen(null), 3);
+		tabShot("advancements_mercenary", "merc_root");
+		run(() -> {
+			watchSelf();
+			mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+		}, 3);
+		shot("merc_hud");
+		// A new race takes it all away
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			p.setData(RaceState.TALENTS, new ArrayList<>(List.of("craft_cuirass")));
+			euf.mageslegacy.voidborn.Voidborn.state(p).cooldown[2] = 0;
+		}), 25);
+		run(() -> {
+			double armour = player().getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ARMOR);
+			server().execute(() -> RaceState.set(player(), Race.VOIDBORN));
+			f[0] = (float) armour;
+		}, 25);
+		run(() -> check("a new race: the Cuirass off, the account gone (armour " + f[0] + " -> "
+				+ player().getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ARMOR) + ")", f[0] == 2
+				&& player().getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ARMOR) == 0
+				&& player().getData(RaceState.MERC).isEmpty()), 0);
+	}
+
 	private static void setUp() {
 		ServerPlayer player = player();
 		ServerLevel level = player.serverLevel();

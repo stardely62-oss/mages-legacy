@@ -38,7 +38,7 @@ public final class Abilities {
 		int cost = cost(player, ability);
 		// A singularity holds its heart in place: nothing else happens until it collapses
 		if (euf.mageslegacy.mycelid.MyceliumNetwork.travelling(player) || euf.mageslegacy.bloodkin.Bloodkin.swarming(player)
-				|| euf.mageslegacy.bloodkin.Bloodkin.dashing(player)) {
+				|| euf.mageslegacy.bloodkin.Bloodkin.dashing(player) || euf.mageslegacy.mercenary.Mercenary.busy(player)) {
 			refuse(player, Component.translatable("mages_legacy.refuse.busy"));
 			return;
 		}
@@ -49,7 +49,8 @@ public final class Abilities {
 		// Leaving the Pocket and ending an arena are always free and never wait
 		boolean free = ability == Ability.POCKET && Pocket.isPocket(player.level()) || ability == Ability.RIFT_ARENA && Arena.endsNow(player)
 				|| ability == Ability.GREAT_BLOOM && euf.mageslegacy.mycelid.Awaken.bloomEndsNow(player)
-				|| ability == Ability.BLOOD_DASH && euf.mageslegacy.bloodkin.Bloodkin.secondDash(player);
+				|| ability == Ability.BLOOD_DASH && euf.mageslegacy.bloodkin.Bloodkin.secondDash(player)
+				|| ability == Ability.GUILD_HARPOON && state.cooldown[slot] > 0 && euf.mageslegacy.mercenary.Mercenary.secondHook(player);
 		// An arena holds whoever is on it until it ends
 		if (ability == Ability.POCKET && Arena.isArena(player.level())) {
 			refuse(player, Component.translatable("mages_legacy.refuse.arena_here"));
@@ -106,6 +107,12 @@ public final class Abilities {
 			case FEAST -> euf.mageslegacy.bloodkin.Bloodkin.feast(player);
 			case BLOOD_STORM -> euf.mageslegacy.bloodkin.Bloodkin.storm(player);
 			case NIGHT_PRINCE -> euf.mageslegacy.bloodkin.Bloodkin.swarm(player);
+			case HUNTER_BRAND -> euf.mageslegacy.mercenary.Mercenary.brand(player);
+			case GUILD_HARPOON -> euf.mageslegacy.mercenary.Mercenary.harpoon(player);
+			case MAGES_SHOP -> euf.mageslegacy.mercenary.Mercenary.openShop(player);
+			case GUILD_VERDICT -> euf.mageslegacy.mercenary.Mercenary.verdict(player);
+			case LIFE_DEBT -> euf.mageslegacy.mercenary.Mercenary.lifeDebt(player);
+			case GUILD_LEGEND -> euf.mageslegacy.mercenary.Mercenary.legend(player);
 		};
 		if (refusal != null) {
 			if (paidFirst) {
@@ -163,6 +170,9 @@ public final class Abilities {
 		}
 		if (ability == Ability.POCKET && Talents.has(player, Talent.POCKET_CHEAP)) {
 			return 5 * 20;
+		}
+		if (ability == Ability.GUILD_HARPOON && Talents.has(player, Talent.HARP_QUICK)) {
+			return 7 * 20;
 		}
 		return ability.cooldown;
 	}

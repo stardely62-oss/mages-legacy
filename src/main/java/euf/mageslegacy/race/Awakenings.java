@@ -28,6 +28,9 @@ public final class Awakenings {
 			case AWAKENING_FEAST -> Ability.FEAST;
 			case AWAKENING_BLOOD_STORM -> Ability.BLOOD_STORM;
 			case AWAKENING_PRINCE -> Ability.NIGHT_PRINCE;
+			case AWAKENING_VERDICT -> Ability.GUILD_VERDICT;
+			case AWAKENING_RANSOM -> Ability.LIFE_DEBT;
+			case AWAKENING_LEGEND -> Ability.GUILD_LEGEND;
 			default -> null;
 		};
 	}
@@ -43,6 +46,9 @@ public final class Awakenings {
 			case FEAST -> Talent.AWAKENING_FEAST;
 			case BLOOD_STORM -> Talent.AWAKENING_BLOOD_STORM;
 			case NIGHT_PRINCE -> Talent.AWAKENING_PRINCE;
+			case GUILD_VERDICT -> Talent.AWAKENING_VERDICT;
+			case LIFE_DEBT -> Talent.AWAKENING_RANSOM;
+			case GUILD_LEGEND -> Talent.AWAKENING_LEGEND;
 			default -> null;
 		};
 	}

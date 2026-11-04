@@ -82,7 +82,7 @@ jobs:
           gh release create neo-dev "$JAR" $(ls run/screenshots/*.png | grep -v '/film_') mages-legacy-updater.zip \
             --prerelease --target "$GITHUB_SHA" \
             --title "NeoForge 1.21.1 dev build ${{ github.run_number }}" \
-            --notes "Сборка для NeoForge 1.21.1 из main (коммит ${GITHUB_SHA::7}). Поставить: скачай mages-legacy-updater.zip, распакуй и запусти update-mages-legacy.bat (сам найдёт NeoForge 1.21.1 в TLauncher и поставит Veil и GeckoLib). Играбельны Пустотники (Карман, Пустотный шаг, Повышенная гравитация); остальные расы спят."
+            --notes "Сборка для NeoForge 1.21.1 из main (коммит ${GITHUB_SHA::7}). Поставить: скачай mages-legacy-updater.zip, распакуй и запусти update-mages-legacy.bat (сам найдёт NeoForge 1.21.1 в TLauncher и поставит Veil и GeckoLib). Играбельны Пустотники, Мицелиды, Кровники и Наёмники; остальные расы спят."
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')

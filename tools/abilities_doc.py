@@ -12,8 +12,10 @@ awakening_level = int(re.search(r'AWAKENING_LEVEL = (\d+);', talent_src).group(1
 keys = re.search(r'KEY_NAMES = \{(.*?)\};', src).group(1).replace('"', "").split(", ")
 awakening_of = {"RIFT_ARENA": "awakening_rift", "PASSAGE": "awakening_worlds", "BLACK_HOLE": "awakening_hole",
                 "GREAT_BLOOM": "awakening_bloom", "SPORE_STORM": "awakening_storm", "MYCELIAL_REBIRTH": "awakening_rebirth",
-                "FEAST": "awakening_feast", "BLOOD_STORM": "awakening_blood_storm", "NIGHT_PRINCE": "awakening_prince"}
-races = {"VOIDBORN": ("Пустотники", "Пустота"), "MYCELID": ("Мицелиды", "Споры"), "BLOODKIN": ("Кровники", "Кровь")}
+                "FEAST": "awakening_feast", "BLOOD_STORM": "awakening_blood_storm", "NIGHT_PRINCE": "awakening_prince",
+                "GUILD_VERDICT": "awakening_verdict", "LIFE_DEBT": "awakening_ransom", "GUILD_LEGEND": "awakening_legend"}
+races = {"VOIDBORN": ("Пустотники", "Пустота"), "MYCELID": ("Мицелиды", "Споры"), "BLOODKIN": ("Кровники", "Кровь"),
+         "MERCENARY": ("Наёмники", None)}
 
 def seconds(expr):
     ticks = eval(expr, {}, {})
@@ -25,7 +27,9 @@ out = ["# Способности", "",
        "Таланты, которые меняют способности, — в [TALENTS.md](TALENTS.md).", ""]
 for race, (title, resource) in races.items():
     rows = re.findall(r'^\t([A-Z_]+)\(Race\.' + race + r', (-?\d+), ([\w.]+), (\d+), ([\d *]+)\)', src, re.M)
-    out += [f"## {title}", "", f"Ресурс — **{resource}** (до 100).", "", "### Базовые способности", "",
+    res = f"Ресурс — **{resource}** (до 100)." if resource else ("Маны нет: способности ждут только перезарядку. Жетоны — валюта Лавки мага, "
+                                                              "а полоса под слотами показывает прогресс закреплённого контракта.")
+    out += [f"## {title}", "", res, "", "### Базовые способности", "",
             "| Способность | Клавиша | С уровня | Цена | Перезарядка |", "|---|---|---|---|---|"]
     basic = [r for r in rows if int(r[1]) >= 0]
     awakenings = [r for r in rows if int(r[1]) < 0]
