@@ -2290,6 +2290,7 @@ final class Harness {
 		shot("merc_book_hand");
 		run(() -> ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(1), 10);
 		shot("merc_book_shop");
+		int[] armorySpent = new int[1];
 		// The armory: empty while no race gear exists; with two test pieces (one locked), a purchase
 		run(() -> ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(2), 10);
 		shot("merc_armory_empty");
@@ -2304,6 +2305,8 @@ final class Harness {
 					net.minecraft.resources.ResourceLocation.parse("minecraft:trident"), java.util.EnumSet.of(Race.VOIDBORN),
 					euf.mageslegacy.mercenary.Armory.Kind.WEAPON, 1, 5, euf.mageslegacy.mercenary.Shop.Rarity.COMMON, 0, 1));
 			euf.mageslegacy.mercenary.Mercenary.setTokens(player(), 40);
+			// What was spent so far: the armory's purchase is put back after, for the trial's count checked later
+			armorySpent[0] = euf.mageslegacy.race.Talents.progress(player(), euf.mageslegacy.mercenary.Mercenary.T_SPENT);
 			euf.mageslegacy.mercenary.Mercenary.act(player(), 0, 0, "");
 		}), 10);
 		run(() -> {
@@ -2326,6 +2329,7 @@ final class Harness {
 				euf.mageslegacy.mercenary.Armory.remove("test:blade");
 				euf.mageslegacy.mercenary.Armory.remove("test:plate");
 				euf.mageslegacy.mercenary.Armory.remove("test:other");
+				player().getData(RaceState.PROGRESS).putInt(euf.mageslegacy.mercenary.Mercenary.T_SPENT, armorySpent[0]);
 				player().getInventory().clearOrCountMatchingItems(st -> st.is(net.minecraft.world.item.Items.GOLDEN_SWORD), 64,
 						player().inventoryMenu.getCraftSlots());
 				euf.mageslegacy.mercenary.Mercenary.act(player(), 0, 0, "");
