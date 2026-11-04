@@ -561,7 +561,9 @@ final class Harness {
 				float ally = patient.getHealth() - at[0];
 				float self = player().getHealth() - at[1];
 				check("the Bloom heals allies " + (rich ? 3 : 2) + " a second, itself 1 (3 s: +" + ally + ", +" + self + ")",
-						ally >= (rich ? 7 : 5) && ally <= (rich ? 10 : 7) && self >= 2 && self <= 4 && patient.getHealth() <= patient.getMaxHealth());
+						// 3 s of client ticks see 3 or 4 of the server's once-a-second heals (where the window falls); the rate is what counts
+						(ally == (rich ? 9 : 6) && self == 3 || ally == (rich ? 12 : 8) && self == 4 || ally >= (rich ? 7 : 5) && ally <= (rich ? 12 : 8)
+								&& self >= 2 && self <= 4 && Math.abs(ally / self - (rich ? 3 : 2)) < 0.6f) && patient.getHealth() <= patient.getMaxHealth());
 			}, 0);
 			run(() -> MagesLegacyClient.useAbility(2), 10);
 		}

@@ -923,11 +923,11 @@ public final class MercFx {
 		void draw(FxDraw draw, float partial) {
 			float life = life(partial);
 			Vec3 heart = heart(partial);
-			float len = 1.1f + body.getBbHeight() * 0.35f;
+			float len = 0.75f + body.getBbHeight() * 0.2f;
 			Vec3[] f = facing();
 			Vec3 side = new Vec3(f[0].x, 0, f[0].z);
 			side = side.lengthSqr() < 1.0E-6 ? new Vec3(1, 0, 0) : side.normalize();
-			Vec3 above = heart.add(0, body.getBbHeight() * 0.5 + 2.4, 0);
+			Vec3 above = heart.add(0, body.getBbHeight() * 0.5 + 1.6, 0);
 			if (life < FORM) {
 				// Forming: it fades in point up, turns over and steadies, point down
 				float t = life / FORM;
@@ -935,7 +935,7 @@ public final class MercFx {
 				Vec3 tipDir = new Vec3(0, Math.cos(turn), 0).add(side.scale(Math.sin(turn)));
 				Vec3 width = tipDir.cross(draw.cam.subtract(above));
 				width = width.lengthSqr() < 1.0E-6 ? side : width.normalize();
-				draw.paint(BLADE, above, width.scale(0.32), tipDir.scale(-len), 1, 0.92f, 0.8f, t, 0.15f * t);
+				draw.paint(BLADE, above, width.scale(0.17), tipDir.scale(-len), 1, 0.8f, 0.48f, t, 0.12f * t);
 				billboard(draw, FLARE, above, 0.4f + 0.3f * t, 0, 1, 0.25f * t, 0.15f);
 				return;
 			}
@@ -945,7 +945,7 @@ public final class MercFx {
 			// Falling: its tip goes from over the head into the heart; then it stands there, fading
 			Vec3 tip = above.subtract(0, len, 0).lerp(heart, fall * fall);
 			Vec3 centre = tip.add(0, len, 0);
-			draw.paint(BLADE, centre, side.scale(0.32), new Vec3(0, len, 0), 1, 0.92f, 0.8f, alpha, 0.18f);
+			draw.paint(BLADE, centre, side.scale(0.17), new Vec3(0, len, 0), 1, 0.8f, 0.48f, alpha, 0.14f);
 			// The warrant torn: scraps fluttering out and down
 			if (after > 0 && after < 22) {
 				float t = after / 22f;
