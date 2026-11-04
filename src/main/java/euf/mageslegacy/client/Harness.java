@@ -2074,7 +2074,9 @@ final class Harness {
 		}, 14);
 		run(() -> check("a blow after the burst is only a blow (" + (f[2] - mercMobs[0].getHealth()) + ")", f[2] - mercMobs[0].getHealth() < 1.5f
 				&& euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 0), 0);
-		run(() -> check("the shield is gone after 4 seconds (" + player().getAbsorptionAmount() + ")", player().getAbsorptionAmount() < 0.01f), 70);
+		run(() -> {
+		}, 80);
+		run(() -> check("the shield is gone after 4 seconds (" + player().getAbsorptionAmount() + ")", player().getAbsorptionAmount() < 0.01f), 0);
 		// The brand runs out by itself
 		run(() -> server().execute(() -> euf.mageslegacy.mercenary.Mercenary.brandNow(player(), mercMobs[0])), 100);
 		run(() -> check("the brand still holds after 5 seconds", euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 1), 110);
@@ -2181,6 +2183,7 @@ final class Harness {
 			ServerPlayer p = player();
 			p.connection.teleport(MX, y[0], 0.5, 0, 0);
 			p.setXRot(0);
+			java.util.Arrays.fill(euf.mageslegacy.voidborn.Voidborn.state(p).cooldown, 0);
 		}), 5);
 		run(() -> MagesLegacyClient.useAbility(1), 5);
 		run(() -> check("nothing to bite in reach: refused, nothing spent (" + euf.mageslegacy.voidborn.Voidborn.state(player()).cooldown[1] + ")",
@@ -2192,7 +2195,7 @@ final class Harness {
 			server().execute(() -> mercMobs[0] = mercMob(EntityType.VINDICATOR, MX, y[0], 5.5, true));
 		}, 10);
 		run(() -> MagesLegacyClient.useAbility(0), 12);
-		run(() -> server().execute(() -> player().attack(mercMobs[0])), 12);
+		run(() -> server().execute(() -> player().attack(mercMobs[0])), 20);
 		run(() -> {
 			f[0] = mercMobs[0].getHealth();
 			MagesLegacyClient.useAbility(1);
@@ -2478,7 +2481,7 @@ final class Harness {
 		run(() -> check("the Verdict on the golem in sight (" + euf.mageslegacy.mercenary.Mercenary.condemned(player()) + ")",
 				mercMobs[0].getUUID().equals(euf.mageslegacy.mercenary.Mercenary.condemned(player()))), 0);
 		for (int i = 0; i < 12; i++) {
-			run(() -> server().execute(() -> player().attack(mercMobs[0])), 12);
+			run(() -> server().execute(() -> player().attack(mercMobs[0])), 20);
 			if (i == 5) {
 				film("merc_verdict", 6, 2);
 			}
@@ -2540,7 +2543,7 @@ final class Harness {
 			f[0] = mercMobs[0].getHealth();
 			f[1] = euf.mageslegacy.mercenary.Mercenary.debtOwed(player());
 			server().execute(() -> player().attack(mercMobs[0]));
-		}, 14);
+		}, 25);
 		run(() -> {
 			float dealt = f[0] - mercMobs[0].getHealth();
 			float paid = f[1] - euf.mageslegacy.mercenary.Mercenary.debtOwed(player());
@@ -2552,11 +2555,11 @@ final class Harness {
 			server().execute(() -> {
 				euf.mageslegacy.mercenary.Mercenary.brandNow(player(), mercMobs[0]);
 			});
-		}, 3);
+		}, 25);
 		run(() -> {
 			f[0] = mercMobs[0].getHealth();
 			server().execute(() -> player().attack(mercMobs[0]));
-		}, 14);
+		}, 25);
 		run(() -> {
 			float dealt = f[0] - mercMobs[0].getHealth();
 			float owedNow = euf.mageslegacy.mercenary.Mercenary.debtOwed(player());
@@ -2567,7 +2570,7 @@ final class Harness {
 				// Pay off the rest
 				server().execute(() -> player().attack(mercMobs[0]));
 			}
-		}, 14);
+		}, 25);
 		run(() -> check("paid off in time: +2 health, the wave strikes a husk near (" + (player().getHealth() - f[2]) + ", husk " + (f[3]
 				- mercMobs[1].getHealth()) + ")", euf.mageslegacy.mercenary.Mercenary.debtOwed(player()) == 0 && done("merc_debt_paid")
 				&& f[3] - mercMobs[1].getHealth() >= 3.99f), 0);
@@ -2704,7 +2707,7 @@ final class Harness {
 			mercMobs[0] = mercMob(EntityType.VINDICATOR, MX, y[0], 5.5, true);
 		}), 10);
 		run(() -> MagesLegacyClient.useAbility(0), 12);
-		run(() -> server().execute(() -> player().attack(mercMobs[0])), 12);
+		run(() -> server().execute(() -> player().attack(mercMobs[0])), 20);
 		run(() -> MagesLegacyClient.useAbility(1), 16);
 		run(() -> {
 			var tag = player().getData(RaceState.PROGRESS);
