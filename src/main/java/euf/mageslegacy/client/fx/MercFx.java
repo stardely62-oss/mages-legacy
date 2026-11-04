@@ -804,8 +804,9 @@ public final class MercFx {
 			fading = 10;
 		}
 
+		/** The middle of the executioner's sword at its full size: its point stays clear above the warrant. */
 		Vec3 swordHome(float partial) {
-			return top(body, partial).add(0, 0.9 + body.getBbHeight() * 0.15, 0);
+			return top(body, partial).add(0, 0.85 + swordLength() / 2, 0);
 		}
 
 		float swordLength() {
@@ -903,12 +904,12 @@ public final class MercFx {
 			float filled = Math.min(1, hits / (float) needed);
 			float pulse = Math.max(0, 1 - (life - hitAt) / 6f);
 			float grow = 0.3f + 0.7f * filled;
-			Vec3 home = swordHome(partial).add(0, 0.12 * pulse, 0);
+			// Its point fixed over the warrant; it grows upwards
 			float full = swordLength() * grow * open;
-			Vec3 tip = home.add(0, -full * 0.5, 0);
+			Vec3 tip = top(body, partial).add(0, 0.85 + 0.12 * pulse, 0);
 			sword(draw, tip, new Vec3(0, -1, 0), full, life * 0.04, 0.55f + 0.45f * filled + 0.15f * pulse, fade * (0.45f + 0.55f * filled));
 			// Its chain up into the air
-			chain(draw, home.add(0, full * 0.5, 0), home.add(0, full * 0.5 + 1.2, 0), 0, fade * (0.45f + 0.55f * filled) * open);
+			chain(draw, tip.add(0, full, 0), tip.add(0, full + 1.2, 0), 0, fade * (0.45f + 0.55f * filled) * open);
 		}
 	}
 
