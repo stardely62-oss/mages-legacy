@@ -57,7 +57,12 @@ def main(folder):
     for path in sorted(folder.glob("fx_merc_*.png")):
         name = path.stem[len("fx_merc_"):]
         grid, colours = FX_GRID[name]
-        img = reduce(sample(crop_to_symbol(Image.open(path).convert("RGB")), grid, grid, True), colours)
+        if name in ("door", "banner"):
+            # Tall props: cropped to themselves (not squared), so a quad of their shape shows them whole
+            prop = crop_box(Image.open(path).convert("RGB"))
+            img = reduce(sample(prop, grid, max(1, round(grid * prop.size[1] / prop.size[0])), True), colours)
+        else:
+            img = reduce(sample(crop_to_symbol(Image.open(path).convert("RGB")), grid, grid, True), colours)
         # The sword keeps the texture name the effects were written for
         img.save(FX / f"merc_{'blade' if name == 'sword' else name}.png")
         print("fx", name)

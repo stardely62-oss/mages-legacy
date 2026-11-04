@@ -2231,7 +2231,7 @@ final class Harness {
 					book.view().getList("offers", 10).size() == 3);
 		}, 4);
 		// The doors swinging open on coming in, then the shop itself
-		film("merc_shop_doors", 4, 4);
+		film("merc_shop_doors", 6, 4);
 		shot("merc_shop");
 		run(() -> ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(0), 8);
 		shot("merc_book_contracts");
@@ -2612,8 +2612,11 @@ final class Harness {
 				mercMobs[0].getUUID().equals(euf.mageslegacy.mercenary.Mercenary.condemned(player()))), 0);
 		for (int i = 0; i < 12; i++) {
 			run(() -> server().execute(() -> player().attack(mercMobs[0])), 20);
+			if (i == 1) {
+				film("merc_verdict_circle", 4, 3);
+			}
 			if (i == 5) {
-				film("merc_verdict", 6, 2);
+				film("merc_verdict", 8, 2);
 			}
 		}
 		run(() -> {

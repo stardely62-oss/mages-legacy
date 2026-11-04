@@ -208,7 +208,7 @@ public class GuildBookScreen extends Screen {
 
 	/** Ticks since the doors began to open (the first thing seen on coming in). */
 	private int opened = -1;
-	private static final int DOORS = 16;
+	private static final int DOORS = 22;
 
 	private void shop(GuiGraphics g, int mouseX, int mouseY, float partial) {
 		int sw = sw();
@@ -220,23 +220,24 @@ public class GuildBookScreen extends Screen {
 		// The sign, hung from the beam, the shop's name painted on it
 		int signW = sw * 34 / 100;
 		int signX = sx + (sw - signW) / 2;
-		int signH = pictureW(g, SIGN, signX, sy + 2, signW);
+		int signH = pictureW(g, SIGN, signX, sy, signW);
 		Component name = Component.translatable("mages_legacy.merc.shop.name");
-		int nameY = sy + 2 + signH * 58 / 100 - 4;
+		int nameY = sy + signH * 64 / 100 - 4;
 		g.drawString(font, name, signX + (signW - font.width(name)) / 2, nameY, 0xFFFFDA8A, true);
 		int floor = sy + sh - 12;
-		// The shelving on the left, today's goods on it
-		int shelfX = sx + sw * 3 / 100;
-		int shelfW = sw * 54 / 100;
-		int shelfY = sy + sh * 24 / 100;
+		// The shelving on the left, in its own shape, today's goods on it
+		int shelfY = sy + signH + 2;
 		int shelfH = floor - shelfY;
+		int[] shelfSize = size(SHELF);
+		int shelfW = Math.min(sw * 56 / 100, Math.round(shelfH * shelfSize[0] / (float) shelfSize[1] * 1.25f));
+		int shelfX = sx + sw * 30 / 100 - shelfW / 2;
 		picture(g, SHELF, shelfX, shelfY, shelfW, shelfH);
 		shelves(g, shelfX, shelfY, shelfW, shelfH, mouseX, mouseY);
 		// The services' board on the right, the counter below it with the keeper behind
 		int rx = sx + sw * 60 / 100;
 		int rw = sw * 37 / 100;
-		int boardY = sy + sh * 20 / 100;
-		int boardH = Math.min(heightAt(BOARD, rw), sh * 30 / 100);
+		int boardY = sy + sh * 18 / 100;
+		int boardH = Math.min(heightAt(BOARD, rw), sh * 34 / 100);
 		picture(g, BOARD, rx, boardY, rw, boardH);
 		services(g, rx, boardY, rw, boardH, mouseX, mouseY);
 		counter(g, rx, boardY + boardH, rw, floor, mouseX, mouseY, partial);
@@ -245,8 +246,9 @@ public class GuildBookScreen extends Screen {
 	}
 
 	/**
-	 * Coming in: the shop's double door fills the frame and swings open (each leaf turning on its hinge at the edge,
-	 * narrowing and darkening as it goes), warm light spilling through the widening gap.
+	 * Coming in: the shop's front stands dark before the eyes with its double door of oak and copper in the middle; the
+	 * leaves swing open inwards (each narrowing on its hinge and darkening as it turns), warm light pours through the
+	 * widening gap, and the front fades as one steps in.
 	 */
 	private void doors(GuiGraphics g, int sx, int sy, int sw, int sh, float partial) {
 		if (opened < 0) {
@@ -256,27 +258,34 @@ public class GuildBookScreen extends Screen {
 		if (t >= 1) {
 			return;
 		}
-		float open = t < 0.15f ? 0 : smoothstep((t - 0.15f) / 0.85f);
-		double angle = Math.PI / 2 * open;
-		int half = sw / 2;
-		int leaf = (int) Math.round(half * Math.cos(angle));
+		float swing = smoothstep((t - 0.12f) / 0.6f);
+		float front = 1 - smoothstep((t - 0.6f) / 0.4f);
+		// The front: the room behind it darkened to a wall, the doorway framed in oak
+		g.fill(sx, sy, sx + sw, sy + sh, LegacyUi.alpha(0xFF120B07, 0.92f * front));
+		int[] wh = size(DOOR_LEAF);
+		int leafH = sh * 86 / 100;
+		int leafW = Math.round(leafH * wh[0] / (float) wh[1]);
+		int cx = sx + sw / 2;
+		int top = sy + sh - leafH - sh * 4 / 100;
+		g.fill(cx - leafW - 4, top - 4, cx + leafW + 4, sy + sh - sh * 4 / 100, LegacyUi.alpha(0xFF3A2414, front));
 		// The light coming through the gap
-		int gap = sw - 2 * leaf;
-		if (gap > 0) {
-			g.fillGradient(sx + leaf, sy, sx + sw - leaf, sy + sh, LegacyUi.alpha(0xFFFFC870, 0.35f * (1 - open)), LegacyUi.alpha(0xFFFF9A40, 0.2f * (1 - open)));
+		double angle = Math.PI / 2 * swing;
+		int leaf = (int) Math.round(leafW * Math.cos(angle));
+		if (leafW - leaf > 0) {
+			g.fillGradient(cx - leafW + leaf, top, cx + leafW - leaf, top + leafH, LegacyUi.alpha(0xFFFFD088, 0.7f * front), LegacyUi.alpha(0xFFE08A3A, 0.5f * front));
 		}
-		if (leaf <= 0) {
+		if (leaf <= 0 || front <= 0) {
 			return;
 		}
-		float shade = 0.55f + 0.45f * (float) Math.cos(angle);
-		com.mojang.blaze3d.systems.RenderSystem.setShaderColor(shade, shade, shade, 1);
-		int[] wh = size(DOOR_LEAF);
-		// Left leaf on its hinge at the left edge; the right one mirrored on its own
-		g.blit(DOOR_LEAF, sx, sy, leaf, sh, 0, 0, wh[0], wh[1], wh[0], wh[1]);
+		float shade = (0.5f + 0.5f * (float) Math.cos(angle)) * front;
+		com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+		com.mojang.blaze3d.systems.RenderSystem.setShaderColor(shade, shade, shade, front);
+		// The left leaf on its hinge at the doorway's left post; the right one mirrored on the right post
+		g.blit(DOOR_LEAF, cx - leafW, top, leaf, leafH, 0, 0, wh[0], wh[1], wh[0], wh[1]);
 		g.pose().pushPose();
-		g.pose().translate(sx + sw, sy, 0);
+		g.pose().translate(cx + leafW, top, 0);
 		g.pose().scale(-1, 1, 1);
-		g.blit(DOOR_LEAF, 0, 0, leaf, sh, 0, 0, wh[0], wh[1], wh[0], wh[1]);
+		g.blit(DOOR_LEAF, 0, 0, leaf, leafH, 0, 0, wh[0], wh[1], wh[0], wh[1]);
 		g.pose().popPose();
 		com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1, 1, 1, 1);
 	}
@@ -309,8 +318,8 @@ public class GuildBookScreen extends Screen {
 	}
 
 	/** Where the shelf picture's three boards are (their top edges, as shares of its height), and its inner sides. */
-	static final float[] SHELF_BOARDS = {0.33f, 0.62f, 0.91f};
-	static final float SHELF_INNER = 0.08f;
+	static final float[] SHELF_BOARDS = {0.307f, 0.564f, 0.822f};
+	static final float SHELF_INNER = 0.1f;
 
 	/** Today's goods standing on the three shelves of the picture, their tags hanging below each board. */
 	private void shelves(GuiGraphics g, int x, int y, int w, int h, int mouseX, int mouseY) {

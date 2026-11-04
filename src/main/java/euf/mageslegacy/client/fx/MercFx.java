@@ -793,7 +793,7 @@ public final class MercFx {
 				Vec3 at = swordAt(k, life, heart);
 				Vec3 dir = heart.subtract(at).normalize();
 				float alpha = fade * open;
-				float len = 0.95f + body.getBbHeight() * 0.1f;
+				float len = 1.35f + body.getBbHeight() * 0.15f;
 				if (thrown[k] >= 0) {
 					float t = (life - thrown[k]) / 6f;
 					if (t > 1.35f) {
@@ -919,8 +919,8 @@ public final class MercFx {
 		void draw(FxDraw draw, float partial) {
 			float life = life(partial);
 			Vec3 heart = heart(partial);
-			Vec3 above = top(body, partial).add(0, 1.6, 0);
-			float full = 1.6f + body.getBbHeight() * 0.25f;
+			Vec3 above = top(body, partial).add(0, 2.2, 0);
+			float full = 2.6f + body.getBbHeight() * 0.3f;
 			if (life < GATHER + HANG) {
 				// Fusing: it swells from the swords drawn up into it, turning point down
 				float t = Math.min(1, life / GATHER);
@@ -1168,8 +1168,8 @@ public final class MercFx {
 			Vec3 flat = new Vec3(toCam.x, 0, toCam.z);
 			flat = flat.lengthSqr() < 1.0E-6 ? new Vec3(0, 0, 1) : flat.normalize();
 			Vec3 across = new Vec3(-flat.z, 0, flat.x);
-			float width = 1.5f;
-			float height = 2.6f * rise;
+			float width = 1.6f;
+			float height = 2.35f * rise;
 			Vec3 topLeft = head.add(across.scale(-0.05)).add(0, -0.05, 0);
 			int segments = 6;
 			for (int i = 0; i < segments; i++) {
@@ -1252,8 +1252,8 @@ public final class MercFx {
 		@Override
 		void draw(FxDraw draw, float partial) {
 			float life = life(partial);
-			double w = 1.6;
-			double hs = 2.2;
+			double w = 1.8;
+			double hs = 1.6;
 			float fade = closingAt >= 0 ? 1 - smooth((life - closingAt - CLOSE * 0.5f) / (CLOSE * 0.5f)) : 1;
 			// The arch traced in gold: two posts and a round top, drawn piece by piece
 			List<Vec3> frame = new ArrayList<>();
@@ -1277,19 +1277,19 @@ public final class MercFx {
 			// The warm inside: a soft amber haze within the frame while it stands open
 			if (open > 0) {
 				Vec3 mid = at.add(0, hs * 0.55, 0);
-				draw.paint(WARM, mid.subtract(forward.scale(0.02)), right.scale(w / 2 * 0.95), new Vec3(0, -hs * 0.6, 0), 1, 0.72f, 0.38f,
-						0.55f * open * fade, 0.12f * open);
+				draw.paint(WARM, mid.subtract(forward.scale(0.02)), right.scale(w / 2 * 0.95), new Vec3(0, -hs * 0.6, 0), 0.95f, 0.6f, 0.3f,
+						0.3f * open * fade, 0.02f);
 			}
 			// Two leaves on their hinges at the posts, swinging inwards (away from the Mercenary)
 			double angle = Math.toRadians(100) * open;
 			for (int side = -1; side <= 1; side += 2) {
 				Vec3 hinge = at.add(right.scale(side * w / 2));
 				Vec3 along = right.scale(-side * Math.cos(angle)).add(forward.scale(-Math.sin(angle)));
-				Vec3 centre = hinge.add(along.scale(w / 4)).add(0, hs / 2 + 0.25, 0);
+				Vec3 centre = hinge.add(along.scale(w / 4)).add(0, 1.05, 0);
 				// The left leaf's picture as it is, the right one mirrored (u runs back from its hinge)
 				float shade = 0.75f + 0.25f * (float) Math.cos(angle);
 				Vec3 halfU = side < 0 ? along.scale(w / 4) : along.scale(-w / 4);
-				draw.paint(DOOR, centre, halfU, new Vec3(0, -(hs / 2 + 0.25), 0), shade, shade, shade, fade, 0);
+				draw.paint(DOOR, centre, halfU, new Vec3(0, -1.05, 0), shade, shade, shade, fade, 0);
 			}
 		}
 	}
