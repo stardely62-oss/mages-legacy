@@ -934,7 +934,7 @@ public final class MercFx {
 				if (life >= GATHER) {
 					tip = tip.add(r(-0.02, 0.02), 0, r(-0.02, 0.02));
 				}
-				sword(draw, tip, dir, len, 1, Math.min(1, life / 3f), GLINT + 0.05f);
+				sword(draw, tip, dir, len, 0.85f, Math.min(1, life / 3f), 0);
 				return;
 			}
 			float fall = Math.min(1, (life - GATHER - HANG) / FALL);
@@ -943,7 +943,7 @@ public final class MercFx {
 			Vec3 tipFrom = above.add(0, -full * 0.5, 0);
 			Vec3 tipTo = heart.add(0, -body.getBbHeight() * 0.35, 0);
 			Vec3 tip = tipFrom.lerp(tipTo, fall * fall);
-			sword(draw, tip, new Vec3(0, -1, 0), full, after > STAND ? 0.8f : 1, alpha, GLINT);
+			sword(draw, tip, new Vec3(0, -1, 0), full, after > STAND ? 0.7f : 0.85f, alpha, 0);
 			// The warrant torn: scraps fluttering out and down
 			if (after > 0 && after < 22) {
 				float t = after / 22f;

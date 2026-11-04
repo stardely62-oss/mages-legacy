@@ -260,6 +260,17 @@ public class GuildBookScreen extends Screen {
 		}
 		float swing = smoothstep((t - 0.12f) / 0.6f);
 		float front = 1 - smoothstep((t - 0.6f) / 0.4f);
+		// Over everything in the room, the wares' item models too (they draw high)
+		g.pose().pushPose();
+		g.pose().translate(0, 0, 400);
+		try {
+			doorLeaves(g, sx, sy, sw, sh, swing, front);
+		} finally {
+			g.pose().popPose();
+		}
+	}
+
+	private void doorLeaves(GuiGraphics g, int sx, int sy, int sw, int sh, float swing, float front) {
 		// The front: the room behind it darkened to a wall, the doorway framed in oak
 		g.fill(sx, sy, sx + sw, sy + sh, LegacyUi.alpha(0xFF120B07, 0.92f * front));
 		int[] wh = size(DOOR_LEAF);
