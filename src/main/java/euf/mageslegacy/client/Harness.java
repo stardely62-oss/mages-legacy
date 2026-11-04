@@ -2087,6 +2087,13 @@ final class Harness {
 		run(() -> check("the brand still holds after 5 seconds", euf.mageslegacy.mercenary.Mercenary.brandLeft(mercMobs[0], player()) > 0), 110);
 		run(() -> check("the brand fades after 10 seconds (" + euf.mageslegacy.mercenary.Mercenary.brandLeft(mercMobs[0], player()) + ")",
 				euf.mageslegacy.mercenary.Mercenary.brandLeft(mercMobs[0], player()) == 0), 10);
+		// The bolt leaves no hurt pause behind: a bare fist's blow straight after it counts (three blows, never four)
+		run(() -> server().execute(() -> {
+			euf.mageslegacy.mercenary.Mercenary.brandNow(player(), mercMobs[0]);
+			player().attack(mercMobs[0]);
+		}), 25);
+		run(() -> check("a weak blow right after the bolt still lights a part (" + euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0],
+				player()) + ")", euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 1), 0);
 		// Seen from the side: the bolt, the seal lighting part by part, the burst
 		mercSetUp(5);
 		run(() -> {
@@ -2614,8 +2621,9 @@ final class Harness {
 			// The sixth blow: filmed from the blow on (the great sword forms, falls, stands and crumbles)
 			int n = i;
 			run(() -> server().execute(() -> player().attack(mercMobs[0])), n == 5 ? 1 : 20);
-			if (i == 1) {
-				film("merc_verdict_circle", 3, 3);
+			if (i == 3) {
+				// Two swords lodged, the executioner's sword grown by four blows
+				film("merc_verdict_lodged", 4, 3);
 			}
 			if (i == 5) {
 				film("merc_verdict", 12, 3);
@@ -2655,6 +2663,12 @@ final class Harness {
 			run(() -> check("Life Debt: a blow of " + hits[n] + " puts 40% off, 12 at most (health " + player().getHealth() + ", owed "
 					+ euf.mageslegacy.mercenary.Mercenary.debtOwed(player()) + ")", Math.abs(player().getHealth() - health[n]) < 0.05f
 					&& Math.abs(euf.mageslegacy.mercenary.Mercenary.debtOwed(player()) - owed[n]) < 0.05f), 0);
+			if (i == 2) {
+				// Five coins hang on the chain (10 owed)
+				run(() -> watch(new Vec3(MX + 2.2, y[0] + 2, 2.2), new Vec3(MX, y[0] + 1.1, 0.5)), 2);
+				film("merc_debt_coins", 3, 3);
+				run(Harness::watchSelf, 0);
+			}
 		}
 		run(() -> server().execute(() -> player().setHealth(20)), 3);
 		then("the Debt comes due", () -> euf.mageslegacy.mercenary.Mercenary.debtOwed(player()) == 0, () -> {

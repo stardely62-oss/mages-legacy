@@ -31,7 +31,7 @@
 
 ## Установка
 
-Нужны NeoForge 21.1.217+ для Minecraft 1.21.1, [Veil](https://modrinth.com/mod/veil) 4.5.2+ и [GeckoLib](https://modrinth.com/mod/geckolib) 4.9.3+. Veil несовместим с Embeddium/Rubidium. Свежая сборка: релиз [`neo-dev`](https://github.com/stardely62-oss/mages-legacy/releases/tag/neo-dev).
+Нужны NeoForge 21.1.217+ для Minecraft 1.21.1, [Veil](https://modrinth.com/mod/veil) 4.5.2+ и [GeckoLib](https://modrinth.com/mod/geckolib) 4.9.3+. Veil несовместим с Embeddium/Rubidium. Для тестов с шейдерами: [Sodium](https://modrinth.com/mod/sodium) 0.8.13, [Iris](https://modrinth.com/mod/iris) 1.8.14-beta.1 и [Iris Veil Compat](https://modrinth.com/mod/iris-veil-compat) 0.4.0 — им нужен NeoForge 21.1.228+ (скрипт `tools/update-mages-legacy.bat` ставит всё сам). Свежая сборка: релиз [`neo-dev`](https://github.com/stardely62-oss/mages-legacy/releases/tag/neo-dev).
 
 Проще всего через TLauncher: установи версию NeoForge 1.21.1 и запусти её один раз, затем скачай из релиза `mages-legacy-updater.zip`, распакуй и запусти `update-mages-legacy.bat`. Скрипт сам найдёт версию NeoForge, поставит или обновит Veil, GeckoLib и мод. Запускай его перед каждым тестом, он берёт свежую dev-сборку (`-Stable` — последний стабильный релиз, `-VersionName "…"` — конкретная версия TLauncher).
 

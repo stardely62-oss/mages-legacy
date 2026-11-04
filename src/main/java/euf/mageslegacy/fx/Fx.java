@@ -118,6 +118,8 @@ public final class Fx {
 	public static final int CONTRACT_DONE = 48;
 	/** A pillar of light over a contract's mark (to: the mark, ground found by the client), for its Mercenary only; b: 1 a bounty's lair. */
 	public static final int MARK = 49;
+	/** A blow counted by the Verdict on its condemned (entity): a: blows so far, b: blows the execution needs. */
+	public static final int VERDICT_HIT = 50;
 
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
@@ -269,12 +271,21 @@ public final class Fx {
 		send(level, target.position(), new FxPayload(VERDICT_BLADE, target.getId(), target.position(), target.position(), 12, index, 0));
 	}
 
+	public static void verdictHit(ServerLevel level, Entity target, int hits, int needed) {
+		send(level, target.position(), new FxPayload(VERDICT_HIT, target.getId(), target.position(), target.position(), 1, hits, needed));
+	}
+
 	public static void verdictExecute(ServerLevel level, Entity target) {
 		send(level, target.position(), new FxPayload(VERDICT_EXECUTE, target.getId(), target.position(), target.position(), 24, 0, 0));
 	}
 
 	public static void debtSeal(ServerLevel level, Entity ward, int ticks) {
 		send(level, ward.position(), new FxPayload(DEBT_SEAL, ward.getId(), ward.position(), ward.position(), ticks, 0, 0));
+	}
+
+	/** What a Life Debt owes now (its coins), ticks left of it. */
+	public static void debtOwed(ServerLevel level, Entity ward, int ticks, float owed) {
+		send(level, ward.position(), new FxPayload(DEBT_SEAL, ward.getId(), ward.position(), ward.position(), Math.max(1, ticks), owed, 1));
 	}
 
 	public static void debtWave(ServerLevel level, Vec3 at, float radius) {

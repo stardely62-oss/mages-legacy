@@ -100,7 +100,7 @@ public final class Mercenary {
 	public static final float BLAST_COMPOUND = 10;
 	public static final float BLAST_PLAYER_CAP = 4;
 	/** A charge counts no more often than this on one brand (multi-hits, odd projectiles). */
-	public static final int CHARGE_GAP = 8;
+	public static final int CHARGE_GAP = 4;
 	private static final float BLAST_SHIELD = 2;
 	private static final float BLAST_SHIELD_CAP = 4;
 	private static final float PLEDGE_SHIELD = 4;
@@ -203,7 +203,7 @@ public final class Mercenary {
 	}
 
 	/** A brand's bolt on its way: it lands on its targets (one; two with a Piercing Shot) when it arrives. */
-	private record Bolt(UUID owner, ResourceKey<Level> level, List<UUID> targets, long arrive) {
+	private record Bolt(UUID owner, ResourceKey<Level> level, List<UUID> targets, long arrive, Map<UUID, Integer> early) {
 	}
 
 	/** The harpoon thrown: flying ({@code fly} ticks), then pulling for no more than {@link #HOOK_MAX_TICKS}. */
@@ -436,7 +436,10 @@ public final class Mercenary {
 		return e.getType().is(Tags.EntityTypes.BOSSES);
 	}
 
-	/** Damage from the Mercenary's own abilities: never a blow of theirs, past the hurt pause. */
+	/**
+	 * Damage from the Mercenary's own abilities: never a blow of theirs, past the hurt pause and leaving none behind (so
+	 * the very next blow of the player's lands whole and counts: a brand's bolt never swallows the first of its three).
+	 */
 	static void strike(ServerPlayer owner, LivingEntity victim, float amount) {
 		if (amount <= 0 || !victim.isAlive()) {
 			return;
@@ -447,6 +450,7 @@ public final class Mercenary {
 			victim.hurt(owner.damageSources().indirectMagic(owner, owner), amount);
 		} finally {
 			ownDamage--;
+			victim.invulnerableTime = 0;
 		}
 	}
 
@@ -546,7 +550,7 @@ public final class Mercenary {
 		ServerLevel level = player.serverLevel();
 		Vec3 hand = handPos(player);
 		int ticks = (int) Math.max(2, Math.min(7, Math.ceil(hand.distanceTo(landed) / 3.5)));
-		BOLTS.add(new Bolt(player.getUUID(), level.dimension(), targets, now(player) + ticks));
+		BOLTS.add(new Bolt(player.getUUID(), level.dimension(), targets, now(player) + ticks, new HashMap<>()));
 		Fx.brandBolt(level, player, hand, landed, ticks);
 		level.playSound(null, player.blockPosition(), SoundEvents.CROSSBOW_SHOOT, SoundSource.PLAYERS, 0.8f, 1.5f);
 		level.playSound(null, player.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.8f, 0.7f);
@@ -575,7 +579,7 @@ public final class Mercenary {
 			}
 			for (UUID id : b.targets()) {
 				if (level.getEntity(id) instanceof LivingEntity target && target.isAlive() && foe(owner, target)) {
-					landBrand(owner, target);
+					landBrand(owner, target, b.early().getOrDefault(id, 0));
 				}
 			}
 		}
@@ -583,6 +587,21 @@ public final class Mercenary {
 
 	/** The bolt lands: 4 damage and an empty seal of Debt (a brand already there only gets its time back); three blows fill it. */
 	static void landBrand(ServerPlayer owner, LivingEntity target) {
+		landBrand(owner, target, 0);
+	}
+
+	/** A blow that beats the bolt to its target is not lost: it counts as soon as the seal is there (never enough to blow it). */
+	private static boolean earlyBlow(ServerPlayer owner, LivingEntity target) {
+		for (Bolt b : BOLTS) {
+			if (b.owner().equals(owner.getUUID()) && b.targets().contains(target.getUUID())) {
+				b.early().merge(target.getUUID(), 1, Integer::sum);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	static void landBrand(ServerPlayer owner, LivingEntity target, int early) {
 		ServerLevel level = owner.serverLevel();
 		long now = now(owner);
 		strike(owner, target, BRAND_HIT);
@@ -606,6 +625,7 @@ public final class Mercenary {
 					removeBrand(level, old);
 				}
 			}
+			charges = Math.min(max - 1, charges + early);
 			brand = new Brand(owner.getUUID(), target.getUUID(), level.dimension(), charges, max, now + ticks, now - CHARGE_GAP, false);
 			BRANDS.computeIfAbsent(target.getUUID(), id -> new ArrayList<>()).add(brand);
 		}
@@ -1030,6 +1050,9 @@ public final class Mercenary {
 	private static void verdictBlow(ServerPlayer player, Verdict v, LivingEntity target) {
 		v.hits++;
 		ServerLevel level = player.serverLevel();
+		if (!v.executed) {
+			Fx.verdictHit(level, target, v.hits, VERDICT_EXECUTE_AFTER);
+		}
 		float boss = boss(target) && Talents.has(player, Talent.VERDICT_BOSS) ? 1.5f : 1;
 		int max = Talents.has(player, Talent.VERDICT_BLADES) ? VERDICT_BLADES_MORE : VERDICT_BLADES;
 		if (v.hits % 2 == 0 && v.blades < max) {
@@ -1105,6 +1128,11 @@ public final class Mercenary {
 		}
 		d.owed = Math.max(0, d.owed - amount);
 		if (d.owed > 0.0001f || !d.everOwed) {
+			ServerLevel at = server.getLevel(d.level);
+			Entity ward = at == null ? null : at.getEntity(d.ward);
+			if (ward != null) {
+				Fx.debtOwed(at, ward, (int) (d.until - now(server)), d.owed);
+			}
 			return;
 		}
 		ServerPlayer owner = server.getPlayerList().getPlayer(d.owner);
@@ -1160,6 +1188,7 @@ public final class Mercenary {
 			ward.hurt(ward.damageSources().magic(), due);
 		} finally {
 			ownDamage--;
+			ward.invulnerableTime = 0;
 		}
 		if (ward.level() instanceof ServerLevel level) {
 			Fx.debtDue(level, ward);
@@ -1477,6 +1506,9 @@ public final class Mercenary {
 				d.everOwed = true;
 				amount -= defer;
 				event.setNewDamage(amount);
+				if (victim.level() instanceof ServerLevel level) {
+					Fx.debtOwed(level, victim, (int) (d.until - now(level.getServer())), d.owed);
+				}
 			}
 		}
 		if (victim instanceof ServerPlayer player && is(player) && Talents.has(player, Talent.CRAFT_SECOND_WIND)) {
@@ -1531,7 +1563,7 @@ public final class Mercenary {
 		if (v != null && v.target.equals(victim.getUUID())) {
 			verdictBlow(player, v, victim);
 		}
-		if (victim.isAlive()) {
+		if (victim.isAlive() && !(brandOn(victim, player.getUUID()) == null && earlyBlow(player, victim))) {
 			charge(player, victim, false);
 		}
 	}
