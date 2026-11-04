@@ -2666,7 +2666,7 @@ final class Harness {
 			if (i == 2) {
 				// Five coins hang on the chain (10 owed)
 				run(() -> watch(new Vec3(MX + 2.2, y[0] + 2, 2.2), new Vec3(MX, y[0] + 1.1, 0.5)), 2);
-				film("merc_debt_coins", 3, 3);
+				film("merc_debt_coins", 4, 3);
 				run(Harness::watchSelf, 0);
 			}
 		}
