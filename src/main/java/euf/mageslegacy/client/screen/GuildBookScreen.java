@@ -40,6 +40,11 @@ public class GuildBookScreen extends Screen {
 	private static final String[] COMPASS = {"n", "ne", "e", "se", "s", "sw", "w", "nw"};
 	private static final String[] RARITIES = {"common", "uncommon", "rare", "epic", "legendary"};
 	private static final int[] RARITY_COLORS = {0xFFC8C8C8, 0xFF74D46A, 0xFF5FA8FF, 0xFFC27CFF, 0xFFFFB43C};
+	private static final ResourceLocation BG = LegacyUi.gui("merc_shop/bg");
+	private static final ResourceLocation SHELF = LegacyUi.gui("merc_shop/shelf");
+	private static final ResourceLocation COUNTER = LegacyUi.gui("merc_shop/counter");
+	private static final ResourceLocation BOARD = LegacyUi.gui("merc_shop/board");
+	private static final ResourceLocation DOOR_LEAF = LegacyUi.gui("merc_shop/door");
 	private static final ResourceLocation SIGN = LegacyUi.gui("merc_shop/sign");
 	private static final ResourceLocation BOOK = LegacyUi.gui("merc_shop/book");
 	private static final ResourceLocation LANTERN = LegacyUi.gui("merc_shop/lantern");
@@ -156,62 +161,146 @@ public class GuildBookScreen extends Screen {
 
 	// ---- the shop ---------------------------------------------------------------------------------------------------
 
+	/** A picture's own size in pixels, read once from the file (the Codex props come in their own shapes). */
+	private static final java.util.Map<ResourceLocation, int[]> SIZES = new java.util.HashMap<>();
+
+	private static int[] size(ResourceLocation texture) {
+		return SIZES.computeIfAbsent(texture, t -> {
+			try (var in = Minecraft.getInstance().getResourceManager().open(t)) {
+				var image = com.mojang.blaze3d.platform.NativeImage.read(in);
+				int[] wh = {image.getWidth(), image.getHeight()};
+				image.close();
+				return wh;
+			} catch (Exception e) {
+				return new int[] {16, 16};
+			}
+		});
+	}
+
+	/** A picture drawn whole into a box (stretched to it). */
+	private static void picture(GuiGraphics g, ResourceLocation texture, int x, int y, int w, int h) {
+		int[] wh = size(texture);
+		g.blit(texture, x, y, w, h, 0, 0, wh[0], wh[1], wh[0], wh[1]);
+	}
+
+	/** A picture drawn at a width, its height following its shape; returns the height. */
+	private static int pictureW(GuiGraphics g, ResourceLocation texture, int x, int y, int w) {
+		int[] wh = size(texture);
+		int h = Math.round(w * wh[1] / (float) wh[0]);
+		g.blit(texture, x, y, w, h, 0, 0, wh[0], wh[1], wh[0], wh[1]);
+		return h;
+	}
+
+	private static int heightAt(ResourceLocation texture, int w) {
+		int[] wh = size(texture);
+		return Math.round(w * wh[1] / (float) wh[0]);
+	}
+
+	/** The scene's box: 16:9, as large as fits (up to 480 wide). */
 	private int sw() {
-		return Math.min(width - 10, 470);
+		int w = Math.min(width - 10, 480);
+		return Math.min(w, (height - 10) * 16 / 9);
 	}
 
 	private int sh() {
-		return Math.min(height - 10, 266);
+		return sw() * 9 / 16;
 	}
+
+	/** Ticks since the doors began to open (the first thing seen on coming in). */
+	private int opened = -1;
+	private static final int DOORS = 22;
 
 	private void shop(GuiGraphics g, int mouseX, int mouseY, float partial) {
 		int sw = sw();
 		int sh = sh();
 		int sx = (width - sw) / 2;
 		int sy = (height - sh) / 2;
-		wall(g, sx, sy, sw, sh);
-		// The sign on two chains, the shop's name on it
-		int signW = Math.min(192, sw * 2 / 5);
-		int signH = signW * 26 / 96;
+		g.fill(sx - 2, sy - 2, sx + sw + 2, sy + sh + 2, 0xFF0C0806);
+		picture(g, BG, sx, sy, sw, sh);
+		// The sign, hung from the beam, the shop's name painted on it
+		int signW = sw * 34 / 100;
 		int signX = sx + (sw - signW) / 2;
-		int signY = sy + 6;
-		g.fill(signX + signW * 10 / 96, sy, signX + signW * 10 / 96 + 1, signY + 2, 0xFF6A6A70);
-		g.fill(signX + signW * 85 / 96, sy, signX + signW * 85 / 96 + 1, signY + 2, 0xFF6A6A70);
-		g.blit(SIGN, signX, signY, signW, signH, 0, 0, 96, 26, 96, 26);
+		int signH = pictureW(g, SIGN, signX, sy, signW);
 		Component name = Component.translatable("mages_legacy.merc.shop.name");
-		g.drawString(font, name, signX + (signW - font.width(name)) / 2, signY + signH / 2 - 3, 0xFFFFD98A, true);
-		int top = signY + signH + 6;
-		int floor = sy + sh - 16;
-		int shelfRight = sx + sw * 3 / 5;
-		shelves(g, sx + 8, top, shelfRight, floor - 2, mouseX, mouseY);
-		int rx0 = shelfRight + 8;
-		int rx1 = sx + sw - 8;
-		int boardBottom = top + (floor - top) * 9 / 20;
-		services(g, rx0, top, rx1, boardBottom, mouseX, mouseY);
-		counter(g, rx0, boardBottom + 4, rx1, floor, mouseX, mouseY, partial);
-		footer(g, sx + 8, floor + 3, sx + sw - 8);
+		int nameY = sy + signH * 64 / 100 - 4;
+		g.drawString(font, name, signX + (signW - font.width(name)) / 2, nameY, 0xFFFFDA8A, true);
+		int floor = sy + sh - 12;
+		// The shelving on the left, in its own shape, today's goods on it
+		int shelfY = sy + signH + 2;
+		int shelfH = floor - shelfY;
+		int[] shelfSize = size(SHELF);
+		int shelfW = Math.min(sw * 56 / 100, Math.round(shelfH * shelfSize[0] / (float) shelfSize[1] * 1.25f));
+		int shelfX = sx + sw * 30 / 100 - shelfW / 2;
+		picture(g, SHELF, shelfX, shelfY, shelfW, shelfH);
+		shelves(g, shelfX, shelfY, shelfW, shelfH, mouseX, mouseY);
+		// The services' board on the right, the counter below it with the keeper behind
+		int rx = sx + sw * 60 / 100;
+		int rw = sw * 37 / 100;
+		int boardY = sy + sh * 18 / 100;
+		int boardH = Math.min(heightAt(BOARD, rw), sh * 34 / 100);
+		picture(g, BOARD, rx, boardY, rw, boardH);
+		services(g, rx, boardY, rw, boardH, mouseX, mouseY);
+		counter(g, rx, boardY + boardH, rw, floor, mouseX, mouseY, partial);
+		footer(g, sx + 6, sy + sh - 10, sx + sw - 6);
+		doors(g, sx, sy, sw, sh, partial);
 	}
 
-	/** Dark planks, a beam along the top, the floorboards. */
-	private void wall(GuiGraphics g, int x, int y, int w, int h) {
-		g.fill(x - 2, y - 2, x + w + 2, y + h + 2, 0xFF0C0806);
-		int plank = 14;
-		for (int px = x, i = 0; px < x + w; px += plank, i++) {
-			int c = (i % 3 == 0) ? 0xFF3A2416 : (i % 3 == 1) ? 0xFF432A1A : 0xFF3E2718;
-			g.fill(px, y, Math.min(x + w, px + plank), y + h, c);
-			g.fill(px, y, px + 1, y + h, 0xFF24160E);
-			// knots and grain, fixed per plank
-			int knot = y + (int) (LegacyUi.hash(i, 7) * (h - 20)) + 10;
-			g.fill(px + 5, knot, px + 8, knot + 2, 0xFF2C1B10);
+	/**
+	 * Coming in: the shop's front stands dark before the eyes with its double door of oak and copper in the middle; the
+	 * leaves swing open inwards (each narrowing on its hinge and darkening as it turns), warm light pours through the
+	 * widening gap, and the front fades as one steps in.
+	 */
+	private void doors(GuiGraphics g, int sx, int sy, int sw, int sh, float partial) {
+		if (opened < 0) {
+			opened = ticks;
 		}
-		g.fill(x, y, x + w, y + 4, 0xFF24160E);
-		g.fillGradient(x, y + 4, x + w, y + 40, 0x50000000, 0x00000000);
-		g.fill(x, y + h - 14, x + w, y + h, 0xFF2A1A10);
-		for (int px = x; px < x + w; px += 22) {
-			g.fill(px, y + h - 14, px + 1, y + h, 0xFF1A100A);
+		float t = (ticks - opened + partial) / DOORS;
+		if (t >= 1) {
+			return;
 		}
-		g.fill(x, y + h - 14, x + w, y + h - 13, 0xFF5A3A22);
-		LegacyUi.outline(g, x, y, x + w, y + h, 0xFF8A6A3A);
+		float swing = smoothstep((t - 0.12f) / 0.6f);
+		float front = 1 - smoothstep((t - 0.6f) / 0.4f);
+		// Over everything in the room, the wares' item models too (they draw high)
+		g.pose().pushPose();
+		g.pose().translate(0, 0, 400);
+		try {
+			doorLeaves(g, sx, sy, sw, sh, swing, front);
+		} finally {
+			g.pose().popPose();
+		}
+	}
+
+	private void doorLeaves(GuiGraphics g, int sx, int sy, int sw, int sh, float swing, float front) {
+		// The front: the room behind it darkened to a wall, the doorway framed in oak
+		g.fill(sx, sy, sx + sw, sy + sh, LegacyUi.alpha(0xFF120B07, 0.92f * front));
+		int[] wh = size(DOOR_LEAF);
+		int leafH = sh * 86 / 100;
+		int leafW = Math.round(leafH * wh[0] / (float) wh[1]);
+		int cx = sx + sw / 2;
+		int top = sy + sh - leafH - sh * 4 / 100;
+		g.fill(cx - leafW - 4, top - 4, cx + leafW + 4, sy + sh - sh * 4 / 100, LegacyUi.alpha(0xFF3A2414, front));
+		// The light coming through the gap
+		double angle = Math.PI / 2 * swing;
+		int leaf = (int) Math.round(leafW * Math.cos(angle));
+		if (leafW - leaf > 0) {
+			g.fillGradient(cx - leafW + leaf, top, cx + leafW - leaf, top + leafH, LegacyUi.alpha(0xFFFFD088, 0.7f * front), LegacyUi.alpha(0xFFE08A3A, 0.5f * front));
+		}
+		if (leaf <= 0 || front <= 0) {
+			return;
+		}
+		float shade = (0.5f + 0.5f * (float) Math.cos(angle)) * front;
+		com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+		com.mojang.blaze3d.systems.RenderSystem.setShaderColor(shade, shade, shade, front);
+		// The left leaf on its hinge at the doorway's left post; the right one mirrored on the right post
+		g.blit(DOOR_LEAF, cx - leafW, top, leaf, leafH, 0, 0, wh[0], wh[1], wh[0], wh[1]);
+		// Mirrored by its texture coordinates running backwards (a flipped quad would be culled)
+		g.blit(DOOR_LEAF, cx + leafW - leaf, top, leaf, leafH, wh[0], 0, -wh[0], wh[1], wh[0], wh[1]);
+		com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1, 1, 1, 1);
+	}
+
+	private static float smoothstep(float t) {
+		t = Math.max(0, Math.min(1, t));
+		return t * t * (3 - 2 * t);
 	}
 
 	private List<CompoundTag> wares(boolean services) {
@@ -236,32 +325,27 @@ public class GuildBookScreen extends Screen {
 		return 0;
 	}
 
-	/** The shelving: a frame, three shelves, today's goods standing on them with their tags hanging below. */
-	private void shelves(GuiGraphics g, int x0, int y0, int x1, int y1, int mouseX, int mouseY) {
-		g.fill(x0 - 1, y0 - 1, x1 + 1, y1 + 1, 0xFF120A06);
-		g.fill(x0, y0, x1, y1, 0xFF22150D);
-		g.fill(x0, y0, x0 + 4, y1, 0xFF5C3A22);
-		g.fill(x1 - 4, y0, x1, y1, 0xFF5C3A22);
-		g.fill(x0, y0, x1, y0 + 4, 0xFF5C3A22);
+	/** Where the shelf picture's three boards are (their top edges, as shares of its height), and its inner sides. */
+	static final float[] SHELF_BOARDS = {0.307f, 0.564f, 0.822f};
+	static final float SHELF_INNER = 0.1f;
+
+	/** Today's goods standing on the three shelves of the picture, their tags hanging below each board. */
+	private void shelves(GuiGraphics g, int x, int y, int w, int h, int mouseX, int mouseY) {
 		List<CompoundTag> goods = wares(false);
-		int rows = 3;
+		int rows = SHELF_BOARDS.length;
 		int cols = Math.max(4, (goods.size() + rows - 1) / rows);
-		int rowH = (y1 - y0 - 4) / rows;
-		int cellW = (x1 - x0 - 8) / cols;
+		int inner = Math.round(w * SHELF_INNER);
+		int cellW = (w - 2 * inner) / cols;
 		int tokens = view.getInt("tokens");
 		for (int r = 0; r < rows; r++) {
-			int plankY = y0 + 4 + rowH * (r + 1) - 12;
-			g.fill(x0 + 4, plankY, x1 - 4, plankY + 4, 0xFF7A5030);
-			g.fill(x0 + 4, plankY, x1 - 4, plankY + 1, 0xFF9A6A40);
-			g.fill(x0 + 4, plankY + 4, x1 - 4, plankY + 5, 0xFF1A100A);
+			int plankY = y + Math.round(h * SHELF_BOARDS[r]);
 			for (int c = 0; c < cols; c++) {
 				int i = r * cols + c;
 				if (i >= goods.size()) {
 					continue;
 				}
-				CompoundTag ware = goods.get(i);
-				int cx = x0 + 4 + c * cellW + cellW / 2;
-				ware(g, ware, cx, plankY, cellW, tokens, mouseX, mouseY);
+				int cx = x + inner + c * cellW + cellW / 2;
+				ware(g, goods.get(i), cx, plankY, cellW, tokens, mouseX, mouseY);
 			}
 		}
 	}
@@ -279,12 +363,17 @@ public class GuildBookScreen extends Screen {
 		int ix = cx - size / 2;
 		int iy = plankY - size;
 		boolean hot = mouseX >= cx - cellW / 2 && mouseX < cx + cellW / 2 && mouseY >= iy - 4 && mouseY < plankY + 16;
-		if (rar >= 2) {
-			float pulse = 0.55f + 0.25f * (float) Math.sin(LegacyUi.time() * 2 + cx);
-			LegacyUi.glow(g, cx, iy + size / 2, 14 + rar * 2, color, pulse);
-		}
-		if (hot) {
-			LegacyUi.glow(g, cx, iy + size / 2, 16, 0xFFFFE8A0, 0.6f);
+		// A cushion of the rarity's colour under the ware (darker for the plain ones); a legendary one twinkles
+		int cushion = LegacyUi.mix(0xFF2A1A10, color, 0.25f + 0.12f * rar);
+		g.fill(cx - size / 2 - 1, plankY - 4, cx + size / 2 + 1, plankY, cushion);
+		g.fill(cx - size / 2 - 1, plankY - 4, cx + size / 2 + 1, plankY - 3, LegacyUi.mix(cushion, 0xFFFFFFFF, 0.15f));
+		if (rar == 4) {
+			for (int k = 0; k < 3; k++) {
+				float ph = (LegacyUi.time() * 1.3f + k * 0.37f + cx * 0.01f) % 1;
+				int px = cx - 10 + (int) (LegacyUi.hash(k, cx) * 20);
+				int py = iy + 2 + (int) (LegacyUi.hash(k + 5, cx) * 18);
+				g.fill(px, py, px + 1, py + 1, LegacyUi.alpha(0xFFFFE6A0, (float) Math.sin(Math.PI * ph)));
+			}
 		}
 		g.pose().pushPose();
 		g.pose().translate(ix + (hot ? 0 : 0), iy - (hot ? 1 : 0), 0);
@@ -312,7 +401,7 @@ public class GuildBookScreen extends Screen {
 		String p = String.valueOf(price);
 		small(g, p, tagX + 11, tagY + 3, afford ? 0xFF5A3A10 : RED_INK);
 		if (hot) {
-			LegacyUi.outline(g, cx - cellW / 2 + 1, iy - 4, cx + cellW / 2 - 1, plankY + 18, 0x80FFE0A0);
+			LegacyUi.outline(g, cx - cellW / 2 + 1, iy - 4, cx + cellW / 2 - 1, plankY + 18, 0xA0E8C060);
 		}
 		List<Component> tip = new ArrayList<>();
 		tip.add(Component.translatable("mages_legacy.merc.rarity." + RARITIES[rar]).withStyle(s -> s.withColor(color & 0xFFFFFF)));
@@ -335,46 +424,46 @@ public class GuildBookScreen extends Screen {
 		}
 	}
 
-	/** The services' board: cork in a frame, today's services pinned up as notes, a pin of each one's rarity. */
-	private void services(GuiGraphics g, int x0, int y0, int x1, int y1, int mouseX, int mouseY) {
-		g.fill(x0 - 1, y0 - 1, x1 + 1, y1 + 1, 0xFF120A06);
-		g.fill(x0, y0, x1, y1, 0xFF5C3A22);
-		g.fill(x0 + 3, y0 + 3, x1 - 3, y1 - 3, 0xFF8A6238);
-		for (int i = 0; i < 90; i++) {
-			int px = x0 + 4 + (int) (LegacyUi.hash(i, 3) * (x1 - x0 - 8));
-			int py = y0 + 4 + (int) (LegacyUi.hash(i, 4) * (y1 - y0 - 8));
-			g.fill(px, py, px + 1, py + 1, 0xFF6E4C2C);
-		}
+	/** The services' board (the picture), today's services pinned to it as notes, a pin of each one's rarity. */
+	private void services(GuiGraphics g, int bx, int by, int bw, int bh, int mouseX, int mouseY) {
+		int padX = bw * 9 / 100;
+		int padY = bh * 14 / 100;
+		int x0 = bx + padX;
+		int y0 = by + padY;
+		int iw = bw - 2 * padX;
+		int ih = bh - 2 * padY;
 		Component title = Component.translatable("mages_legacy.merc.shop.services");
-		small(g, title.getString(), x0 + 6, y0 + 5, 0xFFFFE0A8);
+		int tw = (int) (font.width(title) * 0.75f);
+		g.fill(bx + (bw - tw) / 2 - 3, by - 9, bx + (bw + tw) / 2 + 3, by - 1, 0xC0201208);
+		small(g, title.getString(), bx + (bw - tw) / 2, by - 7, 0xFFFFE0A8);
 		List<CompoundTag> services = wares(true);
 		int cols = 2;
-		int top = y0 + 12;
-		int cellW = (x1 - x0 - 8) / cols;
-		int cellH = (y1 - top - 4) / 2;
+		int cellW = iw / cols;
+		int cellH = ih / 2;
 		int tokens = view.getInt("tokens");
 		for (int i = 0; i < Math.min(4, services.size()); i++) {
 			CompoundTag s = services.get(i);
-			int nx = x0 + 4 + (i % cols) * cellW + 2;
-			int ny = top + (i / cols) * cellH + 2;
-			int nw = cellW - 4;
-			int nh = cellH - 4;
+			int nx = x0 + (i % cols) * cellW + 1;
+			int ny = y0 + (i / cols) * cellH + 1;
+			int nw = cellW - 2;
+			int nh = cellH - 2;
 			int rar = rarity(s);
 			boolean hot = mouseX >= nx && mouseX < nx + nw && mouseY >= ny && mouseY < ny + nh;
-			g.blit(NOTE, nx, ny, nw, nh, 0, 0, 48, 34, 48, 34);
-			if (hot) {
-				g.fill(nx, ny, nx + nw, ny + nh, 0x20FFF0C0);
-			}
+			picture(g, NOTE, nx, ny - (hot ? 1 : 0), nw, nh);
 			LegacyUi.diamond(g, nx + nw / 2, ny + 2, 2, RARITY_COLORS[rar]);
 			ItemStack stack = ItemStack.parseOptional(Minecraft.getInstance().level.registryAccess(), s.getCompound("icon"));
-			g.renderItem(stack, nx + 3, ny + 5);
+			g.pose().pushPose();
+			g.pose().translate(nx + 3, ny + nh / 2 - 6, 0);
+			g.pose().scale(0.75f, 0.75f, 1);
+			g.renderItem(stack, 0, 0);
+			g.pose().popPose();
 			String id = s.getString("id");
 			Component name = Component.translatable("mages_legacy.shop." + id);
-			List<net.minecraft.util.FormattedCharSequence> lines = font.split(name, (nw - 24) * 4 / 3);
+			List<net.minecraft.util.FormattedCharSequence> lines = font.split(name, (int) ((nw - 20) / 0.65f));
 			for (int k = 0; k < Math.min(2, lines.size()); k++) {
 				g.pose().pushPose();
-				g.pose().translate(nx + 21, ny + 6 + k * 7, 0);
-				g.pose().scale(0.75f, 0.75f, 1);
+				g.pose().translate(nx + 17, ny + 5 + k * 6, 0);
+				g.pose().scale(0.65f, 0.65f, 1);
 				g.drawString(font, lines.get(k), 0, 0, INK, false);
 				g.pose().popPose();
 			}
@@ -394,59 +483,56 @@ public class GuildBookScreen extends Screen {
 		}
 	}
 
-	/** The counter: the lantern, the keeper behind it, the book of orders lying open, the pouch of tokens. */
-	private void counter(GuiGraphics g, int x0, int y0, int x1, int y1, int mouseX, int mouseY, float partial) {
-		int w = x1 - x0;
-		int topY = y0 + (y1 - y0) * 11 / 20;
+	/** Under the board: the keeper behind the counter, the lantern, the book of orders open on the counter, the pouch. */
+	private void counter(GuiGraphics g, int x, int y, int w, int floor, int mouseX, int mouseY, float partial) {
+		int counterH = Math.min(heightAt(COUNTER, w), (floor - y) * 62 / 100);
+		int topY = floor - counterH;
 		// The keeper, half hidden by the counter; the eyes blink now and then
-		int kw = Math.min(80, w * 2 / 5);
-		int kh = kw * 46 / 40;
-		int kx = x0 + w - kw - 6;
-		int ky = topY - kh * 3 / 4;
-		g.blit(KEEPER, kx, ky, kw, kh, 0, 0, 40, 46, 40, 46);
+		int kw = w * 46 / 100;
+		int kh = heightAt(KEEPER, kw);
+		int kx = x + w - kw - w * 4 / 100;
+		int ky = topY - kh + kh * 38 / 100;
+		picture(g, KEEPER, kx, ky, kw, kh);
 		float t = LegacyUi.time();
-		if ((t % 5) > 4.85f) {
-			g.fill(kx + kw * 14 / 40, ky + kh * 15 / 46, kx + kw * 26 / 40, ky + kh * 17 / 46, 0xFF0C080A);
-		}
-		// The lantern on its hook, the light flickering round it
-		int lx = x0 + 10;
-		int ly = y0;
-		float flicker = 0.7f + 0.15f * (float) Math.sin(t * 7) + 0.1f * (float) Math.sin(t * 13.7);
-		LegacyUi.glow(g, lx + 6, ly + 18, 30, 0xFFFFB050, flicker);
-		g.blit(LANTERN, lx, ly, 12, 26, 0, 0, 12, 26, 12, 26);
-		// The counter top and its front
-		g.fill(x0, topY, x1, y1, 0xFF4A2E1A);
-		g.fill(x0, topY, x1, topY + 4, 0xFF8A5A34);
-		g.fill(x0, topY, x1, topY + 1, 0xFFB07A48);
-		g.fill(x0, topY + 4, x1, topY + 5, 0xFF1A100A);
-		for (int px = x0 + 8; px < x1; px += 24) {
-			g.fill(px, topY + 8, px + 16, y1 - 4, 0xFF3E2616);
-			LegacyUi.outline(g, px, topY + 8, px + 16, y1 - 4, 0xFF2A180E);
-		}
-		g.fill(x0, topY + 6, x1, topY + 7, 0xFFC8823C);
-		// The book of orders lying open on the counter
-		int bw = Math.min(96, w / 2);
-		int bh = bw * 40 / 64;
-		int bx = x0 + 16;
-		int by = topY - bh + 6;
+		// The lantern hanging on the left, its light flickering on the wall
+		int lw = Math.max(10, w * 8 / 100);
+		int lx = x + w * 3 / 100;
+		int ly = y + 2;
+		float flicker = 0.55f + 0.12f * (float) Math.sin(t * 7) + 0.08f * (float) Math.sin(t * 13.7);
+		LegacyUi.glow(g, lx + lw / 2, ly + heightAt(LANTERN, lw) * 2 / 3, 26, 0xFFFFA040, flicker);
+		pictureW(g, LANTERN, lx, ly, lw);
+		picture(g, COUNTER, x, topY, w, counterH);
+		// The book of orders lying open on the counter top
+		int bw = w * 46 / 100;
+		int bh = heightAt(BOOK, bw);
+		int bx = x + w * 6 / 100;
+		int by = topY - bh * 55 / 100;
 		boolean hot = mouseX >= bx && mouseX < bx + bw && mouseY >= by && mouseY < by + bh;
-		LegacyUi.glow(g, bx + bw / 2, by + bh / 2, bw / 2 + 4, 0xFFFFD27A, hot ? 0.9f : 0.35f + 0.15f * (float) Math.sin(t * 2));
-		g.blit(BOOK, bx, by - (hot ? 2 : 0), bw, bh, 0, 0, 64, 40, 64, 40);
+		if (hot) {
+			LegacyUi.glow(g, bx + bw / 2, by + bh / 2, bw / 2 + 2, 0xFFFFD27A, 0.5f);
+		}
+		picture(g, BOOK, bx, by - (hot ? 2 : 0), bw, bh);
 		int inHand = view.getList("active", Tag.TAG_COMPOUND).size();
 		Component label = Component.translatable("mages_legacy.merc.shop.orders", inHand, view.getInt("hand"));
-		g.drawString(font, label, bx + (bw - font.width(label)) / 2, y1 - 11, 0xFFFFE0A8, true);
+		int lwidth = (int) (font.width(label) * 0.75f);
+		int ly0 = topY + counterH * 55 / 100;
+		g.fill(bx + (bw - lwidth) / 2 - 3, ly0 - 2, bx + (bw + lwidth) / 2 + 3, ly0 + 7, 0xC0201208);
+		small(g, label.getString(), bx + (bw - lwidth) / 2, ly0, 0xFFFFE0A8);
 		hots.add(new Hot(bx, by - 2, bx + bw, by + bh, () -> turn(0), List.of(Component.translatable("mages_legacy.merc.shop.orders_tip")
 				.withStyle(ChatFormatting.GRAY)), null));
-		// The pouch: the balance
+		// The pouch on the counter: the balance
 		String tokens = String.valueOf(view.getInt("tokens"));
-		int px = x0 + 16 + Math.min(96, w / 2) + 4;
-		int py = topY - 15;
-		g.blit(POUCH, px, py, 16, 16, 0, 0, 16, 16, 16, 16);
-		g.drawString(font, tokens, px + 18, py + 5, 0xFFFFD27A, true);
+		int pw = Math.max(14, w * 11 / 100);
+		int ph = heightAt(POUCH, pw);
+		int px = bx + bw + w * 4 / 100;
+		int py = topY - ph * 70 / 100;
+		pictureW(g, POUCH, px, py, pw);
+		g.drawString(font, tokens, px + pw + 2, py + ph / 2 - 3, 0xFFFFD27A, true);
 	}
 
 	/** Under the floorboards' edge: when the stock turns over, the odds of each rarity at this level, bought luck. */
 	private void footer(GuiGraphics g, int x0, int y, int x1) {
+		g.fill(x0 - 6, y - 2, x1 + 6, y + 9, 0xB0140C08);
 		Component when = Component.translatable("mages_legacy.merc.book.next_day", clock(view.getLong("nextDay")));
 		small(g, when.getString(), x0, y + 1, 0xFFD8C0A0);
 		int[] odds = view.getIntArray("odds");

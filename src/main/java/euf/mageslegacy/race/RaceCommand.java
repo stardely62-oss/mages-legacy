@@ -67,7 +67,12 @@ public final class RaceCommand {
 				.then(Commands.literal("talents").then(Commands.argument("targets", EntityArgument.players())
 						.then(Commands.literal("reset").executes(ctx -> each(ctx, Talents::reset)))
 						// For testing: the whole tree at once, nothing asked; optionally which Awakenings sit on Z and Alt
-						.then(Commands.literal("all").executes(ctx -> each(ctx, player -> Talents.learnAll(player, "rift", "hole")))
+						.then(Commands.literal("all").executes(ctx -> each(ctx, player -> {
+							// The player's own race's first two Awakenings on Z and Alt
+							List<String> own = RaceState.get(player).map(race -> Talent.of(race).stream().filter(t -> t.kind == Talent.Kind.AWAKENING)
+									.map(t -> t.id().substring("awakening_".length())).toList()).orElse(List.of());
+							Talents.learnAll(player, own.size() > 0 ? own.get(0) : "", own.size() > 1 ? own.get(1) : "");
+						}))
 								.then(Commands.argument("z", StringArgumentType.word()).suggests(RaceCommand::awakenings)
 										.then(Commands.argument("alt", StringArgumentType.word()).suggests(RaceCommand::awakenings)
 												.executes(ctx -> {
@@ -81,25 +86,25 @@ public final class RaceCommand {
 									String id = StringArgumentType.getString(ctx, "talent");
 									return each(ctx, player -> Talents.learn(player, id));
 								})))))
+				// For testing: an Awakening's trial (any race's, read from the tree) or the mastery trial marked met
 				.then(Commands.literal("trial").then(Commands.argument("targets", EntityArgument.players())
 						.then(Commands.argument("trial", StringArgumentType.word())
-								.suggests((ctx, builder) -> SharedSuggestionProvider.suggest(java.util.List.of("rift", "worlds", "hole", "bloom", "storm", "rebirth",
-										"feast", "blood_storm", "prince", "superlate"), builder))
+								.suggests((ctx, builder) -> SharedSuggestionProvider.suggest(java.util.stream.Stream.concat(Arrays.stream(Talent.values())
+										.filter(t -> t.kind == Talent.Kind.AWAKENING).map(t -> t.id().substring("awakening_".length())),
+										java.util.stream.Stream.of("superlate")), builder))
 								.executes(ctx -> {
 									String trial = StringArgumentType.getString(ctx, "trial");
+									if (!trial.equals("superlate") && Talent.byId("awakening_" + trial).filter(t -> t.kind == Talent.Kind.AWAKENING).isEmpty()) {
+										ctx.getSource().sendFailure(Component.literal("Unknown trial: " + trial));
+										return 0;
+									}
 									return each(ctx, player -> {
-										switch (trial) {
-											case "rift" -> Talents.passTrial(player, Talent.AWAKENING_RIFT);
-											case "worlds" -> Talents.passTrial(player, Talent.AWAKENING_WORLDS);
-											case "hole" -> Talents.passTrial(player, Talent.AWAKENING_HOLE);
-											case "bloom" -> Talents.passTrial(player, Talent.AWAKENING_BLOOM);
-											case "storm" -> Talents.passTrial(player, Talent.AWAKENING_STORM);
-											case "rebirth" -> Talents.passTrial(player, Talent.AWAKENING_REBIRTH);
-											case "feast" -> Talents.passTrial(player, Talent.AWAKENING_FEAST);
-											case "blood_storm" -> Talents.passTrial(player, Talent.AWAKENING_BLOOD_STORM);
-											case "prince" -> Talents.passTrial(player, Talent.AWAKENING_PRINCE);
-											default -> Talents.addProgress(player, Talents.SUPERLATE, 1);
+										if (trial.equals("superlate")) {
+											Talents.addProgress(player, Talents.SUPERLATE, 1);
+										} else {
+											Talents.passTrial(player, Talent.byId("awakening_" + trial).orElseThrow());
 										}
+										RaceState.sync(player);
 									});
 								}))))
 				// For testing: every ability always ready and free, until turned off

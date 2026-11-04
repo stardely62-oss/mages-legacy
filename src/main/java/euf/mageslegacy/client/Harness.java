@@ -2229,7 +2229,9 @@ final class Harness {
 			var book = (euf.mageslegacy.client.screen.GuildBookScreen) mc.screen;
 			check("H opens the guild's book with three offers (" + book.view().getList("offers", 10).size() + ")",
 					book.view().getList("offers", 10).size() == 3);
-		}, 10);
+		}, 4);
+		// The doors swinging open on coming in, then the shop itself
+		film("merc_shop_doors", 6, 4);
 		shot("merc_shop");
 		run(() -> ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(0), 8);
 		shot("merc_book_contracts");
@@ -2609,9 +2611,14 @@ final class Harness {
 		run(() -> check("the Verdict on the golem in sight (" + euf.mageslegacy.mercenary.Mercenary.condemned(player()) + ")",
 				mercMobs[0].getUUID().equals(euf.mageslegacy.mercenary.Mercenary.condemned(player()))), 0);
 		for (int i = 0; i < 12; i++) {
-			run(() -> server().execute(() -> player().attack(mercMobs[0])), 20);
+			// The sixth blow: filmed from the blow on (the great sword forms, falls, stands and crumbles)
+			int n = i;
+			run(() -> server().execute(() -> player().attack(mercMobs[0])), n == 5 ? 1 : 20);
+			if (i == 1) {
+				film("merc_verdict_circle", 3, 3);
+			}
 			if (i == 5) {
-				film("merc_verdict", 6, 2);
+				film("merc_verdict", 12, 3);
 			}
 		}
 		run(() -> {
@@ -2865,6 +2872,22 @@ final class Harness {
 			mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
 		}, 3);
 		shot("merc_hud");
+		// The test commands work for the Mercenaries too: a trial marked met, the Awakenings chosen
+		run(() -> server().execute(() -> {
+			ServerPlayer p = player();
+			p.setData(RaceState.PROGRESS, new net.minecraft.nbt.CompoundTag());
+			p.setData(RaceState.TALENTS, new ArrayList<>());
+			String name = p.getGameProfile().getName();
+			server().getCommands().performPrefixedCommand(server().createCommandSourceStack(), "mages_legacy trial " + name + " legend");
+			server().getCommands().performPrefixedCommand(server().createCommandSourceStack(), "mages_legacy awaken " + name + " ransom legend");
+		}), 5);
+		run(() -> {
+			var owned = euf.mageslegacy.race.Talents.owned(player());
+			check("/mages_legacy trial and awaken for the Mercenaries (" + owned + ")", euf.mageslegacy.race.Talents.trialDone(
+					euf.mageslegacy.race.Talent.AWAKENING_LEGEND, owned, player().getData(RaceState.PROGRESS))
+					&& euf.mageslegacy.race.Awakenings.at(owned, 2).orElse(null) == euf.mageslegacy.race.Ability.LIFE_DEBT
+					&& euf.mageslegacy.race.Awakenings.at(owned, 4).orElse(null) == euf.mageslegacy.race.Ability.GUILD_LEGEND);
+		}, 0);
 		// A new race takes it all away
 		run(() -> server().execute(() -> {
 			ServerPlayer p = player();
