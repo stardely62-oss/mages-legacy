@@ -2128,6 +2128,8 @@ final class Harness {
 		run(() -> server().execute(() -> player().attack(mercMobs[0])), 1);
 		film("merc_blast", 8, 2);
 		run(Harness::watchSelf, 0);
+		// The golem filmed is in the way of what follows: gone
+		run(() -> server().execute(() -> mercMobs[0].discard()), 2);
 		// A player under the brand: the burst no more than 4 (worked out for a stand-in player; a creature gets the full 6)
 		run(() -> server().execute(() -> {
 			ServerPlayer p = player();
