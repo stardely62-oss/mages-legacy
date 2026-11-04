@@ -589,7 +589,7 @@ public final class MercFx {
 			float alpha = (float) Math.sqrt(Math.sin(Math.PI * t));
 			float r = r0 + (r1 - r0) * VoidRender.easeOut(t);
 			// A wide ring keeps its band thin: the bigger, the fainter
-			decal(draw, WAVE, at, r, 0, 1, alpha * Math.min(0.7f, 1.6f / Math.max(1, r)), r > 3 ? 0.05f : 0.25f);
+			decal(draw, WAVE, at, r, 0, 1, alpha * Math.min(0.5f, 1.2f / Math.max(1, r)), 0.06f);
 		}
 	}
 
@@ -909,8 +909,8 @@ public final class MercFx {
 			if (age == FORM + FALL) {
 				Vec3 hit = heart(1);
 				Vec3 g = new Vec3(hit.x, BloodFx.groundY(hit) + 0.02, hit.z);
-				VoidRender.add(new Ring(g, 0.4f, 3.5f, 14));
-				VoidRender.add(new Flash(hit, 0.9f, 8));
+				VoidRender.add(new Ring(g, 0.4f, 2.6f, 12));
+				VoidRender.add(new Flash(hit, 0.6f, 6));
 				VoidRender.add(new CoinBurst(hit, 18, 0.3));
 				for (int i = 0; i < 30; i++) {
 					add(spark(hit, VoidRender.randomDir().scale(r(0.15, 0.4)), (int) r(10, 20), r(0.07, 0.12)));
@@ -935,8 +935,8 @@ public final class MercFx {
 				Vec3 tipDir = new Vec3(0, Math.cos(turn), 0).add(side.scale(Math.sin(turn)));
 				Vec3 width = tipDir.cross(draw.cam.subtract(above));
 				width = width.lengthSqr() < 1.0E-6 ? side : width.normalize();
-				draw.paint(BLADE, above, width.scale(0.22), tipDir.scale(-len), 1, 0.95f, 0.85f, t, 0.5f * t);
-				billboard(draw, FLARE, above, 0.5f + 0.4f * t, 0, 1, 0.35f * t, 0.4f);
+				draw.paint(BLADE, above, width.scale(0.32), tipDir.scale(-len), 1, 0.92f, 0.8f, t, 0.15f * t);
+				billboard(draw, FLARE, above, 0.4f + 0.3f * t, 0, 1, 0.25f * t, 0.15f);
 				return;
 			}
 			float fall = Math.min(1, (life - FORM) / FALL);
@@ -945,10 +945,7 @@ public final class MercFx {
 			// Falling: its tip goes from over the head into the heart; then it stands there, fading
 			Vec3 tip = above.subtract(0, len, 0).lerp(heart, fall * fall);
 			Vec3 centre = tip.add(0, len, 0);
-			draw.paint(BLADE, centre, side.scale(0.22), new Vec3(0, len, 0), 1, 0.95f, 0.85f, alpha, 0.6f);
-			if (life < FORM + FALL + 1) {
-				band(draw, FLARE, centre.add(0, len, 0), tip, 0.12f, 0.5f, 0.4f);
-			}
+			draw.paint(BLADE, centre, side.scale(0.32), new Vec3(0, len, 0), 1, 0.92f, 0.8f, alpha, 0.18f);
 			// The warrant torn: scraps fluttering out and down
 			if (after > 0 && after < 22) {
 				float t = after / 22f;

@@ -290,8 +290,11 @@ public class GuildBookScreen extends Screen {
 		g.pose().translate(ix + (hot ? 0 : 0), iy - (hot ? 1 : 0), 0);
 		g.pose().scale(1.5f, 1.5f, 1);
 		g.renderItem(stack, 0, 0);
-		g.renderItemDecorations(font, stack, 0, 0);
 		g.pose().popPose();
+		if (stack.getCount() > 1) {
+			String n = "×" + stack.getCount();
+			small(g, n, ix + size - (int) (font.width(n) * 0.75f) + 2, plankY - 7, 0xFFFFE8B0);
+		}
 		if (left <= 0) {
 			g.fill(ix - 2, iy - 2, ix + size + 2, iy + size, 0xA0100808);
 			Component sold = Component.translatable("mages_legacy.merc.book.sold_out");
@@ -436,8 +439,8 @@ public class GuildBookScreen extends Screen {
 				.withStyle(ChatFormatting.GRAY)), null));
 		// The pouch: the balance
 		String tokens = String.valueOf(view.getInt("tokens"));
-		int px = x1 - 40;
-		int py = topY - 14;
+		int px = x0 + 16 + Math.min(96, w / 2) + 4;
+		int py = topY - 15;
 		g.blit(POUCH, px, py, 16, 16, 0, 0, 16, 16, 16, 16);
 		g.drawString(font, tokens, px + 18, py + 5, 0xFFFFD27A, true);
 	}

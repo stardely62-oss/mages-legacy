@@ -2228,6 +2228,8 @@ final class Harness {
 			check("H opens the guild's book with three offers (" + book.view().getList("offers", 10).size() + ")",
 					book.view().getList("offers", 10).size() == 3);
 		}, 10);
+		shot("merc_shop");
+		run(() -> ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(0), 8);
 		shot("merc_book_contracts");
 		run(() -> {
 			var a = account();
@@ -2245,6 +2247,7 @@ final class Harness {
 			check("two contracts in hand, the third refused (" + a.active.size() + " in hand, " + a.offers.size() + " on the board)",
 					a.active.size() == 2 && a.offers.size() == 1);
 		}, 0);
+		run(() -> ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(0), 8);
 		shot("merc_book_hand");
 		run(() -> ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(1), 10);
 		shot("merc_book_shop");
