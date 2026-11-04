@@ -2087,6 +2087,13 @@ final class Harness {
 		run(() -> check("the brand still holds after 5 seconds", euf.mageslegacy.mercenary.Mercenary.brandLeft(mercMobs[0], player()) > 0), 110);
 		run(() -> check("the brand fades after 10 seconds (" + euf.mageslegacy.mercenary.Mercenary.brandLeft(mercMobs[0], player()) + ")",
 				euf.mageslegacy.mercenary.Mercenary.brandLeft(mercMobs[0], player()) == 0), 10);
+		// The bolt leaves no hurt pause behind: a bare fist's blow straight after it counts (three blows, never four)
+		run(() -> server().execute(() -> {
+			euf.mageslegacy.mercenary.Mercenary.brandNow(player(), mercMobs[0]);
+			player().attack(mercMobs[0]);
+		}), 25);
+		run(() -> check("a weak blow right after the bolt still lights a part (" + euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0],
+				player()) + ")", euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 1), 0);
 		// Seen from the side: the bolt, the seal lighting part by part, the burst
 		mercSetUp(5);
 		run(() -> {
