@@ -117,13 +117,25 @@ public final class RaceHud {
 		String note = state.note();
 		if (note != null && !note.isEmpty()) {
 			String[] p = note.split("\\|");
-			if (p.length == 4) {
+			if (p.length >= 5) {
 				net.minecraft.nbt.CompoundTag c = new net.minecraft.nbt.CompoundTag();
 				c.putString("kind", p[0]);
 				c.putString("target", p[1]);
 				c.putInt("amount", Integer.parseInt(p[3]));
+				c.putString("job", p[4]);
 				String what = euf.mageslegacy.client.screen.GuildBookScreen.describe(c).getString();
-				String text = "explore".equals(p[0]) ? what : what.replaceAll(" ×\\d+$", "") + " " + p[2] + "/" + p[3];
+				String text;
+				if (p.length >= 7) {
+					// A mark to reach: how far, which way
+					String[] dirs = {"n", "ne", "e", "se", "s", "sw", "w", "nw"};
+					text = what + " · " + net.minecraft.network.chat.Component.translatable("mages_legacy.merc.book.guide", p[5],
+							net.minecraft.network.chat.Component.translatable("mages_legacy.merc.dir." + dirs[Math.floorMod(Integer.parseInt(p[6]), 8)]))
+							.getString();
+				} else if ("hunt".equals(p[0]) || "deliver".equals(p[0])) {
+					text = what.replaceAll(" ×\\d+$", "") + " " + p[2] + "/" + p[3];
+				} else {
+					text = what;
+				}
 				graphics.pose().pushPose();
 				graphics.pose().translate(x0, y0 - 20, 0);
 				graphics.pose().scale(0.75f, 0.75f, 1);

@@ -55,6 +55,7 @@ import net.minecraft.world.entity.monster.Shulker;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -107,8 +108,8 @@ public final class Mercenary {
 	private static final int BLAST_SHIELD_TICKS = 4 * 20;
 
 	// ---- Guild Harpoon ----
-	public static final double HOOK_RANGE = 18;
-	public static final double HOOK_RANGE_LONG = 24;
+	public static final double HOOK_RANGE = 26;
+	public static final double HOOK_RANGE_LONG = 34;
 	public static final float HOOK_HIT = 2;
 	public static final float HOOK_HIT_STUN = 4;
 	public static final int HOOK_MAX_TICKS = 24;
@@ -322,6 +323,8 @@ public final class Mercenary {
 	private static final Map<UUID, Long> ALLY_SHIELDS = new HashMap<>();
 	/** Set while the Mercenary's own abilities strike, so their damage never counts as a blow. */
 	private static int ownDamage;
+	/** Set while a Brand's burst strikes its bearer (a hunt "finished by the Brand" counts only such a kill). */
+	private static boolean bursting;
 
 	private Mercenary() {
 	}
@@ -415,7 +418,18 @@ public final class Mercenary {
 
 	/** Whether a hunt in this Mercenary's hand is after the creature. */
 	public static boolean hunted(ServerPlayer player, Entity e) {
-		return account(player).hunting(typeId(e));
+		return account(player).hunting(typeId(e)) || ownBounty(player, e);
+	}
+
+	/** One of this Mercenary's bounties (or its retinue). */
+	public static boolean ownBounty(ServerPlayer player, Entity e) {
+		String prefix = "mb:" + player.getUUID() + ":";
+		for (String tag : e.getTags()) {
+			if (tag.startsWith(prefix)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static boolean boss(Entity e) {
@@ -567,7 +581,7 @@ public final class Mercenary {
 		}
 	}
 
-	/** The bolt lands: 4 damage and the first charge of Debt (a brand already there only gets its time back). */
+	/** The bolt lands: 4 damage and an empty seal of Debt (a brand already there only gets its time back); three blows fill it. */
 	static void landBrand(ServerPlayer owner, LivingEntity target) {
 		ServerLevel level = owner.serverLevel();
 		long now = now(owner);
@@ -583,16 +597,16 @@ public final class Mercenary {
 		if (brand != null) {
 			brand.until = now + ticks;
 		} else {
-			int charges = 1;
+			int charges = 0;
 			// Reassignment: the charges of the last brand move over to the new one (never enough to blow it at once)
 			if (Talents.has(owner, Talent.BRAND_SWAP) && s.lastBranded != null && !s.lastBranded.equals(target.getUUID())) {
 				Brand old = brandOn(s.lastBranded, owner.getUUID());
 				if (old != null && old.until > now) {
-					charges = Math.max(1, Math.min(max - 1, old.charges));
+					charges = Math.min(max - 1, old.charges);
 					removeBrand(level, old);
 				}
 			}
-			brand = new Brand(owner.getUUID(), target.getUUID(), level.dimension(), charges, max, now + ticks, now, false);
+			brand = new Brand(owner.getUUID(), target.getUUID(), level.dimension(), charges, max, now + ticks, now - CHARGE_GAP, false);
 			BRANDS.computeIfAbsent(target.getUUID(), id -> new ArrayList<>()).add(brand);
 		}
 		s.lastBranded = target.getUUID();
@@ -670,10 +684,17 @@ public final class Mercenary {
 	static void blast(ServerPlayer owner, LivingEntity target, Brand b, boolean byHook) {
 		ServerLevel level = owner.serverLevel();
 		removeBrand(null, b);
+		// The seal goes at once (it folds into the burst on the clients)
+		Fx.brandSeal(level, target, -1, b.max, 0);
 		boolean hostile = target instanceof Enemy;
 		float damage = burstFor(owner, target);
 		Vec3 at = target.position().add(0, target.getBbHeight() * 0.6, 0);
-		strike(owner, target, damage);
+		bursting = true;
+		try {
+			strike(owner, target, damage);
+		} finally {
+			bursting = false;
+		}
 		Fx.brandBlast(level, at, Talents.has(owner, Talent.BRAND_CHAIN));
 		level.playSound(null, target.blockPosition(), SoundEvents.ANVIL_PLACE, SoundSource.PLAYERS, 0.5f, 1.6f);
 		level.playSound(null, target.blockPosition(), SoundEvents.CHAIN_BREAK, SoundSource.PLAYERS, 1, 0.8f);
@@ -702,7 +723,7 @@ public final class Mercenary {
 			if (next != null) {
 				long now = now(owner);
 				int ticks = Talents.has(owner, Talent.BRAND_LINGER) ? BRAND_TICKS_LONG : BRAND_TICKS;
-				Brand passed = new Brand(owner.getUUID(), next.getUUID(), level.dimension(), 1, b.max, now + ticks, now, true);
+				Brand passed = new Brand(owner.getUUID(), next.getUUID(), level.dimension(), 1, b.max, now + ticks, now - CHARGE_GAP, true);
 				BRANDS.computeIfAbsent(next.getUUID(), id -> new ArrayList<>()).add(passed);
 				Fx.brandBolt(level, owner, at, next.position().add(0, next.getBbHeight() * 0.6, 0), 3);
 				Fx.brandSeal(level, next, 1, b.max, ticks);
@@ -804,7 +825,7 @@ public final class Mercenary {
 	}
 
 	private static int flyTicks(ServerPlayer player, Vec3 to) {
-		return (int) Math.max(2, Math.min(7, Math.ceil(player.getEyePosition().distanceTo(to) / 3.5)));
+		return (int) Math.max(2, Math.min(9, Math.ceil(player.getEyePosition().distanceTo(to) / 4.0)));
 	}
 
 	/** Too heavy to drag: a boss, a big or very hardy body, a shulker, a player. */
@@ -981,7 +1002,7 @@ public final class Mercenary {
 		endVerdict(player.server, player.getUUID());
 		int ticks = Talents.has(player, Talent.VERDICT_LONG) ? VERDICT_TICKS_LONG : VERDICT_TICKS;
 		VERDICTS.put(player.getUUID(), new Verdict(target.getUUID(), level.dimension(), now(player) + ticks));
-		Fx.verdictSeal(level, target, player, ticks);
+		Fx.verdictSeal(level, target, player, ticks, Talents.has(player, Talent.VERDICT_BLADES) ? VERDICT_BLADES_MORE : VERDICT_BLADES);
 		Fx.shake(player, 1.2f, 8);
 		level.playSound(null, target.blockPosition(), SoundEvents.BELL_BLOCK, SoundSource.PLAYERS, 1, 0.6f);
 		level.playSound(null, player.blockPosition(), SoundEvents.ANVIL_USE, SoundSource.PLAYERS, 0.6f, 0.5f);
@@ -1581,11 +1602,14 @@ public final class Mercenary {
 		}
 		Entity killerEntity = event.getSource().getEntity();
 		String type = typeId(victim);
+		Contracts.Kill kill = new Contracts.Kill(victim.level().dimension() == Level.OVERWORLD && !victim.level().isDay(),
+				event.getSource().getDirectEntity() instanceof Projectile, bursting);
+		bountyDeath(server, victim, killerEntity);
 		if (killerEntity instanceof ServerPlayer killer && is(killer)) {
 			Account a = account(killer);
 			boolean trophy = Talents.has(killer, Talent.CROSS_TROPHY) && branded(victim, killer);
 			if (a.hunting(type)) {
-				Contracts.onKill(killer, a, type, trophy);
+				Contracts.onKill(killer, a, type, trophy, kill);
 				save(killer, a);
 			}
 			Banner b = BANNERS.get(killer.getUUID());
@@ -1605,12 +1629,49 @@ public final class Mercenary {
 				}
 				Account a = account(merc);
 				if (a.hunting(type)) {
-					Contracts.onKill(merc, a, type, false);
+					Contracts.onKill(merc, a, type, false, kill);
 					save(merc, a);
 				}
 			}
 		}
 		removeBrandsOf(victim);
+	}
+
+	/** A named bounty fell: done for its Mercenary if they or an ally brought it down, otherwise it will stand at its mark again. */
+	private static void bountyDeath(MinecraftServer server, LivingEntity victim, Entity killer) {
+		if (!victim.getTags().contains("merc_bounty")) {
+			return;
+		}
+		for (String tag : victim.getTags()) {
+			if (!tag.startsWith("mb:")) {
+				continue;
+			}
+			String[] p = tag.split(":");
+			if (p.length != 3) {
+				continue;
+			}
+			ServerPlayer owner;
+			int id;
+			try {
+				owner = server.getPlayerList().getPlayer(UUID.fromString(p[1]));
+				id = Integer.parseInt(p[2]);
+			} catch (IllegalArgumentException e) {
+				continue;
+			}
+			if (owner == null) {
+				continue;
+			}
+			Account a = account(owner);
+			boolean ours = killer == owner || killer instanceof LivingEntity l && Allies.ally(owner, l);
+			if (ours) {
+				Contracts.bountyDown(owner, a, id);
+				Fx.ransom(owner.serverLevel(), victim);
+			} else {
+				Contracts.bountyLost(a, id);
+				owner.displayClientMessage(Component.translatable("mages_legacy.merc.bounty_lost").withStyle(ChatFormatting.GRAY), true);
+			}
+			save(owner, a);
+		}
 	}
 
 	/** A creature that counted as a foe when it died (not a pet, not a stand). */
@@ -1783,7 +1844,13 @@ public final class Mercenary {
 			return "";
 		}
 		Contract c = a.active.get(0);
-		return c.kind.id() + "|" + c.target + "|" + c.progress + "|" + c.amount;
+		String way = "";
+		if (c.located && (c.kind == Contract.Kind.SCOUT || c.kind == Contract.Kind.BOUNTY) && player.level().dimension() == Level.OVERWORLD) {
+			double dx = c.locX - player.getX();
+			double dz = c.locZ - player.getZ();
+			way = "|" + (int) Math.sqrt(dx * dx + dz * dz) + "|" + Math.floorMod(Math.round(Math.toDegrees(Math.atan2(dx, -dz)) / 45.0), 8);
+		}
+		return c.kind.id() + "|" + c.target + "|" + c.progress + "|" + c.amount + "|" + c.job + way;
 	}
 
 	/** The book as the client shows it: the board, the hand, the wares, every price and pay already worked out. */
@@ -1818,7 +1885,9 @@ public final class Mercenary {
 				}
 				ct.putInt("have", have);
 			}
-			if (c.kind == Contract.Kind.EXPLORE && c.located) {
+			if ((c.kind == Contract.Kind.SCOUT || c.kind == Contract.Kind.BOUNTY) && c.located && player.level().dimension() != Level.OVERWORLD) {
+				ct.putBoolean("otherWorld", true);
+			} else if (c.located) {
 				double dx = c.locX - player.getX();
 				double dz = c.locZ - player.getZ();
 				ct.putInt("far", (int) (Math.round(Math.sqrt(dx * dx + dz * dz) / 50.0) * 50));
@@ -1830,27 +1899,38 @@ public final class Mercenary {
 		}
 		tag.put("active", active);
 		ListTag wares = new ListTag();
-		int open = Progression.openTiers(player);
-		for (Shop.Ware w : Shop.CATALOG) {
-			boolean today = w.kind() == Shop.Kind.SERVICE || a.stock.contains(w.id());
-			if (!today) {
+		for (String id : a.stock) {
+			Shop.Ware w = Shop.ware(id).orElse(null);
+			if (w == null) {
 				continue;
 			}
 			CompoundTag wt = new CompoundTag();
 			wt.putString("id", w.id());
 			wt.putString("cat", w.category().id());
 			wt.putBoolean("service", w.kind() == Shop.Kind.SERVICE);
-			wt.putInt("tier", w.tier());
+			wt.putString("rarity", w.rarity().id());
 			wt.putInt("price", Shop.price(player, a, w));
 			wt.putInt("base", w.price());
 			wt.putBoolean("deal", a.deals.contains(w.id()));
-			wt.putBoolean("soldOut", Shop.soldOut(a, w));
-			wt.putBoolean("locked", !Shop.tierOpen(player, w.tier()));
-			wt.putBoolean("new", w.tier() > Math.max(1, a.seenTier) && w.tier() <= open);
-			wt.putInt("left", w.dailyMax() > 0 ? w.dailyMax() - a.bought.getOrDefault(w.id(), 0) : -1);
-			wt.put("icon", w.icon().get().saveOptional(player.registryAccess()));
+			wt.putInt("left", Shop.left(a, w));
+			wt.putInt("stock", w.rarity().stock);
+			// A book's enchantment is drawn when it is bought: the shelf shows a plain one
+			ItemStack shown = w.category() == Shop.Category.BOOKS ? new ItemStack(Items.ENCHANTED_BOOK) : w.shown(player);
+			wt.put("icon", shown.saveOptional(player.registryAccess()));
 			wares.add(wt);
 		}
+		// The odds of each rarity at this level, for the shop's notice board
+		int[] odds = new int[Shop.Rarity.values().length];
+		float total = 0;
+		for (Shop.Rarity r : Shop.Rarity.values()) {
+			total += r.weight(RaceState.level(player));
+		}
+		for (Shop.Rarity r : Shop.Rarity.values()) {
+			odds[r.ordinal()] = Math.round(100 * r.weight(RaceState.level(player)) / total);
+		}
+		tag.putIntArray("odds", odds);
+		tag.putInt("fortune", a.fortuneJobs);
+		tag.putInt("lucky", a.luckyJobs);
 		tag.put("wares", wares);
 		return tag;
 	}
@@ -1860,6 +1940,17 @@ public final class Mercenary {
 		int[] pay = Contracts.pay(player, a, c, true);
 		t.putInt("payXp", pay[0]);
 		t.putInt("payTokens", pay[1]);
+		long now = player.server.overworld().getGameTime();
+		if (c.quickUntil > now) {
+			t.putLong("quickLeft", c.quickUntil - now);
+		}
+		if (c.quickUntil == 0) {
+			// Not taken yet: how long it will have to be quick, and what that pays
+			Contract taken = Contract.load(c.save());
+			taken.quickUntil = now + 1;
+			int[] fast = Contracts.pay(player, a, taken, true);
+			t.putInt("quickTokens", fast[1]);
+		}
 		t.putBoolean("hunted", c.kind == Contract.Kind.HUNT);
 		return t;
 	}
@@ -1879,7 +1970,6 @@ public final class Mercenary {
 			case 5 -> Shop.buy(player, a, ware);
 			case 6 -> {
 				// The book closed: the door swings shut; the wares seen are no longer new
-				a.seenTier = Math.max(a.seenTier, Progression.openTiers(player));
 				save(player, a);
 				Fx.doorClose(player.serverLevel(), player);
 				player.level().playSound(null, player.blockPosition(), SoundEvents.WOODEN_DOOR_CLOSE, SoundSource.PLAYERS, 1, 0.6f);

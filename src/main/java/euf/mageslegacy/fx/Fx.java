@@ -116,6 +116,8 @@ public final class Fx {
 	public static final int PROFIT_PING = 47;
 	/** A contract done: a stamp of the seal and coins round the body (entity). */
 	public static final int CONTRACT_DONE = 48;
+	/** A pillar of light over a contract's mark (to: the mark, ground found by the client), for its Mercenary only; b: 1 a bounty's lair. */
+	public static final int MARK = 49;
 
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
@@ -254,7 +256,12 @@ public final class Fx {
 	}
 
 	public static void verdictSeal(ServerLevel level, Entity target, Entity judge, int ticks) {
-		send(level, target.position(), new FxPayload(VERDICT_SEAL, target.getId(), target.position(), target.position(), ticks, 0,
+		verdictSeal(level, target, judge, ticks, 5);
+	}
+
+	/** The Verdict's seal with its circling swords (as many as blades it may call). */
+	public static void verdictSeal(ServerLevel level, Entity target, Entity judge, int ticks, int blades) {
+		send(level, target.position(), new FxPayload(VERDICT_SEAL, target.getId(), target.position(), target.position(), ticks, blades,
 				judge == null ? -1 : judge.getId()));
 	}
 
@@ -305,6 +312,11 @@ public final class Fx {
 
 	public static void profitPing(ServerPlayer player, Vec3 quarry) {
 		PacketDistributor.sendToPlayer(player, new FxPayload(PROFIT_PING, player.getId(), player.position(), quarry, 30, 0, 0));
+	}
+
+	public static void mark(ServerPlayer player, int x, int z, boolean bounty) {
+		Vec3 at = new Vec3(x + 0.5, player.getY(), z + 0.5);
+		PacketDistributor.sendToPlayer(player, new FxPayload(MARK, -1, at, at, 40, 0, bounty ? 1 : 0));
 	}
 
 	public static void contractDone(ServerLevel level, Entity body) {
