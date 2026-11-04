@@ -330,6 +330,7 @@ public final class Mercenary {
 	}
 
 	public static void register() {
+		Armory.register();
 		NeoForge.EVENT_BUS.addListener(Mercenary::onPlayerTick);
 		NeoForge.EVENT_BUS.addListener(Mercenary::onServerTick);
 		NeoForge.EVENT_BUS.addListener(Mercenary::onIncoming);
@@ -1964,6 +1965,7 @@ public final class Mercenary {
 		tag.putInt("fortune", a.fortuneJobs);
 		tag.putInt("lucky", a.luckyJobs);
 		tag.put("wares", wares);
+		tag.put("armory", Armory.view(player, a));
 		return tag;
 	}
 
@@ -2000,6 +2002,7 @@ public final class Mercenary {
 			case 3 -> Contracts.deliver(player, a, id);
 			case 4 -> Contracts.reroll(player, a);
 			case 5 -> Shop.buy(player, a, ware);
+			case 8 -> Armory.buy(player, a, ware);
 			case 6 -> {
 				// The book closed: the door swings shut; the wares seen are no longer new
 				save(player, a);

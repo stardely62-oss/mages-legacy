@@ -35,12 +35,12 @@ k("race.mercenary.weak.4", "Последний выкуп стоит 30 жето
 
 # ---- the abilities ----
 k("ability.hunter_brand.desc",
-  "R: медно-золотой снаряд летит на 20 блоков (сквозь стены — нет) и бьёт первого врага на 4 урона. Над врагом появляется пустое кольцо из трёх частей — "
+  "G: медно-золотой снаряд летит на 20 блоков (сквозь стены — нет) и бьёт первого врага на 4 урона. Над врагом появляется пустое кольцо из трёх частей — "
   "Клеймо на 10 секунд. Каждый ваш удар по нему (оружием, своей стрелой или Гарпуном) закрашивает одну часть (удар, пока снаряд ещё летит, тоже считается); сам снаряд ударом не считается. "
   "С талантом «Сложный процент» частей четыре. "
   "Удар, закрывший последнюю часть, взрывает Клеймо: ещё 6 урона (по игроку не больше 4), во все стороны летят монеты, а вы получаете 2 поглощения на 4 секунды. "
   "Урон самой печати, взрыва, клинков и знамени частей не зажигает. Союзников и питомцев не метит. Перезарядка 8 секунд.",
-  "R: a copper-and-gold bolt flies 20 blocks (never through walls) and hits the first foe for 4. An empty three-part ring appears over it — the Brand, "
+  "G: a copper-and-gold bolt flies 20 blocks (never through walls) and hits the first foe for 4. An empty three-part ring appears over it — the Brand, "
   "for 10 seconds. Each of your blows on it (a weapon, your own arrow or the Harpoon) fills one part (a blow while the bolt is still flying counts too); the bolt itself is no blow. "
   "With Compound Interest it has four parts. "
   "The blow that fills the last part bursts the Brand: 6 more damage (4 at most to a player), coins flying every way, and 2 absorption for you for 4 seconds. "
@@ -102,11 +102,11 @@ T = {
         "The book of orders lies on the counter: the guild's offers and the jobs you hold. You pay in tokens, which jobs bring. "
         "The higher your race level, the more often rare and strong things turn up."),
     "hunter_brand": (
-        "Способность R (с 3 уровня), перезарядка 8 с. Вы бросаете золотую монету-снаряд на 20 блоков: первый враг на пути получает "
+        "Способность G (с 3 уровня), перезарядка 8 с. Вы бросаете золотую монету-снаряд на 20 блоков: первый враг на пути получает "
         "4 урона, а над ним появляется печать из трёх частей — Клеймо на 10 секунд. Каждый ваш удар по нему (оружием, своей стрелой "
         "или Гарпуном) зажигает одну часть; удар, нанесённый пока монета ещё летит, тоже засчитывается. Третий удар взрывает печать: "
         "ещё 6 урона (по игроку не больше 4), монеты во все стороны и 2 поглощения вам на 4 секунды. Ровно три удара — без лишних.",
-        "Ability R (from level 3), cooldown 8 s. You throw a golden coin-bolt up to 20 blocks: the first foe in its way takes 4 and gets a "
+        "Ability G (from level 3), cooldown 8 s. You throw a golden coin-bolt up to 20 blocks: the first foe in its way takes 4 and gets a "
         "three-part seal over its head — the Brand, for 10 seconds. Each of your blows on it (a weapon, your own arrow or the Harpoon) "
         "lights one part; a blow landed while the coin is still in the air counts too. The third blow bursts the seal: 6 more damage "
         "(4 at most to a player), coins flying every way and 2 absorption for you for 4 seconds. Exactly three blows — never more."),
@@ -425,6 +425,24 @@ k("merc.book.empty_hand", "Вы не взяли ни одного заказа. 
   "You hold no job. Take one from the board on the left — the abilities work without one too.")
 k("merc.book.abandon", "Отказаться от заказа", "Give up the job")
 k("merc.shop.tokens", "Жетоны гильдии: %s", "Guild tokens: %s")
+
+# ---- the guild's armory (race weapons and armour, a room of the shop) ----
+k("merc.armory.title", "Оружейная гильдии", "The Guild Armory")
+k("merc.armory.short", "Оружейная", "Armory")
+k("merc.armory.tip", "Оружие и броня, сделанные для вашей расы. Всегда в наличии, редкие — с уровнем расы.",
+  "Weapons and armour made for your race. Always in stock; the rare ones open with your race level.")
+k("merc.armory.count", "Для вашей расы: %s", "For your race: %s")
+k("merc.armory.none_yet", "Пока пусто: оружие и броню рас ещё куют", "Empty for now: the races' weapons and armour are still being forged")
+k("merc.armory.weapons", "Оружие", "Weapons")
+k("merc.armory.armor", "Броня", "Armour")
+k("merc.armory.empty", "Здесь будут оружие и броня вашей расы. Их ещё куют — загляните после обновления.",
+  "Your race's weapons and armour will hang here. They are still being forged — look in after an update.")
+k("merc.armory.note", "Цены в жетонах, «Торг» действует. Редкое — с уровнем расы.", "Prices in tokens, Bargain applies. Rare pieces open with race level.")
+k("merc.armory.level", "С %s уровня расы", "From race level %s")
+k("merc.armory.level_short", "ур. %s", "lv %s")
+k("merc.armory.too_low", "Нужен %s уровень расы", "Needs race level %s")
+k("merc.armory.sold", "Больше не продаётся вам", "No more of it for you")
+k("merc.armory.not_yours", "Это не для вашей расы", "Not for your race")
 
 # ---- the shop ----
 k("merc.shop.name", "Лавка мага", "The Mage's Shop")

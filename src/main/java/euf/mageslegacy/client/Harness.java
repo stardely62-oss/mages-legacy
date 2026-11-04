@@ -2290,6 +2290,52 @@ final class Harness {
 		shot("merc_book_hand");
 		run(() -> ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(1), 10);
 		shot("merc_book_shop");
+		int[] armorySpent = new int[1];
+		// The armory: empty while no race gear exists; with two test pieces (one locked), a purchase
+		run(() -> ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(2), 10);
+		shot("merc_armory_empty");
+		run(() -> server().execute(() -> {
+			euf.mageslegacy.mercenary.Armory.put(new euf.mageslegacy.mercenary.Armory.Piece("test:blade",
+					net.minecraft.resources.ResourceLocation.parse("minecraft:golden_sword"), java.util.EnumSet.of(Race.MERCENARY),
+					euf.mageslegacy.mercenary.Armory.Kind.WEAPON, 1, 5, euf.mageslegacy.mercenary.Shop.Rarity.RARE, 1, 1));
+			euf.mageslegacy.mercenary.Armory.put(new euf.mageslegacy.mercenary.Armory.Piece("test:plate",
+					net.minecraft.resources.ResourceLocation.parse("minecraft:netherite_chestplate"), java.util.EnumSet.of(Race.MERCENARY),
+					euf.mageslegacy.mercenary.Armory.Kind.ARMOR, 60, 90, euf.mageslegacy.mercenary.Shop.Rarity.LEGENDARY, 0, 1));
+			euf.mageslegacy.mercenary.Armory.put(new euf.mageslegacy.mercenary.Armory.Piece("test:other",
+					net.minecraft.resources.ResourceLocation.parse("minecraft:trident"), java.util.EnumSet.of(Race.VOIDBORN),
+					euf.mageslegacy.mercenary.Armory.Kind.WEAPON, 1, 5, euf.mageslegacy.mercenary.Shop.Rarity.COMMON, 0, 1));
+			euf.mageslegacy.mercenary.Mercenary.setTokens(player(), 40);
+			// What was spent so far: the armory's purchase is put back after, for the trial's count checked later
+			armorySpent[0] = euf.mageslegacy.race.Talents.progress(player(), euf.mageslegacy.mercenary.Mercenary.T_SPENT);
+			euf.mageslegacy.mercenary.Mercenary.act(player(), 0, 0, "");
+		}), 10);
+		run(() -> {
+			var shown = ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).view().getList("armory", 10);
+			check("the armory shows the race's own pieces only (" + shown.size() + ")", shown.size() == 2);
+		}, 0);
+		shot("merc_armory");
+		run(() -> server().execute(() -> {
+			euf.mageslegacy.mercenary.Mercenary.act(player(), 8, 0, "test:plate");
+			euf.mageslegacy.mercenary.Mercenary.act(player(), 8, 0, "test:blade");
+			euf.mageslegacy.mercenary.Mercenary.act(player(), 8, 0, "test:blade");
+		}), 10);
+		run(() -> {
+			int gold = player().getInventory().countItem(net.minecraft.world.item.Items.GOLDEN_SWORD);
+			int plates = player().getInventory().countItem(net.minecraft.world.item.Items.NETHERITE_CHESTPLATE);
+			check("the armory sells a piece once if limited, never above the race level (" + gold + " swords, " + plates + " plates, "
+					+ euf.mageslegacy.mercenary.Mercenary.account(player()).tokens + " tokens)",
+					gold == 1 && plates == 0 && euf.mageslegacy.mercenary.Mercenary.account(player()).tokens == 40 - euf.mageslegacy.mercenary.Shop.discounted(player(), 5));
+			server().execute(() -> {
+				euf.mageslegacy.mercenary.Armory.remove("test:blade");
+				euf.mageslegacy.mercenary.Armory.remove("test:plate");
+				euf.mageslegacy.mercenary.Armory.remove("test:other");
+				player().getData(RaceState.PROGRESS).putInt(euf.mageslegacy.mercenary.Mercenary.T_SPENT, armorySpent[0]);
+				player().getInventory().clearOrCountMatchingItems(st -> st.is(net.minecraft.world.item.Items.GOLDEN_SWORD), 64,
+						player().inventoryMenu.getCraftSlots());
+				euf.mageslegacy.mercenary.Mercenary.act(player(), 0, 0, "");
+			});
+		}, 0);
+		run(() -> ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(1), 10);
 		// The book at the smallest and the largest GUI scale
 		int[] bookScale = new int[1];
 		for (int gui : new int[] {1, 4}) {

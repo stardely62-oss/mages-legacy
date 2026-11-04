@@ -31,15 +31,18 @@ import org.lwjgl.glfw.GLFW;
 @Mod(value = MagesLegacy.MOD_ID, dist = Dist.CLIENT)
 public class MagesLegacyClient {
 	private static final String CATEGORY = "key.categories.mages_legacy";
-	/** Ability keys by slot: R, V, Z, H, left Alt. */
+	/**
+	 * Ability keys by slot: G, V, Z, H, left Alt. The first was R until Iris came into the pack: Iris reloads its shaders
+	 * on R (and toggles them on K, where the legacy key was): both moved to keys nobody holds, G and J.
+	 */
 	public static final KeyMapping[] ABILITY_KEYS = {
-			new KeyMapping("key.mages_legacy.ability_r", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_R, CATEGORY),
+			new KeyMapping("key.mages_legacy.ability_r", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, CATEGORY),
 			new KeyMapping("key.mages_legacy.ability_v", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, CATEGORY),
 			new KeyMapping("key.mages_legacy.ability_z", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_Z, CATEGORY),
 			new KeyMapping("key.mages_legacy.ability_h", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, CATEGORY),
 			new KeyMapping("key.mages_legacy.ability_alt", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_ALT, CATEGORY)};
 	/** Opens the legend and the choice while there's no race (later: the talent tree). */
-	public static final KeyMapping LEGACY_KEY = new KeyMapping("key.mages_legacy.legacy", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, CATEGORY);
+	public static final KeyMapping LEGACY_KEY = new KeyMapping("key.mages_legacy.legacy", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_J, CATEGORY);
 
 	/** The server asked for the choice; it opens once the world has finished loading. */
 	private static boolean choicePending;
@@ -129,7 +132,44 @@ public class MagesLegacyClient {
 		PacketDistributor.sendToServer(new AbilityPayload(slot));
 	}
 
+	private static boolean keysMoved;
+
+	/**
+	 * Once per game folder: saved options still holding the old defaults (R for the first ability, K for the legacy)
+	 * move to the new ones, G and J; a key the player chose themselves is left alone. A marker file keeps it to once.
+	 */
+	private static void moveOldKeys() {
+		keysMoved = true;
+		Minecraft mc = Minecraft.getInstance();
+		java.nio.file.Path marker = mc.gameDirectory.toPath().resolve("config").resolve("mages_legacy_keys_v2");
+		if (java.nio.file.Files.exists(marker)) {
+			return;
+		}
+		boolean changed = false;
+		if (ABILITY_KEYS[0].getKey().getValue() == GLFW.GLFW_KEY_R) {
+			ABILITY_KEYS[0].setKey(ABILITY_KEYS[0].getDefaultKey());
+			changed = true;
+		}
+		if (LEGACY_KEY.getKey().getValue() == GLFW.GLFW_KEY_K) {
+			LEGACY_KEY.setKey(LEGACY_KEY.getDefaultKey());
+			changed = true;
+		}
+		if (changed) {
+			KeyMapping.resetMapping();
+			mc.options.save();
+		}
+		try {
+			java.nio.file.Files.createDirectories(marker.getParent());
+			java.nio.file.Files.writeString(marker, "keys moved: ability R -> G, legacy K -> J\n");
+		} catch (java.io.IOException e) {
+			euf.mageslegacy.MagesLegacy.LOGGER.warn("Could not mark the moved keys", e);
+		}
+	}
+
 	private static void onTick(ClientTickEvent.Post event) {
+		if (!keysMoved) {
+			moveOldKeys();
+		}
 		Minecraft client = Minecraft.getInstance();
 		ClientRace.tick();
 		ScreenFx.tick();
