@@ -607,13 +607,19 @@ public final class MercFx {
 			float half = (0.3f + Math.min(0.2f, body.getBbWidth() * 0.15f)) * open;
 			Vec3 at = top(body, partial);
 			double spin = life * 0.03;
-			// The whole ring dark first, then the lit parts over it in full gold
-			billboard(draw, SEAL, at, half, spin, 0.38f, 0.95f * fade, 0);
+			// Empty at first: only a faint ghost of the ring shows where its parts will go; each blow fills one part in
+			// solid polished gold, turning to the eye
+			billboard(draw, SEAL, at, half, spin, 0.3f, 0.22f * fade, 0);
 			String part = max == 4 ? SEAL_QUARTER : SEAL_PART;
 			double step = Math.PI * 2 / max;
+			Vec3[] f = facing();
 			for (int k = 0; k < Math.min(charges, max); k++) {
 				float pop = k == charges - 1 ? Math.max(0, 1 - (life - popAt) / 6f) : 0;
-				billboard(draw, part, at.add(0, 0.06 * pop, 0), half * (1 + 0.12f * pop), spin + k * step, 1, fade, GLINT + 0.2f * pop);
+				double roll = spin + k * step;
+				float size = half * (1 + 0.15f * pop);
+				Vec3 u = f[0].scale(Math.cos(roll)).add(f[1].scale(Math.sin(roll))).scale(size);
+				Vec3 v = f[1].scale(Math.cos(roll)).subtract(f[0].scale(Math.sin(roll))).scale(-size);
+				draw.solid(part, at.add(0, 0.06 * pop, 0), u, v, 0.05, 1, fade, GLINT + 0.2f * pop);
 			}
 		}
 	}
@@ -1156,52 +1162,78 @@ public final class MercFx {
 	// ---- the Ransom -------------------------------------------------------------------------------------------------
 
 	/**
-	 * The Life Debt, signed and owed in gold. The signing: a contract unrolls before the ward (before the eyes, when it is
-	 * the player themselves), the guild's seal is stamped on it, it rolls up and becomes a chain that wraps round the
-	 * ward's chest. On the chain hang coins, one for every two points of health owed: the Debt grows coin by coin as
-	 * harm is put off, and each blow that pays it down knocks a coin loose. As the end nears with something still owed,
-	 * the chain darkens to rust.
+	 * The Life Debt as a bond sealed under the ward's feet. Cast: the guild's great seal drops from over the head and is
+	 * stamped into the ground under the ward, and round it ten coins rise on edge, one after another: the Debt's ten
+	 * seconds, one tipping over and falling flat every second. Every 3 owed, a chain shoots up out of the seal's rim and
+	 * bites into the ward's chest (up to four); blows that pay the Debt down snap them again, link by link. Near its end
+	 * with something still owed, the chains and seal redden like hot iron. All of it on the ground round the ward, so a
+	 * player bound to their own Debt sees it at their feet and rising past the edge of their sight.
 	 */
 	static final class DebtSeal extends VoidRender.Effect {
-		static final int SIGN = 16;
+		static final int DROP = 6;
+		static final int CHAINS = 4;
 		final Entity body;
 		int fading = -1;
 		float owed;
 		int end;
-		final int[] popAt = new int[6];
-		int coins;
+		final int total;
+		final int[] grewAt = new int[CHAINS];
+		int chains;
+		final double turn0 = r(0, Math.PI * 2);
 
 		DebtSeal(Entity body, int ticks) {
 			super(20 * 60 * 2);
 			this.body = body;
 			this.end = ticks;
-			java.util.Arrays.fill(popAt, -100);
+			this.total = Math.max(1, ticks);
+			java.util.Arrays.fill(grewAt, -100);
 		}
 
 		void owe(float owed, int ticks) {
 			this.owed = owed;
 			this.end = age + ticks;
-			int now = Math.min(6, (int) Math.ceil(owed / 2 - 0.01));
-			if (now > coins) {
-				for (int i = coins; i < now; i++) {
-					popAt[i] = age;
+			int now = Math.min(CHAINS, (int) Math.ceil(owed / 3 - 0.01));
+			Vec3 chest = chest(1);
+			if (now > chains) {
+				for (int i = chains; i < now; i++) {
+					grewAt[i] = age;
 				}
-				Vec3 at = middle(body, 1);
-				Minecraft.getInstance().getSoundManager().play(new SimpleSoundInstance(SoundEvents.CHAIN_PLACE, SoundSource.PLAYERS, 0.5f, 1.4f,
-						RandomSource.create(), at.x, at.y, at.z));
-			} else if (now < coins) {
-				// Paid down: the coins knocked loose fly off
-				VoidRender.add(new CoinBurst(chest(1), coins - now, 0, 0.18, 0.12));
+				Minecraft.getInstance().getSoundManager().play(new SimpleSoundInstance(SoundEvents.CHAIN_PLACE, SoundSource.PLAYERS, 0.7f, 0.8f,
+						RandomSource.create(), chest.x, chest.y, chest.z));
+			} else if (now < chains) {
+				// Paid down: the chains let go snap into flying links
+				for (int i = now; i < chains; i++) {
+					Vec3 mid = anchor(i, 1).lerp(chest, 0.5);
+					VoidRender.add(new CoinBurst(mid, 1, 6, 0.2, 0.1));
+					dustPuff(mid, 6, 0.1);
+				}
+				Minecraft.getInstance().getSoundManager().play(new SimpleSoundInstance(SoundEvents.CHAIN_BREAK, SoundSource.PLAYERS, 0.6f, 1.3f,
+						RandomSource.create(), chest.x, chest.y, chest.z));
 			}
-			coins = now;
+			chains = now;
+		}
+
+		Vec3 feet(float partial) {
+			Vec3 p = body.getPosition(partial);
+			return new Vec3(p.x, BloodFx.groundY(p.add(0, 0.5, 0)) + 0.04, p.z);
 		}
 
 		Vec3 chest(float partial) {
-			return body.getPosition(partial).add(0, body.getBbHeight() * 0.58, 0);
+			return body.getPosition(partial).add(0, body.getBbHeight() * 0.6, 0);
 		}
 
 		double radius() {
-			return 0.42 + body.getBbWidth() * 0.55;
+			return 0.75 + body.getBbWidth() * 0.5;
+		}
+
+		double turn(float partial) {
+			return turn0 + life(partial) * 0.01;
+		}
+
+		/** Where a chain is anchored on the seal's rim. */
+		Vec3 anchor(int i, float partial) {
+			double a = turn(partial) + Math.PI / 4 + i * Math.PI / 2;
+			return feet(partial).add(Math.cos(a) * radius() * 0.85, 0, Math.sin(a) * radius() * 0.85);
 		}
 
 		@Override
@@ -1212,80 +1244,121 @@ public final class MercFx {
 				}
 				return false;
 			}
-			if (age == 9) {
-				dustPuff(signingAt(1)[0], 10, 0.1);
-				Vec3 at = signingAt(1)[0];
-				Minecraft.getInstance().getSoundManager().play(new SimpleSoundInstance(SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.35f, 1.8f,
-						RandomSource.create(), at.x, at.y, at.z));
+			if (age == DROP) {
+				Vec3 f = feet(1);
+				dustRing(f, 1.6f, 22);
+				VoidRender.add(new CoinBurst(f.add(0, 0.2, 0), 6, 0.14, 0.14));
+				Minecraft.getInstance().getSoundManager().play(new SimpleSoundInstance(SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.4f, 1.5f,
+						RandomSource.create(), f.x, f.y, f.z));
+			}
+			// A second gone: its coin falls with a little dust
+			int left = end - age;
+			if (fading < 0 && age > DROP && left >= 0 && left % 20 == 0 && left < total) {
+				dustPuff(coinAt(left / 20, 1), 3, 0.04);
 			}
 			return super.tick();
 		}
 
-		/** Where the contract is signed (its centre, the way it faces): before the eyes for the player's own Debt. */
-		Vec3[] signingAt(float partial) {
-			Minecraft mc = Minecraft.getInstance();
-			if (body == mc.player && mc.options.getCameraType().isFirstPerson()) {
-				Vec3 look = body.getViewVector(partial);
-				Vec3 flat = new Vec3(look.x, 0, look.z);
-				flat = flat.lengthSqr() < 1.0E-6 ? new Vec3(0, 0, 1) : flat.normalize();
-				return new Vec3[] {body.getEyePosition(partial).add(flat.scale(1.1)).add(0, -0.2, 0), flat.scale(-1)};
-			}
-			Vec3 c = chest(partial);
-			Vec3 toCam = mc.gameRenderer.getMainCamera().getPosition().subtract(c);
-			Vec3 flat = new Vec3(toCam.x, 0, toCam.z);
-			flat = flat.lengthSqr() < 1.0E-6 ? new Vec3(0, 0, 1) : flat.normalize();
-			return new Vec3[] {c.add(flat.scale(radius() + 0.35)).add(0, 0.35, 0), flat};
+		Vec3 coinAt(int k, float partial) {
+			double a = turn(partial) * -2 + k * Math.PI * 2 / 10;
+			double rad = radius() + 0.25;
+			return feet(partial).add(Math.cos(a) * rad, 0.12, Math.sin(a) * rad);
 		}
 
 		@Override
 		void draw(FxDraw draw, float partial) {
 			float life = life(partial);
 			float fade = fading >= 0 ? fading / 8f : 1;
-			// The signing
-			if (life < SIGN) {
-				Vec3[] s = signingAt(partial);
-				Vec3 face = s[1];
-				Vec3 across = new Vec3(-face.z, 0, face.x);
-				float unroll = smooth(life / 5f);
-				float away = smooth((life - 11) / 5f);
-				Vec3 at = s[0].lerp(chest(partial), away);
-				float w = 0.5f * (0.12f + 0.88f * unroll) * (1 - 0.7f * away);
-				float h = 0.25f * (1 - 0.7f * away);
-				draw.solid(CONTRACT, at, across.scale(w), new Vec3(0, -h, 0), 0.01, 1, 1, 0);
-				if (life > 5 && life < 13) {
-					// The seal pressed down on it
-					float press = life < 9 ? 1.8f - 0.8f * smooth((life - 5) / 4f) : 1;
-					Vec3 sealAt = at.add(face.scale(0.04 + 0.4 * (press - 1))).add(across.scale(w * 0.45)).add(0, -h * 0.35, 0);
-					draw.solid(SEAL, sealAt, across.scale(0.13 * press), new Vec3(0, -0.13 * press, 0), 0.04, 1, 1, GLINT);
-				}
+			float sink = fading >= 0 ? 1 - fading / 8f : 0;
+			Vec3 feet = feet(partial).add(0, -0.1 * sink, 0);
+			double turn = turn(partial);
+			float leftTicks = end - life;
+			float hot = owed > 0 && leftTicks < 60 ? (float) (0.5 + 0.5 * Math.sin(life * (leftTicks < 20 ? 0.9 : 0.45))) * (1 - Math.max(0, leftTicks) / 60f) : 0;
+			float r = 1;
+			float g = 1 - 0.5f * hot;
+			float b = 1 - 0.6f * hot;
+			// The seal: dropped from over the head, stamped into the ground, then turning slowly under the feet
+			double rad = radius();
+			float drop = life < DROP ? 1 - smooth(life / DROP) : 0;
+			float squash = life < DROP + 4 && life >= DROP ? 1 + 0.12f * (1 - (life - DROP) / 4f) : 1;
+			if (drop > 0) {
+				// Falling flat-side down, a turn and a half as it comes
+				Vec3 c = feet.add(0, drop * (body.getBbHeight() + 1.2), 0);
+				double spin = turn + drop * 4;
+				float s = (float) rad * (0.7f + 0.3f * (1 - drop));
+				draw.solid(SEAL, c, new Vec3(Math.cos(spin) * s, 0, Math.sin(spin) * s), new Vec3(-Math.sin(spin) * s, 0, Math.cos(spin) * s), 0.09,
+						1, Math.min(1, life / 2f), GLINT);
+			} else {
+				float s = (float) rad * squash;
+				draw.solid(SEAL, feet, new Vec3(Math.cos(turn) * s, 0, Math.sin(turn) * s), new Vec3(-Math.sin(turn) * s, 0, Math.cos(turn) * s), 0.06,
+						r, g, b, fade, 0);
 			}
-			float wrap = smooth((life - 11) / 6f);
-			if (wrap <= 0) {
+			if (life < DROP) {
 				return;
 			}
-			// The chain round the chest, its coins hanging from it
-			float left = (end - life) / 20f;
-			float rust = owed > 0 && left < 3 ? (float) (0.5 + 0.5 * Math.sin(life * (left < 1 ? 0.9 : 0.45))) * (1 - Math.max(0, left) / 3f) : 0;
-			float r = 1 - 0.25f * rust;
-			float g = 1 - 0.55f * rust;
-			float b = 1 - 0.65f * rust;
-			Vec3 chest = chest(partial);
-			double rad = radius() + (1 - wrap) * 0.8;
-			double turn = life * 0.04;
-			chainLoop(draw, chest, rad, turn, 0, r, g, b, fade * wrap);
-			for (int i = 0; i < coins; i++) {
-				double a = turn + i * Math.PI * 2 / 6;
+			// The ten seconds: coins rising on edge round the seal, one falling flat each second
+			int standing = (int) Math.ceil(Math.max(0, leftTicks) / 20f);
+			for (int k = 0; k < 10; k++) {
+				float rise = smooth((life - DROP - k) / 3f);
+				if (rise <= 0) {
+					continue;
+				}
+				Vec3 at = coinAt(k, partial);
+				double a = Math.atan2(at.z - feet.z, at.x - feet.x);
+				Vec3 tangent = new Vec3(-Math.sin(a), 0, Math.cos(a));
 				Vec3 out = new Vec3(Math.cos(a), 0, Math.sin(a));
-				Vec3 tangent = new Vec3(-out.z, 0, out.x);
-				float pop = Math.max(0, 1 - (life - popAt[i]) / 7f);
-				double swing = Math.sin(life * 0.2 + i * 1.7) * 0.25 + pop * 0.6 * Math.sin(life * 1.3);
-				Vec3 hang = out.scale(Math.sin(swing)).add(0, -Math.cos(swing), 0);
-				Vec3 ring = chest.add(out.scale(rad));
-				Vec3 coin = ring.add(hang.scale(0.2));
-				link(draw, ring.add(hang.scale(0.07)), hang, 0.07f, i * 0.8, fade * wrap);
-				float size = 0.11f * (1 + 0.5f * pop);
-				draw.solid(COIN, coin, tangent.scale(size), hang.scale(size), 0.025, r, g, b, fade * wrap, GLINT);
+				float size = 0.12f;
+				if (k < standing && fading < 0) {
+					// On edge, facing out, a little bob
+					Vec3 c = at.add(0, -(1 - rise) * 0.3 + 0.02 * Math.sin(life * 0.2 + k), 0);
+					draw.solid(COIN, c, tangent.scale(size), new Vec3(0, -size, 0), 0.025, r, g, b, fade * rise, GLINT);
+				} else {
+					// Fallen outwards, lying flat, fading
+					float since = Math.max(0, k * 20 - leftTicks);
+					float t = Math.min(1, since / 5f);
+					float gone = fading >= 0 ? fade : Math.max(0, 1 - since / 30f);
+					if (gone <= 0) {
+						continue;
+					}
+					Vec3 up = new Vec3(0, -1, 0).scale(1 - t).add(out.scale(t)).normalize();
+					Vec3 c = at.add(0, -0.1 * t, 0).add(out.scale(0.1 * t));
+					draw.solid(COIN, c, tangent.scale(size), up.scale(size), 0.025, 0.85f, gone, 0);
+				}
 			}
+			// The chains of what is owed, from the seal's rim up into the chest, slack as they rise, taut once they bite
+			Vec3 chest = chest(partial);
+			for (int i = 0; i < chains; i++) {
+				float grow = smooth((life - grewAt[i]) / 4f);
+				Vec3 from = anchor(i, partial).add(0, -0.1 * sink, 0);
+				Vec3 to = from.lerp(chest, grow);
+				float sag = 0.15f * (1 - grow) + 0.04f;
+				Vec3 prev = from;
+				int segs = 4;
+				for (int j = 1; j <= segs; j++) {
+					float t = j / (float) segs;
+					Vec3 p = from.lerp(to, t).add(0, -Math.sin(Math.PI * t) * sag, 0);
+					chainTinted(draw, prev, p, i * 0.7, r, g, b, fade);
+					prev = p;
+				}
+			}
+		}
+	}
+
+	/** A straight run of solid links tinted r, g, b. */
+	static void chainTinted(FxDraw draw, Vec3 a, Vec3 b, double roll, float r, float g, float bl, float alpha) {
+		Vec3 along = b.subtract(a);
+		double dist = along.length();
+		if (dist < 0.02 || alpha <= 0) {
+			return;
+		}
+		int n = (int) Math.max(1, Math.min(30, Math.round(dist / 0.12)));
+		Vec3 dir = along.scale(1 / dist);
+		Vec3[] e = basis(dir);
+		float len = (float) (dist / n * 1.45);
+		for (int i = 0; i < n; i++) {
+			double rr = roll + (i % 2) * Math.PI / 2;
+			Vec3 perp = e[0].scale(Math.cos(rr)).add(e[1].scale(Math.sin(rr)));
+			draw.solid(LINK, a.add(along.scale((i + 0.5) / n)), dir.scale(len / 2), perp.scale(len / 2), len * 0.14, r, g, bl, alpha, 0);
 		}
 	}
 
@@ -1302,7 +1375,7 @@ public final class MercFx {
 	private static void due(Entity body) {
 		Vec3 at = middle(body, 1);
 		DebtSeal seal = DEBTS.get(body.getId());
-		VoidRender.add(new CoinBurst(at, seal != null ? Math.max(2, seal.coins) : 3, 10, 0.25, 0.05));
+		VoidRender.add(new CoinBurst(at, 3, seal != null ? 6 + seal.chains * 5 : 10, 0.25, 0.05));
 		for (int i = 0; i < 18; i++) {
 			VoidRender.Particle p = new VoidRender.Particle(at, VoidRender.randomDir().scale(r(0.1, 0.22)), (int) r(10, 18), (float) r(0.05, 0.09), 0xFF8A2A1E,
 					false, 0.88f, 0);
@@ -1526,7 +1599,8 @@ public final class MercFx {
 			this.at = new Vec3(at.x, BloodFx.groundY(at), at.z);
 			double r = Math.toRadians(yaw);
 			this.forward = new Vec3(-Math.sin(r), 0, Math.cos(r));
-			this.right = new Vec3(Math.cos(r), 0, Math.sin(r));
+			// The Mercenary's own right hand (yaw 0 looks south, +z; its right is west, -x)
+			this.right = new Vec3(-Math.cos(r), 0, -Math.sin(r));
 		}
 
 		void close() {
@@ -1595,16 +1669,15 @@ public final class MercFx {
 				draw.paint(WARM, mid.subtract(forward.scale(0.02)), right.scale(w / 2 * 0.95), new Vec3(0, -hs * 0.6, 0), 0.95f, 0.6f, 0.3f,
 						0.3f * open * fade, 0.02f);
 			}
-			// Two leaves on their hinges at the posts, swinging inwards (away from the Mercenary)
+			// Two solid leaves on their hinges at the posts, swinging inwards (away from the Mercenary), shut the same way back
 			double angle = Math.toRadians(100) * open;
 			for (int side = -1; side <= 1; side += 2) {
 				Vec3 hinge = at.add(right.scale(side * w / 2));
-				Vec3 along = right.scale(-side * Math.cos(angle)).add(forward.scale(-Math.sin(angle)));
+				Vec3 along = right.scale(-side * Math.cos(angle)).add(forward.scale(Math.sin(angle)));
 				Vec3 centre = hinge.add(along.scale(w / 4)).add(0, 1.05, 0);
-				// The left leaf's picture as it is, the right one mirrored (u runs back from its hinge)
-				float shade = 0.75f + 0.25f * (float) Math.cos(angle);
+				// Seen from the Mercenary: the left leaf's picture as it is (its hinge on the left), the right one mirrored
 				Vec3 halfU = side < 0 ? along.scale(w / 4) : along.scale(-w / 4);
-				draw.paint(DOOR, centre, halfU, new Vec3(0, -1.05, 0), shade, shade, shade, fade, 0);
+				draw.solid(DOOR, centre, halfU, new Vec3(0, -1.05, 0), 0.07, 1, fade, 0);
 			}
 		}
 	}

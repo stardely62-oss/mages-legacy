@@ -242,6 +242,7 @@ public class GuildBookScreen extends Screen {
 		services(g, rx, boardY, rw, boardH, mouseX, mouseY);
 		counter(g, rx, boardY + boardH, rw, floor, mouseX, mouseY, partial);
 		footer(g, sx + 6, sy + sh - 10, sx + sw - 6);
+		blurBehindDoors(g, partial);
 		doors(g, sx, sy, sw, sh, partial);
 	}
 
@@ -268,6 +269,30 @@ public class GuildBookScreen extends Screen {
 		} finally {
 			g.pose().popPose();
 		}
+	}
+
+	/**
+	 * While the doors swing open, the room behind them is seen blurred, coming sharp as they part: the menus' own blur
+	 * pass over what is drawn so far, its radius easing from 10 to nothing.
+	 */
+	private void blurBehindDoors(GuiGraphics g, float partial) {
+		if (opened < 0) {
+			opened = ticks;
+		}
+		float t = (ticks - opened + partial) / DOORS;
+		float radius = 10 * (1 - smoothstep((t - 0.25f) / 0.75f));
+		if (radius < 0.5f) {
+			return;
+		}
+		Minecraft mc = Minecraft.getInstance();
+		net.minecraft.client.renderer.PostChain blur = ((euf.mageslegacy.mixin.GameRendererAccess) mc.gameRenderer).mages_legacy$blurEffect();
+		if (blur == null) {
+			return;
+		}
+		g.flush();
+		blur.setUniform("Radius", radius);
+		blur.process(partial);
+		mc.getMainRenderTarget().bindWrite(false);
 	}
 
 	private void doorLeaves(GuiGraphics g, int sx, int sy, int sw, int sh, float swing, float front) {
