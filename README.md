@@ -1,5 +1,11 @@
 # Mage's Legacy
 
+> **Разработка остановлена (2026-11-04).** Проект больше не развивается и не поддерживается. Код открыт — форкайте и продолжайте, если хочется.
+> Последняя сборка — релиз [`final`](https://github.com/stardely62-oss/mages-legacy/releases/tag/final) (NeoForge 1.21.1, 21.1.217+; нужны Veil 4.5.2 и GeckoLib 4.9.3).
+> Собирается через GitHub Actions (`.github/workflows/build.yml`, сейчас отключён) или локально `./gradlew build` (JDK 21).
+>
+> **Development stopped (2026-11-04).** The project is no longer developed or supported. The code is open — fork it if you like.
+
 ![Выбор расы](https://github.com/stardely62-oss/mages-legacy/releases/download/neo-dev/choose_voidborn.png)
 
 Мод для **NeoForge 1.21.1** от euf. Эффекты строятся на [Veil](https://modrinth.com/mod/veil) (шейдеры, свечение, постобработка) и [GeckoLib](https://modrinth.com/mod/geckolib) (анимированные 3D-модели).
