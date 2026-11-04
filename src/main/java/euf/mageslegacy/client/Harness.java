@@ -2229,7 +2229,9 @@ final class Harness {
 			var book = (euf.mageslegacy.client.screen.GuildBookScreen) mc.screen;
 			check("H opens the guild's book with three offers (" + book.view().getList("offers", 10).size() + ")",
 					book.view().getList("offers", 10).size() == 3);
-		}, 10);
+		}, 4);
+		// The doors swinging open on coming in, then the shop itself
+		film("merc_shop_doors", 4, 4);
 		shot("merc_shop");
 		run(() -> ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(0), 8);
 		shot("merc_book_contracts");

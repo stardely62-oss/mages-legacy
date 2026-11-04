@@ -342,6 +342,48 @@ def contract():
     return img
 
 
+def pole():
+    """A pole (or a frame's bar) of polished gold: shaded across (v), the same along (u)."""
+    img = Image.new("RGBA", (16, 16))
+    px = img.load()
+    shades = [(70, 44, 14), (130, 86, 28), (190, 136, 52), (226, 178, 80), (248, 222, 140), (226, 178, 80), (176, 124, 44), (120, 78, 24)]
+    for y in range(16):
+        c = shades[min(len(shades) - 1, y * len(shades) // 16)]
+        for x in range(16):
+            px[x, y] = c + (255,)
+    return img
+
+
+def dust():
+    """A mote of gold dust: a small warm-gold speck, darker at its edge (dust, not a spark of light)."""
+    img = Image.new("RGBA", (8, 8))
+    px = img.load()
+    for y in range(8):
+        for x in range(8):
+            d = math.hypot(x - 3.5, y - 3.5)
+            if d < 1.6:
+                px[x, y] = (246, 214, 120, 255)
+            elif d < 2.8:
+                px[x, y] = (200, 146, 52, 255)
+            elif d < 3.4:
+                px[x, y] = (120, 80, 24, 200)
+    return img
+
+
+def gold_sigil():
+    """The circle laid in the ground: lines of dark worked gold, not light."""
+    img = sigil()
+    px = img.load()
+    w, h = img.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a:
+                k = (r + g + b) / 765
+                px[x, y] = (int(110 + 120 * k), int(70 + 90 * k), int(20 + 40 * k), a)
+    return img
+
+
 def warrant():
     """A rolled-out warrant: parchment between two wooden rods, lines of writing, the guild's red wax seal."""
     img = Image.new("RGBA", (64, 80))
@@ -364,8 +406,9 @@ def warrant():
 
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
-    for name, fn in (("seal", seal), ("seal_part", seal_part), ("verdict", verdict), ("blade", blade), ("link", link), ("hook", hook),
-                     ("coin", coin), ("spark", spark), ("banner", banner), ("sigil", sigil), ("wave", wave), ("flare", flare),
-                     ("door", door), ("contract", contract), ("warrant", warrant)):
+    # The coin, the seal and its parts, the sword (merc_blade), the chain link, the hook, the warrant, the banner and the door
+    # leaf are Codex pixel art now (tools/import_merc_art.py); only these are drawn here
+    for name, fn in (("verdict", verdict), ("spark", dust), ("sigil", gold_sigil), ("wave", wave), ("flare", flare), ("contract", contract),
+                     ("pole", pole)):
         fn().save(OUT / f"merc_{name}.png")
         print("merc_" + name)
