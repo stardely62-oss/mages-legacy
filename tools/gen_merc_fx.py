@@ -342,10 +342,30 @@ def contract():
     return img
 
 
+def warrant():
+    """A rolled-out warrant: parchment between two wooden rods, lines of writing, the guild's red wax seal."""
+    img = Image.new("RGBA", (64, 80))
+    d = ImageDraw.Draw(img)
+    d.rectangle([8, 8, 55, 71], fill=(236, 222, 188, 255))
+    d.rectangle([8, 8, 55, 71], outline=(150, 118, 78, 255))
+    for i in range(7):
+        y = 16 + i * 6
+        d.line([14, y, 49 - (i % 3) * 5, y], fill=(110, 84, 58, 255))
+    for y in (4, 72):
+        d.rectangle([3, y, 60, y + 4], fill=(110, 70, 38, 255))
+        d.rectangle([3, y, 60, y], fill=(150, 100, 56, 255))
+        d.rectangle([1, y - 1, 4, y + 5], fill=(200, 150, 70, 255))
+        d.rectangle([59, y - 1, 62, y + 5], fill=(200, 150, 70, 255))
+    d.ellipse([34, 50, 50, 66], fill=(150, 34, 28, 255))
+    d.ellipse([37, 53, 47, 63], outline=(210, 80, 60, 255))
+    d.line([42, 55, 42, 61], fill=(220, 120, 90, 255))
+    return img
+
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     for name, fn in (("seal", seal), ("seal_part", seal_part), ("verdict", verdict), ("blade", blade), ("link", link), ("hook", hook),
                      ("coin", coin), ("spark", spark), ("banner", banner), ("sigil", sigil), ("wave", wave), ("flare", flare),
-                     ("door", door), ("contract", contract)):
+                     ("door", door), ("contract", contract), ("warrant", warrant)):
         fn().save(OUT / f"merc_{name}.png")
         print("merc_" + name)

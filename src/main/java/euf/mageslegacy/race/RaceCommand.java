@@ -114,8 +114,9 @@ public final class RaceCommand {
 
 	private static java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> awakenings(CommandContext<CommandSourceStack> ctx,
 			com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
-		return SharedSuggestionProvider.suggest(java.util.List.of("rift", "worlds", "hole", "bloom", "storm", "rebirth", "feast", "blood_storm", "prince"),
-				builder);
+		// Every Awakening of every race, read from the tree (so a new race's come by themselves)
+		return SharedSuggestionProvider.suggest(Arrays.stream(Talent.values()).filter(t -> t.kind == Talent.Kind.AWAKENING)
+				.map(t -> t.id().substring("awakening_".length())), builder);
 	}
 
 	/**

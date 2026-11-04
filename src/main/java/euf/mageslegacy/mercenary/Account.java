@@ -45,6 +45,9 @@ public final class Account {
 	public long ransomReady;
 	/** A Life Debt left to pay that couldn't be paid when its contract ended (the debtor had left): paid at the next login. */
 	public float debtOwed;
+	/** Bought luck: so many next jobs pay 30% more tokens (Fortune), or twice the tokens and experience (a Lucky Day). */
+	public int fortuneJobs;
+	public int luckyJobs;
 
 	public static Account of(ServerPlayer player) {
 		Account a = new Account();
@@ -77,6 +80,8 @@ public final class Account {
 		a.seenTier = tag.getInt("seenTier");
 		a.ransomReady = tag.getLong("ransomReady");
 		a.debtOwed = tag.getFloat("debtOwed");
+		a.fortuneJobs = tag.getInt("fortuneJobs");
+		a.luckyJobs = tag.getInt("luckyJobs");
 		return a;
 	}
 
@@ -124,6 +129,8 @@ public final class Account {
 		tag.putInt("seenTier", seenTier);
 		tag.putLong("ransomReady", ransomReady);
 		tag.putFloat("debtOwed", debtOwed);
+		tag.putInt("fortuneJobs", fortuneJobs);
+		tag.putInt("luckyJobs", luckyJobs);
 		return tag;
 	}
 

@@ -1,5 +1,6 @@
 package euf.mageslegacy.mercenary;
 
+import euf.mageslegacy.MagesLegacy;
 import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.race.Deeds;
 import euf.mageslegacy.race.Mastery;
@@ -8,7 +9,10 @@ import euf.mageslegacy.race.Talent;
 import euf.mageslegacy.race.Talents;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -20,89 +24,172 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
- * The board of the Mage's Shop. Offers come from the tiers the Mercenary's race level has opened (the tree's: 1, 10,
- * 20, 30); a job done puts a fresh offer on the board at once, and every {@link #DAY} ticks of the overworld's own
- * clock (beds don't hurry it) the board and the Shop's stock are laid out anew. Contracts pay race experience (the
- * Mercenary's main way to grow) and tokens.
+ * The board of the Mage's Shop: jobs from the guild's clients (the road watch, the forge, the alchemist, the
+ * cartographer...), each with its reason, from the tiers the Mercenary's race level has opened. Five kinds: hunts
+ * (sometimes with a hard condition that pays more), deliveries, lands to reach, places to scout (a pillar of light
+ * shows the way near the mark) and bounties (a named, hardened foe with its retinue, standing at a marked place until
+ * the Mercenary comes). Every job pays more done quickly. A job done puts a fresh offer on the board at once; every
+ * {@link #DAY} ticks of the overworld's own clock the board and the Shop's goods are laid out anew.
  */
 public final class Contracts {
 	public static final int[] XP = {120, 240, 400, 620};
 	public static final int[] TOKENS = {10, 16, 24, 34};
 	public static final float ELITE_WORK = 2;
 	public static final float ELITE_PAY = 2.5f;
+	/** A bounty pays twice; a hard condition 30% more; a job done in time half again in tokens and a quarter in experience. */
+	public static final float BOUNTY_PAY = 2;
+	public static final float RULE_PAY = 1.3f;
+	public static final float QUICK_TOKENS = 1.5f;
+	public static final float QUICK_XP = 1.25f;
+	/** Minutes a job of each tier may take to count as quick (a far place five more). */
+	private static final int[] QUICK_MINUTES = {10, 15, 20, 30};
 	public static final long DAY = 24000;
-	/** How many recent targets stay off the board. */
-	private static final int RECENT = 6;
-	/** The Streak: a job within 20 minutes of the last adds 10%, up to 30%. */
+	private static final int RECENT = 8;
 	private static final int STREAK_TICKS = 20 * 60 * 20;
+	/** A bounty steps out when its Mercenary comes this close to the mark; lost one is called again from this close. */
+	private static final double BOUNTY_NEAR = 48;
+	private static final double SCOUT_REACH = 8;
+	private static final double BEAM_RANGE = 160;
+	/** Overworld mobs that walk under the sky (a night-only hunt makes sense for them). */
+	private static final Set<String> NIGHT_MOBS = Set.of("minecraft:zombie", "minecraft:skeleton", "minecraft:spider", "minecraft:creeper",
+			"minecraft:stray", "minecraft:husk", "minecraft:drowned", "minecraft:pillager", "minecraft:witch", "minecraft:phantom", "minecraft:enderman");
 
-	public record Template(Contract.Kind kind, String target, int amount, int tier) {
+	/** One kind of job: its tier, its id (lang line), client, kind, targets (a choice for lands, the head and its retinue for bounties). */
+	public record Template(int tier, String job, String client, Contract.Kind kind, String target, int amount) {
+		List<String> lands() {
+			return List.of(target.split(","));
+		}
+
+		/** A bounty's own kind. */
+		String head() {
+			return target.split(";")[0];
+		}
+
+		/** A bounty's retinue: "type*count" each. */
+		List<String> retinue() {
+			String[] parts = target.split(";", -1);
+			return parts.length < 2 || parts[1].isEmpty() ? List.of() : List.of(parts[1].split(","));
+		}
+
+		/** A scouting job's distance range. */
+		int[] range() {
+			String[] p = target.split("-");
+			return new int[] {Integer.parseInt(p[0]), Integer.parseInt(p[1])};
+		}
 	}
 
 	public static final List<Template> TEMPLATES = new ArrayList<>();
 
 	static {
-		// Tier I: the overworld's own
-		hunts(1, "zombie:10", "skeleton:8", "spider:8", "creeper:5", "drowned:6", "husk:6", "stray:5", "slime:5", "witch:2", "pillager:4");
-		delivers(1, "coal:32", "iron_ingot:12", "copper_ingot:24", "leather:8", "string:12", "bone:16", "gunpowder:8", "wheat:32", "redstone:24",
-				"lapis_lazuli:16", "oak_log:32", "rotten_flesh:24");
-		explores(1, "desert", "jungle", "swamp", "snowy_plains", "badlands", "savanna", "taiga", "dark_forest", "cherry_grove", "birch_forest",
-				"flower_forest", "sunflower_plains");
-		// Tier II: deeper and further, the Nether opens
-		hunts(2, "enderman:5", "witch:4", "pillager:8", "cave_spider:10", "guardian:4", "blaze:6", "magma_cube:6", "wither_skeleton:4", "ghast:2",
-				"hoglin:3", "zombified_piglin:10");
-		delivers(2, "gold_ingot:12", "quartz:32", "glowstone_dust:16", "blaze_rod:4", "obsidian:8", "nether_wart:16", "ender_pearl:4", "emerald:6",
-				"amethyst_shard:16", "honeycomb:6", "glow_ink_sac:6");
-		explores(2, "crimson_forest", "warped_forest", "basalt_deltas", "soul_sand_valley", "nether_wastes", "lush_caves", "dripstone_caves",
-				"ice_spikes", "bamboo_jungle", "mangrove_swamp");
-		// Tier III: raids, ruins, the deep
-		hunts(3, "vindicator:6", "evoker:1", "phantom:4", "ravager:1", "piglin_brute:2", "guardian:8", "wither_skeleton:8", "blaze:12", "breeze:2",
-				"bogged:6", "enderman:10");
-		delivers(3, "diamond:4", "emerald:12", "prismarine_shard:16", "ghast_tear:2", "slime_ball:12", "rabbit_foot:2", "crying_obsidian:6",
-				"magma_cream:8", "nautilus_shell:2");
-		explores(3, "deep_dark", "mushroom_fields", "warm_ocean", "frozen_peaks", "jagged_peaks", "eroded_badlands", "wooded_badlands");
-		// Tier IV: the End, and the hardest of the rest (an overworld player always has work here too)
-		hunts(4, "shulker:4", "enderman:15", "elder_guardian:1", "evoker:3", "ravager:2", "wither_skeleton:12", "piglin_brute:4", "breeze:4",
-				"phantom:8");
-		delivers(4, "chorus_fruit:32", "shulker_shell:2", "phantom_membrane:4", "netherite_scrap:1", "diamond:10", "echo_shard:2", "ghast_tear:6",
-				"popped_chorus_fruit:16");
-		explores(4, "end_highlands", "end_midlands", "end_barrens", "small_end_islands", "deep_dark", "mushroom_fields", "ice_spikes");
+		// JOBS: generated by tools/merc_jobs.py
+		job(1, "road_zombies", "guard", Contract.Kind.HUNT, "minecraft:zombie", 8);
+		job(1, "road_skeletons", "guard", Contract.Kind.HUNT, "minecraft:skeleton", 6);
+		job(1, "barn_spiders", "farmers", Contract.Kind.HUNT, "minecraft:spider", 6);
+		job(1, "field_creepers", "farmers", Contract.Kind.HUNT, "minecraft:creeper", 4);
+		job(1, "pier_drowned", "lodge", Contract.Kind.HUNT, "minecraft:drowned", 5);
+		job(1, "caravan_husks", "lodge", Contract.Kind.HUNT, "minecraft:husk", 5);
+		job(1, "north_strays", "lodge", Contract.Kind.HUNT, "minecraft:stray", 4);
+		job(1, "forge_iron", "smith", Contract.Kind.DELIVER, "minecraft:iron_ingot", 8);
+		job(1, "forge_coal", "smith", Contract.Kind.DELIVER, "minecraft:coal", 20);
+		job(1, "forge_copper", "smith", Contract.Kind.DELIVER, "minecraft:copper_ingot", 12);
+		job(1, "bakery_wheat", "farmers", Contract.Kind.DELIVER, "minecraft:wheat", 24);
+		job(1, "stable_carrots", "farmers", Contract.Kind.DELIVER, "minecraft:carrot", 16);
+		job(1, "tanner_leather", "tanner", Contract.Kind.DELIVER, "minecraft:leather", 6);
+		job(1, "bowyer_string", "bowyer", Contract.Kind.DELIVER, "minecraft:string", 8);
+		job(1, "bowyer_feathers", "bowyer", Contract.Kind.DELIVER, "minecraft:feather", 10);
+		job(1, "healer_bones", "healer", Contract.Kind.DELIVER, "minecraft:bone", 10);
+		job(1, "map_land_1", "cartographer", Contract.Kind.EXPLORE, "minecraft:desert,minecraft:savanna,minecraft:taiga,minecraft:swamp,minecraft:dark_forest,minecraft:snowy_plains,minecraft:jungle,minecraft:cherry_grove,minecraft:badlands,minecraft:birch_forest", 1);
+		job(1, "scout_near", "cartographer", Contract.Kind.SCOUT, "150-250", 1);
+		job(2, "raid_pillagers", "guard", Contract.Kind.HUNT, "minecraft:pillager", 6);
+		job(2, "swamp_witches", "lodge", Contract.Kind.HUNT, "minecraft:witch", 2);
+		job(2, "wall_phantoms", "guard", Contract.Kind.HUNT, "minecraft:phantom", 3);
+		job(2, "mine_spiders", "lodge", Contract.Kind.HUNT, "minecraft:cave_spider", 8);
+		job(2, "pearl_endermen", "alchemist", Contract.Kind.HUNT, "minecraft:enderman", 3);
+		job(2, "glue_slimes", "alchemist", Contract.Kind.HUNT, "minecraft:slime", 6);
+		job(2, "sea_guardians", "lodge", Contract.Kind.HUNT, "minecraft:guardian", 3);
+		job(2, "fortress_blazes", "alchemist", Contract.Kind.HUNT, "minecraft:blaze", 4);
+		job(2, "jeweller_gold", "smith", Contract.Kind.DELIVER, "minecraft:gold_ingot", 8);
+		job(2, "gate_redstone", "smith", Contract.Kind.DELIVER, "minecraft:redstone", 24);
+		job(2, "tower_obsidian", "smith", Contract.Kind.DELIVER, "minecraft:obsidian", 6);
+		job(2, "brew_wart", "alchemist", Contract.Kind.DELIVER, "minecraft:nether_wart", 12);
+		job(2, "lamp_glowstone", "alchemist", Contract.Kind.DELIVER, "minecraft:glowstone_dust", 12);
+		job(2, "stand_rods", "alchemist", Contract.Kind.DELIVER, "minecraft:blaze_rod", 4);
+		job(2, "ward_carrots", "healer", Contract.Kind.DELIVER, "minecraft:golden_carrot", 6);
+		job(2, "antidote_honey", "healer", Contract.Kind.DELIVER, "minecraft:honey_bottle", 4);
+		job(2, "map_land_2", "cartographer", Contract.Kind.EXPLORE, "minecraft:ice_spikes,minecraft:lush_caves,minecraft:dripstone_caves,minecraft:mangrove_swamp,minecraft:bamboo_jungle,minecraft:crimson_forest,minecraft:warped_forest,minecraft:soul_sand_valley,minecraft:basalt_deltas", 1);
+		job(2, "scout_mid", "cartographer", Contract.Kind.SCOUT, "300-450", 1);
+		job(2, "bounty_captain", "guard", Contract.Kind.BOUNTY, "minecraft:pillager;minecraft:pillager*2", 1);
+		job(2, "bounty_witch", "lodge", Contract.Kind.BOUNTY, "minecraft:witch;", 1);
+		job(3, "manor_vindicators", "guard", Contract.Kind.HUNT, "minecraft:vindicator", 4);
+		job(3, "village_evoker", "guard", Contract.Kind.HUNT, "minecraft:evoker", 1);
+		job(3, "farm_ravager", "guard", Contract.Kind.HUNT, "minecraft:ravager", 1);
+		job(3, "fortress_skulls", "alchemist", Contract.Kind.HUNT, "minecraft:wither_skeleton", 4);
+		job(3, "bastion_brutes", "lodge", Contract.Kind.HUNT, "minecraft:piglin_brute", 2);
+		job(3, "trial_breezes", "lodge", Contract.Kind.HUNT, "minecraft:breeze", 2);
+		job(3, "marsh_bogged", "lodge", Contract.Kind.HUNT, "minecraft:bogged", 4);
+		job(3, "blade_diamonds", "smith", Contract.Kind.DELIVER, "minecraft:diamond", 3);
+		job(3, "trade_emeralds", "smith", Contract.Kind.DELIVER, "minecraft:emerald", 8);
+		job(3, "regen_tears", "alchemist", Contract.Kind.DELIVER, "minecraft:ghast_tear", 2);
+		job(3, "feather_membranes", "alchemist", Contract.Kind.DELIVER, "minecraft:phantom_membrane", 3);
+		job(3, "luck_foot", "alchemist", Contract.Kind.DELIVER, "minecraft:rabbit_foot", 2);
+		job(3, "spyglass_amethyst", "archivist", Contract.Kind.DELIVER, "minecraft:amethyst_shard", 12);
+		job(3, "chart_shells", "archivist", Contract.Kind.DELIVER, "minecraft:nautilus_shell", 2);
+		job(3, "map_land_3", "cartographer", Contract.Kind.EXPLORE, "minecraft:deep_dark,minecraft:warm_ocean,minecraft:jagged_peaks,minecraft:frozen_peaks,minecraft:eroded_badlands,minecraft:mushroom_fields", 1);
+		job(3, "scout_far", "cartographer", Contract.Kind.SCOUT, "450-650", 1);
+		job(3, "bounty_executioner", "guard", Contract.Kind.BOUNTY, "minecraft:vindicator;minecraft:vindicator*1", 1);
+		job(3, "bounty_marksman", "lodge", Contract.Kind.BOUNTY, "minecraft:skeleton;minecraft:skeleton*2", 1);
+		job(4, "end_endermen", "archivist", Contract.Kind.HUNT, "minecraft:enderman", 10);
+		job(4, "end_shulkers", "archivist", Contract.Kind.HUNT, "minecraft:shulker", 3);
+		job(4, "deep_elder", "lodge", Contract.Kind.HUNT, "minecraft:elder_guardian", 1);
+		job(4, "raid_evokers", "guard", Contract.Kind.HUNT, "minecraft:evoker", 2);
+		job(4, "raid_ravagers", "guard", Contract.Kind.HUNT, "minecraft:ravager", 2);
+		job(4, "wither_skulls", "alchemist", Contract.Kind.HUNT, "minecraft:wither_skeleton", 8);
+		job(4, "forge_netherite", "smith", Contract.Kind.DELIVER, "minecraft:netherite_scrap", 2);
+		job(4, "captain_diamonds", "smith", Contract.Kind.DELIVER, "minecraft:diamond", 8);
+		job(4, "teleport_chorus", "alchemist", Contract.Kind.DELIVER, "minecraft:chorus_fruit", 24);
+		job(4, "compass_echo", "archivist", Contract.Kind.DELIVER, "minecraft:echo_shard", 2);
+		job(4, "chest_shells", "archivist", Contract.Kind.DELIVER, "minecraft:shulker_shell", 2);
+		job(4, "map_land_4", "cartographer", Contract.Kind.EXPLORE, "minecraft:end_highlands,minecraft:end_midlands,minecraft:small_end_islands,minecraft:deep_dark,minecraft:mushroom_fields", 1);
+		job(4, "scout_edge", "cartographer", Contract.Kind.SCOUT, "700-1000", 1);
+		job(4, "bounty_ravager", "guard", Contract.Kind.BOUNTY, "minecraft:ravager;minecraft:pillager*2", 1);
+		job(4, "bounty_evoker", "guard", Contract.Kind.BOUNTY, "minecraft:evoker;minecraft:vindicator*2", 1);
+		// END JOBS
 	}
 
 	private Contracts() {
 	}
 
-	private static void hunts(int tier, String... entries) {
-		for (String e : entries) {
-			String[] p = e.split(":");
-			TEMPLATES.add(new Template(Contract.Kind.HUNT, "minecraft:" + p[0], Integer.parseInt(p[1]), tier));
-		}
+	private static void job(int tier, String job, String client, Contract.Kind kind, String target, int amount) {
+		TEMPLATES.add(new Template(tier, job, client, kind, target, amount));
 	}
 
-	private static void delivers(int tier, String... entries) {
-		for (String e : entries) {
-			String[] p = e.split(":");
-			TEMPLATES.add(new Template(Contract.Kind.DELIVER, "minecraft:" + p[0], Integer.parseInt(p[1]), tier));
+	public static Template template(String job) {
+		for (Template t : TEMPLATES) {
+			if (t.job().equals(job)) {
+				return t;
+			}
 		}
-	}
-
-	private static void explores(int tier, String... biomes) {
-		for (String b : biomes) {
-			TEMPLATES.add(new Template(Contract.Kind.EXPLORE, "minecraft:" + b, 1, tier));
-		}
+		return null;
 	}
 
 	public static long today(ServerPlayer player) {
 		return player.server.overworld().getGameTime() / DAY;
 	}
 
-	/** Ticks until the next rotation of board and stock. */
 	public static long untilNextDay(ServerPlayer player) {
 		long now = player.server.overworld().getGameTime();
 		return (now / DAY + 1) * DAY - now;
@@ -132,16 +219,16 @@ public final class Contracts {
 	}
 
 	/**
-	 * Fills the board up to its size: the first offer always from the highest open tier, the second from tier I (so the
-	 * work never stalls on a level's gap), the rest mostly from the highest; never a job already on the board or in
-	 * hand, never one done lately; at least two kinds of work on a board of three or more.
+	 * Fills the board up to its size: the first offer always from the highest open tier, the second from tier I, the
+	 * rest mostly from the highest; never a job already on the board or in hand, never one done lately; at least two
+	 * kinds of work (hunts, deliveries, journeys); never more than one bounty about.
 	 */
 	public static void fill(ServerPlayer player, Account a) {
 		RandomSource random = player.getRandom();
 		int maxTier = Progression.openTiers(player);
 		int want = offerCount(player);
 		int guard = 0;
-		while (a.offers.size() < want && guard++ < 40) {
+		while (a.offers.size() < want && guard++ < 60) {
 			int tier;
 			if (!hasTier(a, maxTier)) {
 				tier = maxTier;
@@ -150,9 +237,9 @@ public final class Contracts {
 			} else {
 				tier = random.nextFloat() < 0.6f ? maxTier : 1 + random.nextInt(maxTier);
 			}
-			Contract.Kind avoid = null;
-			if (a.offers.size() == want - 1 && a.offers.size() >= 2 && a.offers.stream().map(c -> c.kind).distinct().count() == 1) {
-				avoid = a.offers.get(0).kind;
+			String avoid = null;
+			if (a.offers.size() == want - 1 && a.offers.size() >= 2 && a.offers.stream().map(c -> c.kind.group()).distinct().count() == 1) {
+				avoid = a.offers.get(0).kind.group();
 			}
 			Contract c = roll(player, a, tier, avoid);
 			if (c != null) {
@@ -165,19 +252,23 @@ public final class Contracts {
 		return a.offers.stream().anyMatch(c -> c.tier == tier);
 	}
 
-	/** One offer of a tier (another kind than {@code avoid}, if given). */
-	private static Contract roll(ServerPlayer player, Account a, int tier, Contract.Kind avoid) {
+	private static boolean hasBounty(Account a) {
+		return a.offers.stream().anyMatch(c -> c.kind == Contract.Kind.BOUNTY) || a.active.stream().anyMatch(c -> c.kind == Contract.Kind.BOUNTY);
+	}
+
+	/** One offer of a tier (of another kind of work than {@code avoid}, if given). */
+	private static Contract roll(ServerPlayer player, Account a, int tier, String avoid) {
 		RandomSource random = player.getRandom();
 		List<Template> pool = new ArrayList<>();
 		for (Template t : TEMPLATES) {
-			if (t.tier() == tier && t.kind() != avoid && !taken(a, t.target()) && !a.recent.contains(t.target()) && exists(t)) {
+			if (t.tier() == tier && !t.kind().group().equals(avoid) && !taken(a, t.job()) && !a.recent.contains(t.job()) && exists(t)
+					&& !(t.kind() == Contract.Kind.BOUNTY && hasBounty(a))) {
 				pool.add(t);
 			}
 		}
 		if (pool.isEmpty()) {
-			// Everything recent: then anything not on the board or in hand
 			for (Template t : TEMPLATES) {
-				if (t.tier() == tier && !taken(a, t.target()) && exists(t)) {
+				if (t.tier() == tier && !taken(a, t.job()) && exists(t) && !(t.kind() == Contract.Kind.BOUNTY && hasBounty(a))) {
 					pool.add(t);
 				}
 			}
@@ -186,28 +277,45 @@ public final class Contracts {
 			return null;
 		}
 		Template t = pool.get(random.nextInt(pool.size()));
-		boolean elite = Talents.has(player, Talent.CON_ELITE) && t.kind() != Contract.Kind.EXPLORE && a.offers.stream().noneMatch(c -> c.elite)
-				&& random.nextFloat() < 0.25f;
-		float pay = elite ? ELITE_PAY : 1;
-		int amount = elite ? Math.round(t.amount() * ELITE_WORK) : t.amount();
-		return new Contract(a.nextId++, t.kind(), t.target(), amount, t.tier(), elite, Math.round(XP[tier - 1] * pay),
-				Math.round(TOKENS[tier - 1] * pay));
-	}
-
-	private static boolean taken(Account a, String target) {
-		return a.offers.stream().anyMatch(c -> c.target.equals(target)) || a.active.stream().anyMatch(c -> c.target.equals(target));
-	}
-
-	/** Whether a template names a real thing in this game (an id from a later version, or a removed item, is skipped). */
-	private static boolean exists(Template t) {
-		ResourceLocation id = ResourceLocation.tryParse(t.target());
-		if (id == null) {
-			return false;
+		String target = switch (t.kind()) {
+			case EXPLORE -> t.lands().get(random.nextInt(t.lands().size()));
+			case BOUNTY -> t.head();
+			case SCOUT -> "";
+			default -> t.target();
+		};
+		boolean canElite = t.kind() == Contract.Kind.HUNT || t.kind() == Contract.Kind.DELIVER;
+		boolean elite = canElite && Talents.has(player, Talent.CON_ELITE) && a.offers.stream().noneMatch(c -> c.elite) && random.nextFloat() < 0.25f;
+		// A hard condition now and then on a plain hunt: at night, with projectiles, or finished by a Brand's burst
+		Contract.Rule rule = Contract.Rule.NONE;
+		if (t.kind() == Contract.Kind.HUNT && !elite && random.nextFloat() < 0.3f) {
+			List<Contract.Rule> rules = new ArrayList<>(List.of(Contract.Rule.BOW, Contract.Rule.BRAND));
+			if (NIGHT_MOBS.contains(target)) {
+				rules.add(Contract.Rule.NIGHT);
+			}
+			rule = rules.get(random.nextInt(rules.size()));
 		}
+		float pay = (elite ? ELITE_PAY : 1) * (t.kind() == Contract.Kind.BOUNTY ? BOUNTY_PAY : 1) * (rule != Contract.Rule.NONE ? RULE_PAY : 1);
+		int amount = elite ? Math.round(t.amount() * ELITE_WORK) : t.amount();
+		return new Contract(a.nextId++, t.kind(), target, amount, t.tier(), elite, Math.round(XP[tier - 1] * pay), Math.round(TOKENS[tier - 1] * pay),
+				t.client(), t.job(), rule);
+	}
+
+	private static boolean taken(Account a, String job) {
+		return a.offers.stream().anyMatch(c -> c.job.equals(job)) || a.active.stream().anyMatch(c -> c.job.equals(job));
+	}
+
+	/** Whether a template names real things in this game (an id from another version is skipped). */
+	private static boolean exists(Template t) {
 		return switch (t.kind()) {
-			case HUNT -> BuiltInRegistries.ENTITY_TYPE.containsKey(id);
-			case DELIVER -> BuiltInRegistries.ITEM.containsKey(id);
-			case EXPLORE -> true;
+			case HUNT, BOUNTY -> {
+				ResourceLocation id = ResourceLocation.tryParse(t.kind() == Contract.Kind.BOUNTY ? t.head() : t.target());
+				yield id != null && BuiltInRegistries.ENTITY_TYPE.containsKey(id);
+			}
+			case DELIVER -> {
+				ResourceLocation id = ResourceLocation.tryParse(t.target());
+				yield id != null && BuiltInRegistries.ITEM.containsKey(id);
+			}
+			default -> true;
 		};
 	}
 
@@ -223,10 +331,15 @@ public final class Contracts {
 			return false;
 		}
 		a.offers.remove(c);
-		// A land counts only once reached: whoever stands in it already must leave it first
 		c.armed = false;
+		long now = player.server.overworld().getGameTime();
+		int minutes = QUICK_MINUTES[Math.max(0, Math.min(3, c.tier - 1))] + (c.kind == Contract.Kind.SCOUT || c.kind == Contract.Kind.BOUNTY ? 5 : 0);
+		c.quickUntil = now + minutes * 60L * 20;
 		if (c.kind == Contract.Kind.EXPLORE && Talents.has(player, Talent.CON_GUIDE)) {
-			locate(player, c);
+			locateLand(player, c);
+		}
+		if (c.kind == Contract.Kind.SCOUT || c.kind == Contract.Kind.BOUNTY) {
+			placeMark(player, c);
 		}
 		a.active.add(c);
 		player.level().playSound(null, player.blockPosition(), SoundEvents.BOOK_PAGE_TURN, SoundSource.PLAYERS, 1, 1.1f);
@@ -234,15 +347,33 @@ public final class Contracts {
 		return true;
 	}
 
+	/** A scouting mark or a bounty's lair: some way off in a random direction, in the overworld (from here if here is the overworld). */
+	private static void placeMark(ServerPlayer player, Contract c) {
+		ServerLevel overworld = player.server.overworld();
+		BlockPos from = player.level() == overworld ? player.blockPosition() : overworld.getSharedSpawnPos();
+		RandomSource random = player.getRandom();
+		int[] range = switch (c.kind) {
+			case SCOUT -> {
+				Template t = template(c.job);
+				yield t == null ? new int[] {150, 250} : t.range();
+			}
+			default -> new int[] {80 + 40 * c.tier, 140 + 70 * c.tier};
+		};
+		double distance = range[0] + random.nextDouble() * (range[1] - range[0]);
+		double angle = random.nextDouble() * Math.PI * 2;
+		c.located = true;
+		c.locX = (int) Math.round(from.getX() + Math.cos(angle) * distance);
+		c.locZ = (int) Math.round(from.getZ() + Math.sin(angle) * distance);
+	}
+
 	/** The Guide: the nearest such land in this world (searched once, in a bounded square), kept with the job. */
-	private static void locate(ServerPlayer player, Contract c) {
+	private static void locateLand(ServerPlayer player, Contract c) {
 		ResourceLocation id = ResourceLocation.tryParse(c.target);
 		if (id == null) {
 			return;
 		}
 		ResourceKey<Biome> key = ResourceKey.create(Registries.BIOME, id);
-		ServerLevel level = player.serverLevel();
-		var found = level.findClosestBiome3d(h -> h.is(key), player.blockPosition(), 2400, 48, 64);
+		var found = player.serverLevel().findClosestBiome3d(h -> h.is(key), player.blockPosition(), 2400, 48, 64);
 		if (found != null) {
 			c.located = true;
 			c.locX = found.getFirst().getX();
@@ -256,8 +387,23 @@ public final class Contracts {
 			return false;
 		}
 		a.active.remove(c);
+		dismissBounty(player, c);
 		player.level().playSound(null, player.blockPosition(), SoundEvents.BOOK_PUT, SoundSource.PLAYERS, 1, 0.7f);
 		return true;
+	}
+
+	/** A bounty given up leaves the world with its retinue (if its place is loaded). */
+	private static void dismissBounty(ServerPlayer player, Contract c) {
+		if (c.kind != Contract.Kind.BOUNTY || !c.spawned) {
+			return;
+		}
+		String tag = bountyTag(player, c);
+		ServerLevel level = player.server.overworld();
+		for (Entity e : level.getAllEntities()) {
+			if (e.getTags().contains(tag)) {
+				e.discard();
+			}
+		}
 	}
 
 	/**
@@ -297,7 +443,6 @@ public final class Contracts {
 		return true;
 	}
 
-	/** A fresh board for tokens: 5, 10, 20, 40... a day; with Connections the first is free and the rest cost half. */
 	public static int rerollPrice(ServerPlayer player, Account a) {
 		boolean connected = Talents.has(player, Talent.CON_CONNECTIONS);
 		if (connected && a.rerolls == 0) {
@@ -325,51 +470,223 @@ public final class Contracts {
 
 	// ---- the work itself ----
 
-	/** Kills that count: the hunter's own (twice for a Trophy), or an ally's near a Mercenary with Partners. */
-	public static void onKill(ServerPlayer player, Account a, String type, boolean trophy) {
-		for (Contract c : List.copyOf(a.active)) {
-			if (c.kind == Contract.Kind.HUNT && !c.done() && c.target.equals(type)) {
-				c.progress = Math.min(c.amount, c.progress + (trophy ? 2 : 1));
-				if (c.done()) {
-					complete(player, a, c);
-				}
-				return;
-			}
+	/** How a kill was made, for the hunts' conditions. */
+	public record Kill(boolean night, boolean projectile, boolean burst) {
+		boolean meets(Contract.Rule rule) {
+			return switch (rule) {
+				case NONE -> true;
+				case NIGHT -> night;
+				case BOW -> projectile;
+				case BRAND -> burst;
+			};
 		}
 	}
 
-	/** Once a second: the explorations (armed once outside the land, done once in it). */
+	/** A kill that counts: the hunter's own (twice for a Trophy), or a Partner's; a hunt's condition must be met. */
+	public static boolean onKill(ServerPlayer player, Account a, String type, boolean trophy, Kill kill) {
+		for (Contract c : List.copyOf(a.active)) {
+			if (c.kind == Contract.Kind.HUNT && !c.done() && c.target.equals(type)) {
+				if (!kill.meets(c.rule)) {
+					player.displayClientMessage(Component.translatable("mages_legacy.merc.rule_missed",
+							Component.translatable("mages_legacy.merc.rule." + c.rule.id())).withStyle(ChatFormatting.GRAY), true);
+					continue;
+				}
+				c.progress = Math.min(c.amount, c.progress + (trophy ? 2 : 1));
+				if (c.done()) {
+					complete(player, a, c);
+				} else {
+					player.displayClientMessage(Component.translatable("mages_legacy.merc.progress", c.progress, c.amount).withStyle(ChatFormatting.GOLD), true);
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public static String bountyTag(ServerPlayer owner, Contract c) {
+		return "mb:" + owner.getUUID() + ":" + c.id;
+	}
+
+	/** A bounty fallen (by its Mercenary's hand or an ally's): the job done. */
+	public static void bountyDown(ServerPlayer owner, Account a, int id) {
+		Contract c = a.activeById(id);
+		if (c != null && c.kind == Contract.Kind.BOUNTY) {
+			c.progress = c.amount;
+			complete(owner, a, c);
+		}
+	}
+
+	/** A bounty fell by a stranger's hand or vanished: it will stand at its mark again. */
+	public static void bountyLost(Account a, int id) {
+		Contract c = a.activeById(id);
+		if (c != null && c.kind == Contract.Kind.BOUNTY) {
+			c.spawned = false;
+			c.bounty = "";
+		}
+	}
+
+	/**
+	 * Once a second: lands reached (armed once outside, done once in), marks scouted, bounties called to their mark as
+	 * their Mercenary comes near, and a pillar of light over a mark within sight. Returns whether anything changed.
+	 */
 	public static boolean tickSecond(ServerPlayer player, Account a) {
 		boolean changed = false;
 		Holder<Biome> here = player.level().getBiome(player.blockPosition());
+		boolean overworld = player.level().dimension() == Level.OVERWORLD;
 		for (Contract c : List.copyOf(a.active)) {
-			if (c.kind != Contract.Kind.EXPLORE || c.done()) {
+			if (c.done()) {
 				continue;
 			}
-			ResourceLocation id = ResourceLocation.tryParse(c.target);
-			boolean inside = id != null && here.is(ResourceKey.create(Registries.BIOME, id));
-			if (!inside && !c.armed) {
-				c.armed = true;
-				changed = true;
-			} else if (inside && c.armed) {
-				c.progress = c.amount;
-				complete(player, a, c);
-				changed = true;
+			switch (c.kind) {
+				case EXPLORE -> {
+					ResourceLocation id = ResourceLocation.tryParse(c.target);
+					boolean inside = id != null && here.is(ResourceKey.create(Registries.BIOME, id));
+					if (!inside && !c.armed) {
+						c.armed = true;
+						changed = true;
+					} else if (inside && c.armed) {
+						c.progress = c.amount;
+						complete(player, a, c);
+						changed = true;
+					}
+				}
+				case SCOUT -> {
+					if (!overworld || !c.located) {
+						break;
+					}
+					double d = flat(player, c);
+					if (d <= SCOUT_REACH) {
+						c.progress = c.amount;
+						complete(player, a, c);
+						changed = true;
+					} else if (d <= BEAM_RANGE && player.tickCount % 40 < 20) {
+						Fx.mark(player, c.locX, c.locZ, false);
+					}
+				}
+				case BOUNTY -> {
+					if (!overworld || !c.located) {
+						break;
+					}
+					double d = flat(player, c);
+					if (d <= BEAM_RANGE && player.tickCount % 40 < 20) {
+						Fx.mark(player, c.locX, c.locZ, true);
+					}
+					if (d > BOUNTY_NEAR) {
+						break;
+					}
+					if (!c.spawned || c.bounty.isEmpty() || lostBounty(player, c)) {
+						changed |= callBounty(player, c);
+					}
+				}
+				default -> {
+				}
 			}
 		}
 		return changed;
 	}
 
-	/** Pay with the talents counted now: Bonus +25% tokens, Renown +20% experience, the Streak up to +30% of both. */
+	private static double flat(ServerPlayer player, Contract c) {
+		double dx = player.getX() - (c.locX + 0.5);
+		double dz = player.getZ() - (c.locZ + 0.5);
+		return Math.sqrt(dx * dx + dz * dz);
+	}
+
+	/** Spawned but gone from its loaded mark (killed by a stranger, pushed into lava, unloaded and lost). */
+	private static boolean lostBounty(ServerPlayer player, Contract c) {
+		if (!c.spawned || c.bounty.isEmpty()) {
+			return false;
+		}
+		try {
+			return player.serverLevel().getEntity(UUID.fromString(c.bounty)) == null && flat(player, c) < 20;
+		} catch (IllegalArgumentException e) {
+			return true;
+		}
+	}
+
+	/** The bounty steps out at its mark: hardened (more health, harder blows, armour), named, its retinue round it. */
+	private static boolean callBounty(ServerPlayer player, Contract c) {
+		ServerLevel level = player.serverLevel();
+		Template t = template(c.job);
+		ResourceLocation headId = ResourceLocation.tryParse(c.target);
+		if (t == null || headId == null) {
+			return false;
+		}
+		int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, c.locX, c.locZ);
+		BlockPos at = new BlockPos(c.locX, y, c.locZ);
+		Entity head = BuiltInRegistries.ENTITY_TYPE.get(headId).create(level);
+		if (!(head instanceof Mob mob)) {
+			return false;
+		}
+		String tag = bountyTag(player, c);
+		mob.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, player.getRandom().nextFloat() * 360, 0);
+		mob.finalizeSpawn(level, level.getCurrentDifficultyAt(at), MobSpawnType.EVENT, null);
+		mob.setPersistenceRequired();
+		mob.addTag("merc_bounty");
+		mob.addTag(tag);
+		mob.setCustomName(Component.translatable("mages_legacy.merc.bounty." + c.job).withStyle(ChatFormatting.GOLD));
+		mob.setCustomNameVisible(true);
+		harden(mob, c.tier);
+		level.addFreshEntity(mob);
+		for (String entry : t.retinue()) {
+			String[] p = entry.split("\\*");
+			ResourceLocation id = ResourceLocation.tryParse(p[0]);
+			int count = p.length > 1 ? Integer.parseInt(p[1]) : 1;
+			for (int i = 0; i < count && id != null; i++) {
+				Entity e = BuiltInRegistries.ENTITY_TYPE.get(id).create(level);
+				if (e instanceof Mob m) {
+					double a = player.getRandom().nextDouble() * Math.PI * 2;
+					m.moveTo(at.getX() + 0.5 + Math.cos(a) * 2.5, at.getY(), at.getZ() + 0.5 + Math.sin(a) * 2.5, 0, 0);
+					m.finalizeSpawn(level, level.getCurrentDifficultyAt(at), MobSpawnType.EVENT, null);
+					m.setPersistenceRequired();
+					m.addTag("merc_bounty_retinue");
+					m.addTag(tag);
+					level.addFreshEntity(m);
+				}
+			}
+		}
+		c.spawned = true;
+		c.bounty = mob.getUUID().toString();
+		level.playSound(null, at, SoundEvents.RAID_HORN.value(), SoundSource.HOSTILE, 2, 1.2f);
+		player.displayClientMessage(Component.translatable("mages_legacy.merc.bounty_here", mob.getCustomName()).withStyle(ChatFormatting.GOLD), true);
+		return true;
+	}
+
+	/** A named bounty: about three times the health, half again the blows, 4 armour. */
+	private static void harden(Mob mob, int tier) {
+		var health = mob.getAttribute(Attributes.MAX_HEALTH);
+		if (health != null) {
+			health.addPermanentModifier(new AttributeModifier(MagesLegacy.id("merc_bounty_health"), tier >= 4 ? 1.5 : 2.0,
+					AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
+			mob.setHealth(mob.getMaxHealth());
+		}
+		var attack = mob.getAttribute(Attributes.ATTACK_DAMAGE);
+		if (attack != null) {
+			attack.addPermanentModifier(new AttributeModifier(MagesLegacy.id("merc_bounty_attack"), 0.5, AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
+		}
+		var armour = mob.getAttribute(Attributes.ARMOR);
+		if (armour != null) {
+			armour.addPermanentModifier(new AttributeModifier(MagesLegacy.id("merc_bounty_armor"), 4, AttributeModifier.Operation.ADD_VALUE));
+		}
+	}
+
+	/** The pay with the talents and the job's own state counted now (Bonus, Renown, the Streak, done quickly). */
 	public static int[] pay(ServerPlayer player, Account a, Contract c, boolean forStreak) {
 		float streak = 0;
 		if (Talents.has(player, Talent.CON_STREAK)) {
 			int s = forStreak ? nextStreak(player, a) : a.streak;
 			streak = Math.min(0.3f, 0.1f * s);
 		}
-		float xp = c.xp * (1 + (Talents.has(player, Talent.CON_RENOWN) ? 0.2f : 0) + streak);
-		float tokens = c.tokens * (1 + (Talents.has(player, Talent.CON_BONUS) ? 0.25f : 0) + streak);
+		boolean quick = quick(player, c);
+		float lucky = a.luckyJobs > 0 ? 2 : 1;
+		float xp = c.xp * (1 + (Talents.has(player, Talent.CON_RENOWN) ? 0.2f : 0) + streak) * (quick ? QUICK_XP : 1) * lucky;
+		float tokens = c.tokens * (1 + (Talents.has(player, Talent.CON_BONUS) ? 0.25f : 0) + streak + (a.fortuneJobs > 0 ? 0.3f : 0))
+				* (quick ? QUICK_TOKENS : 1) * lucky;
 		return new int[] {Math.round(xp), Math.round(tokens)};
+	}
+
+	/** Taken and still within its quick time. */
+	public static boolean quick(ServerPlayer player, Contract c) {
+		return c.quickUntil > 0 && player.server.overworld().getGameTime() <= c.quickUntil;
 	}
 
 	private static int nextStreak(ServerPlayer player, Account a) {
@@ -383,19 +700,25 @@ public final class Contracts {
 			return;
 		}
 		int[] pay = pay(player, a, c, true);
+		boolean quick = quick(player, c);
 		a.streak = nextStreak(player, a);
 		a.lastDoneAt = player.server.overworld().getGameTime();
 		a.tokens += pay[1];
+		if (a.luckyJobs > 0) {
+			a.luckyJobs--;
+		}
+		if (a.fortuneJobs > 0) {
+			a.fortuneJobs--;
+		}
 		a.completed++;
-		a.completedKinds[c.kind.ordinal()]++;
-		a.recent.add(c.target);
+		a.completedKinds[c.kind.groupIndex()]++;
+		a.recent.add(c.job);
 		while (a.recent.size() > RECENT) {
 			a.recent.remove(0);
 		}
-		// The work never runs dry: a fresh offer at once
 		fill(player, a);
-		player.displayClientMessage(Component.translatable("mages_legacy.merc.completed", Component.translatable("mages_legacy.merc.kind." + c.kind.id()),
-				pay[1], pay[0]).withStyle(ChatFormatting.GOLD), false);
+		player.displayClientMessage(Component.translatable(quick ? "mages_legacy.merc.completed_quick" : "mages_legacy.merc.completed",
+				Component.translatable("mages_legacy.merc.client." + c.client), pay[1], pay[0]).withStyle(ChatFormatting.GOLD), false);
 		Progression.addXp(player, pay[0]);
 		ServerLevel level = player.serverLevel();
 		level.playSound(null, player.blockPosition(), SoundEvents.VILLAGER_YES, SoundSource.PLAYERS, 0.6f, 0.8f);
@@ -403,11 +726,11 @@ public final class Contracts {
 		Fx.contractDone(level, player);
 		Mercenary.contractDone(player, a, c);
 		Talents.addProgress(player, Mercenary.T_CONTRACTS, 1);
-		Talents.addProgress(player, Mercenary.T_KIND + c.kind.id(), 1);
-		if (c.kind == Contract.Kind.HUNT) {
+		Talents.addProgress(player, Mercenary.T_KIND + c.kind.group(), 1);
+		if (c.kind == Contract.Kind.HUNT || c.kind == Contract.Kind.BOUNTY) {
 			Talents.addProgress(player, Mercenary.T_HUNTS, 1);
 		}
-		Mastery.addDistinct(player, Mastery.Goal.SIX_CONTRACTS, "c" + a.completed + ":" + c.kind.id());
+		Mastery.addDistinct(player, Mastery.Goal.SIX_CONTRACTS, "c" + a.completed + ":" + c.kind.group());
 		Deeds.grant(player, "merc_first_contract");
 		if (c.elite) {
 			Deeds.grant(player, "merc_elite");

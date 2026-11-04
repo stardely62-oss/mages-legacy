@@ -2,7 +2,9 @@ package euf.mageslegacy.client.fx;
 
 import euf.mageslegacy.fx.Fx;
 import euf.mageslegacy.net.FxPayload;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -36,6 +38,7 @@ public final class MercFx {
 	static final String FLARE = "fx/merc_flare";
 	static final String DOOR = "fx/merc_door";
 	static final String CONTRACT = "fx/merc_contract";
+	static final String WARRANT = "fx/merc_warrant";
 	/** Tints laid over the sparks: pale gold, dark gold, copper. */
 	private static final int[] GOLDS = {0xFFFFF2C4, 0xFFE2B04A, 0xFFC8823C};
 	private static final int CAP = 900;
@@ -65,7 +68,9 @@ public final class MercFx {
 				BrandSeal old = SEALS.get(follow.getId());
 				if (payload.ticks() <= 0) {
 					if (old != null) {
-						old.fading = 6;
+						// Burst (a < 0): gone at once, the burst draws its own fold; run out: a short fade
+						old.fading = payload.a() < 0 ? 1 : 6;
+						SEALS.remove(follow.getId());
 					}
 					return;
 				}
@@ -105,22 +110,31 @@ public final class MercFx {
 					old.fading = 10;
 				}
 				if (payload.ticks() > 0) {
-					VerdictSeal seal = new VerdictSeal(follow, payload.ticks());
+					VerdictSeal seal = new VerdictSeal(follow, payload.ticks(), Math.max(1, (int) payload.a()));
 					VERDICTS.put(follow.getId(), seal);
 					VoidRender.add(seal);
 				}
 			}
 			case Fx.VERDICT_BLADE -> {
 				if (follow != null) {
-					double a = payload.a() * 2.4 + VoidRender.rand(-0.3, 0.3);
-					VoidRender.add(new Swing(follow, null, a, 1.0f, 9));
+					VerdictSeal seal = VERDICTS.get(follow.getId());
+					if (seal != null) {
+						seal.lunge();
+					} else {
+						VoidRender.add(new Swing(follow, null, VoidRender.rand(0, Math.PI * 2), 1.0f, 9));
+					}
 				}
 			}
 			case Fx.VERDICT_EXECUTE -> {
 				if (follow != null) {
+					VerdictSeal seal = VERDICTS.get(follow.getId());
+					if (seal != null) {
+						seal.executed = true;
+					}
 					execute(follow);
 				}
 			}
+			case Fx.MARK -> VoidRender.add(new Pillar(payload.from(), payload.b() > 0, payload.ticks()));
 			case Fx.DEBT_SEAL -> {
 				if (follow == null) {
 					return;
@@ -324,14 +338,14 @@ public final class MercFx {
 
 	// ---- Hunter's Brand ---------------------------------------------------------------------------------------------
 
-	/** The bolt: a hot head with a short tail and sparks shed behind it. */
+	/** The bolt: a hot head trailing a streak of gold that lingers a moment along its whole way, sparks shed behind it. */
 	static final class Bolt extends VoidRender.Effect {
 		final Vec3 from;
 		final Vec3 to;
 		final int fly;
 
 		Bolt(Vec3 from, Vec3 to, int fly) {
-			super(fly + 3);
+			super(fly + 10);
 			this.from = from;
 			this.to = to;
 			this.fly = Math.max(1, fly);
@@ -345,11 +359,12 @@ public final class MercFx {
 		boolean tick() {
 			if (age < fly) {
 				Vec3 h = head(1);
-				for (int i = 0; i < 3; i++) {
-					add(spark(h.add(r(-0.05, 0.05), r(-0.05, 0.05), r(-0.05, 0.05)), VoidRender.randomDir().scale(0.02), (int) r(6, 12), r(0.04, 0.07)));
+				for (int i = 0; i < 4; i++) {
+					add(spark(h.add(r(-0.08, 0.08), r(-0.08, 0.08), r(-0.08, 0.08)), VoidRender.randomDir().scale(0.03), (int) r(8, 16), r(0.04, 0.08)));
 				}
 			} else if (age == fly) {
-				sparks(to, 14, 0.18);
+				sparks(to, 16, 0.2);
+				coins(to, 3, 0.1);
 			}
 			return super.tick();
 		}
@@ -357,20 +372,20 @@ public final class MercFx {
 		@Override
 		void draw(FxDraw draw, float partial) {
 			float life = life(partial);
-			if (life > fly) {
-				float t = (life - fly) / 3f;
-				billboard(draw, FLARE, to, 0.5f + t * 0.4f, 0, 1, (1 - t) * 0.9f, 1.2f);
-				return;
-			}
 			Vec3 h = head(partial);
-			Vec3 dir = to.subtract(from);
-			if (dir.lengthSqr() < 1.0E-6) {
-				return;
+			// The streak stays where the bolt went, thinning and fading after it lands
+			float linger = life <= fly ? 1 : Math.max(0, 1 - (life - fly) / 10f);
+			if (h.distanceToSqr(from) > 0.01) {
+				band(draw, FLARE, from, h, 0.12f * linger + 0.02f, 0.55f * linger, 0.5f);
+				band(draw, FLARE, from.lerp(h, 0.6), h, 0.22f * linger, 0.8f * linger, 0.8f);
 			}
-			Vec3 tail = h.subtract(dir.normalize().scale(Math.min(1.2, h.distanceTo(from))));
-			band(draw, FLARE, tail, h, 0.18f, 0.85f, 1.1f);
-			billboard(draw, FLARE, h, 0.22f, 0, 1, 1, 1.4f);
-			billboard(draw, SEAL_PART, h, 0.18f, life * 0.9, 1, 0.9f, 1.0f);
+			if (life <= fly) {
+				billboard(draw, FLARE, h, 0.25f, 0, 1, 1, 1.0f);
+				billboard(draw, SEAL_PART, h, 0.2f, life * 0.9, 1, 0.9f, 0.6f);
+			} else {
+				float t = (life - fly) / 10f;
+				billboard(draw, FLARE, to, 0.35f + t * 0.3f, 0, 1, (1 - t) * 0.7f, 0.6f);
+			}
 		}
 	}
 
@@ -437,18 +452,95 @@ public final class MercFx {
 		}
 	}
 
-	/** The brand blows: the seal folds in, a flash, golden shards and sparks thrown out (a wave on the ground for the Chain). */
+	/** The brand blows: the seal folds in, a short flash, and coins burst out every way, ringing off the ground. */
 	private static void blast(Vec3 at, boolean wide) {
 		VoidRender.add(new Fold(at));
-		for (int i = 0; i < 26; i++) {
-			Vec3 d = VoidRender.randomDir();
-			VoidRender.Particle p = spark(at, d.scale(r(0.15, 0.35)), (int) r(10, 20), r(0.07, 0.13));
-			p.gravity = new Vec3(0, -0.012, 0);
-			add(p);
+		VoidRender.add(new CoinBurst(at, wide ? 34 : 24, wide ? 0.42 : 0.34));
+		for (int i = 0; i < 16; i++) {
+			add(spark(at, VoidRender.randomDir().scale(r(0.12, 0.3)), (int) r(8, 14), r(0.06, 0.1)));
 		}
-		coins(at, 6, 0.16);
 		if (wide) {
 			VoidRender.add(new Ring(new Vec3(at.x, BloodFx.groundY(at) + 0.02, at.z), 0.4f, 3.2f, 12));
+		}
+	}
+
+	/**
+	 * Coins flung every way from a point: each spins (its face narrowing and widening), falls, bounces off the ground
+	 * with a small chink of light, then lies a moment and fades.
+	 */
+	static final class CoinBurst extends VoidRender.Effect {
+		private static final class Coin {
+			Vec3 pos;
+			Vec3 prev;
+			Vec3 vel;
+			double spin;
+			double phase;
+			int resting;
+			float size;
+		}
+
+		final List<Coin> coins = new ArrayList<>();
+		final double ground;
+
+		CoinBurst(Vec3 at, int count, double speed) {
+			super(60);
+			this.ground = BloodFx.groundY(at) + 0.04;
+			for (int i = 0; i < count; i++) {
+				Coin c = new Coin();
+				Vec3 d = VoidRender.randomDir();
+				c.pos = at;
+				c.prev = at;
+				c.vel = new Vec3(d.x * speed, Math.abs(d.y) * speed * 0.9 + 0.12, d.z * speed);
+				c.spin = r(0.35, 0.8) * (VoidRender.RANDOM.nextBoolean() ? 1 : -1);
+				c.phase = r(0, Math.PI);
+				c.size = (float) r(0.07, 0.11);
+				coins.add(c);
+			}
+		}
+
+		@Override
+		boolean tick() {
+			for (Coin c : coins) {
+				c.prev = c.pos;
+				if (c.resting > 0) {
+					c.resting++;
+					continue;
+				}
+				c.vel = c.vel.scale(0.97).add(0, -0.04, 0);
+				c.pos = c.pos.add(c.vel);
+				c.phase += c.spin;
+				if (c.pos.y < ground) {
+					c.pos = new Vec3(c.pos.x, ground, c.pos.z);
+					if (Math.abs(c.vel.y) > 0.08) {
+						c.vel = new Vec3(c.vel.x * 0.6, -c.vel.y * 0.45, c.vel.z * 0.6);
+						if (VoidRender.RANDOM.nextFloat() < 0.3f) {
+							add(spark(c.pos.add(0, 0.05, 0), new Vec3(0, 0.03, 0), 6, 0.05));
+						}
+					} else {
+						c.resting = 1;
+					}
+				}
+			}
+			return super.tick();
+		}
+
+		@Override
+		void draw(FxDraw draw, float partial) {
+			Vec3[] f = facing();
+			for (Coin c : coins) {
+				Vec3 at = c.prev.lerp(c.pos, partial);
+				float fade = c.resting > 0 ? Math.max(0, 1 - Math.max(0, c.resting - 15) / 20f) : 1;
+				if (fade <= 0) {
+					continue;
+				}
+				// Lying on the ground: flat; flying: a face turning to and from the eye
+				if (c.resting > 0) {
+					draw.paint(COIN, at, new Vec3(c.size, 0, 0), new Vec3(0, 0, c.size), 1, 1, 1, fade, 0.3f);
+				} else {
+					double w = Math.max(0.15, Math.abs(Math.cos(c.phase)));
+					draw.paint(COIN, at, f[0].scale(c.size * w), f[1].scale(c.size), 1, 1, 1, fade, 0.7f);
+				}
+			}
 		}
 	}
 
@@ -497,7 +589,7 @@ public final class MercFx {
 			float alpha = (float) Math.sqrt(Math.sin(Math.PI * t));
 			float r = r0 + (r1 - r0) * VoidRender.easeOut(t);
 			// A wide ring keeps its band thin: the bigger, the fainter
-			decal(draw, WAVE, at, r, 0, 1, alpha * Math.min(0.7f, 1.6f / Math.max(1, r)), r > 3 ? 0.05f : 0.25f);
+			decal(draw, WAVE, at, r, 0, 1, alpha * Math.min(0.5f, 1.2f / Math.max(1, r)), 0.06f);
 		}
 	}
 
@@ -630,14 +722,32 @@ public final class MercFx {
 
 	// ---- the Guild's Verdict ----------------------------------------------------------------------------------------
 
-	/** The warrant's seal turning flat over the condemned, a smaller one at its feet, both slowly breathing. */
+	/**
+	 * The Verdict on its creature: the guild's warrant hanging over its head (small, turned to the eye, swaying), and
+	 * spectral swords circling it point inwards, one for every blade still owed. A blade owed is one sword driven into the
+	 * body; the execution brings down a great sword from above (see {@link Executioner}) and tears the warrant apart.
+	 */
 	static final class VerdictSeal extends VoidRender.Effect {
 		final Entity body;
+		final int blades;
 		int fading = -1;
+		int used;
+		/** The age each driven sword was let go at (-1: still circling). */
+		final int[] thrown;
+		boolean executed;
 
-		VerdictSeal(Entity body, int ticks) {
+		VerdictSeal(Entity body, int ticks, int blades) {
 			super(ticks + 4);
 			this.body = body;
+			this.blades = Math.min(7, blades);
+			this.thrown = new int[this.blades];
+			java.util.Arrays.fill(thrown, -1);
+		}
+
+		void lunge() {
+			if (used < blades) {
+				thrown[used++] = age;
+			}
 		}
 
 		@Override
@@ -648,27 +758,64 @@ public final class MercFx {
 				}
 				return false;
 			}
-			if (age % 6 == 0) {
-				Vec3 at = top(body, 1).add(0, 0.5, 0);
-				double a = r(0, Math.PI * 2);
-				double rr = 0.6 + body.getBbWidth();
-				add(spark(at.add(Math.cos(a) * rr, 0, Math.sin(a) * rr), new Vec3(0, -0.04, 0), 20, 0.06, 0.98f));
+			for (int k = 0; k < blades; k++) {
+				if (thrown[k] >= 0 && age - thrown[k] == 4) {
+					Vec3 hit = middle(body, 1);
+					sparks(hit, 10, 0.2);
+					VoidRender.add(new Flash(hit, 0.45f, 6));
+				}
 			}
 			return super.tick();
+		}
+
+		/** Where a circling sword stands and points: round the body at chest height, slowly turning, bobbing. */
+		private Vec3[] sword(int k, float life, Vec3 heart) {
+			double radius = 0.9 + body.getBbWidth() * 0.7;
+			double a = life * 0.05 + k * Math.PI * 2 / blades;
+			Vec3 at = heart.add(Math.cos(a) * radius, 0.25 + 0.1 * Math.sin(life * 0.15 + k), Math.sin(a) * radius);
+			return new Vec3[] {at, heart.subtract(at).normalize()};
 		}
 
 		@Override
 		void draw(FxDraw draw, float partial) {
 			float life = life(partial);
-			float open = VoidRender.easeOutBack(Math.min(1, life / 10f));
+			float open = VoidRender.easeOutBack(Math.min(1, life / 8f));
 			float fade = fading >= 0 ? fading / 10f : Math.min(1, (ticks - life) / 10f);
-			float size = (0.9f + body.getBbWidth() * 0.8f) * open;
-			float breath = 1 + 0.04f * (float) Math.sin(life * 0.2);
-			Vec3 over = top(body, partial).add(0, 0.45, 0);
-			decal(draw, VERDICT, over, size * breath, life * 0.05, 1, 0.75f * fade, 0.9f);
-			decal(draw, SEAL, over.add(0, 0.02, 0), size * 0.55f, -life * 0.09, 1, 0.6f * fade, 0.8f);
+			Vec3 heart = middle(body, partial);
+			// The warrant, swaying a little over the head (torn away at the execution)
+			if (!executed) {
+				Vec3 over = top(body, partial).add(0, 0.35, 0);
+				double sway = Math.sin(life * 0.12) * 0.12;
+				Vec3[] f = facing();
+				Vec3 u = f[0].scale(Math.cos(sway)).add(f[1].scale(Math.sin(sway))).scale(0.26 * open);
+				Vec3 v = f[1].scale(Math.cos(sway)).subtract(f[0].scale(Math.sin(sway))).scale(0.33 * open);
+				draw.paint(WARRANT, over, u, v.scale(-1), 1, 1, 1, 0.92f * fade, 0.15f);
+			}
+			for (int k = 0; k < blades; k++) {
+				Vec3[] s = sword(k, life, heart);
+				Vec3 at = s[0];
+				Vec3 dir = s[1];
+				float alpha = 0.85f * fade * open;
+				if (thrown[k] >= 0) {
+					float t = (life - thrown[k]) / 4f;
+					if (t > 1.6f) {
+						continue;
+					}
+					// Drawn back a little, then driven in, then gone in a flash
+					float drive = t < 0.25f ? -0.3f * (t / 0.25f) : -0.3f + 1.3f * Math.min(1, (t - 0.25f) / 0.75f);
+					at = at.add(dir.scale(drive * at.distanceTo(heart)));
+					alpha *= t < 1 ? 1 : Math.max(0, 1 - (t - 1) / 0.6f);
+				}
+				float len = 0.42f + body.getBbHeight() * 0.08f;
+				Vec3 side = dir.cross(draw.cam.subtract(at));
+				side = side.lengthSqr() < 1.0E-6 ? new Vec3(0, 1, 0) : side.normalize();
+				// Point towards the body (the texture's tip is at v = 0)
+				draw.paint(BLADE, at, side.scale(0.09), dir.scale(-len), 1, 0.95f, 0.85f, alpha, 0.55f);
+			}
+			// A faint chain of light on the ground, the circle the swords keep
 			Vec3 feet = body.getPosition(partial);
-			decal(draw, VERDICT, new Vec3(feet.x, BloodFx.groundY(feet) + 0.03, feet.z), size * 0.8f, -life * 0.04, 0.9f, 0.4f * fade, 0.5f);
+			decal(draw, SIGIL, new Vec3(feet.x, BloodFx.groundY(feet) + 0.03, feet.z), (float) (0.9 + body.getBbWidth() * 0.7) * open, -life * 0.03, 1,
+					0.3f * fade, 0.1f);
 		}
 	}
 
@@ -732,61 +879,122 @@ public final class MercFx {
 		}
 	}
 
-	/** The execution: a great blade falls from above, a flash, a shock wave on the ground, the seal flying apart. */
+	/** The execution: a great sword forms over the condemned, turns point down, falls; a thin ring, shards, coins, the warrant torn. */
 	private static void execute(Entity body) {
 		VoidRender.add(new Executioner(body));
-		Vec3 at = middle(body, 1);
-		Vec3 ground = body.position();
-		VoidRender.add(new Ring(new Vec3(ground.x, BloodFx.groundY(ground) + 0.02, ground.z), 0.5f, 5.5f, 16));
-		for (int i = 0; i < 40; i++) {
-			VoidRender.Particle p = spark(at, VoidRender.randomDir().scale(r(0.15, 0.5)), (int) r(12, 24), r(0.08, 0.14));
-			p.gravity = new Vec3(0, -0.01, 0);
-			add(p);
-		}
-		coins(at, 14, 0.22);
 	}
 
 	static final class Executioner extends VoidRender.Effect {
 		final Entity body;
-		final Vec3 at;
-		final double[] shardAngles = new double[8];
+		final Vec3 rest;
+		final double[] scraps = new double[6];
+		static final int FORM = 10;
+		static final int FALL = 3;
 
 		Executioner(Entity body) {
-			super(26);
+			super(FORM + FALL + 22);
 			this.body = body;
-			this.at = top(body, 1).add(0, 0.45, 0);
-			for (int i = 0; i < 8; i++) {
-				shardAngles[i] = i * Math.PI / 4 + r(-0.2, 0.2);
+			this.rest = middle(body, 1);
+			for (int i = 0; i < scraps.length; i++) {
+				scraps[i] = i * Math.PI * 2 / scraps.length + r(-0.3, 0.3);
 			}
+		}
+
+		private Vec3 heart(float partial) {
+			return body.isAlive() ? middle(body, partial) : rest;
+		}
+
+		@Override
+		boolean tick() {
+			if (age == FORM + FALL) {
+				Vec3 hit = heart(1);
+				Vec3 g = new Vec3(hit.x, BloodFx.groundY(hit) + 0.02, hit.z);
+				VoidRender.add(new Ring(g, 0.4f, 2.6f, 12));
+				VoidRender.add(new Flash(hit, 0.6f, 6));
+				VoidRender.add(new CoinBurst(hit, 18, 0.3));
+				for (int i = 0; i < 30; i++) {
+					add(spark(hit, VoidRender.randomDir().scale(r(0.15, 0.4)), (int) r(10, 20), r(0.07, 0.12)));
+				}
+			}
+			return super.tick();
 		}
 
 		@Override
 		void draw(FxDraw draw, float partial) {
 			float life = life(partial);
-			Vec3 mid = body.isAlive() ? middle(body, partial) : at.subtract(0, 0.8, 0);
-			// The blade: falls in five ticks from three blocks over the head, point first, and lingers
-			float fall = smooth(Math.min(1, life / 5f));
-			float len = 1.3f + body.getBbHeight() * 0.4f;
-			Vec3 tip = mid.add(0, 3.5 * (1 - fall) - 0.4, 0);
-			Vec3 centre = tip.add(0, len, 0);
+			Vec3 heart = heart(partial);
+			float len = 0.75f + body.getBbHeight() * 0.2f;
 			Vec3[] f = facing();
 			Vec3 side = new Vec3(f[0].x, 0, f[0].z);
 			side = side.lengthSqr() < 1.0E-6 ? new Vec3(1, 0, 0) : side.normalize();
-			float bladeAlpha = life < 18 ? 1 : (26 - life) / 8f;
-			draw.paint(BLADE, centre, side.scale(0.3), new Vec3(0, -len, 0), 1, 0.95f, 0.85f, bladeAlpha, 1.4f);
-			if (life >= 4) {
-				float t = (life - 4) / 22f;
-				billboard(draw, FLARE, mid, 0.6f + 1.1f * VoidRender.easeOut(t), 0, 1, (1 - t) * (1 - t) * 0.6f, 0.7f);
-				// The seal breaks: its parts fly out and fall
-				for (int i = 0; i < shardAngles.length; i++) {
-					double a = shardAngles[i];
-					float d = 0.6f + 2.4f * VoidRender.easeOut(t);
-					Vec3 p = at.add(Math.cos(a) * d, -t * t * 1.5, Math.sin(a) * d);
-					billboard(draw, SEAL_PART, p, 0.35f, a + life * 0.4, 1, (1 - t) * 0.9f, 1.0f);
-				}
-			} else {
-				decal(draw, VERDICT, at, 1.2f + body.getBbWidth() * 0.8f, life * 0.4, 1, 0.9f, 1.2f);
+			Vec3 above = heart.add(0, body.getBbHeight() * 0.5 + 1.6, 0);
+			if (life < FORM) {
+				// Forming: it fades in point up, turns over and steadies, point down
+				float t = life / FORM;
+				double turn = Math.PI * VoidRender.easeOut(t);
+				Vec3 tipDir = new Vec3(0, Math.cos(turn), 0).add(side.scale(Math.sin(turn)));
+				Vec3 width = tipDir.cross(draw.cam.subtract(above));
+				width = width.lengthSqr() < 1.0E-6 ? side : width.normalize();
+				draw.paint(BLADE, above, width.scale(0.17), tipDir.scale(-len), 1, 0.8f, 0.48f, t, 0.12f * t);
+				billboard(draw, FLARE, above, 0.4f + 0.3f * t, 0, 1, 0.25f * t, 0.15f);
+				return;
 			}
+			float fall = Math.min(1, (life - FORM) / FALL);
+			float after = Math.max(0, life - FORM - FALL);
+			float alpha = after < 10 ? 1 : Math.max(0, 1 - (after - 10) / 12f);
+			// Falling: its tip goes from over the head into the heart; then it stands there, fading
+			Vec3 tip = above.subtract(0, len, 0).lerp(heart, fall * fall);
+			Vec3 centre = tip.add(0, len, 0);
+			draw.paint(BLADE, centre, side.scale(0.17), new Vec3(0, len, 0), 1, 0.8f, 0.48f, alpha, 0.14f);
+			// The warrant torn: scraps fluttering out and down
+			if (after > 0 && after < 22) {
+				float t = after / 22f;
+				Vec3 over = top(body, partial).add(0, 0.35, 0);
+				for (int i = 0; i < scraps.length; i++) {
+					double a = scraps[i];
+					float d = 0.3f + 1.6f * VoidRender.easeOut(t);
+					Vec3 p = over.add(Math.cos(a) * d, -t * t * 1.4 + 0.2 * Math.sin(a * 3 + after * 0.4), Math.sin(a) * d);
+					billboard(draw, CONTRACT, p, 0.12f, a + after * 0.3, 1, (1 - t) * 0.9f, 0.1f);
+				}
+			}
+		}
+	}
+
+	/** A pillar of light over a contract's mark (gold for a place to scout, red-gold for a bounty's lair), seen from afar. */
+	static final class Pillar extends VoidRender.Effect {
+		final Vec3 at;
+		final boolean bounty;
+
+		Pillar(Vec3 at, boolean bounty, int ticks) {
+			super(ticks);
+			this.at = at;
+			this.bounty = bounty;
+		}
+
+		@Override
+		void draw(FxDraw draw, float partial) {
+			float t = progress(partial);
+			float alpha = (float) Math.sin(Math.PI * t) * 0.7f;
+			Minecraft mc = Minecraft.getInstance();
+			double ground = at.y;
+			if (mc.level != null) {
+				ground = mc.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) Math.floor(at.x),
+						(int) Math.floor(at.z));
+			}
+			Vec3 foot = new Vec3(at.x, ground, at.z);
+			float r = bounty ? 1 : 1;
+			float gr = bounty ? 0.55f : 0.85f;
+			float b = bounty ? 0.35f : 0.5f;
+			Vec3 top = foot.add(0, 48, 0);
+			Vec3 along = top.subtract(foot);
+			Vec3 side = along.cross(draw.cam.subtract(foot.lerp(top, 0.5)));
+			if (side.lengthSqr() < 1.0E-6) {
+				return;
+			}
+			side = side.normalize().scale(0.6);
+			draw.paintStrip(FLARE, new Vec3[] {foot.subtract(side), top.subtract(side), top.add(side), foot.add(side)}, new float[] {0.5f, 0.5f, 0.5f, 0.5f},
+					new float[] {0.5f, 0.5f, 0.5f, 0.5f}, r, gr, b, alpha * 0.6f, 0.4f);
+			decal(draw, SIGIL, foot.add(0, 0.05, 0), 2.2f, t * 2, 1, alpha, 0.3f);
 		}
 	}
 

@@ -29,7 +29,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Talent and ability lists are up to date
-        run: python3 tools/talents_doc.py && python3 tools/abilities_doc.py && python3 tools/advancements.py && git diff --exit-code docs/ src/main/resources/data/mages_legacy/advancement/ src/main/resources/assets/mages_legacy/models/item/
+        run: python3 tools/merc_lang.py && python3 tools/merc_jobs.py && python3 tools/talents_doc.py && python3 tools/abilities_doc.py && python3 tools/advancements.py && git diff --exit-code docs/ src/main/resources/data/mages_legacy/advancement/ src/main/resources/assets/mages_legacy/models/item/ src/main/resources/assets/mages_legacy/lang/ src/main/java/euf/mageslegacy/mercenary/Contracts.java
 
       - name: Build
         run: |
