@@ -491,7 +491,9 @@ public class GuildBookScreen extends Screen {
 			g.pose().popPose();
 			String id = s.getString("id");
 			Component name = Component.translatable("mages_legacy.shop." + id);
-			List<net.minecraft.util.FormattedCharSequence> lines = font.split(name, (int) ((nw - 20) / 0.65f));
+			// The note's paper ends short of its right edge (a curled corner and its shadow): text stays inside it
+			int paperRight = nx + nw - Math.max(5, nw * 12 / 100);
+			List<net.minecraft.util.FormattedCharSequence> lines = font.split(name, (int) ((paperRight - nx - 17) / 0.65f));
 			for (int k = 0; k < Math.min(2, lines.size()); k++) {
 				g.pose().pushPose();
 				g.pose().translate(nx + 17, ny + 5 + k * 6, 0);
@@ -503,7 +505,7 @@ public class GuildBookScreen extends Screen {
 			int left = s.getInt("left");
 			boolean afford = tokens >= price;
 			String p = left <= 0 ? Component.translatable("mages_legacy.merc.book.sold_out").getString() : price + "";
-			small(g, p, nx + nw - 4 - (int) (font.width(p) * 0.75f), ny + nh - 8, left <= 0 ? INK_SOFT : afford ? GOLD_INK : RED_INK);
+			small(g, p, paperRight - (int) (font.width(p) * 0.75f), ny + nh - 10, left <= 0 ? INK_SOFT : afford ? GOLD_INK : RED_INK);
 			List<Component> tip = new ArrayList<>();
 			tip.add(name.copy().withStyle(s2 -> s2.withColor(RARITY_COLORS[rar] & 0xFFFFFF)));
 			tip.add(Component.translatable("mages_legacy.merc.rarity." + RARITIES[rar]).withStyle(s2 -> s2.withColor(RARITY_COLORS[rar] & 0xFFFFFF)));

@@ -2094,17 +2094,37 @@ final class Harness {
 		}), 25);
 		run(() -> check("a weak blow right after the bolt still lights a part (" + euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0],
 				player()) + ")", euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 1), 0);
-		// Seen from the side: the bolt, the seal lighting part by part, the burst
+		// Seen from the side: the bolt, the seal filling part by part, the burst (on a fresh golem that outlives it all)
 		mercSetUp(5);
+		run(() -> server().execute(() -> mercMobs[0] = mercMob(EntityType.IRON_GOLEM, MX, y[0], 4.5, true)), 10);
 		run(() -> {
 			mercAt(MX, y[0], 0.5, 0, 8);
 			watch(new Vec3(MX + 4.5, y[0] + 2.2, 3.5), new Vec3(MX, y[0] + 1.5, 4.5));
 		}, 3);
 		run(() -> MagesLegacyClient.useAbility(0), 1);
 		film("merc_brand", 6, 2);
+		shot("merc_brand_empty");
 		run(() -> server().execute(() -> player().attack(mercMobs[0])), 20);
+		shot("merc_brand_one");
 		run(() -> server().execute(() -> player().attack(mercMobs[0])), 10);
 		shot("merc_brand_seal");
+		// With Compound Interest: the ring cut in quarters, two of four filled
+		run(() -> server().execute(() -> {
+			player().setData(RaceState.TALENTS, new ArrayList<>(List.of("brand_compound")));
+			RaceState.sync(player());
+			mercMobs[5] = mercMob(EntityType.IRON_GOLEM, MX + 2, y[0], 4.5, true);
+			euf.mageslegacy.mercenary.Mercenary.brandNow(player(), mercMobs[5]);
+		}), 25);
+		run(() -> server().execute(() -> player().attack(mercMobs[5])), 25);
+		run(() -> server().execute(() -> player().attack(mercMobs[5])), 20);
+		run(() -> check("Compound Interest: two blows fill two of four parts (" + euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[5], player())
+				+ ")", euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[5], player()) == 2), 0);
+		shot("merc_brand_quarters");
+		run(() -> server().execute(() -> {
+			mercMobs[5].discard();
+			player().setData(RaceState.TALENTS, new ArrayList<>());
+			RaceState.sync(player());
+		}), 2);
 		run(() -> server().execute(() -> player().attack(mercMobs[0])), 1);
 		film("merc_blast", 8, 2);
 		run(Harness::watchSelf, 0);
