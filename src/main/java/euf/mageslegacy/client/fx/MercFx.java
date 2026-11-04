@@ -612,7 +612,7 @@ public final class MercFx {
 			String part = max == 4 ? SEAL_QUARTER : SEAL_PART;
 			double step = Math.PI * 2 / max;
 			for (int k = Math.min(charges, max); k < max; k++) {
-				billboard(draw, part, at, half, spin + k * step, 0.3f, 0.3f * fade, 0);
+				billboard(draw, part, at, half, spin + k * step, 0.5f, 0.42f * fade, 0);
 			}
 			Vec3[] f = facing();
 			for (int k = 0; k < Math.min(charges, max); k++) {
