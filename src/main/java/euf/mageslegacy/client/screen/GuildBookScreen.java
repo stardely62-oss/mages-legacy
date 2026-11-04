@@ -52,8 +52,10 @@ public class GuildBookScreen extends Screen {
 	private static final ResourceLocation POUCH = LegacyUi.gui("merc_shop/pouch");
 	private static final ResourceLocation TAG = LegacyUi.gui("merc_shop/tag");
 	private static final ResourceLocation NOTE = LegacyUi.gui("merc_shop/note");
+	private static final ResourceLocation ARMORY = LegacyUi.gui("merc_shop/armory");
+	private static final ResourceLocation ARMORY_BG = LegacyUi.gui("merc_shop/armory_bg");
 
-	/** 0: the book of orders, 1: the shop itself. */
+	/** 0: the book of orders, 1: the shop itself, 2: the guild's armory (race weapons and armour). */
 	private int mode = 1;
 	private CompoundTag view;
 	private final int[] scroll = new int[2];
@@ -142,6 +144,8 @@ public class GuildBookScreen extends Screen {
 		float fade = Math.min(1, (ticks - turned + partial) / 6f);
 		if (mode == 1) {
 			shop(g, mouseX, mouseY, partial);
+		} else if (mode == 2) {
+			armory(g, mouseX, mouseY, fade);
 		} else {
 			book(g, mouseX, mouseY, fade);
 		}
@@ -231,6 +235,7 @@ public class GuildBookScreen extends Screen {
 		int[] shelfSize = size(SHELF);
 		int shelfW = Math.min(sw * 56 / 100, Math.round(shelfH * shelfSize[0] / (float) shelfSize[1] * 1.25f));
 		int shelfX = sx + sw * 30 / 100 - shelfW / 2;
+		armoryRack(g, sx, shelfX, sy + sh * 22 / 100, floor, mouseX, mouseY);
 		picture(g, SHELF, shelfX, shelfY, shelfW, shelfH);
 		shelves(g, shelfX, shelfY, shelfW, shelfH, mouseX, mouseY);
 		// The services' board on the right, the counter below it with the keeper behind
@@ -321,6 +326,160 @@ public class GuildBookScreen extends Screen {
 		// Mirrored by its texture coordinates running backwards (a flipped quad would be culled)
 		g.blit(DOOR_LEAF, cx + leafW - leaf, top, leaf, leafH, wh[0], 0, -wh[0], wh[1], wh[0], wh[1]);
 		com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1, 1, 1, 1);
+	}
+
+	// ---- the armory ---------------------------------------------------------------------------------------------------
+
+	/** The way into the armory: a weapon rack on the wall left of the shelves, a plaque over it; a click goes in. */
+	private void armoryRack(GuiGraphics g, int sx, int shelfX, int top, int floor, int mouseX, int mouseY) {
+		int room = shelfX - sx - 4;
+		int w = Math.min(room, Math.max(18, (floor - top) * 30 / 100));
+		if (w < 14) {
+			return;
+		}
+		int h = Math.min(floor - top - 12, heightAt(ARMORY, w));
+		int x = sx + 2 + (room - w) / 2;
+		int y = floor - h - 4;
+		boolean hot = mouseX >= x && mouseX < x + w && mouseY >= y - 12 && mouseY < y + h;
+		if (hot) {
+			g.fill(x - 2, y - 2, x + w + 2, y + h + 2, 0x40FFD080);
+		}
+		picture(g, ARMORY, x, y - (hot ? 1 : 0), w, h);
+		Component label = Component.translatable("mages_legacy.merc.armory.short");
+		int lw = (int) (font.width(label) * 0.75f);
+		int lx = x + (w - lw) / 2;
+		g.fill(lx - 3, y - 11, lx + lw + 3, y - 2, 0xD0140C08);
+		LegacyUi.outline(g, lx - 3, y - 11, lx + lw + 3, y - 2, 0xFF8A6A2A);
+		small(g, label.getString(), lx, y - 9, 0xFFFFE0A8);
+		int count = list("armory").size();
+		List<Component> tip = new ArrayList<>();
+		tip.add(Component.translatable("mages_legacy.merc.armory.title").withStyle(ChatFormatting.GOLD));
+		tip.add(Component.translatable("mages_legacy.merc.armory.tip").withStyle(ChatFormatting.GRAY));
+		tip.add(Component.translatable(count == 0 ? "mages_legacy.merc.armory.none_yet" : "mages_legacy.merc.armory.count", count)
+				.withStyle(count == 0 ? ChatFormatting.DARK_GRAY : ChatFormatting.YELLOW));
+		hots.add(new Hot(x, y - 12, x + w, y + h, () -> turn(2), tip, null));
+	}
+
+	/**
+	 * The armory: a room of its own behind the shop, the race's weapons on the left wall and its armour on the right, each
+	 * piece on a peg with its price; pieces above the race level locked, limited ones with how many are left.
+	 */
+	private void armory(GuiGraphics g, int mouseX, int mouseY, float fade) {
+		int sw = sw();
+		int sh = sh();
+		int sx = (width - sw) / 2;
+		int sy = (height - sh) / 2 + 6;
+		// Back to the shop
+		Component back = Component.translatable("mages_legacy.merc.book.back");
+		int rw = font.width(back) + 16;
+		boolean hotBack = mouseX >= sx + 8 && mouseX < sx + 8 + rw && mouseY >= sy - 16 && mouseY < sy + 2;
+		g.fill(sx + 7, sy - 17, sx + 9 + rw, sy + 2, LegacyUi.BLACK);
+		g.fillGradient(sx + 8, sy - 16, sx + 8 + rw, sy + 2, hotBack ? 0xFF8E2A1E : 0xFF6E2418, 0xFF4E1C14);
+		g.drawString(font, back, sx + 16, sy - 12, 0xFFFFE8B0, true);
+		hots.add(new Hot(sx + 8, sy - 16, sx + 8 + rw, sy + 2, () -> turn(1), List.of(), null));
+		g.fill(sx - 2, sy - 2, sx + sw + 2, sy + sh + 2, 0xFF0C0806);
+		if (LegacyUi.exists(ARMORY_BG)) {
+			picture(g, ARMORY_BG, sx, sy, sw, sh);
+		} else {
+			g.fillGradient(sx, sy, sx + sw, sy + sh, 0xFF3A2416, 0xFF1A0E08);
+		}
+		g.fill(sx, sy, sx + sw, sy + sh, LegacyUi.alpha(0xFF000000, 0.25f));
+		// The plaque
+		Component title = Component.translatable("mages_legacy.merc.armory.title");
+		int tw = font.width(title) + 20;
+		int tx = sx + (sw - tw) / 2;
+		g.fill(tx, sy + 6, tx + tw, sy + 20, 0xE0140C08);
+		LegacyUi.outline(g, tx, sy + 6, tx + tw, sy + 20, 0xFFB8862E);
+		g.drawString(font, title, tx + 10, sy + 9, 0xFFFFDA8A, true);
+		// The balance
+		String tokens = String.valueOf(view.getInt("tokens"));
+		int bw = font.width(tokens) + 15;
+		int bx = sx + sw - bw - 8;
+		g.fill(bx, sy + 7, bx + bw, sy + 19, 0xC0140C08);
+		LegacyUi.outline(g, bx, sy + 7, bx + bw, sy + 19, 0xFF8A6A2A);
+		coin(g, bx + 2, sy + 9);
+		g.drawString(font, tokens, bx + 12, sy + 9, 0xFFFFD27A, true);
+		List<CompoundTag> weapons = new ArrayList<>();
+		List<CompoundTag> armour = new ArrayList<>();
+		for (CompoundTag p : list("armory")) {
+			("armor".equals(p.getString("kind")) ? armour : weapons).add(p);
+		}
+		int top = sy + 28;
+		int bottom = sy + sh - 16;
+		int half = (sw - 24) / 2;
+		armoryWall(g, Component.translatable("mages_legacy.merc.armory.weapons"), weapons, sx + 8, top, half, bottom, mouseX, mouseY);
+		armoryWall(g, Component.translatable("mages_legacy.merc.armory.armor"), armour, sx + 16 + half, top, half, bottom, mouseX, mouseY);
+		Component note = Component.translatable("mages_legacy.merc.armory.note");
+		g.fill(sx, sy + sh - 12, sx + sw, sy + sh, 0xB0140C08);
+		small(g, font.plainSubstrByWidth(note.getString(), (int) ((sw - 12) / 0.75f)), sx + 6, sy + sh - 9, 0xFFD8C0A0);
+	}
+
+	private void armoryWall(GuiGraphics g, Component title, List<CompoundTag> pieces, int x, int top, int w, int bottom, int mouseX, int mouseY) {
+		g.fill(x, top, x + w, bottom, 0x90140C08);
+		LegacyUi.outline(g, x, top, x + w, bottom, 0xFF6E4A24);
+		g.drawString(font, title, x + 6, top + 4, 0xFFE8C070, true);
+		int gridTop = top + 16;
+		if (pieces.isEmpty()) {
+			g.drawWordWrap(font, Component.translatable("mages_legacy.merc.armory.empty"), x + 8, gridTop + 6, w - 16, 0xFFB8A080);
+			return;
+		}
+		int cols = Math.max(2, w / 48);
+		int cellW = (w - 8) / cols;
+		int cellH = 46;
+		int tokens = view.getInt("tokens");
+		for (int i = 0; i < pieces.size(); i++) {
+			int cx = x + 4 + (i % cols) * cellW;
+			int cy = gridTop + (i / cols) * cellH;
+			if (cy + cellH > bottom) {
+				break;
+			}
+			CompoundTag p = pieces.get(i);
+			int rar = rarity(p);
+			ItemStack stack = ItemStack.parseOptional(Minecraft.getInstance().level.registryAccess(), p.getCompound("icon"));
+			boolean locked = p.getBoolean("locked");
+			int left = p.getInt("left");
+			int price = p.getInt("price");
+			boolean can = !locked && left != 0 && tokens >= price;
+			boolean hot = mouseX >= cx && mouseX < cx + cellW - 2 && mouseY >= cy && mouseY < cy + cellH - 2;
+			// The peg board's cell, the rarity's colour behind the piece
+			g.fill(cx, cy, cx + cellW - 2, cy + cellH - 2, hot ? 0x60FFE0A0 : 0x40000000);
+			g.fill(cx + 2, cy + 2, cx + cellW - 4, cy + 4, LegacyUi.alpha(RARITY_COLORS[rar], 0.8f));
+			int ix = cx + (cellW - 2) / 2 - 12;
+			g.pose().pushPose();
+			g.pose().translate(ix, cy + 6, 0);
+			g.pose().scale(1.5f, 1.5f, 1);
+			g.renderItem(stack, 0, 0);
+			g.pose().popPose();
+			if (locked || left == 0) {
+				g.pose().pushPose();
+				g.pose().translate(0, 0, 250);
+				g.fill(cx, cy, cx + cellW - 2, cy + cellH - 2, 0xA0100808);
+				String why = locked ? Component.translatable("mages_legacy.merc.armory.level", p.getInt("level")).getString()
+						: Component.translatable("mages_legacy.merc.book.sold_out").getString();
+				small(g, why, cx + (cellW - 2 - (int) (font.width(why) * 0.75f)) / 2, cy + 14, 0xFFE07060);
+				g.pose().popPose();
+			}
+			String priceText = String.valueOf(price);
+			int pw = (int) (font.width(priceText) * 0.75f) + 11;
+			int px = cx + (cellW - 2 - pw) / 2;
+			coin(g, px, cy + cellH - 13);
+			small(g, priceText, px + 11, cy + cellH - 11, can ? 0xFFFFD27A : 0xFFE07060);
+			List<Component> tip = new ArrayList<>(Screen.getTooltipFromItem(Minecraft.getInstance(), stack));
+			tip.add(Component.translatable("mages_legacy.merc.rarity." + RARITIES[rar]).withStyle(s2 -> s2.withColor(RARITY_COLORS[rar] & 0xFFFFFF)));
+			tip.add(Component.translatable("mages_legacy.merc.armory.level", p.getInt("level")).withStyle(locked ? ChatFormatting.RED : ChatFormatting.GRAY));
+			if (left > 0) {
+				tip.add(Component.translatable("mages_legacy.merc.book.left", left).withStyle(ChatFormatting.GRAY));
+			}
+			tip.add(Component.translatable(locked ? "mages_legacy.merc.armory.too_low" : left == 0 ? "mages_legacy.merc.armory.sold"
+					: tokens < price ? "mages_legacy.merc.no_tokens" : "mages_legacy.merc.book.buy", locked ? p.getInt("level") : price)
+					.withStyle(can ? ChatFormatting.GREEN : ChatFormatting.RED));
+			String id = p.getString("id");
+			hots.add(new Hot(cx, cy, cx + cellW - 2, cy + cellH - 2, () -> {
+				if (can) {
+					ask(8, 0, id);
+				}
+			}, tip, null));
+		}
 	}
 
 	private static float smoothstep(float t) {

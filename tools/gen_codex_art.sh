@@ -338,6 +338,8 @@ declare -A P=(
   [shop_lantern]="$PROP Subject: a hanging brass lantern with glass panes and a warm candle flame inside, a short chain on top."
   [shop_pouch]="$PROP Subject: a small leather coin pouch tied with string, a few gold coins spilling out in front of it."
   [shop_note]="$PROP Subject: a small blank parchment note card with slightly curled corners and a brass pin at the top center, nothing written on it."
+  [shop_armory]="$PROP Subject: a tall narrow wall-mounted weapon rack of dark oak with copper fittings: two crossed swords and a spear held on pegs, a round wooden shield with a gold boss below them, a small gold plaque at the top (blank)."
+  [shop_armory_bg]="Minecraft-style pixel art BACKGROUND SCENE, wide 16:9, large perfectly square flat-colored pixels, no text, no letters, no people, no weapons: the back wall of a dark fantasy guild armory at night seen from the front. Dark oak plank wall with thick beams, two empty wooden wall racks with copper pegs on the left and the right halves, two empty wooden armor stands at the bottom, a forge glow at the lower edge, an iron chandelier with candles at the top. Leave the middle and the racks plain and empty (items will be placed over them)."
 )
 NAMES=("$@")
 [ ${#NAMES[@]} -eq 0 ] && NAMES=("${!P[@]}")

@@ -23,7 +23,7 @@ FX_GRID = {"coin": (16, 16), "shard": (16, 12), "sword": (32, 20), "seal": (64, 
            "hook": (32, 16), "banner": (64, 32), "door": (64, 28)}
 # Shop props: width in pixels (the height follows), colours
 SHOP_WIDTH = {"shelf": (160, 32), "counter": (128, 28), "keeper": (64, 28), "sign": (96, 20), "board": (112, 20), "book": (64, 24),
-              "lantern": (16, 12), "pouch": (24, 16), "note": (32, 12)}
+              "lantern": (16, 12), "pouch": (24, 16), "note": (32, 12), "armory": (48, 24)}
 
 
 def crop_box(img):
@@ -85,12 +85,12 @@ def main(folder):
     for path in sorted(folder.glob("shop_*.png")):
         name = path.stem[len("shop_"):]
         src = Image.open(path).convert("RGB")
-        if name == "bg":
+        if name in ("bg", "armory_bg"):
             # The whole frame, 16:9, no transparency
             w, h = src.size
             th = int(w * 9 / 16)
             src = src.crop((0, (h - th) // 2, w, (h - th) // 2 + th)) if th < h else src
-            reduce(sample(src, 320, 180, False), 48).save(SHOP / "bg.png")
+            reduce(sample(src, 320, 180, False), 48).save(SHOP / f"{name}.png")
             print("shop bg")
             continue
         width, colours = SHOP_WIDTH[name]

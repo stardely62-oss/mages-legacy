@@ -25,6 +25,8 @@ public final class Account {
 	public int rerolls;
 	/** Ware id → how many bought today. */
 	public final Map<String, Integer> bought = new HashMap<>();
+	/** Armory piece id → how many bought ever (for pieces sold a limited number of times). */
+	public final Map<String, Integer> armory = new HashMap<>();
 	/** Today's goods, and the deals of the day among them (one; two for a Regular). */
 	public final List<String> stock = new ArrayList<>();
 	public final List<String> deals = new ArrayList<>();
@@ -61,6 +63,10 @@ public final class Account {
 		}
 		a.day = tag.contains("day") ? tag.getLong("day") : -1;
 		a.rerolls = tag.getInt("rerolls");
+		CompoundTag armory = tag.getCompound("armory");
+		for (String key : armory.getAllKeys()) {
+			a.armory.put(key, armory.getInt(key));
+		}
 		CompoundTag bought = tag.getCompound("bought");
 		for (String key : bought.getAllKeys()) {
 			a.bought.put(key, bought.getInt(key));
@@ -117,6 +123,9 @@ public final class Account {
 		CompoundTag bought = new CompoundTag();
 		this.bought.forEach(bought::putInt);
 		tag.put("bought", bought);
+		CompoundTag armory = new CompoundTag();
+		this.armory.forEach(armory::putInt);
+		tag.put("armory", armory);
 		tag.put("stock", strings(stock));
 		tag.put("deals", strings(deals));
 		tag.put("recent", strings(recent));
