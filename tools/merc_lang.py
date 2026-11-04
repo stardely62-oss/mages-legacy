@@ -437,9 +437,9 @@ k("merc.armory.weapons", "Оружие", "Weapons")
 k("merc.armory.armor", "Броня", "Armour")
 k("merc.armory.empty", "Здесь будут оружие и броня вашей расы. Их ещё куют — загляните после обновления.",
   "Your race's weapons and armour will hang here. They are still being forged — look in after an update.")
-k("merc.armory.note", "Цены — в жетонах гильдии; скидка «Торга» действует и здесь. Редкие вещи открываются с уровнем расы, некоторые продаются ограниченно.",
-  "Prices in guild tokens; the Bargain discount works here too. Rare pieces open with race level; some are sold a limited number of times.")
+k("merc.armory.note", "Цены в жетонах, «Торг» действует. Редкое — с уровнем расы.", "Prices in tokens, Bargain applies. Rare pieces open with race level.")
 k("merc.armory.level", "С %s уровня расы", "From race level %s")
+k("merc.armory.level_short", "ур. %s", "lv %s")
 k("merc.armory.too_low", "Нужен %s уровень расы", "Needs race level %s")
 k("merc.armory.sold", "Больше не продаётся вам", "No more of it for you")
 k("merc.armory.not_yours", "Это не для вашей расы", "Not for your race")

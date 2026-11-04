@@ -415,7 +415,7 @@ public class GuildBookScreen extends Screen {
 	}
 
 	private void armoryWall(GuiGraphics g, Component title, List<CompoundTag> pieces, int x, int top, int w, int bottom, int mouseX, int mouseY) {
-		g.fill(x, top, x + w, bottom, 0x90140C08);
+		g.fill(x, top, x + w, bottom, 0xB0140C08);
 		LegacyUi.outline(g, x, top, x + w, bottom, 0xFF6E4A24);
 		g.drawString(font, title, x + 6, top + 4, 0xFFE8C070, true);
 		int gridTop = top + 16;
@@ -454,7 +454,7 @@ public class GuildBookScreen extends Screen {
 				g.pose().pushPose();
 				g.pose().translate(0, 0, 250);
 				g.fill(cx, cy, cx + cellW - 2, cy + cellH - 2, 0xA0100808);
-				String why = locked ? Component.translatable("mages_legacy.merc.armory.level", p.getInt("level")).getString()
+				String why = locked ? Component.translatable("mages_legacy.merc.armory.level_short", p.getInt("level")).getString()
 						: Component.translatable("mages_legacy.merc.book.sold_out").getString();
 				small(g, why, cx + (cellW - 2 - (int) (font.width(why) * 0.75f)) / 2, cy + 14, 0xFFE07060);
 				g.pose().popPose();
