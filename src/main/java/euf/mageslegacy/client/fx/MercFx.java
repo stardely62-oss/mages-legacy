@@ -497,7 +497,7 @@ public final class MercFx {
 			float alpha = (float) Math.sqrt(Math.sin(Math.PI * t));
 			float r = r0 + (r1 - r0) * VoidRender.easeOut(t);
 			// A wide ring keeps its band thin: the bigger, the fainter
-			decal(draw, WAVE, at, r, 0, 1, alpha * Math.min(0.7f, 2.2f / Math.max(1, r)), 0.25f);
+			decal(draw, WAVE, at, r, 0, 1, alpha * Math.min(0.7f, 1.6f / Math.max(1, r)), r > 3 ? 0.05f : 0.25f);
 		}
 	}
 
