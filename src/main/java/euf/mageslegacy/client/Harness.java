@@ -1940,20 +1940,21 @@ final class Harness {
 		return e;
 	}
 
+	/** A step: the scenario's creatures taken away. */
 	private static void mercClear() {
-		server().execute(() -> {
+		run(() -> server().execute(() -> {
 			for (int i = 0; i < mercMobs.length; i++) {
 				if (mercMobs[i] != null) {
 					mercMobs[i].discard();
 					mercMobs[i] = null;
 				}
 			}
-		});
+		}), 2);
 	}
 
-	/** Back to a clean Mercenary at a level and talents, full health, no cooldowns, no effects, nothing in hand. */
+	/** A step: back to a clean Mercenary at a level and talents, full health, no cooldowns, no effects, nothing in hand. */
 	private static void mercSetUp(int level, String... talents) {
-		server().execute(() -> {
+		run(() -> server().execute(() -> {
 			ServerPlayer player = player();
 			euf.mageslegacy.race.Talents.setNoCooldown(player, false);
 			Progression.setLevel(player, level);
@@ -1968,7 +1969,7 @@ final class Harness {
 			player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);
 			player.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, net.minecraft.world.item.ItemStack.EMPTY);
 			RaceState.sync(player);
-		});
+		}), 3);
 	}
 
 	private static void mercAt(double x, int y, double z, float yaw, float pitch) {
@@ -2239,6 +2240,24 @@ final class Harness {
 		shot("merc_book_hand");
 		run(() -> ((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(1), 10);
 		shot("merc_book_shop");
+		// The book at the smallest and the largest GUI scale
+		int[] bookScale = new int[1];
+		for (int gui : new int[] {1, 4}) {
+			run(() -> {
+				if (bookScale[0] == 0) {
+					bookScale[0] = mc.options.guiScale().get();
+				}
+				mc.options.guiScale().set(gui);
+				mc.resizeDisplay();
+			}, 10);
+			shot("merc_book_scale" + gui);
+		}
+		run(() -> {
+			mc.options.guiScale().set(bookScale[0]);
+			mc.resizeDisplay();
+			((euf.mageslegacy.client.screen.GuildBookScreen) mc.screen).showTab(0);
+		}, 5);
+		shot("merc_book_scale_back");
 		run(() -> mc.setScreen(null), 5);
 		// A delivery: real items taken once, the pay, a fresh offer at once
 		long[] xp = new long[2];

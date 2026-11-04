@@ -52,6 +52,12 @@ public final class RaceCommand {
 							float amount = FloatArgumentType.getFloat(ctx, "amount");
 							return each(ctx, player -> RaceState.setResource(player, amount));
 						}))))
+				// Admins only (permission 2): a Mercenary's tokens set straight; nothing in survival play makes them
+				.then(Commands.literal("tokens").then(Commands.argument("targets", EntityArgument.players())
+						.then(Commands.argument("amount", IntegerArgumentType.integer(0, 100000)).executes(ctx -> {
+							int amount = IntegerArgumentType.getInteger(ctx, "amount");
+							return each(ctx, player -> euf.mageslegacy.mercenary.Mercenary.setTokens(player, amount));
+						}))))
 				// For testing: exactly these Awakenings (the first on Z, the second on Alt), no trial asked
 				.then(Commands.literal("awaken").then(Commands.argument("targets", EntityArgument.players())
 						.then(Commands.argument("first", StringArgumentType.word()).suggests(RaceCommand::awakenings)
