@@ -655,10 +655,8 @@ public final class Mercenary {
 	}
 
 	/** The brand blows: the Debt paid in one stroke, once (the brand is gone before any of it lands). */
-	static void blast(ServerPlayer owner, LivingEntity target, Brand b, boolean byHook) {
-		ServerLevel level = owner.serverLevel();
-		removeBrand(null, b);
-		boolean hostile = target instanceof Enemy;
+	/** What a brand's burst deals to this creature: 6 (10 with Compound Interest), the talents' halves on top, 4 at most to a player. */
+	public static float burstFor(ServerPlayer owner, LivingEntity target) {
 		float damage = Talents.has(owner, Talent.BRAND_COMPOUND) ? BLAST_COMPOUND : BLAST;
 		if (Talents.has(owner, Talent.BRAND_FINISHER) && target.getHealth() < target.getMaxHealth() * 0.3f) {
 			damage *= 1.5f;
@@ -666,8 +664,16 @@ public final class Mercenary {
 		if (Talents.has(owner, Talent.CROSS_CONTRACT_KILL) && hunted(owner, target)) {
 			damage *= 1.5f;
 		}
+		return cap(target, damage, BLAST_PLAYER_CAP);
+	}
+
+	static void blast(ServerPlayer owner, LivingEntity target, Brand b, boolean byHook) {
+		ServerLevel level = owner.serverLevel();
+		removeBrand(null, b);
+		boolean hostile = target instanceof Enemy;
+		float damage = burstFor(owner, target);
 		Vec3 at = target.position().add(0, target.getBbHeight() * 0.6, 0);
-		strike(owner, target, cap(target, damage, BLAST_PLAYER_CAP));
+		strike(owner, target, damage);
 		Fx.brandBlast(level, at, Talents.has(owner, Talent.BRAND_CHAIN));
 		level.playSound(null, target.blockPosition(), SoundEvents.ANVIL_PLACE, SoundSource.PLAYERS, 0.5f, 1.6f);
 		level.playSound(null, target.blockPosition(), SoundEvents.CHAIN_BREAK, SoundSource.PLAYERS, 1, 0.8f);
@@ -679,7 +685,7 @@ public final class Mercenary {
 		if (Talents.has(owner, Talent.BRAND_CHAIN)) {
 			for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, target.getBoundingBox().inflate(3),
 					e -> e != target && fighter(owner, e) && e.distanceTo(target) <= 3)) {
-				strike(owner, e, cap(e, damage / 2, BLAST_PLAYER_CAP / 2));
+				strike(owner, e, cap(e, (Talents.has(owner, Talent.BRAND_COMPOUND) ? BLAST_COMPOUND : BLAST) / 2, BLAST_PLAYER_CAP / 2));
 			}
 		}
 		if (Talents.has(owner, Talent.BRAND_SPREAD) && !b.spread) {
@@ -1890,6 +1896,40 @@ public final class Mercenary {
 		save(player, a);
 		RaceState.sync(player);
 		PacketDistributor.sendToPlayer(player, new MercViewPayload(view(player, a)));
+	}
+
+	// ---- for the harness and the admin command ----
+
+	/** Charges of this Mercenary's brand on a creature (0: none). */
+	public static int brandCharges(Entity target, ServerPlayer owner) {
+		Brand b = brandOn(target, owner.getUUID());
+		return b == null || b.until <= now(owner) ? 0 : b.charges;
+	}
+
+	/** Ticks left of this Mercenary's brand on a creature. */
+	public static long brandLeft(Entity target, ServerPlayer owner) {
+		Brand b = brandOn(target, owner.getUUID());
+		return b == null ? 0 : Math.max(0, b.until - now(owner));
+	}
+
+	/** The bolt's landing, at once (no flight). */
+	public static void brandNow(ServerPlayer owner, LivingEntity target) {
+		landBrand(owner, target);
+	}
+
+	/** A charge as a blow would add it (the gap between charges still holds). */
+	public static void chargeNow(ServerPlayer owner, LivingEntity target) {
+		charge(owner, target, false);
+	}
+
+	/** How much the banner has been lengthened by kills, in ticks (-1: no banner). */
+	public static int bannerExtended(ServerPlayer player) {
+		Banner b = BANNERS.get(player.getUUID());
+		return b == null ? -1 : b.extended;
+	}
+
+	public static boolean hooking(Player player) {
+		return busy(player);
 	}
 
 	/** For the tests: tokens set straight (the admin command). */
