@@ -2096,7 +2096,13 @@ final class Harness {
 				player()) + ")", euf.mageslegacy.mercenary.Mercenary.brandCharges(mercMobs[0], player()) == 1), 0);
 		// Seen from the side: the bolt, the seal filling part by part, the burst (on a fresh golem that outlives it all)
 		mercSetUp(5);
-		run(() -> server().execute(() -> mercMobs[0] = mercMob(EntityType.IRON_GOLEM, MX, y[0], 4.5, true)), 10);
+		run(() -> server().execute(() -> {
+			// The vindicator of the checks above (it used to die on this film's blows) makes way
+			if (mercMobs[0] != null) {
+				mercMobs[0].discard();
+			}
+			mercMobs[0] = mercMob(EntityType.IRON_GOLEM, MX, y[0], 4.5, true);
+		}), 10);
 		run(() -> {
 			mercAt(MX, y[0], 0.5, 0, 8);
 			watch(new Vec3(MX + 4.5, y[0] + 2.2, 3.5), new Vec3(MX, y[0] + 1.5, 4.5));
