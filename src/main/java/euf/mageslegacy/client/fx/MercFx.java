@@ -495,7 +495,9 @@ public final class MercFx {
 		void draw(FxDraw draw, float partial) {
 			float t = progress(partial);
 			float alpha = (float) Math.sqrt(Math.sin(Math.PI * t));
-			decal(draw, WAVE, at, r0 + (r1 - r0) * VoidRender.easeOut(t), 0, 1, alpha * 0.8f, 0.8f);
+			float r = r0 + (r1 - r0) * VoidRender.easeOut(t);
+			// A wide ring keeps its band thin: the bigger, the fainter
+			decal(draw, WAVE, at, r, 0, 1, alpha * Math.min(0.7f, 2.2f / Math.max(1, r)), 0.25f);
 		}
 	}
 
@@ -774,7 +776,7 @@ public final class MercFx {
 			draw.paint(BLADE, centre, side.scale(0.3), new Vec3(0, -len, 0), 1, 0.95f, 0.85f, bladeAlpha, 1.4f);
 			if (life >= 4) {
 				float t = (life - 4) / 22f;
-				billboard(draw, FLARE, mid, 1.2f + 2.4f * VoidRender.easeOut(t), 0, 1, (1 - t) * (1 - t), 1.6f);
+				billboard(draw, FLARE, mid, 0.6f + 1.1f * VoidRender.easeOut(t), 0, 1, (1 - t) * (1 - t) * 0.6f, 0.7f);
 				// The seal breaks: its parts fly out and fall
 				for (int i = 0; i < shardAngles.length; i++) {
 					double a = shardAngles[i];
@@ -996,9 +998,9 @@ public final class MercFx {
 			}
 			// The ground: a slow seal at the foot, the circle's edge breathing
 			decal(draw, SIGIL, foot.add(0, 0.03, 0), 1.6f * rise, life * 0.02, 1, 0.55f * fade, 0.6f);
+			// The circle's edge: thin lines of the seal, breathing faintly (a wide band of light at this size blinds)
 			float pulse = 0.5f + 0.5f * (float) Math.sin(life * 0.12);
-			decal(draw, WAVE, foot.add(0, 0.025, 0), radius, 0, 1, (0.25f + 0.15f * pulse) * fade, 0.3f);
-			decal(draw, SIGIL, foot.add(0, 0.02, 0), radius, -life * 0.006, 1, 0.12f * fade, 0.1f);
+			decal(draw, SIGIL, foot.add(0, 0.02, 0), radius, -life * 0.006, 1, (0.14f + 0.08f * pulse) * fade, 0.05f);
 		}
 	}
 
