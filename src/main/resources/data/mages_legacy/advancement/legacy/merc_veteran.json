@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/merc_elite",
+  "display": {
+    "icon": {
+      "id": "minecraft:filled_map"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.merc_veteran.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.merc_veteran.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "merc_veteran"
+      }
+    }
+  }
+}

@@ -70,6 +70,13 @@ public final class RaceState {
 	public static final Supplier<AttachmentType<CompoundTag>> ARCHIVED = ATTACHMENTS.register("archived_advancements",
 			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).copyOnDeath().build());
 
+	/**
+	 * A Mercenary's account in the Mage's Shop: tokens, the board, the contracts in hand, today's stock, the Last
+	 * Ransom's readiness (see {@link euf.mageslegacy.mercenary.Account}). Kept through death and restarts.
+	 */
+	public static final Supplier<AttachmentType<CompoundTag>> MERC = ATTACHMENTS.register("mercenary",
+			() -> AttachmentType.builder(() -> new CompoundTag()).serialize(CompoundTag.CODEC).copyOnDeath().build());
+
 	public static final float MAX_RESOURCE = 100;
 	/** How often the client hears about its race, in ticks (and at once after anything changes). */
 	private static final int SYNC_EVERY = 5;
@@ -137,6 +144,8 @@ public final class RaceState {
 		Voidborn.reset(player);
 		euf.mageslegacy.mycelid.Mycelid.reset(player);
 		euf.mageslegacy.bloodkin.Bloodkin.reset(player);
+		euf.mageslegacy.mercenary.Mercenary.reset(player);
+		player.setData(MERC, new CompoundTag());
 		player.setData(RACE, race == null ? "" : race.id());
 		player.setData(LEVEL, 1);
 		player.setData(XP, 0);

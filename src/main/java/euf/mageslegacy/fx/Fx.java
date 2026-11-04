@@ -83,6 +83,40 @@ public final class Fx {
 	/** A creature cut by the Blood Dash: a crescent cut across it at a point, a: the dash's yaw (degrees). */
 	public static final int BLOOD_SLASH = 32;
 
+	// ---- The Mercenaries' (client side in MercFx) ----
+	/** Hunter's Brand's bolt from the hand (from) to where it lands (to) in this many ticks; entity: the shooter. */
+	public static final int BRAND_BOLT = 33;
+	/** The three-part seal over a branded creature (entity): a: charges lit, b: of how many; ticks left (0 takes it away). */
+	public static final int BRAND_SEAL = 34;
+	/** The seal folds in and bursts into golden shards at a point; b: 1 for the Chain's wider burst. */
+	public static final int BRAND_BLAST = 35;
+	/** The Guild Harpoon: the hook flies from its thrower (entity) to (to) in a: ticks, held b: the target's id (-1: a block); ticks: in all; 0 lets go. */
+	public static final int HOOK = 36;
+	/** The Verdict's seal turning over the condemned (entity), b: the judge's id; 0 takes it away. */
+	public static final int VERDICT_SEAL = 37;
+	/** A spectral blade swinging at the condemned (entity); a: which one. */
+	public static final int VERDICT_BLADE = 38;
+	/** The execution: a great golden flash, a shock wave and the seal breaking up, at the condemned (entity). */
+	public static final int VERDICT_EXECUTE = 39;
+	/** The Life Debt's contract seal round its ward (entity); 0 takes it away. */
+	public static final int DEBT_SEAL = 40;
+	/** The Debt paid off: a golden wave out from a point, a: radius. */
+	public static final int DEBT_WAVE = 41;
+	/** The Debt come due on its ward (entity): the seal breaks, red sparks. */
+	public static final int DEBT_DUE = 42;
+	/** The Last Ransom: a bright seal and coins flung from the body (entity). */
+	public static final int RANSOM = 43;
+	/** The Guild Legend's banner at a point: a: radius, ticks left (0 furls it); entity: its Mercenary. */
+	public static final int BANNER = 44;
+	/** One of the banner's blades: from the banner (from) to a foe (entity). */
+	public static final int BANNER_BLADE = 45;
+	/** The Mage's Shop's door before its Mercenary: a: yaw; ticks (0 swings it shut). */
+	public static final int DOOR = 46;
+	/** A Nose for Profit: a faint chime and a golden glint towards the quarry (to), for its Mercenary only. */
+	public static final int PROFIT_PING = 47;
+	/** A contract done: a stamp of the seal and coins round the body (entity). */
+	public static final int CONTRACT_DONE = 48;
+
 	public static final int VOID_RGB = 0x9B7FD4;
 	public static final int STAR_RGB = 0xE8E0FF;
 
@@ -197,6 +231,84 @@ public final class Fx {
 	/** A body scattered into bats for this long, or (0) gathered back; the Last Breath's comes with a flash. */
 	public static void batSwarm(ServerLevel level, Entity body, int ticks, boolean rescue) {
 		send(level, body.position(), new FxPayload(BAT_SWARM, body.getId(), body.position(), body.position(), ticks, 0, rescue ? 1 : 0));
+	}
+
+	public static void brandBolt(ServerLevel level, Entity shooter, Vec3 from, Vec3 to, int ticks) {
+		send(level, from, new FxPayload(BRAND_BOLT, shooter.getId(), from, to, ticks, 0, 0));
+	}
+
+	public static void brandSeal(ServerLevel level, Entity target, int charges, int max, int ticks) {
+		send(level, target.position(), new FxPayload(BRAND_SEAL, target.getId(), target.position(), target.position(), ticks, charges, max));
+	}
+
+	public static void brandBlast(ServerLevel level, Vec3 at, boolean wide) {
+		send(level, at, new FxPayload(BRAND_BLAST, -1, at, at, 16, 0, wide ? 1 : 0));
+	}
+
+	public static void hook(ServerLevel level, Entity thrower, Vec3 to, Entity target, int fly, int ticks) {
+		send(level, thrower.position(), new FxPayload(HOOK, thrower.getId(), thrower.position(), to, ticks, fly, target == null ? -1 : target.getId()));
+	}
+
+	public static void hookEnd(ServerLevel level, Entity thrower) {
+		send(level, thrower.position(), new FxPayload(HOOK, thrower.getId(), thrower.position(), thrower.position(), 0, 0, -1));
+	}
+
+	public static void verdictSeal(ServerLevel level, Entity target, Entity judge, int ticks) {
+		send(level, target.position(), new FxPayload(VERDICT_SEAL, target.getId(), target.position(), target.position(), ticks, 0,
+				judge == null ? -1 : judge.getId()));
+	}
+
+	public static void verdictBlade(ServerLevel level, Entity target, int index) {
+		send(level, target.position(), new FxPayload(VERDICT_BLADE, target.getId(), target.position(), target.position(), 12, index, 0));
+	}
+
+	public static void verdictExecute(ServerLevel level, Entity target) {
+		send(level, target.position(), new FxPayload(VERDICT_EXECUTE, target.getId(), target.position(), target.position(), 24, 0, 0));
+	}
+
+	public static void debtSeal(ServerLevel level, Entity ward, int ticks) {
+		send(level, ward.position(), new FxPayload(DEBT_SEAL, ward.getId(), ward.position(), ward.position(), ticks, 0, 0));
+	}
+
+	public static void debtWave(ServerLevel level, Vec3 at, float radius) {
+		send(level, at, new FxPayload(DEBT_WAVE, -1, at, at, 16, radius, 0));
+	}
+
+	public static void debtDue(ServerLevel level, Entity ward) {
+		send(level, ward.position(), new FxPayload(DEBT_DUE, ward.getId(), ward.position(), ward.position(), 16, 0, 0));
+	}
+
+	public static void ransom(ServerLevel level, Entity body) {
+		send(level, body.position(), new FxPayload(RANSOM, body.getId(), body.position(), body.position(), 30, 0, 0));
+	}
+
+	public static void banner(ServerLevel level, Entity owner, Vec3 at, float radius, int ticks) {
+		send(level, at, new FxPayload(BANNER, owner.getId(), at, at, ticks, radius, 0));
+	}
+
+	public static void bannerEnd(ServerLevel level, Entity owner, Vec3 at) {
+		send(level, at, new FxPayload(BANNER, owner == null ? -1 : owner.getId(), at, at, 0, 0, 0));
+	}
+
+	public static void bannerBlade(ServerLevel level, Vec3 from, Entity target) {
+		send(level, from, new FxPayload(BANNER_BLADE, target.getId(), from, target.position(), 12, 0, 0));
+	}
+
+	public static void door(ServerLevel level, Vec3 at, float yaw, int ticks) {
+		send(level, at, new FxPayload(DOOR, -1, at, at, ticks, yaw, 0));
+	}
+
+	/** The door of whoever closes the book (the clients find the open door nearest to them). */
+	public static void doorClose(ServerLevel level, Entity by) {
+		send(level, by.position(), new FxPayload(DOOR, by.getId(), by.position(), by.position(), 0, 0, 0));
+	}
+
+	public static void profitPing(ServerPlayer player, Vec3 quarry) {
+		PacketDistributor.sendToPlayer(player, new FxPayload(PROFIT_PING, player.getId(), player.position(), quarry, 30, 0, 0));
+	}
+
+	public static void contractDone(ServerLevel level, Entity body) {
+		send(level, body.position(), new FxPayload(CONTRACT_DONE, body.getId(), body.position(), body.position(), 30, 0, 0));
 	}
 
 	public static void storm(ServerLevel level, Entity heart, float radius, int ticks) {

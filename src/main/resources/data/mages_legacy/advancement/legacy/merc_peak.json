@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/merc_first_awakening",
+  "display": {
+    "icon": {
+      "id": "minecraft:nether_star"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.merc_peak.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.merc_peak.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "merc_peak"
+      }
+    }
+  }
+}

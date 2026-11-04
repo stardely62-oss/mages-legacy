@@ -16,7 +16,7 @@ awakening_children = {}
 def tier(name, kind, requires):
     if kind in ("CORE", "BASIC", "INNATE"):
         return None
-    if kind == "AWAKENING" or name in ("WORLDS_CHARGE_3", "STORM_KEEP"):
+    if kind == "AWAKENING" or name in ("WORLDS_CHARGE_3", "STORM_KEEP", "FEAST_SATED", "VERDICT_BLADES"):
         return 4
     for r in requires:
         if r.startswith("awakening_"):
@@ -25,8 +25,9 @@ def tier(name, kind, requires):
 
 branches = {"CORE": "Ядро и базовые способности", "RIFT": "Разлом пространства", "WORLDS": "Сквозь миры", "GRAVITY": "Гравитация",
             "COLONY": "Колония", "SPORES": "Нейроспоры", "SYMBIOSIS": "Симбиоз", "NIGHT": "Ночь", "FANG": "Клык", "THIRST": "Жажда",
+            "CONTRACTS": "Контракты", "DEALS": "Сделки", "CRAFT": "Ремесло",
             "CROSS": "Перекрёстные таланты", "INNATE": "Врождённые черты (не изучаются)"}
-races = {"VOIDBORN": "Пустотники", "MYCELID": "Мицелиды", "BLOODKIN": "Кровники"}
+races = {"VOIDBORN": "Пустотники", "MYCELID": "Мицелиды", "BLOODKIN": "Кровники", "MERCENARY": "Наёмники"}
 kinds = {"CORE": "ядро", "BASIC": "базовая", "PASSIVE": "пассивный", "TRANSFORM": "преобразующий", "CROSS": "перекрёстный",
          "AWAKENING": "Пробуждение", "INNATE": "врождённая черта"}
 out = ["# Таланты рас", "",

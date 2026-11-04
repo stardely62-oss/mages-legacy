@@ -14,7 +14,7 @@ root = pathlib.Path(__file__).resolve().parent.parent
 out = root / "src/main/resources/data/mages_legacy/advancement/legacy"
 ru = json.loads((root / "src/main/resources/assets/mages_legacy/lang/ru_ru.json").read_text())
 
-RACES = {"void": "Пустотник", "myc": "Мицелид", "blood": "Кровник"}
+RACES = {"void": "Пустотник", "myc": "Мицелид", "blood": "Кровник", "merc": "Наёмник"}
 # The shared path, made once for each race: name, parent, vanilla icon (fallback), frame, announce to chat
 PATH = [
     ("root", None, "minecraft:amethyst_cluster", "task", False),
@@ -57,6 +57,18 @@ OWN = [
     ("blood_swarm", "blood_root", "minecraft:bat_spawn_egg", "task", False, False),
     ("blood_last_breath", "blood_swarm", "minecraft:totem_of_undying", "challenge", False, True),
     ("blood_scarlet", "blood_storm", "minecraft:nether_star", "challenge", True, True),
+
+    ("merc_first_contract", "merc_root", "minecraft:writable_book", "task", False, False),
+    ("merc_customer", "merc_first_contract", "minecraft:gold_nugget", "task", False, False),
+    ("merc_elite", "merc_first_contract", "minecraft:gold_ingot", "goal", False, False),
+    ("merc_veteran", "merc_elite", "minecraft:filled_map", "challenge", False, True),
+    ("merc_first_brand", "merc_root", "minecraft:spectral_arrow", "task", False, False),
+    ("merc_first_blast", "merc_first_brand", "minecraft:fire_charge", "task", False, False),
+    ("merc_combo", "merc_first_blast", "minecraft:chain", "goal", False, False),
+    ("merc_execution", "merc_combo", "minecraft:golden_sword", "goal", False, False),
+    ("merc_debt_paid", "merc_first_blast", "minecraft:paper", "goal", False, False),
+    ("merc_ransom", "merc_debt_paid", "minecraft:totem_of_undying", "challenge", False, True),
+    ("merc_legend", "merc_root", "minecraft:yellow_banner", "goal", False, False),
 ]
 TABLE = []
 for race in RACES:
@@ -75,7 +87,10 @@ ICONS = ["root", "gift", "first_choice", "cross", "first_awakening", "mastery", 
          "myc_root", "myc_gift", "myc_first_choice", "myc_cross", "myc_first_awakening", "myc_mastery", "myc_double", "myc_peak",
          "blood_root", "blood_gift", "blood_first_choice", "blood_cross", "blood_first_awakening", "blood_mastery", "blood_double", "blood_peak",
          "blood_first_bite", "blood_thirst", "blood_dash_three", "blood_harvest_five", "blood_transfusion", "blood_feast", "blood_storm", "blood_swarm",
-         "blood_last_breath", "blood_scarlet"]
+         "blood_last_breath", "blood_scarlet",
+         "merc_root", "merc_gift", "merc_first_choice", "merc_cross", "merc_first_awakening", "merc_mastery", "merc_double", "merc_peak",
+         "merc_first_contract", "merc_customer", "merc_elite", "merc_veteran", "merc_first_brand", "merc_first_blast", "merc_combo",
+         "merc_execution", "merc_debt_paid", "merc_ransom", "merc_legend"]
 assets = root / "src/main/resources/assets/mages_legacy"
 painted = assets / "textures/item/legacy"
 models = assets / "models/item"
@@ -124,7 +139,7 @@ for aid in OLD:
 
 frames = {"task": "обычное", "goal": "цель", "challenge": "испытание"}
 lines = ["# Достижения Mage's Legacy", "",
-         "У каждой расы своя вкладка в стандартном меню достижений (L): «Путь Пустоты» у Пустотников, «Сердце Колонии» у Мицелидов, «Кровавый завет» у Кровников.",
+         "У каждой расы своя вкладка в стандартном меню достижений (L): «Путь Пустоты» у Пустотников, «Сердце Колонии» у Мицелидов, «Кровавый завет» у Кровников, «Гильдейский ордер» у Наёмников.",
          "Вкладка открывается выбором расы; общий путь развития у каждой расы свой, чужих достижений во вкладке нет.",
          "Все выдаёт сервер за подтверждённое действие (критерий `mages_legacy:deed`); сохраняются и отзываются штатно (`/advancement`).",
          "В тестовом режиме `nocooldown` не выдаётся ничего. Наград, кроме записи и уведомления, нет. В чат сервера пишутся только крупные (★).", "",

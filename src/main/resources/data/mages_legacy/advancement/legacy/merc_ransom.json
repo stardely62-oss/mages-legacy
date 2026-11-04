@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/merc_debt_paid",
+  "display": {
+    "icon": {
+      "id": "minecraft:totem_of_undying"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.merc_ransom.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.merc_ransom.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "merc_ransom"
+      }
+    }
+  }
+}

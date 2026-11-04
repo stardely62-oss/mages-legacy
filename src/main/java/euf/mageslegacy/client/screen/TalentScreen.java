@@ -999,7 +999,9 @@ public class TalentScreen extends Screen {
 				case AWAKENING_PRINCE -> 28;
 				default -> 16;
 			};
-			if (progress()[met] > 0) {
+			int[] merc = ClientRace.state() == null ? new int[0] : ClientRace.state().merc();
+			int mercMet = t == Talent.AWAKENING_VERDICT ? 19 : t == Talent.AWAKENING_RANSOM ? 20 : t == Talent.AWAKENING_LEGEND ? 21 : -1;
+			if (mercMet >= 0 ? merc.length > mercMet && merc[mercMet] > 0 : progress()[met] > 0) {
 				lines.add(Component.translatable("mages_legacy.talent.trial_met").withStyle(ChatFormatting.GREEN));
 			}
 			wrapInto(lines, Component.translatable("mages_legacy.talent.two_of_three").withStyle(ChatFormatting.DARK_PURPLE));
@@ -1066,8 +1068,31 @@ public class TalentScreen extends Screen {
 					euf.mageslegacy.bloodkin.Bloodkin.STORM_TRIAL};
 			case AWAKENING_PRINCE -> new Object[] {Math.min(p[24], euf.mageslegacy.bloodkin.Bloodkin.PRINCE_HEAL), euf.mageslegacy.bloodkin.Bloodkin.PRINCE_HEAL,
 					Math.min(p[25], euf.mageslegacy.bloodkin.Bloodkin.PRINCE_SACRIFICES), euf.mageslegacy.bloodkin.Bloodkin.PRINCE_SACRIFICES};
+			// The Mercenaries' (from the sync's own numbers): blasts and hunts; contracts, deliveries, explorations, tokens spent;
+			// contracts, each kind, blows on the quarry
+			case AWAKENING_VERDICT -> new Object[] {Math.min(m(11), M.VERDICT_TRIAL_BLASTS), M.VERDICT_TRIAL_BLASTS, Math.min(m(12), M.VERDICT_TRIAL_HUNTS),
+					M.VERDICT_TRIAL_HUNTS};
+			case AWAKENING_RANSOM -> new Object[] {Math.min(m(13), M.RANSOM_TRIAL_CONTRACTS), M.RANSOM_TRIAL_CONTRACTS, Math.min(m(15), 1),
+					Math.min(m(16), 1), Math.min(m(17), M.RANSOM_TRIAL_SPENT), M.RANSOM_TRIAL_SPENT};
+			case AWAKENING_LEGEND -> new Object[] {Math.min(m(13), M.LEGEND_TRIAL_CONTRACTS), M.LEGEND_TRIAL_CONTRACTS, Math.min(m(14), 1),
+					Math.min(m(15), 1), Math.min(m(16), 1), Math.min(m(18), M.LEGEND_TRIAL_DAMAGE), M.LEGEND_TRIAL_DAMAGE};
 			default -> new Object[0];
 		};
+	}
+
+	/** One of the Mercenary's numbers in the sync (0 if missing). */
+	private static int m(int i) {
+		SyncPayload state = ClientRace.state();
+		return state == null || state.merc().length <= i ? 0 : state.merc()[i];
+	}
+
+	private static final class M {
+		static final int VERDICT_TRIAL_BLASTS = euf.mageslegacy.mercenary.Mercenary.VERDICT_TRIAL_BLASTS;
+		static final int VERDICT_TRIAL_HUNTS = euf.mageslegacy.mercenary.Mercenary.VERDICT_TRIAL_HUNTS;
+		static final int RANSOM_TRIAL_CONTRACTS = euf.mageslegacy.mercenary.Mercenary.RANSOM_TRIAL_CONTRACTS;
+		static final int RANSOM_TRIAL_SPENT = euf.mageslegacy.mercenary.Mercenary.RANSOM_TRIAL_SPENT;
+		static final int LEGEND_TRIAL_CONTRACTS = euf.mageslegacy.mercenary.Mercenary.LEGEND_TRIAL_CONTRACTS;
+		static final int LEGEND_TRIAL_DAMAGE = euf.mageslegacy.mercenary.Mercenary.LEGEND_TRIAL_DAMAGE;
 	}
 
 	private static String needsNames(Talent t) {

@@ -202,11 +202,75 @@ public enum Talent {
 	THIRST_FRENZY(Race.BLOODKIN, Kind.CROSS, Branch.CROSS, 3.7f, 90, 3, 0, "thirst_frenzy", "fang_frenzy", "thirst_rage"),
 	NIGHT_DRINK(Race.BLOODKIN, Kind.CROSS, Branch.CROSS, 3.4f, -30, 3, 0, "night_drink", "thirst_vessel", "night_ambush"),
 
+
+	// The Mercenaries: the Contracts (the Night's places), the Deals (the Fang's, Hunter's Brand on R), the Craft (the Thirst's, the
+	// Guild Harpoon on V), slot for slot
+	MAGES_SHOP(Race.MERCENARY, Kind.CORE, Branch.CORE, 0, 0, 0, 1, "mages_shop"),
+	HUNTER_BRAND(Race.MERCENARY, Kind.BASIC, Branch.DEALS, 1, 150, 0, 3, "hunter_brand", "mages_shop"),
+	GUILD_HARPOON(Race.MERCENARY, Kind.BASIC, Branch.CRAFT, 1, 30, 0, 5, "guild_harpoon", "mages_shop"),
+	CON_BOARD(Race.MERCENARY, Kind.PASSIVE, Branch.CONTRACTS, 1, -90, 1, 0, "con_board", "mages_shop"),
+	CON_HANDS(Race.MERCENARY, Kind.PASSIVE, Branch.CONTRACTS, 2, -90, 1, 0, "con_hands", "con_board"),
+	CON_ELITE(Race.MERCENARY, Kind.PASSIVE, Branch.CONTRACTS, 3, -90, 3, 0, "con_elite", "con_hands"),
+	CON_BARGAIN(Race.MERCENARY, Kind.PASSIVE, Branch.CONTRACTS, 2, -70, 1, 0, "con_bargain", "con_board"),
+	CON_SCOUT(Race.MERCENARY, Kind.TRANSFORM, Branch.CONTRACTS, 2, -110, 1, 0, "con_scout", "con_board"),
+	CON_TRACKER(Race.MERCENARY, Kind.PASSIVE, Branch.CONTRACTS, 3, -110, 2, 0, "con_tracker", "con_scout"),
+	CON_REGULAR(Race.MERCENARY, Kind.PASSIVE, Branch.CONTRACTS, 3, -70, 1, 0, "con_regular", "con_bargain"),
+	CON_PARTNERS(Race.MERCENARY, Kind.PASSIVE, Branch.CONTRACTS, 2, -130, 1, 0, "con_partners", "con_board"),
+	CON_BONUS(Race.MERCENARY, Kind.PASSIVE, Branch.CONTRACTS, 2, -50, 1, 0, "con_bonus", "con_board"),
+	CON_RENOWN(Race.MERCENARY, Kind.PASSIVE, Branch.CONTRACTS, 3, -50, 2, 0, "con_renown", "con_bonus"),
+	CON_GUIDE(Race.MERCENARY, Kind.TRANSFORM, Branch.CONTRACTS, 3, -130, 3, 0, "con_guide", "con_partners"),
+	CON_CONNECTIONS(Race.MERCENARY, Kind.TRANSFORM, Branch.CONTRACTS, 3.8f, -122, 3, 0, "con_connections", "con_guide", "con_tracker"),
+	CON_STREAK(Race.MERCENARY, Kind.PASSIVE, Branch.CONTRACTS, 3.8f, -58, 2, 0, "con_streak", "con_renown", "con_regular"),
+	AWAKENING_RANSOM(Race.MERCENARY, Kind.AWAKENING, Branch.CONTRACTS, 4.2f, -90, 5, 0, "awakening_ransom", "con_elite", "con_tracker"),
+	RANSOM_WRITE_OFF(Race.MERCENARY, Kind.PASSIVE, Branch.CONTRACTS, 5.3f, -114, 2, 0, "ransom_write_off", "awakening_ransom"),
+	RANSOM_GUARANTOR(Race.MERCENARY, Kind.PASSIVE, Branch.CONTRACTS, 5.3f, -98, 2, 0, "ransom_guarantor", "awakening_ransom"),
+	RANSOM_GOLD(Race.MERCENARY, Kind.PASSIVE, Branch.CONTRACTS, 5.3f, -82, 2, 0, "ransom_gold", "awakening_ransom"),
+	RANSOM_SECOND(Race.MERCENARY, Kind.TRANSFORM, Branch.CONTRACTS, 5.3f, -66, 2, 0, "ransom_second", "awakening_ransom"),
+	BRAND_FAR(Race.MERCENARY, Kind.PASSIVE, Branch.DEALS, 2, 145, 1, 0, "brand_far", "hunter_brand"),
+	BRAND_COLLECT(Race.MERCENARY, Kind.PASSIVE, Branch.DEALS, 3, 150, 2, 0, "brand_collect", "brand_far"),
+	BRAND_COMPOUND(Race.MERCENARY, Kind.TRANSFORM, Branch.DEALS, 2.5f, 168, 2, 0, "brand_compound", "hunter_brand"),
+	BRAND_LINGER(Race.MERCENARY, Kind.PASSIVE, Branch.DEALS, 2.5f, 125, 1, 0, "brand_linger", "hunter_brand"),
+	BRAND_SPREAD(Race.MERCENARY, Kind.TRANSFORM, Branch.DEALS, 3, 133, 2, 0, "brand_spread", "brand_far", "brand_linger"),
+	BRAND_PLEDGE(Race.MERCENARY, Kind.PASSIVE, Branch.DEALS, 2, 108, 1, 0, "brand_pledge", "hunter_brand"),
+	BRAND_SWAP(Race.MERCENARY, Kind.PASSIVE, Branch.DEALS, 2, 198, 1, 0, "brand_swap", "hunter_brand"),
+	BRAND_PIERCE(Race.MERCENARY, Kind.TRANSFORM, Branch.DEALS, 3, 187, 2, 0, "brand_pierce", "brand_swap"),
+	BRAND_FINISHER(Race.MERCENARY, Kind.PASSIVE, Branch.DEALS, 3.2f, 108, 2, 0, "brand_finisher", "brand_pledge"),
+	BRAND_CHAIN(Race.MERCENARY, Kind.PASSIVE, Branch.DEALS, 3.8f, 178, 3, 0, "brand_chain", "brand_pierce", "brand_compound"),
+	AWAKENING_VERDICT(Race.MERCENARY, Kind.AWAKENING, Branch.DEALS, 4.2f, 150, 5, 0, "awakening_verdict", "brand_collect", "brand_chain"),
+	VERDICT_LONG(Race.MERCENARY, Kind.PASSIVE, Branch.DEALS, 5.3f, 134, 2, 0, "verdict_long", "awakening_verdict"),
+	VERDICT_BOSS(Race.MERCENARY, Kind.PASSIVE, Branch.DEALS, 5.3f, 150, 2, 0, "verdict_boss", "awakening_verdict"),
+	VERDICT_BLADES(Race.MERCENARY, Kind.PASSIVE, Branch.DEALS, 6.2f, 150, 3, 0, "verdict_blades", "verdict_boss"),
+	VERDICT_REFUND(Race.MERCENARY, Kind.TRANSFORM, Branch.DEALS, 5.3f, 166, 2, 0, "verdict_refund", "awakening_verdict"),
+	VERDICT_TRIUMPH(Race.MERCENARY, Kind.PASSIVE, Branch.DEALS, 5.3f, 118, 2, 0, "verdict_triumph", "awakening_verdict"),
+	HARP_QUICK(Race.MERCENARY, Kind.PASSIVE, Branch.CRAFT, 2, 15, 1, 0, "harp_quick", "guild_harpoon"),
+	HARP_LONG(Race.MERCENARY, Kind.PASSIVE, Branch.CRAFT, 2, 45, 1, 0, "harp_long", "guild_harpoon"),
+	HARP_DOUBLE(Race.MERCENARY, Kind.TRANSFORM, Branch.CRAFT, 3, 15, 2, 0, "harp_double", "harp_quick"),
+	HARP_STUN(Race.MERCENARY, Kind.PASSIVE, Branch.CRAFT, 3.3f, 34, 1, 0, "harp_stun", "harp_quick", "harp_long"),
+	HARP_PRECISE(Race.MERCENARY, Kind.TRANSFORM, Branch.CRAFT, 3, 45, 2, 0, "harp_precise", "harp_long"),
+	CRAFT_CUIRASS(Race.MERCENARY, Kind.PASSIVE, Branch.CRAFT, 2, -15, 1, 0, "craft_cuirass", "mages_shop"),
+	CRAFT_BOW(Race.MERCENARY, Kind.PASSIVE, Branch.CRAFT, 2, 65, 1, 0, "craft_bow", "guild_harpoon"),
+	CRAFT_SECOND_WIND(Race.MERCENARY, Kind.PASSIVE, Branch.CRAFT, 3, -10, 1, 0, "craft_second_wind", "craft_cuirass"),
+	CRAFT_BLADE(Race.MERCENARY, Kind.TRANSFORM, Branch.CRAFT, 3, 62, 2, 0, "craft_blade", "craft_bow"),
+	CRAFT_LIFELINE(Race.MERCENARY, Kind.TRANSFORM, Branch.CRAFT, 3.8f, 2, 2, 0, "craft_lifeline", "craft_second_wind", "harp_double"),
+	CRAFT_SHOULDER(Race.MERCENARY, Kind.PASSIVE, Branch.CRAFT, 3.8f, 58, 2, 0, "craft_shoulder", "craft_blade", "harp_precise"),
+	AWAKENING_LEGEND(Race.MERCENARY, Kind.AWAKENING, Branch.CRAFT, 4.2f, 30, 5, 0, "awakening_legend", "harp_double", "harp_precise"),
+	LEGEND_WIDE(Race.MERCENARY, Kind.PASSIVE, Branch.CRAFT, 5.3f, 14, 2, 0, "legend_wide", "awakening_legend"),
+	LEGEND_WARD(Race.MERCENARY, Kind.PASSIVE, Branch.CRAFT, 5.3f, 30, 2, 0, "legend_ward", "awakening_legend"),
+	LEGEND_BLADES(Race.MERCENARY, Kind.TRANSFORM, Branch.CRAFT, 5.3f, 46, 2, 0, "legend_blades", "awakening_legend"),
+	LEGEND_LONG(Race.MERCENARY, Kind.PASSIVE, Branch.CRAFT, 5.3f, -2, 2, 0, "legend_long", "awakening_legend"),
+	CROSS_CONTRACT_KILL(Race.MERCENARY, Kind.CROSS, Branch.CROSS, 2.6f, -150, 2, 0, "cross_contract_kill", "con_scout", "brand_compound"),
+	CROSS_TENSION(Race.MERCENARY, Kind.CROSS, Branch.CROSS, 2.6f, 90, 2, 0, "cross_tension", "brand_linger", "harp_long"),
+	CROSS_GUILD_GRAB(Race.MERCENARY, Kind.CROSS, Branch.CROSS, 2.6f, -30, 2, 0, "cross_guild_grab", "harp_quick", "con_bargain"),
+	CROSS_TROPHY(Race.MERCENARY, Kind.CROSS, Branch.CROSS, 3.4f, -155, 3, 0, "cross_trophy", "con_guide", "brand_pierce"),
+	CROSS_RHYTHM(Race.MERCENARY, Kind.CROSS, Branch.CROSS, 3.7f, 90, 3, 0, "cross_rhythm", "brand_finisher", "craft_blade"),
+	CROSS_SILVER(Race.MERCENARY, Kind.CROSS, Branch.CROSS, 3.4f, -30, 3, 0, "cross_silver", "craft_second_wind", "con_renown"),
+
 	// The innate traits: one node a race, beside the core (up-left, in the gap between the first and second
 	// directions, clear of the first ring and its links), never bought, never learnt, owned from the first level for as long as the race is. Not one of the 59.
 	INNATE_VOID(Race.VOIDBORN, Kind.INNATE, Branch.INNATE, 1.25f, -150, 0, 1, "innate_void"),
 	INNATE_FUNGAL(Race.MYCELID, Kind.INNATE, Branch.INNATE, 1.25f, -150, 0, 1, "innate_fungal"),
-	INNATE_PREDATOR(Race.BLOODKIN, Kind.INNATE, Branch.INNATE, 1.25f, -150, 0, 1, "innate_predator");
+	INNATE_PREDATOR(Race.BLOODKIN, Kind.INNATE, Branch.INNATE, 1.25f, -150, 0, 1, "innate_predator"),
+	INNATE_PROFIT(Race.MERCENARY, Kind.INNATE, Branch.INNATE, 1.25f, -150, 0, 1, "innate_profit");
 
 
 	public enum Kind {
@@ -220,7 +284,7 @@ public enum Talent {
 	}
 
 	public enum Branch {
-		CORE, RIFT, WORLDS, GRAVITY, COLONY, SPORES, SYMBIOSIS, NIGHT, FANG, THIRST, CROSS, INNATE
+		CORE, RIFT, WORLDS, GRAVITY, COLONY, SPORES, SYMBIOSIS, NIGHT, FANG, THIRST, CONTRACTS, DEALS, CRAFT, CROSS, INNATE
 	}
 
 	public static final int MAX_TIER = 4;
@@ -312,7 +376,8 @@ public enum Talent {
 		if (automatic()) {
 			return 1;
 		}
-		if (kind == Kind.AWAKENING || awakening() != null || this == WORLDS_CHARGE_3 || this == STORM_KEEP || this == FEAST_SATED) {
+		if (kind == Kind.AWAKENING || awakening() != null || this == WORLDS_CHARGE_3 || this == STORM_KEEP || this == FEAST_SATED
+				|| this == VERDICT_BLADES) {
 			return 4;
 		}
 		return switch (this) {
@@ -320,12 +385,16 @@ public enum Talent {
 					GRAV_LINGER, GRAV_FEAST, STEP_HOMEWARD, STEP_RUPTURE, POCKET_HOLD,
 					NET_NODES_3, NET_TRAIN, SPORE_WIDE_2, SYM_UNITY, SYM_SHARE, NET_RECALL, NET_SHARED, SPORE_LINGER, DIET_3, SYM_AURA, SPORE_TRAVEL, SYM_SPORES, NODE_FOOD,
 					NIGHT_LORD, NIGHT_WIDE_SENSE, FANG_EXECUTE, THIRST_HARVEST, THIRST_MARK, NIGHT_JUMP, NIGHT_TERROR, FANG_OPEN, THIRST_OFFERING, THIRST_TRANSFUSE,
-					NIGHT_DIVE, THIRST_FRENZY, NIGHT_DRINK -> 3;
+					NIGHT_DIVE, THIRST_FRENZY, NIGHT_DRINK,
+					CON_ELITE, CON_TRACKER, BRAND_COLLECT, HARP_DOUBLE, HARP_PRECISE, CON_GUIDE, CON_CONNECTIONS, BRAND_CHAIN, CRAFT_LIFELINE,
+					CRAFT_SHOULDER, CROSS_TROPHY, CROSS_RHYTHM, CROSS_SILVER -> 3;
 			case POCKET_CRADLE, STEP_ALLY, GRAV_FLIERS, STEP_DOOR, STEP_HEAVY, DOOR_RECOIL, POCKET_GARDEN, VOID_EYES, STEP_ECHO, STEP_AMBUSH,
 					GRAV_FUSE, GRAV_CHAIN,
 					NET_GROWTH, SPORE_SPREAD, SYM_ADAPT, SPORE_NODES, SPORE_FEED, HEAL_NODES, NET_SENSE, NET_GLOW, SPORE_TRAIL, SPORE_FEEBLE, DIET_2, SYM_NIGHT,
 					NIGHT_CLOAK, FANG_DEEP, THIRST_EDGE, NIGHT_DASH, FANG_HARVEST, NIGHT_HARVEST, NIGHT_AMBUSH, NIGHT_FEED, FANG_BITE, FANG_FRENZY,
-					THIRST_VESSEL, THIRST_RAGE -> 2;
+					THIRST_VESSEL, THIRST_RAGE,
+					CON_REGULAR, BRAND_SPREAD, HARP_STUN, CROSS_CONTRACT_KILL, CROSS_TENSION, CROSS_GUILD_GRAB, CON_RENOWN, CON_STREAK, BRAND_PIERCE,
+					BRAND_FINISHER, CRAFT_SECOND_WIND, CRAFT_BLADE -> 2;
 			default -> 1;
 		};
 	}

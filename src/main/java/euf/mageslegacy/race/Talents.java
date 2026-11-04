@@ -171,6 +171,13 @@ public final class Talents {
 			case AWAKENING_BLOOD_STORM -> p.getInt(euf.mageslegacy.bloodkin.Bloodkin.HARVEST_GROUP) >= euf.mageslegacy.bloodkin.Bloodkin.STORM_TRIAL;
 			case AWAKENING_PRINCE -> p.getInt(euf.mageslegacy.bloodkin.Bloodkin.VAMP_HEAL) >= euf.mageslegacy.bloodkin.Bloodkin.PRINCE_HEAL
 					&& p.getInt(euf.mageslegacy.bloodkin.Bloodkin.SACRIFICES) >= euf.mageslegacy.bloodkin.Bloodkin.PRINCE_SACRIFICES;
+			// The Mercenaries': Brands blown and hunts done; contracts of every errand and tokens spent; contracts of all
+			// three kinds and blows on the quarry
+			case AWAKENING_VERDICT -> p.getInt(euf.mageslegacy.mercenary.Mercenary.T_BLASTS) >= euf.mageslegacy.mercenary.Mercenary.VERDICT_TRIAL_BLASTS && p.getInt(euf.mageslegacy.mercenary.Mercenary.T_HUNTS) >= euf.mageslegacy.mercenary.Mercenary.VERDICT_TRIAL_HUNTS;
+			case AWAKENING_RANSOM -> p.getInt(euf.mageslegacy.mercenary.Mercenary.T_CONTRACTS) >= euf.mageslegacy.mercenary.Mercenary.RANSOM_TRIAL_CONTRACTS && p.getInt(euf.mageslegacy.mercenary.Mercenary.T_KIND + "deliver") >= 1
+					&& p.getInt(euf.mageslegacy.mercenary.Mercenary.T_KIND + "explore") >= 1 && p.getInt(euf.mageslegacy.mercenary.Mercenary.T_SPENT) >= euf.mageslegacy.mercenary.Mercenary.RANSOM_TRIAL_SPENT;
+			case AWAKENING_LEGEND -> p.getInt(euf.mageslegacy.mercenary.Mercenary.T_CONTRACTS) >= euf.mageslegacy.mercenary.Mercenary.LEGEND_TRIAL_CONTRACTS && p.getInt(euf.mageslegacy.mercenary.Mercenary.T_KIND + "hunt") >= 1
+					&& p.getInt(euf.mageslegacy.mercenary.Mercenary.T_KIND + "deliver") >= 1 && p.getInt(euf.mageslegacy.mercenary.Mercenary.T_KIND + "explore") >= 1 && p.getInt(euf.mageslegacy.mercenary.Mercenary.T_HUNT_DAMAGE) >= euf.mageslegacy.mercenary.Mercenary.LEGEND_TRIAL_DAMAGE;
 			default -> false;
 		};
 	}

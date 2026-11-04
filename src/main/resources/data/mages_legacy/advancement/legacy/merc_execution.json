@@ -1,0 +1,26 @@
+{
+  "parent": "mages_legacy:legacy/merc_combo",
+  "display": {
+    "icon": {
+      "id": "minecraft:golden_sword"
+    },
+    "title": {
+      "translate": "mages_legacy.advancement.merc_execution.title"
+    },
+    "description": {
+      "translate": "mages_legacy.advancement.merc_execution.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "deed": {
+      "trigger": "mages_legacy:deed",
+      "conditions": {
+        "deed": "merc_execution"
+      }
+    }
+  }
+}

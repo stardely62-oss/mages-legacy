@@ -122,6 +122,9 @@ public final class Progression {
 				addXp(player, HUNT, 8, 80);
 			}
 			addXp(player, KILLS, Voidborn.inDarkOrEnd(player) ? 2 : 1, 60);
+		} else if (RaceState.is(player, Race.MERCENARY)) {
+			// A Mercenary grows by contracts: random kills teach a quarter as much
+			addXp(player, KILLS, 1, 15);
 		} else {
 			addXp(player, KILLS, 1, 60);
 		}
