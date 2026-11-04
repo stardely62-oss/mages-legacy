@@ -46,7 +46,11 @@ public enum Ability {
 
 	public static final int SLOTS = 5;
 	/** Key names as they stand by default, for the HUD and the choice screen. */
-	public static final String[] KEY_NAMES = {"R", "V", "Z", "H", "Alt"};
+	/** The default keys by slot (what a fresh game binds; the bound key itself is shown where the client knows it). */
+	public static final String[] KEY_NAMES = {"G", "V", "Z", "H", "Alt"};
+	/** The key mappings by slot, for messages the client resolves to whatever key is bound ({@code Component.keybind}). */
+	public static final String[] KEY_IDS = {"key.mages_legacy.ability_r", "key.mages_legacy.ability_v", "key.mages_legacy.ability_z",
+			"key.mages_legacy.ability_h", "key.mages_legacy.ability_alt"};
 
 	public final Race race;
 	public final int slot;

@@ -192,7 +192,7 @@ public final class RaceHud {
 			String secs = String.valueOf((cooldown + 19) / 20);
 			graphics.drawString(font, secs, x + (SLOT - font.width(secs)) / 2, y + 7, 0xFFFFFFFF);
 		}
-		LegacyUi.keyCap(graphics, Ability.KEY_NAMES[key], x + SLOT + 1, y + SLOT + 2, cooldown > 0 ? LegacyUi.MUTED : LegacyUi.GOLD);
+		LegacyUi.keyCap(graphics, keyShort(key), x + SLOT + 1, y + SLOT + 2, cooldown > 0 ? LegacyUi.MUTED : LegacyUi.GOLD);
 		// Through Worlds' charges: a small gem for each, lit while ready
 		if (ability == Ability.PASSAGE && state.chargesMax() > 1) {
 			for (int i = 0; i < state.chargesMax(); i++) {
@@ -233,5 +233,26 @@ public final class RaceHud {
 
 	static Component keyName(int slot) {
 		return MagesLegacyClient.ABILITY_KEYS[slot].getTranslatedKeyMessage();
+	}
+
+	/**
+	 * The key actually bound to a slot, short enough for a key cap: a letter as it is, "Left Alt" as "Alt", a mouse
+	 * button as M4; unbound, a dash.
+	 */
+	public static String keyShort(int slot) {
+		var mapping = MagesLegacyClient.ABILITY_KEYS[slot];
+		if (mapping.isUnbound()) {
+			return "-";
+		}
+		String name = mapping.getTranslatedKeyMessage().getString().trim();
+		if (name.length() <= 3) {
+			return name;
+		}
+		String[] words = name.split(" ");
+		String last = words[words.length - 1];
+		if (last.matches("\\d+")) {
+			return "M" + last;
+		}
+		return last.length() <= 4 ? last : last.substring(0, 3);
 	}
 }

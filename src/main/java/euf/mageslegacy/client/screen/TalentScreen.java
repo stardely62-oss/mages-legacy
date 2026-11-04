@@ -464,7 +464,7 @@ public class TalentScreen extends Screen {
 				}
 				graphics.drawString(font, String.valueOf(a.cost), cx, y + 13, LegacyUi.mix(color, 0xFFFFFFFF, 0.3f));
 			}
-			LegacyUi.keyCap(graphics, euf.mageslegacy.race.Ability.KEY_NAMES[keys.get(i)], x + tileW - 4, y + 20, 0xFFFFFFFF);
+			LegacyUi.keyCap(graphics, euf.mageslegacy.client.RaceHud.keyShort(keys.get(i)), x + tileW - 4, y + 20, 0xFFFFFFFF);
 		}
 		return hovered;
 	}
