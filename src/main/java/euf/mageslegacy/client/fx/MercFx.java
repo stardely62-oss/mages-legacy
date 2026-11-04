@@ -814,7 +814,7 @@ public final class MercFx {
 					alpha *= 1 - t * t;
 					len *= 1 - 0.4f * t;
 				}
-				sword(draw, at.add(dir.scale(len * 0.5)), dir, len, 1, alpha, GLINT);
+				sword(draw, at.add(dir.scale(len * 0.5)), dir, len, 0.82f, alpha, 0);
 			}
 		}
 	}
@@ -876,7 +876,7 @@ public final class MercFx {
 		static final int GATHER = 8;
 		static final int HANG = 5;
 		static final int FALL = 3;
-		static final int STAND = 14;
+		static final int STAND = 22;
 
 		Executioner(Entity body, VerdictSeal seal) {
 			super(GATHER + HANG + FALL + STAND + 8);

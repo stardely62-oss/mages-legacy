@@ -2611,12 +2611,14 @@ final class Harness {
 		run(() -> check("the Verdict on the golem in sight (" + euf.mageslegacy.mercenary.Mercenary.condemned(player()) + ")",
 				mercMobs[0].getUUID().equals(euf.mageslegacy.mercenary.Mercenary.condemned(player()))), 0);
 		for (int i = 0; i < 12; i++) {
-			run(() -> server().execute(() -> player().attack(mercMobs[0])), 20);
+			// The sixth blow: filmed from the blow on (the great sword forms, falls, stands and crumbles)
+			int n = i;
+			run(() -> server().execute(() -> player().attack(mercMobs[0])), n == 5 ? 1 : 20);
 			if (i == 1) {
-				film("merc_verdict_circle", 4, 3);
+				film("merc_verdict_circle", 3, 3);
 			}
 			if (i == 5) {
-				film("merc_verdict", 8, 2);
+				film("merc_verdict", 12, 3);
 			}
 		}
 		run(() -> {

@@ -282,11 +282,8 @@ public class GuildBookScreen extends Screen {
 		com.mojang.blaze3d.systems.RenderSystem.setShaderColor(shade, shade, shade, front);
 		// The left leaf on its hinge at the doorway's left post; the right one mirrored on the right post
 		g.blit(DOOR_LEAF, cx - leafW, top, leaf, leafH, 0, 0, wh[0], wh[1], wh[0], wh[1]);
-		g.pose().pushPose();
-		g.pose().translate(cx + leafW, top, 0);
-		g.pose().scale(-1, 1, 1);
-		g.blit(DOOR_LEAF, 0, 0, leaf, leafH, 0, 0, wh[0], wh[1], wh[0], wh[1]);
-		g.pose().popPose();
+		// Mirrored by its texture coordinates running backwards (a flipped quad would be culled)
+		g.blit(DOOR_LEAF, cx + leafW - leaf, top, leaf, leafH, wh[0], 0, -wh[0], wh[1], wh[0], wh[1]);
 		com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1, 1, 1, 1);
 	}
 
@@ -425,7 +422,9 @@ public class GuildBookScreen extends Screen {
 		int iw = bw - 2 * padX;
 		int ih = bh - 2 * padY;
 		Component title = Component.translatable("mages_legacy.merc.shop.services");
-		small(g, title.getString(), bx + (bw - (int) (font.width(title) * 0.75f)) / 2, by + Math.max(2, padY / 2 - 3), 0xFFFFE0A8);
+		int tw = (int) (font.width(title) * 0.75f);
+		g.fill(bx + (bw - tw) / 2 - 3, by - 9, bx + (bw + tw) / 2 + 3, by - 1, 0xC0201208);
+		small(g, title.getString(), bx + (bw - tw) / 2, by - 7, 0xFFFFE0A8);
 		List<CompoundTag> services = wares(true);
 		int cols = 2;
 		int cellW = iw / cols;
@@ -478,10 +477,10 @@ public class GuildBookScreen extends Screen {
 		int counterH = Math.min(heightAt(COUNTER, w), (floor - y) * 62 / 100);
 		int topY = floor - counterH;
 		// The keeper, half hidden by the counter; the eyes blink now and then
-		int kw = w * 36 / 100;
+		int kw = w * 46 / 100;
 		int kh = heightAt(KEEPER, kw);
 		int kx = x + w - kw - w * 4 / 100;
-		int ky = topY - kh + kh * 30 / 100;
+		int ky = topY - kh + kh * 38 / 100;
 		picture(g, KEEPER, kx, ky, kw, kh);
 		float t = LegacyUi.time();
 		// The lantern hanging on the left, its light flickering on the wall
@@ -505,7 +504,9 @@ public class GuildBookScreen extends Screen {
 		int inHand = view.getList("active", Tag.TAG_COMPOUND).size();
 		Component label = Component.translatable("mages_legacy.merc.shop.orders", inHand, view.getInt("hand"));
 		int lwidth = (int) (font.width(label) * 0.75f);
-		small(g, label.getString(), bx + (bw - lwidth) / 2, topY + counterH / 2, 0xFFFFE0A8);
+		int ly0 = topY + counterH * 55 / 100;
+		g.fill(bx + (bw - lwidth) / 2 - 3, ly0 - 2, bx + (bw + lwidth) / 2 + 3, ly0 + 7, 0xC0201208);
+		small(g, label.getString(), bx + (bw - lwidth) / 2, ly0, 0xFFFFE0A8);
 		hots.add(new Hot(bx, by - 2, bx + bw, by + bh, () -> turn(0), List.of(Component.translatable("mages_legacy.merc.shop.orders_tip")
 				.withStyle(ChatFormatting.GRAY)), null));
 		// The pouch on the counter: the balance
