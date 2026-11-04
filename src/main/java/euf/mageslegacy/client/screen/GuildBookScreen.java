@@ -424,9 +424,11 @@ public class GuildBookScreen extends Screen {
 			int barX = x + 6;
 			int barW = w - 12;
 			int barY = y + 26;
-			g.fill(barX, barY, barX + barW, barY + 6, 0x40000000);
-			int fill = Math.round(barW * Math.min(1, progress / (float) amount));
-			g.fillGradient(barX, barY, barX + fill, barY + 6, 0xFFE2B04A, 0xFFA0602A);
+			if (!"explore".equals(kind)) {
+				g.fill(barX, barY, barX + barW, barY + 6, 0x40000000);
+				int fill = Math.round(barW * Math.min(1, progress / (float) amount));
+				g.fillGradient(barX, barY, barX + fill, barY + 6, 0xFFE2B04A, 0xFFA0602A);
+			}
 			String count = progress + "/" + amount;
 			Component extra = Component.empty();
 			if ("explore".equals(kind)) {

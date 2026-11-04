@@ -964,7 +964,10 @@ public final class Mercenary {
 		Fx.door(level, player.position().add(look.scale(2.6)), player.getYRot(), 6000);
 		level.playSound(null, player.blockPosition(), SoundEvents.WOODEN_DOOR_OPEN, SoundSource.PLAYERS, 1, 0.6f);
 		level.playSound(null, player.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1, 1.2f);
-		PacketDistributor.sendToPlayer(player, new MercViewPayload(view(player, a)));
+		CompoundTag view = view(player, a);
+		// Only the key opens the book; every other answer only brings an open one up to date
+		view.putBoolean("open", true);
+		PacketDistributor.sendToPlayer(player, new MercViewPayload(view));
 		return null;
 	}
 

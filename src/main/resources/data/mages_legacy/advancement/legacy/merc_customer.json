@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/merc_first_contract",
   "display": {
     "icon": {
-      "id": "minecraft:gold_nugget"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 69
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.merc_customer.title"

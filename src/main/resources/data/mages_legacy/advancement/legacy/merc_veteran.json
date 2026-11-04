@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/merc_elite",
   "display": {
     "icon": {
-      "id": "minecraft:filled_map"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 71
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.merc_veteran.title"

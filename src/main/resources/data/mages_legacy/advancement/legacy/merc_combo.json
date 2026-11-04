@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/merc_first_blast",
   "display": {
     "icon": {
-      "id": "minecraft:chain"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 74
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.merc_combo.title"

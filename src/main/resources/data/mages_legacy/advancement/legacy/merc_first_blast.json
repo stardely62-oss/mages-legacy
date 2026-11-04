@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/merc_first_brand",
   "display": {
     "icon": {
-      "id": "minecraft:fire_charge"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 73
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.merc_first_blast.title"

@@ -99,7 +99,7 @@ public class MagesLegacyClient {
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.screen instanceof euf.mageslegacy.client.screen.GuildBookScreen book) {
 			book.update(view);
-		} else {
+		} else if (view.getBoolean("open")) {
 			mc.setScreen(new euf.mageslegacy.client.screen.GuildBookScreen(view));
 		}
 	}

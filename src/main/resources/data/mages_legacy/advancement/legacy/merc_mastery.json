@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/merc_first_awakening",
   "display": {
     "icon": {
-      "id": "minecraft:beacon"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 65
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.merc_mastery.title"

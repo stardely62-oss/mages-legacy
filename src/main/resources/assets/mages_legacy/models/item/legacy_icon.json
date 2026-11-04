@@ -357,6 +357,120 @@
         "custom_model_data": 59
       },
       "model": "mages_legacy:item/legacy/blood_scarlet"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 60
+      },
+      "model": "mages_legacy:item/legacy/merc_root"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 61
+      },
+      "model": "mages_legacy:item/legacy/merc_gift"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 62
+      },
+      "model": "mages_legacy:item/legacy/merc_first_choice"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 63
+      },
+      "model": "mages_legacy:item/legacy/merc_cross"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 64
+      },
+      "model": "mages_legacy:item/legacy/merc_first_awakening"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 65
+      },
+      "model": "mages_legacy:item/legacy/merc_mastery"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 66
+      },
+      "model": "mages_legacy:item/legacy/merc_double"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 67
+      },
+      "model": "mages_legacy:item/legacy/merc_peak"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 68
+      },
+      "model": "mages_legacy:item/legacy/merc_first_contract"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 69
+      },
+      "model": "mages_legacy:item/legacy/merc_customer"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 70
+      },
+      "model": "mages_legacy:item/legacy/merc_elite"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 71
+      },
+      "model": "mages_legacy:item/legacy/merc_veteran"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 72
+      },
+      "model": "mages_legacy:item/legacy/merc_first_brand"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 73
+      },
+      "model": "mages_legacy:item/legacy/merc_first_blast"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 74
+      },
+      "model": "mages_legacy:item/legacy/merc_combo"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 75
+      },
+      "model": "mages_legacy:item/legacy/merc_execution"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 76
+      },
+      "model": "mages_legacy:item/legacy/merc_debt_paid"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 77
+      },
+      "model": "mages_legacy:item/legacy/merc_ransom"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 78
+      },
+      "model": "mages_legacy:item/legacy/merc_legend"
     }
   ]
 }

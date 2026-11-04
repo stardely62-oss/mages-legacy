@@ -425,14 +425,14 @@ public final class MercFx {
 			float half = (0.32f + Math.min(0.25f, body.getBbWidth() * 0.18f)) * open;
 			Vec3 at = top(body, partial);
 			double spin = life * 0.03;
-			billboard(draw, SEAL, at, half, spin, 1, 0.55f * fade, 0.35f);
+			billboard(draw, SEAL, at, half, spin, 1, 0.55f * fade, 0.12f);
 			double step = Math.PI * 2 / max;
 			for (int k = 0; k < max; k++) {
 				boolean lit = k < charges;
 				float pop = lit && k == charges - 1 ? Math.max(0, 1 - (life - popAt) / 6f) : 0;
 				// The part's texture covers a quarter from the top: turn it to its place
 				double roll = -(spin + k * step) - (max == 3 ? Math.PI / 12 : 0);
-				billboard(draw, SEAL_PART, at, half * (1 + 0.25f * pop), roll, lit ? 1 : 0.5f, (lit ? 0.95f : 0.25f) * fade, lit ? 1.0f + pop : 0);
+				billboard(draw, SEAL_PART, at, half * (1 + 0.25f * pop), roll, lit ? 1 : 0.5f, (lit ? 0.95f : 0.25f) * fade, lit ? 0.35f + 0.6f * pop : 0);
 			}
 		}
 	}
@@ -466,14 +466,14 @@ public final class MercFx {
 			if (life < 5) {
 				float t = life / 5f;
 				float half = 0.7f * (1 - t * t);
-				billboard(draw, SEAL, at, half, life * 0.6, 1, 0.9f, 1.0f);
+				billboard(draw, SEAL, at, half, life * 0.6, 1, 0.9f, 0.4f);
 				for (int k = 0; k < 3; k++) {
-					billboard(draw, SEAL_PART, at, half, -life * 0.6 - k * 2.094, 1, 0.9f, 1.2f);
+					billboard(draw, SEAL_PART, at, half, -life * 0.6 - k * 2.094, 1, 0.9f, 0.6f);
 				}
 			}
 			float t = Math.max(0, (life - 4) / 10f);
 			if (life >= 4) {
-				billboard(draw, FLARE, at, 0.6f + 1.1f * VoidRender.easeOut(t), 0, 1, (1 - t) * (1 - t), 1.4f);
+				billboard(draw, FLARE, at, 0.3f + 0.5f * VoidRender.easeOut(t), 0, 1, (1 - t) * (1 - t) * 0.7f, 0.6f);
 			}
 		}
 	}
@@ -592,8 +592,8 @@ public final class MercFx {
 				Vec3 p0 = hand.add(along.scale(s0)).add(0, -Math.sin(Math.PI * s0) * slack * length * 0.25, 0);
 				Vec3 p1 = hand.add(along.scale(s1)).add(0, -Math.sin(Math.PI * s1) * slack * length * 0.25, 0);
 				Vec3 c = p0.lerp(p1, 0.5);
-				Vec3 d = p1.subtract(p0).scale(0.5 * 1.25);
-				Vec3 across = (i % 2 == 0 ? side : other).scale(0.07);
+				Vec3 d = p1.subtract(p0).scale(0.5 * 1.3);
+				Vec3 across = (i % 2 == 0 ? side : other).scale(0.1);
 				// A shimmer runs along a taut chain: the metal edges catch the light in turn
 				float shine = 0.75f + 0.25f * (float) Math.sin(life * 0.9 - i * 0.6) * strain;
 				draw.paint(LINK, c, d, across, shine, shine * 0.92f, shine * 0.8f, 0.95f, 0.45f + 0.35f * strain);
@@ -1040,7 +1040,7 @@ public final class MercFx {
 			Vec3 side = new Vec3(Math.cos(rad), 0, Math.sin(rad));
 			float h = 1.4f * open;
 			Vec3 centre = new Vec3(at.x, BloodFx.groundY(at) + h, at.z);
-			draw.paint(DOOR, centre, side.scale(0.75f), new Vec3(0, -h, 0), 1, 1, 1, 0.85f * open, 0.9f);
+			draw.paint(DOOR, centre, side.scale(0.75f), new Vec3(0, -h, 0), 1, 0.9f, 0.75f, 0.7f * open, 0.3f);
 			decal(draw, SIGIL, new Vec3(at.x, BloodFx.groundY(at) + 0.03, at.z), 1.0f * open, life * 0.02, 1, 0.5f * open, 0.4f);
 		}
 	}

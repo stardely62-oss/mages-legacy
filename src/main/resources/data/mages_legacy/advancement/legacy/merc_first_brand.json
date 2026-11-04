@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/merc_root",
   "display": {
     "icon": {
-      "id": "minecraft:spectral_arrow"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 72
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.merc_first_brand.title"

@@ -2,7 +2,10 @@
   "parent": "mages_legacy:legacy/merc_debt_paid",
   "display": {
     "icon": {
-      "id": "minecraft:totem_of_undying"
+      "id": "mages_legacy:legacy_icon",
+      "components": {
+        "minecraft:custom_model_data": 77
+      }
     },
     "title": {
       "translate": "mages_legacy.advancement.merc_ransom.title"
