@@ -319,7 +319,7 @@ public class RaceSelectScreen extends Screen {
 			if (LegacyUi.exists(icon)) {
 				LegacyUi.icon(graphics, icon, cx - 8, ty + 4, 16, true);
 			}
-			LegacyUi.keyCap(graphics, Ability.KEY_NAMES[ability.slot], tx + tileW - 2, ty + 13, LegacyUi.GOLD);
+			LegacyUi.keyCap(graphics, euf.mageslegacy.client.RaceHud.keyShort(ability.slot), tx + tileW - 2, ty + 13, LegacyUi.GOLD);
 			String name = Component.translatable(ability.key() + ".name").getString();
 			graphics.drawCenteredString(font, font.plainSubstrByWidth(name, tileW - 4), cx, ty + 23, LegacyUi.GOLD);
 		}
@@ -347,7 +347,7 @@ public class RaceSelectScreen extends Screen {
 	private List<Component> abilityTooltip(Ability ability) {
 		List<Component> lines = new ArrayList<>();
 		lines.add(Component.translatable(ability.key() + ".name").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
-		lines.add(Component.translatable("mages_legacy.screen.ability_meta", ability.level, Ability.KEY_NAMES[ability.slot], ability.cost,
+		lines.add(Component.translatable("mages_legacy.screen.ability_meta", ability.level, euf.mageslegacy.client.RaceHud.keyShort(ability.slot), ability.cost,
 				ability.cooldown / 20).withStyle(ChatFormatting.DARK_PURPLE));
 		if (I18n.exists(ability.key() + ".lore")) {
 			wrapInto(lines, Component.translatable(ability.key() + ".lore").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));

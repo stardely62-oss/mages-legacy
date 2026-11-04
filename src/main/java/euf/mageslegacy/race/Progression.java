@@ -106,7 +106,7 @@ public final class Progression {
 			for (Ability ability : Ability.of(race)) {
 				if (ability.level == level) {
 					player.displayClientMessage(Component.translatable("mages_legacy.message.unlocked", Component.translatable(ability.key() + ".name"),
-							Ability.KEY_NAMES[ability.slot]).withStyle(ChatFormatting.GOLD), false);
+							Component.keybind(Ability.KEY_IDS[ability.slot])).withStyle(ChatFormatting.GOLD), false);
 				}
 			}
 		});
